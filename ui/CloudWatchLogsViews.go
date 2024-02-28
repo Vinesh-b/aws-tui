@@ -98,7 +98,7 @@ func populateLogEventsTable(table *tview.Table, data []types.OutputLogEvent, ext
 	table.ScrollToBeginning()
 }
 
-func createLogItemsTable(
+func createLogEventsTable(
 	params tableCreationParams,
 	api *cloudwatchlogs.CloudWatchLogsApi,
 ) (*tview.Table, func(groupName string, streamName string, extend bool)) {
@@ -134,7 +134,7 @@ func NewLogEventsView(
 ) *LogEventsView {
 	var (
 		params                                = tableCreationParams{app, logger}
-		logEventsTable, refreshLogEventsTable = createLogItemsTable(params, api)
+		logEventsTable, refreshLogEventsTable = createLogEventsTable(params, api)
 	)
 
 	var expandedLogsView = tview.NewTextArea().SetSelectedStyle(
