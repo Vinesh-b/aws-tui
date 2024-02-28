@@ -98,12 +98,17 @@ func createTextArea(title string) *tview.TextArea {
 func createExpandedLogView(
 	app *tview.Application,
 	table *tview.Table,
-	colIdx int,
+	fixedColIdx int,
 ) *tview.TextArea {
 	var expandedView = createTextArea("Message")
 
 	table.SetSelectionChangedFunc(func(row, column int) {
-		var privateData = table.GetCell(row, colIdx).Reference
+		var col = column
+		if fixedColIdx >= 0 {
+			col = fixedColIdx
+		}
+
+		var privateData = table.GetCell(row, col).Reference
 		if row < 1 || privateData == nil {
 			return
 		}
