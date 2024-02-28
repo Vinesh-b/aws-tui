@@ -137,7 +137,9 @@ func NewLogEventsView(
 		logEventsTable, refreshLogEventsTable = createLogItemsTable(params, api)
 	)
 
-	var expandedLogsView = tview.NewTextArea()
+	var expandedLogsView = tview.NewTextArea().SetSelectedStyle(
+		tcell.Style{}.Background(tview.Styles.MoreContrastBackgroundColor),
+	)
 	expandedLogsView.
 		SetBorder(true).
 		SetTitle("Message").
