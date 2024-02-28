@@ -230,11 +230,7 @@ func NewAlarmsDetailsView(
 		go refreshAlarmHistory(name)
 	})
 
-	var inputField = tview.NewInputField().
-		SetLabel(" Search Alarms: ").
-		SetFieldWidth(64)
-	inputField.SetBorder(true)
-
+	var inputField = createSearchInput("Alarms")
 	inputField.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:

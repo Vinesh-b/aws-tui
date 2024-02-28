@@ -60,6 +60,19 @@ type view interface {
 	SetFocusFunc(callback func()) *tview.Box
 }
 
+func createSearchInput(label string) *tview.InputField {
+	var inputField = tview.NewInputField().
+		SetLabel(fmt.Sprintf("%s ", label)).
+		SetFieldWidth(0)
+	inputField.
+		SetBorder(true).
+		SetBorderPadding(0, 0, 1, 1).
+		SetTitle("Search").
+		SetTitleAlign(tview.AlignLeft)
+
+	return inputField
+}
+
 func initViewNavigation(
 	app *tview.Application,
 	rootView rootView,

@@ -162,11 +162,7 @@ func NewS3bucketsDetailsView(
 		app.SetFocus(objectsTable)
 	})
 
-	var inputField = tview.NewInputField().
-		SetLabel(" Search Buckets: ").
-		SetFieldWidth(0)
-	inputField.SetBorder(true)
-
+	var inputField = createSearchInput("Buckets")
 	inputField.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:

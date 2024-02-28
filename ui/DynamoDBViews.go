@@ -214,11 +214,7 @@ func NewDynamoDBDetailsView(
 		detailsTable, refreshDetailsTable = createDynamoDBTableDetailsTable(params, api)
 	)
 
-	var inputField = tview.NewInputField().
-		SetLabel(" Search Tables: ").
-		SetFieldWidth(64)
-	inputField.SetBorder(true)
-
+	var inputField = createSearchInput("Tables")
 	inputField.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
@@ -318,11 +314,7 @@ func NewDynamoDBTableItemsView(
 		itemsTable, refreshItemsTable = createDynamoDBItemsTable(params, api)
 	)
 
-	var inputField = tview.NewInputField().
-		SetLabel(" Search Tables: ").
-		SetFieldWidth(64)
-	inputField.SetBorder(true)
-
+	var inputField = createSearchInput("Item")
 	inputField.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:

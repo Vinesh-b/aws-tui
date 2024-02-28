@@ -165,10 +165,7 @@ func NewLogEventsView(
 		app.SetFocus(expandedLogsView)
 	})
 
-	var inputField = tview.NewInputField().
-		SetLabel(" Search Log Events: ").
-		SetFieldWidth(64)
-	inputField.SetBorder(true)
+	var inputField = createSearchInput("Log Events")
 	inputField.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
@@ -275,11 +272,7 @@ func NewLogStreamsView(
 		logStreamsTable, refreshLogStreamTable = createLogStreamsTable(params, api)
 	)
 
-	var inputField = tview.NewInputField().
-		SetLabel(" Search Stream Prefix: ").
-		SetFieldWidth(64)
-	inputField.SetBorder(true)
-
+	var inputField = createSearchInput("Stream Prefix")
 	inputField.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
@@ -387,11 +380,7 @@ func NewLogGroupsView(
 	var params = tableCreationParams{app, logger}
 	var logGroupsTable, refreshLogGroupsTable = createLogGroupsTable(params, api)
 
-	var inputField = tview.NewInputField().
-		SetLabel(" Search Log Groups: ").
-		SetFieldWidth(64)
-	inputField.SetBorder(true)
-
+	var inputField = createSearchInput("Log Groups")
 	inputField.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:

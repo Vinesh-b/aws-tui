@@ -166,11 +166,7 @@ func NewStacksDetailsView(
 		app.SetFocus(stacksDetails)
 	})
 
-	var inputField = tview.NewInputField().
-		SetLabel(" Search Stacks: ").
-		SetFieldWidth(64)
-	inputField.SetBorder(true)
-
+	var inputField = createSearchInput("Stacks")
 	inputField.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
@@ -303,11 +299,7 @@ func NewStackEventsView(
 		expandedMsgView.SetText(logText, false)
 	})
 
-	var inputField = tview.NewInputField().
-		SetLabel(" Search Events: ").
-		SetFieldWidth(64)
-	inputField.SetBorder(true)
-
+	var inputField = createSearchInput("Events")
 	inputField.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:

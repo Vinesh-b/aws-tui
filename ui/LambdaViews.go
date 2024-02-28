@@ -162,11 +162,7 @@ func NewLambdasDetailsView(
 		app.SetFocus(lambdaDetails)
 	})
 
-	var inputField = tview.NewInputField().
-		SetLabel(" Search Lambdas: ").
-		SetFieldWidth(64)
-	inputField.SetBorder(true)
-
+	var inputField = createSearchInput("Lambdas")
 	inputField.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
