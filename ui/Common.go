@@ -100,21 +100,35 @@ func initViewNavigation(
 	})
 }
 
-type pageInfoView struct {
+type paginatorView struct {
 	PageCounterView *tview.TextView
+	PageNameView    *tview.TextView
 	RootView        *tview.Flex
 }
 
-func createPaginatorView() pageInfoView {
-
+func createPaginatorView(service string) paginatorView {
 	var pageCount = tview.NewTextView().
+		SetTextAlign(tview.AlignRight).
+		SetTextColor(tertiaryTextColor)
+
+	var pageName = tview.NewTextView().
 		SetTextAlign(tview.AlignCenter).
 		SetTextColor(tertiaryTextColor)
-	pageCount.SetBorderPadding(0, 0, 1, 1)
+
+	var serviceName = tview.NewTextView().
+		SetTextAlign(tview.AlignLeft).
+		SetTextColor(tertiaryTextColor).
+        SetText(service)
+
 	var rootView = tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(serviceName, 0, 1, false).
+		AddItem(pageName, 0, 1, false).
 		AddItem(pageCount, 0, 1, false)
-	return pageInfoView{
+	rootView.SetBorderPadding(0, 0, 1, 1)
+
+	return paginatorView{
 		PageCounterView: pageCount,
+		PageNameView:    pageName,
 		RootView:        rootView,
 	}
 }
@@ -124,24 +138,28 @@ func initPageNavigation(
 	pages *tview.Pages,
 	pageIdx *int,
 	orderedPageNames []string,
-	paginationView *tview.TextView,
+	paginatorview paginatorView,
 ) {
 	var numPages = len(orderedPageNames)
-	paginationView.SetText(fmt.Sprintf("<%d/%d>", *pageIdx+1, numPages))
+
+	var changePage = func(pageIdx int) {
+		var pageName = orderedPageNames[pageIdx]
+		pages.SwitchToPage(pageName)
+		paginatorview.PageNameView.SetText(pageName)
+		paginatorview.PageCounterView.SetText(fmt.Sprintf("<%d/%d>", pageIdx+1, numPages))
+	}
+
+	changePage(0)
 
 	pages.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlH:
 			*pageIdx = (*pageIdx - 1 + numPages) % numPages
-			var pageName = orderedPageNames[*pageIdx]
-			pages.SwitchToPage(pageName)
-			paginationView.SetText(fmt.Sprintf("<%d/%d>", *pageIdx+1, numPages))
+			changePage(*pageIdx)
 			return nil
 		case tcell.KeyCtrlL:
 			*pageIdx = (*pageIdx + 1) % numPages
-			var pageName = orderedPageNames[*pageIdx]
-			pages.SwitchToPage(pageName)
-			paginationView.SetText(fmt.Sprintf("<%d/%d>", *pageIdx+1, numPages))
+			changePage(*pageIdx)
 			return nil
 		}
 		return event

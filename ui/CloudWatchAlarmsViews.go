@@ -299,12 +299,12 @@ func createAlarmsHomeView(
 		"Alarms",
 	}
 
-	var paginationView = createPaginatorView()
+	var paginationView = createPaginatorView(string(CLOUDWATCH_ALARMS))
 	var rootView = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(pages, 0, 1, true).
 		AddItem(paginationView.RootView, 1, 0, false)
 
-	initPageNavigation(app, pages, &pagesNavIdx, orderedPages, paginationView.PageCounterView)
+	initPageNavigation(app, pages, &pagesNavIdx, orderedPages, paginationView)
 
 	return rootView
 }

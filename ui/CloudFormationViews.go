@@ -382,12 +382,12 @@ func createStacksHomeView(
 		"Events",
 	}
 
-	var paginationView = createPaginatorView()
+	var paginationView = createPaginatorView(string(CLOUDFORMATION))
 	var rootView = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(pages, 0, 1, true).
 		AddItem(paginationView.RootView, 1, 0, false)
 
-	initPageNavigation(app, pages, &pagesNavIdx, orderedPages, paginationView.PageCounterView)
+	initPageNavigation(app, pages, &pagesNavIdx, orderedPages, paginationView)
 
 	var switchAndFocus = func(pageIdx int, view tview.Primitive) {
 		pagesNavIdx = pageIdx

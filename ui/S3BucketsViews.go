@@ -248,12 +248,12 @@ func createS3bucketsHomeView(
 		"S3Buckets",
 	}
 
-	var paginationView = createPaginatorView()
+	var paginationView = createPaginatorView(string(S3BUCKETS))
 	var rootView = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(pages, 0, 1, true).
 		AddItem(paginationView.RootView, 1, 0, false)
 
-	initPageNavigation(app, pages, &pagesNavIdx, orderedPages, paginationView.PageCounterView)
+	initPageNavigation(app, pages, &pagesNavIdx, orderedPages, paginationView)
 
 	s3DetailsView.InitInputCapture()
 	s3DetailsView.InitBucketSelectedCallback()

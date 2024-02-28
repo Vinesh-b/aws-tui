@@ -357,9 +357,9 @@ func NewDynamoDBTableItemsView(
 	initViewNavigation(app, ddbDetailsView, &viewNavIdx,
 		[]view{
 			inputField,
-            runQueryBtn,
-            skQueryValInput,
-            pkQueryValInput,
+			runQueryBtn,
+			skQueryValInput,
+			pkQueryValInput,
 			itemsTable,
 		},
 	)
@@ -439,21 +439,21 @@ func createDynamoDBHomeView(
 
 	var pages = tview.NewPages()
 	pages.
-		AddPage("TableItems", ddbItemsView.RootView, true, true).
-		AddPage("Home", ddbDetailsView.RootView, true, true)
+		AddPage("Items", ddbItemsView.RootView, true, true).
+		AddPage("Tables", ddbDetailsView.RootView, true, true)
 
 	var pagesNavIdx = 0
 	var orderedPages = []string{
-		"Home",
-		"TableItems",
+		"Tables",
+		"Items",
 	}
 
-	var paginationView = createPaginatorView()
+	var paginationView = createPaginatorView(string(DYNAMODB))
 	var rootView = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(pages, 0, 1, true).
 		AddItem(paginationView.RootView, 1, 0, false)
 
-	initPageNavigation(app, pages, &pagesNavIdx, orderedPages, paginationView.PageCounterView)
+	initPageNavigation(app, pages, &pagesNavIdx, orderedPages, paginationView)
 
 	var switchAndFocus = func(pageIdx int, view tview.Primitive) {
 		pagesNavIdx = pageIdx
@@ -461,7 +461,7 @@ func createDynamoDBHomeView(
 		app.SetFocus(view)
 	}
 
-    var selectedTableName = ""
+	var selectedTableName = ""
 	ddbDetailsView.DDBTablesTable.SetSelectionChangedFunc(func(row, column int) {
 		if row < 1 {
 			return
@@ -481,7 +481,7 @@ func createDynamoDBHomeView(
 
 	var searchString = ""
 	ddbItemsView.InitSearchInputDoneCallback(&searchString)
-    ddbItemsView.InitQueryCallback(&selectedTableName, true)
+	ddbItemsView.InitQueryCallback(&selectedTableName, true)
 
 	return rootView
 }
