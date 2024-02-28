@@ -86,7 +86,7 @@ func createStacksTable(params tableCreationParams, api *cloudformation.CloudForm
 
 		go func() {
 			if len(search) > 0 {
-				//dataChannel <- api.FilterByName(search)
+				dataChannel <- api.FilterByName(search)
 			} else {
 				dataChannel <- api.ListStacks(reset)
 			}
