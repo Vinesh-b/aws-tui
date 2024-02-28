@@ -3,6 +3,7 @@ module aws-tui
 go 1.22.0
 
 require (
+	github.com/atotto/clipboard v0.1.4
 	github.com/aws/aws-sdk-go-v2 v1.25.2
 	github.com/aws/aws-sdk-go-v2/config v1.27.0
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.13.6

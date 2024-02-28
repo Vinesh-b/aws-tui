@@ -7,6 +7,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/atotto/clipboard"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -74,18 +75,32 @@ func createSearchInput(label string) *tview.InputField {
 	return inputField
 }
 
+func createTextArea(title string) *tview.TextArea {
+	var textArea = tview.NewTextArea().
+		SetClipboard(
+			func(s string) { clipboard.WriteAll(s) },
+			func() string {
+				var res, _ = clipboard.ReadAll()
+				return res
+			},
+		).
+		SetSelectedStyle(
+			tcell.Style{}.Background(moreContrastBackgroundColor),
+		)
+	textArea.
+		SetTitle(title).
+		SetTitleAlign(tview.AlignLeft).
+		SetBorder(true)
+
+	return textArea
+}
+
 func createExpandedLogView(
 	app *tview.Application,
 	table *tview.Table,
 	colIdx int,
 ) *tview.TextArea {
-	var expandedView = tview.NewTextArea().SetSelectedStyle(
-		tcell.Style{}.Background(moreContrastBackgroundColor),
-	)
-	expandedView.
-		SetBorder(true).
-		SetTitle("Message").
-		SetTitleAlign(tview.AlignLeft)
+	var expandedView = createTextArea("Message")
 
 	table.SetSelectionChangedFunc(func(row, column int) {
 		var privateData = table.GetCell(row, colIdx).Reference
