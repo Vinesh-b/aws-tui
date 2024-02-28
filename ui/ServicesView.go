@@ -9,18 +9,21 @@ type viewId string
 
 const (
 	LAMBDA            viewId = "Lambda"
-	CLOUDWATCH_LOGS   viewId = "CloudWatchLogs"
-	CLOUDWATCH_ALARMS viewId = "CloudWatchAlarms"
+	CLOUDWATCH_LOGS   viewId = "CloudWatch Logs"
+	CLOUDWATCH_ALARMS viewId = "CloudWatch Alarms"
 	CLOUDFORMATION    viewId = "CloudFormation"
 	DYNAMODB          viewId = "DynamoDB"
 
-	DEBUG_LOGS viewId = "DebugLogs"
+	HELP       viewId = "Help"
+	SETTINGS   viewId = "Settings"
+	DEBUG_LOGS viewId = "Debug Logs"
 )
 
 func servicesHomeView() *tview.List {
 	var servicesList = tview.NewList().
 		SetSecondaryTextColor(tcell.ColorGrey).
-		SetSelectedBackgroundColor(tview.Styles.MoreContrastBackgroundColor)
+		SetSelectedTextColor(tertiaryTextColor).
+		SetSelectedBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	servicesList.SetBorder(true)
 	servicesList.
 		AddItem(
@@ -48,11 +51,21 @@ func servicesHomeView() *tview.List {
 			" View Stacks",
 			rune('5'), nil,
 		).
-		AddItem("------------------------------", "", 0, nil).
+		AddItem("----------------------------------------", "", 0, nil).
+		AddItem(
+			string(HELP),
+			"󰘥 View help docs on how to use this app",
+			rune('?'), nil,
+		).
+		AddItem(
+			string(SETTINGS),
+			" Configire and tweak the app",
+			rune('s'), nil,
+		).
 		AddItem(
 			string(DEBUG_LOGS),
 			" View debug logs",
-			0, nil,
+			rune('0'), nil,
 		)
 
 	return servicesList
