@@ -47,7 +47,7 @@ func (inst *CloudWatchLogsApi) ListLogGroups(force bool) []types.LogGroup {
 		)
 
 		if err != nil {
-			log.Println(err)
+			inst.logger.Println(err)
 			break
 		}
 
@@ -107,7 +107,7 @@ func (inst *CloudWatchLogsApi) ListLogStreams(
 	var output, err = inst.logStreamsPaginator.NextPage(context.TODO())
 
 	if err != nil {
-		log.Println(err)
+		inst.logger.Println(err)
 		return empty
 	}
 
@@ -139,7 +139,7 @@ func (inst *CloudWatchLogsApi) ListLogEvents(
 
 	var output, err = inst.logEventsPaginator.NextPage(context.TODO())
 	if err != nil {
-		log.Println(err)
+		inst.logger.Println(err)
 		return empty
 	}
 
@@ -164,7 +164,7 @@ func (inst *CloudWatchLogsApi) ListFilteredLogEvents(
 	)
 
 	if err != nil {
-		log.Println(err)
+		inst.logger.Println(err)
 		var empty = make([]types.FilteredLogEvent, 0)
 		return empty, nil
 	}

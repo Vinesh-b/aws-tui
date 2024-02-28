@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/smithy-go/logging"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -48,18 +49,20 @@ func RenderUI(config aws.Config) {
 			log.Default().Prefix(),
 			log.Default().Flags(),
 		)
-
-		params       = tableCreationParams{app, inAppLogger}
-		serviceViews = map[viewId]tview.Primitive{
-			LAMBDA:            createLambdaHomeView(app, config, inAppLogger),
-			CLOUDWATCH_LOGS:   createLogsHomeView(app, config, inAppLogger),
-			CLOUDWATCH_ALARMS: createAlarmsHomeView(app, config, inAppLogger),
-			CLOUDFORMATION:    createStacksHomeView(app, config, inAppLogger),
-			DYNAMODB:          createDynamoDBHomeView(app, config, inAppLogger),
-
-			DEBUG_LOGS: errorTextArea,
-		}
+		params = tableCreationParams{app, inAppLogger}
 	)
+
+	config.Logger = logging.StandardLogger{Logger: inAppLogger}
+
+	var serviceViews = map[viewId]tview.Primitive{
+		LAMBDA:            createLambdaHomeView(app, config, inAppLogger),
+		CLOUDWATCH_LOGS:   createLogsHomeView(app, config, inAppLogger),
+		CLOUDWATCH_ALARMS: createAlarmsHomeView(app, config, inAppLogger),
+		CLOUDFORMATION:    createStacksHomeView(app, config, inAppLogger),
+		DYNAMODB:          createDynamoDBHomeView(app, config, inAppLogger),
+
+		DEBUG_LOGS: errorTextArea,
+	}
 
 	errorTextArea.
 		SetBorder(true).

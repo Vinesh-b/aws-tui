@@ -42,7 +42,7 @@ func (inst *CloudFormationApi) ListStacks(force bool) map[string]types.StackSumm
 	for paginator.HasMorePages() {
 		var output, err = paginator.NextPage(context.TODO())
 		if err != nil {
-			log.Println(err)
+			inst.logger.Println(err)
 			break
 		}
 		for _, stack := range output.StackSummaries {
@@ -83,7 +83,7 @@ func (inst *CloudFormationApi) DescribeStackEvents(stackName string) []types.Sta
 	for inst.stackEventsPaginator.HasMorePages() {
 		output, err = inst.stackEventsPaginator.NextPage(context.TODO())
 		if err != nil {
-			log.Println(err)
+			inst.logger.Println(err)
 			return empty
 		}
 	}

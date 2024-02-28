@@ -41,7 +41,7 @@ func (inst *LambdaApi) ListLambdas(force bool) map[string]types.FunctionConfigur
 	for paginator.HasMorePages() {
 		var output, err = paginator.NextPage(context.TODO())
 		if err != nil {
-			log.Println(err)
+			inst.logger.Println(err)
 			break
 		}
 

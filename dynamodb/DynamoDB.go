@@ -40,7 +40,7 @@ func (inst *DynamoDBApi) ListTables(force bool) []string {
 	for paginator.HasMorePages() {
 		var output, err = paginator.NextPage(context.TODO())
 		if err != nil {
-			log.Printf("Couldn't list tables: %v\n", err)
+			inst.logger.Printf("Couldn't list tables: %v\n", err)
 			break
 		}
 
@@ -55,7 +55,7 @@ func (inst *DynamoDBApi) DescribeTable(tableName string) *types.TableDescription
 		&dynamodb.DescribeTableInput{TableName: &tableName},
 	)
 	if err != nil {
-		log.Printf("Failed to describe table: %v\n", err)
+		inst.logger.Printf("Failed to describe table: %v\n", err)
 		return nil
 	}
 	return output.Table
@@ -73,7 +73,7 @@ func (inst *DynamoDBApi) ScanTable(
 	})
 	var output, err = scanPaginator.NextPage(context.TODO())
 	if err != nil {
-		log.Printf("Scan failed: %v\n", err)
+		inst.logger.Printf("Scan failed: %v\n", err)
 	} else {
 		var temp []map[string]interface{}
 		attributevalue.UnmarshalListOfMaps(output.Items, &temp)

@@ -46,7 +46,7 @@ func (inst *CloudWatchAlarmsApi) ListAlarms(force bool) map[string]types.MetricA
 		)
 
 		if err != nil {
-			log.Println(err)
+			inst.logger.Println(err)
 			break
 		}
 
@@ -95,7 +95,7 @@ func (inst *CloudWatchAlarmsApi) ListAlarmHistory(name string) []types.AlarmHist
 		)
 
 		if err != nil {
-			log.Println(err)
+			inst.logger.Println(err)
 			break
 		}
 
