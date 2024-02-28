@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"github.com/gdamore/tcell/v2"
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/rivo/tview"
 )
@@ -36,6 +37,13 @@ func servicesHomeView() *tview.InputField {
 		SetTitle("Search").
 		SetTitleAlign(tview.AlignLeft)
 
+	searchInputField.SetAutocompleteStyles(
+		tview.Styles.ContrastBackgroundColor,
+		tcell.Style{},
+		tcell.Style{}.
+			Foreground(tview.Styles.TertiaryTextColor).
+			Background(tview.Styles.PrimitiveBackgroundColor),
+	)
 	searchInputField.SetAutocompleteFunc(func(currentText string) (entries []string) {
 		return fuzzy.FindFold(currentText, allViews)
 	})

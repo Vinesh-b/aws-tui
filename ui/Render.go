@@ -32,7 +32,7 @@ func initGlobalStyle() {
 	tview.Styles.PrimaryTextColor = textColour
 	tview.Styles.SecondaryTextColor = secondaryTextColor
 	tview.Styles.TertiaryTextColor = tertiaryTextColor
-	tview.Styles.PrimitiveBackgroundColor = backgroundColor
+	tview.Styles.PrimitiveBackgroundColor = tcell.ColorDefault
 	tview.Styles.ContrastBackgroundColor = contrastBackgroundColor
 	tview.Styles.MoreContrastBackgroundColor = moreContrastBackgroundColor
 }
