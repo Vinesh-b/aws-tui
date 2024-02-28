@@ -22,22 +22,22 @@ const (
 
 func servicesHomeView() *tview.List {
 	var servicesList = tview.NewList().
-		SetWrapAround(true).
 		SetSecondaryTextColor(tcell.ColorGrey).
 		SetSelectedTextColor(tertiaryTextColor).
 		SetSelectedBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 
 	servicesList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		var currentIdx = servicesList.GetCurrentItem()
+		var numItems = servicesList.GetItemCount()
 		switch event.Key() {
 		case tcell.KeyRune:
 			switch event.Rune() {
 			case rune('k'):
-				currentIdx--
+				currentIdx = (currentIdx - 1 + numItems) % numItems
 				servicesList.SetCurrentItem(currentIdx)
 				return nil
 			case rune('j'):
-				currentIdx++
+				currentIdx = (currentIdx + 1) % numItems
 				servicesList.SetCurrentItem(currentIdx)
 				return nil
 			}
