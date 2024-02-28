@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"fmt"
 	"log"
+	"time"
 
 	"aws-tui/dynamodb"
 
@@ -19,6 +21,121 @@ type DynamoDBDetailsView struct {
 	RefreshTablesTable func(search string)
 	RefreshDetails     func(tableName string)
 	RootView           *tview.Flex
+}
+
+func populateDynamoDBTabelsTable(table *tview.Table, data []string) {
+	var tableData []tableRow
+	for _, row := range data {
+		tableData = append(tableData, tableRow{row})
+	}
+
+	initSelectableTable(table, "DynamoDB Tables",
+		tableRow{"Name"},
+		tableData,
+		[]int{0},
+	)
+	table.GetCell(0, 0).SetExpansion(1)
+	table.Select(0, 0)
+	table.ScrollToBeginning()
+}
+
+func populateDynamoDBTabelDetailsTable(table *tview.Table, data *types.TableDescription) {
+	var tableData []tableRow
+	var partitionKey = ""
+	var sortKey = ""
+
+	if data != nil {
+		for _, atter := range data.KeySchema {
+			switch atter.KeyType {
+			case types.KeyTypeHash:
+				partitionKey = *atter.AttributeName
+			case types.KeyTypeRange:
+				sortKey = *atter.AttributeName
+			}
+		}
+
+		tableData = []tableRow{
+			{"Name", aws.ToString(data.TableName)},
+			{"Status", fmt.Sprintf("%s", data.TableStatus)},
+			{"CreationDate", data.CreationDateTime.Format(time.DateTime)},
+			{"PartitionKey", partitionKey},
+			{"SortKey", sortKey},
+			{"ItemCount", fmt.Sprintf("%d", aws.ToInt64(data.ItemCount))},
+			{"GSIs", fmt.Sprintf("%v", data.GlobalSecondaryIndexes)},
+		}
+	}
+
+	initBasicTable(table, "Table Details", tableData, false)
+	table.Select(0, 0)
+	table.ScrollToBeginning()
+}
+
+func populateDynamoDBTable(
+	table *tview.Table,
+	description *types.TableDescription,
+	data []map[string]interface{},
+) {
+	table.
+		Clear().
+		SetBorders(false).
+		SetFixed(1, 2)
+	table.
+		SetTitle("Table").
+		SetTitleAlign(tview.AlignLeft).
+		SetBorderPadding(0, 0, 0, 0).
+		SetBorder(true)
+
+	if description == nil || len(data) == 0 {
+		return
+	}
+
+	var headingIdx = 0
+	var headingIdxMap = make(map[string]int)
+	for _, atter := range description.KeySchema {
+		switch atter.KeyType {
+		case types.KeyTypeHash:
+			headingIdxMap[*atter.AttributeName] = 0
+			headingIdx++
+		case types.KeyTypeRange:
+			headingIdxMap[*atter.AttributeName] = 1
+			headingIdx++
+		}
+	}
+
+	for rowIdx, rowData := range data {
+		for heading := range rowData {
+			var colIdx, ok = headingIdxMap[heading]
+			if !ok {
+				headingIdxMap[heading] = headingIdx
+				colIdx = headingIdx
+				headingIdx++
+			}
+
+			var cellData = fmt.Sprintf("%v", rowData[heading])
+			var previewText = clampStringLen(&cellData, 100)
+			table.SetCell(rowIdx+1, colIdx, tview.NewTableCell(previewText).
+				SetReference(cellData).
+				SetAlign(tview.AlignLeft),
+			)
+		}
+	}
+
+	for heading, colIdx := range headingIdxMap {
+		table.SetCell(0, colIdx, tview.NewTableCell(heading).
+			SetAlign(tview.AlignLeft).
+			SetTextColor(secondaryTextColor).
+			SetSelectable(false).
+			SetBackgroundColor(contrastBackgroundColor),
+		)
+	}
+
+	if len(data) > 0 {
+		table.SetSelectable(true, false).SetSelectedStyle(
+			tcell.Style{}.Background(moreContrastBackgroundColor),
+		)
+	}
+	table.Select(0, 0)
+	table.ScrollToBeginning()
 }
 
 func createDynamoDBTablesTable(
