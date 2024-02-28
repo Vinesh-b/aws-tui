@@ -85,8 +85,12 @@ func (inst *CloudWatchLogsApi) ListLogStreams(
 ) []types.LogStream {
 
 	if reset || inst.logStreamsPaginator == nil {
+		var order = types.OrderByLastEventTime
 		if searchPrefix != nil && len(*searchPrefix) == 0 {
 			searchPrefix = nil
+		}
+		if searchPrefix != nil {
+			order = types.OrderByLogStreamName
 		}
 		inst.logStreamsPaginator = cloudwatchlogs.NewDescribeLogStreamsPaginator(
 			inst.client,
@@ -95,6 +99,7 @@ func (inst *CloudWatchLogsApi) ListLogStreams(
 				Limit:               aws.Int32(50),
 				LogGroupName:        aws.String(logGroupName),
 				LogStreamNamePrefix: searchPrefix,
+				OrderBy:             order,
 			},
 		)
 	}

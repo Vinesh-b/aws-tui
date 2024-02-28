@@ -48,7 +48,8 @@ func populateLogStreamsTable(table *tview.Table, data []types.LogStream, extend 
 	var tableData []tableRow
 	for _, row := range data {
 		tableData = append(tableData, tableRow{
-			*row.LogStreamName,
+			aws.ToString(row.LogStreamName),
+			time.UnixMilli(aws.ToInt64(row.LastEventTimestamp)).Format(time.DateTime),
 		})
 	}
 
@@ -61,9 +62,10 @@ func populateLogStreamsTable(table *tview.Table, data []types.LogStream, extend 
 	initSelectableTable(table, title,
 		tableRow{
 			"Name",
+			"LastEventTimestamp",
 		},
 		tableData,
-		[]int{0},
+		[]int{1},
 	)
 	table.GetCell(0, 0).SetExpansion(1)
 	table.Select(0, 0)
