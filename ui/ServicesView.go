@@ -11,6 +11,7 @@ const (
 	LAMBDA            viewId = "Lambda"
 	CLOUDWATCH_LOGS   viewId = "CloudWatchLogs"
 	CLOUDWATCH_ALARMS viewId = "CloudWatchAlarms"
+	CLOUDFORMATION    viewId = "CloudFormation"
 	DYNAMODB          viewId = "DynamoDB"
 )
 
@@ -25,6 +26,7 @@ func servicesHomeView() *tview.InputField {
 		string(LAMBDA),
 		string(CLOUDWATCH_LOGS),
 		string(CLOUDWATCH_ALARMS),
+		string(CLOUDFORMATION),
 		string(DYNAMODB),
 	}
 

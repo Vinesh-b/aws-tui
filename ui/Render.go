@@ -54,6 +54,7 @@ func RenderUI(config aws.Config) {
 			LAMBDA:            createLambdaHomeView(app, config, inAppLogger),
 			CLOUDWATCH_LOGS:   createLogsHomeView(app, config, inAppLogger),
 			CLOUDWATCH_ALARMS: createAlarmsHomeView(app, config, inAppLogger),
+			CLOUDFORMATION:    createStacksHomeView(app, config, inAppLogger),
 			DYNAMODB:          createDynamoDBHomeView(app, config, inAppLogger),
 		}
 	)
