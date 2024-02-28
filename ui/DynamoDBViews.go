@@ -263,6 +263,10 @@ type DynamoDBTableItemsView struct {
 	RefreshTable  func(search string)
 	RootView      *tview.Flex
 	app           *tview.Application
+	api           *dynamodb.DynamoDBApi
+	queryPkInput  *tview.InputField
+	querySkInput  *tview.InputField
+	runQueryBtn   *tview.Button
 }
 
 func createDynamoDBItemsTable(
@@ -322,7 +326,7 @@ func NewDynamoDBTableItemsView(
 	inputField.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			go refreshItemsTable(inputField.GetText())
+			refreshItemsTable(inputField.GetText())
 			app.SetFocus(itemsTable)
 		case tcell.KeyEsc:
 			inputField.SetText("")
@@ -331,8 +335,27 @@ func NewDynamoDBTableItemsView(
 			return
 		}
 	})
+
+	var pkQueryValInput = tview.NewInputField().
+		SetFieldWidth(0).
+		SetLabel(" Partition Key ")
+	var skQueryValInput = tview.NewInputField().
+		SetFieldWidth(0).
+		SetLabel(" Sort Key      ")
+	var runQueryBtn = tview.NewButton("Run")
+
+	var queryView = tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(pkQueryValInput, 1, 0, false).
+		AddItem(skQueryValInput, 1, 0, false).
+		AddItem(runQueryBtn, 1, 0, false)
+	queryView.
+		SetBorder(true).
+		SetTitle("Query").
+		SetTitleAlign(tview.AlignLeft)
+
 	var ddbDetailsView = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(itemsTable, 0, 4, false).
+		AddItem(queryView, 5, 0, false).
 		AddItem(tview.NewFlex().
 			AddItem(inputField, 0, 1, true),
 			3, 0, true,
@@ -342,6 +365,9 @@ func NewDynamoDBTableItemsView(
 	initViewNavigation(app, ddbDetailsView, &viewNavIdx,
 		[]view{
 			inputField,
+            runQueryBtn,
+            skQueryValInput,
+            pkQueryValInput,
 			itemsTable,
 		},
 	)
@@ -352,6 +378,10 @@ func NewDynamoDBTableItemsView(
 		RefreshTable:  refreshItemsTable,
 		RootView:      ddbDetailsView,
 		app:           app,
+		api:           api,
+		queryPkInput:  pkQueryValInput,
+		querySkInput:  skQueryValInput,
+		runQueryBtn:   runQueryBtn,
 	}
 }
 func (inst *DynamoDBTableItemsView) InitSearchInputDoneCallback(search *string) {
@@ -362,6 +392,41 @@ func (inst *DynamoDBTableItemsView) InitSearchInputDoneCallback(search *string) 
 			highlightTableSearch(inst.app, inst.DDBItemsTable, *search, []int{})
 			inst.app.SetFocus(inst.DDBItemsTable)
 		}
+	})
+}
+
+func (inst *DynamoDBTableItemsView) InitQueryCallback(tableName *string, force bool) {
+	inst.runQueryBtn.SetSelectedFunc(func() {
+		var data []map[string]interface{}
+		var dataChannel = make(chan []map[string]interface{})
+		var descData *types.TableDescription = nil
+		var descDataChannel = make(chan *types.TableDescription)
+		var resultChannel = make(chan struct{})
+
+		go func() {
+			if len(*tableName) <= 0 {
+				dataChannel <- make([]map[string]interface{}, 0)
+				return
+			}
+			var description = inst.api.DescribeTable(*tableName)
+			descDataChannel <- description
+			dataChannel <- inst.api.QueryTable(
+				description,
+				inst.queryPkInput.GetText(),
+				inst.querySkInput.GetText(),
+				force,
+			)
+		}()
+
+		go func() {
+			descData = <-descDataChannel
+			data = <-dataChannel
+			resultChannel <- struct{}{}
+		}()
+
+		go loadData(inst.app, inst.DDBItemsTable.Box, resultChannel, func() {
+			populateDynamoDBTable(inst.DDBItemsTable, descData, data)
+		})
 	})
 }
 
@@ -401,25 +466,27 @@ func createDynamoDBHomeView(
 		app.SetFocus(view)
 	}
 
+    var selectedTableName = ""
 	ddbDetailsView.DDBTablesTable.SetSelectionChangedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}
-		var selectedTableName = ddbDetailsView.DDBTablesTable.GetCell(row, 0).Text
-		go ddbDetailsView.RefreshDetails(selectedTableName)
+		selectedTableName = ddbDetailsView.DDBTablesTable.GetCell(row, 0).Text
+		ddbDetailsView.RefreshDetails(selectedTableName)
 	})
 
 	ddbDetailsView.DDBTablesTable.SetSelectedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}
-		var selectedTableName = ddbDetailsView.DDBTablesTable.GetCell(row, 0).Text
-		go ddbItemsView.RefreshTable(selectedTableName)
+		selectedTableName = ddbDetailsView.DDBTablesTable.GetCell(row, 0).Text
+		ddbItemsView.RefreshTable(selectedTableName)
 		switchAndFocus(1, ddbItemsView.DDBItemsTable)
 	})
 
 	var searchString = ""
 	ddbItemsView.InitSearchInputDoneCallback(&searchString)
+    ddbItemsView.InitQueryCallback(&selectedTableName, true)
 
 	return rootView
 }

@@ -6,15 +6,17 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
 type DynamoDBApi struct {
-	logger    *log.Logger
-	config    aws.Config
-	client    *dynamodb.Client
-	allTables []string
+	logger         *log.Logger
+	config         aws.Config
+	client         *dynamodb.Client
+	allTables      []string
+	queryPaginator *dynamodb.QueryPaginator
 }
 
 func NewDynamoDBApi(
@@ -64,14 +66,13 @@ func (inst *DynamoDBApi) DescribeTable(tableName string) *types.TableDescription
 func (inst *DynamoDBApi) ScanTable(
 	description *types.TableDescription,
 ) []map[string]interface{} {
-	var tableName = *description.TableName
 	var items []map[string]interface{}
 
-	scanPaginator := dynamodb.NewScanPaginator(inst.client, &dynamodb.ScanInput{
-		TableName: aws.String(tableName),
+	var paginator = dynamodb.NewScanPaginator(inst.client, &dynamodb.ScanInput{
+		TableName: description.TableName,
 		Limit:     aws.Int32(20),
 	})
-	var output, err = scanPaginator.NextPage(context.TODO())
+	var output, err = paginator.NextPage(context.TODO())
 	if err != nil {
 		inst.logger.Printf("Scan failed: %v\n", err)
 	} else {
@@ -79,5 +80,68 @@ func (inst *DynamoDBApi) ScanTable(
 		attributevalue.UnmarshalListOfMaps(output.Items, &temp)
 		items = append(items, temp...)
 	}
+	return items
+}
+
+func (inst *DynamoDBApi) QueryTable(
+	description *types.TableDescription,
+	partitionKeyVal string, // Todo: support non-string keys
+	sortKeyVal string,
+	force bool,
+) []map[string]interface{} {
+	if inst.queryPaginator == nil || force {
+		var partitionKey = ""
+		var sortKey = ""
+
+		for _, atter := range description.KeySchema {
+			switch atter.KeyType {
+			case types.KeyTypeHash:
+				partitionKey = *atter.AttributeName
+			case types.KeyTypeRange:
+				sortKey = *atter.AttributeName
+			}
+		}
+
+		var keyExpr = expression.
+			Key(partitionKey).Equal(expression.Value(partitionKeyVal))
+		if len(sortKeyVal) > 0 && len(sortKey) > 0 {
+			keyExpr = keyExpr.And(expression.Key(sortKey).
+				Equal(expression.Value(sortKeyVal)))
+		}
+
+		var expr, err = expression.NewBuilder().WithKeyCondition(keyExpr).Build()
+		if err != nil {
+			inst.logger.Printf("Failed to build expression for query: %v\n", err)
+		}
+
+		inst.queryPaginator = dynamodb.NewQueryPaginator(inst.client, &dynamodb.QueryInput{
+			TableName:                 description.TableName,
+			Limit:                     aws.Int32(100),
+			ExpressionAttributeNames:  expr.Names(),
+			ExpressionAttributeValues: expr.Values(),
+			KeyConditionExpression:    expr.KeyCondition(),
+		})
+	}
+
+	var items = make([]map[string]interface{}, 0)
+
+	if !inst.queryPaginator.HasMorePages() {
+		return items
+	}
+
+	var output, err = inst.queryPaginator.NextPage(context.TODO())
+	if err != nil {
+		inst.logger.Println(err)
+		return items
+	}
+
+	var temp []map[string]interface{}
+	err = attributevalue.UnmarshalListOfMaps(output.Items, &temp)
+	if err != nil {
+		inst.logger.Println(err)
+		return items
+	}
+
+	items = append(items, temp...)
 	return items
 }
