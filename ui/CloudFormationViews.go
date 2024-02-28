@@ -13,15 +13,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-type CloudFormationDetailsView struct {
-	StacksTable         *tview.Table
-	DetailsTable        *tview.Table
-	SearchInput         *tview.InputField
-	RefreshStacks       func(search string, reset bool)
-	RefreshStackDetails func(stackName string)
-	RootView            *tview.Flex
-}
-
 func populateStacksTable(table *tview.Table, data map[string]types.StackSummary) {
 	var tableData []tableRow
 	for _, row := range data {
@@ -73,69 +64,13 @@ func populateStackDetailsTable(table *tview.Table, data *types.StackSummary) {
 	table.ScrollToBeginning()
 }
 
-func createStacksTable(params tableCreationParams, api *cloudformation.CloudFormationApi) (
-	*tview.Table, func(search string, reset bool),
-) {
-	var table = tview.NewTable()
-	populateStacksTable(table, make(map[string]types.StackSummary, 0))
-
-	var refreshViewsFunc = func(search string, reset bool) {
-		var data map[string]types.StackSummary
-		var dataChannel = make(chan map[string]types.StackSummary)
-		var resultChannel = make(chan struct{})
-
-		go func() {
-			if len(search) > 0 {
-				dataChannel <- api.FilterByName(search)
-			} else {
-				dataChannel <- api.ListStacks(reset)
-			}
-		}()
-
-		go func() {
-			data = <-dataChannel
-			resultChannel <- struct{}{}
-		}()
-
-		go loadData(params.App, table.Box, resultChannel, func() {
-			populateStacksTable(table, data)
-		})
-	}
-
-	return table, refreshViewsFunc
-}
-
-func createStackDetailsTable(params tableCreationParams, api *cloudformation.CloudFormationApi) (
-	*tview.Table, func(stackName string),
-) {
-	var table = tview.NewTable()
-	populateStackDetailsTable(table, nil)
-
-	var refreshViewsFunc = func(stackName string) {
-		var data map[string]types.StackSummary
-		var dataChannel = make(chan map[string]types.StackSummary)
-		var resultChannel = make(chan struct{})
-
-		go func() {
-			dataChannel <- api.ListStacks(false)
-		}()
-
-		go func() {
-			data = <-dataChannel
-			resultChannel <- struct{}{}
-		}()
-
-		go loadData(params.App, table.Box, resultChannel, func() {
-			var details *types.StackSummary = nil
-			var val, ok = data[stackName]
-			if ok {
-				details = &val
-			}
-			populateStackDetailsTable(table, details)
-		})
-	}
-
-	return table, refreshViewsFunc
+type CloudFormationDetailsView struct {
+	StacksTable  *tview.Table
+	DetailsTable *tview.Table
+	SearchInput  *tview.InputField
+	RootView     *tview.Flex
+	app          *tview.Application
+	api          *cloudformation.CloudFormationApi
 }
 
 func NewStacksDetailsView(
@@ -143,46 +78,18 @@ func NewStacksDetailsView(
 	api *cloudformation.CloudFormationApi,
 	logger *log.Logger,
 ) *CloudFormationDetailsView {
-	var (
-		params = tableCreationParams{app, logger}
+	var stacksTable = tview.NewTable()
+	populateStacksTable(stacksTable, make(map[string]types.StackSummary, 0))
 
-		stacksTable, refreshStacksTable     = createStacksTable(params, api)
-		stacksDetails, refreshStacksDetails = createStackDetailsTable(params, api)
-
-		serviceView = NewServiceView(app)
-	)
-
-	var onTableSelction = func(row int) {
-		if row < 1 {
-			return
-		}
-		refreshStacksDetails(stacksTable.GetCell(row, 0).Text)
-	}
-
-	stacksTable.SetSelectionChangedFunc(func(row, column int) {
-		onTableSelction(row)
-	})
-
-	stacksTable.SetSelectedFunc(func(row, column int) {
-		onTableSelction(row)
-		app.SetFocus(stacksDetails)
-	})
+	var stacksDetails = tview.NewTable()
+	populateStackDetailsTable(stacksDetails, nil)
 
 	var inputField = createSearchInput("Stacks")
-	inputField.SetDoneFunc(func(key tcell.Key) {
-		switch key {
-		case tcell.KeyEnter:
-			refreshStacksTable(inputField.GetText(), false)
-		case tcell.KeyEsc:
-			inputField.SetText("")
-		default:
-			return
-		}
-	})
 
 	const stackDetailsSize = 5000
 	const stackTablesSize = 3000
 
+	var serviceView = NewServiceView(app)
 	serviceView.RootView.
 		AddItem(stacksDetails, 0, stackDetailsSize, false).
 		AddItem(stacksTable, 0, stackTablesSize, false).
@@ -204,22 +111,106 @@ func NewStacksDetailsView(
 		},
 	)
 	return &CloudFormationDetailsView{
-		StacksTable:         stacksTable,
-		DetailsTable:        stacksDetails,
-		SearchInput:         inputField,
-		RefreshStacks:       refreshStacksTable,
-		RefreshStackDetails: refreshStacksDetails,
-		RootView:            serviceView.RootView,
+		StacksTable:  stacksTable,
+		DetailsTable: stacksDetails,
+		SearchInput:  inputField,
+		RootView:     serviceView.RootView,
+		app:          app,
+		api:          api,
 	}
 }
 
-type CloudFormationStackEventsView struct {
-	EventsTable   *tview.Table
-	SearchInput   *tview.InputField
-	RefreshEvents func(stackName string, extend bool)
-	RootView      *tview.Flex
-	stackName     *string
-	app           *tview.Application
+func (inst *CloudFormationDetailsView) RefreshStacks(search string, reset bool) {
+	var data map[string]types.StackSummary
+	var dataChannel = make(chan map[string]types.StackSummary)
+	var resultChannel = make(chan struct{})
+
+	go func() {
+		if len(search) > 0 {
+			dataChannel <- inst.api.FilterByName(search)
+		} else {
+			dataChannel <- inst.api.ListStacks(reset)
+		}
+	}()
+
+	go func() {
+		data = <-dataChannel
+		resultChannel <- struct{}{}
+	}()
+
+	go loadData(inst.app, inst.StacksTable.Box, resultChannel, func() {
+		populateStacksTable(inst.StacksTable, data)
+	})
+}
+
+func (inst *CloudFormationDetailsView) RefreshDetails(stackName string, force bool) {
+	var data map[string]types.StackSummary
+	var dataChannel = make(chan map[string]types.StackSummary)
+	var resultChannel = make(chan struct{})
+
+	go func() {
+		dataChannel <- inst.api.ListStacks(force)
+	}()
+
+	go func() {
+		data = <-dataChannel
+		resultChannel <- struct{}{}
+	}()
+
+	go loadData(inst.app, inst.DetailsTable.Box, resultChannel, func() {
+		var details *types.StackSummary = nil
+		var val, ok = data[stackName]
+		if ok {
+			details = &val
+		}
+		populateStackDetailsTable(inst.DetailsTable, details)
+	})
+}
+
+func (inst *CloudFormationDetailsView) InitInputCapture() {
+	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {
+		switch key {
+		case tcell.KeyEnter:
+			inst.RefreshStacks(inst.SearchInput.GetText(), false)
+		case tcell.KeyEsc:
+			inst.SearchInput.SetText("")
+		default:
+			return
+		}
+	})
+
+	var refreshDetails = func(row int, force bool) {
+		if row < 1 {
+			return
+		}
+		inst.RefreshDetails(inst.StacksTable.GetCell(row, 0).Text, force)
+	}
+
+	inst.StacksTable.SetSelectionChangedFunc(func(row, column int) {
+		refreshDetails(row, false)
+	})
+
+	inst.StacksTable.SetSelectedFunc(func(row, column int) {
+		refreshDetails(row, false)
+		inst.app.SetFocus(inst.DetailsTable)
+	})
+
+	inst.StacksTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlR:
+			inst.RefreshStacks("", true)
+		}
+		return event
+	})
+
+	inst.DetailsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		var selctedRow, _ = inst.StacksTable.GetSelection()
+		switch event.Key() {
+		case tcell.KeyCtrlR:
+			refreshDetails(selctedRow, true)
+		}
+		return event
+	})
 }
 
 func populateStackEventsTable(table *tview.Table, data []types.StackEvent, extend bool) {
@@ -256,36 +247,14 @@ func populateStackEventsTable(table *tview.Table, data []types.StackEvent, exten
 	table.ScrollToBeginning()
 }
 
-func createStackEventsTable(params tableCreationParams, api *cloudformation.CloudFormationApi) (
-	*tview.Table, func(stackName string, extend bool),
-) {
-	var table = tview.NewTable()
-	populateStackEventsTable(table, make([]types.StackEvent, 0), false)
-
-	var refreshViewsFunc = func(stackName string, extend bool) {
-		var data []types.StackEvent
-		var dataChannel = make(chan []types.StackEvent)
-		var resultChannel = make(chan struct{})
-
-		go func() {
-			if len(stackName) > 0 {
-				dataChannel <- api.DescribeStackEvents(stackName, !extend)
-			} else {
-				dataChannel <- make([]types.StackEvent, 0)
-			}
-		}()
-
-		go func() {
-			data = <-dataChannel
-			resultChannel <- struct{}{}
-		}()
-
-		go loadData(params.App, table.Box, resultChannel, func() {
-			populateStackEventsTable(table, data, extend)
-		})
-	}
-
-	return table, refreshViewsFunc
+type CloudFormationStackEventsView struct {
+	EventsTable        *tview.Table
+	SearchInput        *tview.InputField
+	RootView           *tview.Flex
+	selectedStack      string
+	searchEventsBuffer *string
+	app                *tview.Application
+	api                *cloudformation.CloudFormationApi
 }
 
 func NewStackEventsView(
@@ -293,13 +262,8 @@ func NewStackEventsView(
 	api *cloudformation.CloudFormationApi,
 	logger *log.Logger,
 ) *CloudFormationStackEventsView {
-	var (
-		params = tableCreationParams{app, logger}
-
-		stackEventsTable, refreshStackEventsTable = createStackEventsTable(params, api)
-
-		serviceView = NewServiceView(app)
-	)
+	var stackEventsTable = tview.NewTable()
+	populateStackEventsTable(stackEventsTable, make([]types.StackEvent, 0), false)
 
 	var expandedMsgView = tview.NewTextArea()
 	expandedMsgView.
@@ -317,20 +281,11 @@ func NewStackEventsView(
 	})
 
 	var inputField = createSearchInput("Events")
-	inputField.SetDoneFunc(func(key tcell.Key) {
-		switch key {
-		case tcell.KeyEnter:
-			refreshStackEventsTable(inputField.GetText(), false)
-		case tcell.KeyEsc:
-			inputField.SetText("")
-		default:
-			return
-		}
-	})
 
 	const expandedMsgSize = 5
 	const stackEventsSize = 15
 
+	var serviceView = NewServiceView(app)
 	serviceView.RootView.
 		AddItem(expandedMsgView, 0, expandedMsgSize, false).
 		AddItem(stackEventsTable, 0, stackEventsSize, false).
@@ -351,35 +306,64 @@ func NewStackEventsView(
 		},
 	)
 	return &CloudFormationStackEventsView{
-		EventsTable:   stackEventsTable,
-		RefreshEvents: refreshStackEventsTable,
-		SearchInput:   inputField,
-		RootView:      serviceView.RootView,
-		app:           app,
+		EventsTable:        stackEventsTable,
+		SearchInput:        inputField,
+		RootView:           serviceView.RootView,
+		selectedStack:      "",
+		searchEventsBuffer: nil,
+		app:                app,
+		api:                api,
 	}
 }
 
-func (inst *CloudFormationStackEventsView) InitSearchInputDoneCallback(search *string) {
-	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {
-		switch key {
-		case tcell.KeyEnter:
-			*search = inst.SearchInput.GetText()
-			highlightTableSearch(inst.app, inst.EventsTable, *search, []int{})
-			inst.app.SetFocus(inst.EventsTable)
+func (inst *CloudFormationStackEventsView) RefreshEvents(stackName string, force bool) {
+	inst.selectedStack = stackName
+
+	var data []types.StackEvent
+	var dataChannel = make(chan []types.StackEvent)
+	var resultChannel = make(chan struct{})
+
+	go func() {
+		if len(stackName) > 0 {
+			dataChannel <- inst.api.DescribeStackEvents(inst.selectedStack, force)
+		} else {
+			dataChannel <- make([]types.StackEvent, 0)
 		}
+	}()
+
+	go func() {
+		data = <-dataChannel
+		resultChannel <- struct{}{}
+	}()
+
+	go loadData(inst.app, inst.EventsTable.Box, resultChannel, func() {
+		populateStackEventsTable(inst.EventsTable, data, !force)
 	})
 }
 
-func (inst *CloudFormationStackEventsView) InitInputCapture(stackName *string) {
+func (inst *CloudFormationStackEventsView) InitInputCapture() {
+	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {
+		switch key {
+		case tcell.KeyEnter:
+			*inst.searchEventsBuffer = inst.SearchInput.GetText()
+			highlightTableSearch(inst.app, inst.EventsTable, *inst.searchEventsBuffer, []int{})
+			inst.app.SetFocus(inst.EventsTable)
+		}
+	})
+
 	inst.EventsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			inst.RefreshEvents(*stackName, false)
+			inst.RefreshEvents(inst.selectedStack, true)
 		case tcell.KeyCtrlN:
-			inst.RefreshEvents(*stackName, true)
+			inst.RefreshEvents(inst.selectedStack, false)
 		}
 		return event
 	})
+}
+
+func (inst *CloudFormationStackEventsView) InitSearchInputBuffer(searchStringBuffer *string) {
+	inst.searchEventsBuffer = searchStringBuffer
 }
 
 func createStacksHomeView(
@@ -408,16 +392,16 @@ func createStacksHomeView(
 	var serviceRootView = NewServiceRootView(
 		app, string(CLOUDFORMATION), pages, orderedPages).Init()
 
-	var searchEvent = ""
-	var selectedStackName = ""
-	stackEventsView.InitSearchInputDoneCallback(&searchEvent)
-	stackEventsView.InitInputCapture(&selectedStackName)
-
 	stacksDetailsView.DetailsTable.SetSelectedFunc(func(row, column int) {
-		selectedStackName = stacksDetailsView.DetailsTable.GetCell(0, 1).Text
-		stackEventsView.RefreshEvents(selectedStackName, false)
+		var selectedStackName = stacksDetailsView.DetailsTable.GetCell(0, 1).Text
+		stackEventsView.RefreshEvents(selectedStackName, true)
 		serviceRootView.ChangePage(1, stackEventsView.EventsTable)
 	})
+
+	var searchEvent = ""
+	stackEventsView.InitSearchInputBuffer(&searchEvent)
+	stackEventsView.InitInputCapture()
+	stacksDetailsView.InitInputCapture()
 
 	return serviceRootView.RootView
 }
