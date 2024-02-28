@@ -15,12 +15,13 @@ import (
 )
 
 type LambdasDetailsView struct {
-	LambdasTable   *tview.Table
-	DetailsTable   *tview.Table
-	SearchInput    *tview.InputField
-	RefreshLambdas func(search string)
-	RefreshDetails func(lambdaName string)
-	RootView       *tview.Flex
+	LambdasTable *tview.Table
+	DetailsTable *tview.Table
+	SearchInput  *tview.InputField
+	RootView     *tview.Flex
+
+	app *tview.Application
+	api *lambda.LambdaApi
 }
 
 func populateLambdasTable(table *tview.Table, data map[string]types.FunctionConfiguration) {
@@ -68,117 +69,22 @@ func populateLambdaDetailsTable(table *tview.Table, data *types.FunctionConfigur
 	table.ScrollToBeginning()
 }
 
-func createLambdasTable(params tableCreationParams, api *lambda.LambdaApi) (
-	*tview.Table, func(search string),
-) {
-	var table = tview.NewTable()
-	populateLambdasTable(table, make(map[string]types.FunctionConfiguration, 0))
-
-	var refreshViewsFunc = func(search string) {
-		var data map[string]types.FunctionConfiguration
-		var dataChannel = make(chan map[string]types.FunctionConfiguration)
-		var resultChannel = make(chan struct{})
-
-		go func() {
-			if len(search) > 0 {
-				dataChannel <- api.FilterByName(search)
-			} else {
-				dataChannel <- api.ListLambdas(false)
-			}
-		}()
-
-		go func() {
-			data = <-dataChannel
-			resultChannel <- struct{}{}
-		}()
-
-		go loadData(params.App, table.Box, resultChannel, func() {
-			populateLambdasTable(table, data)
-		})
-	}
-
-	return table, refreshViewsFunc
-}
-
-func createLambdaDetailsTable(
-	params tableCreationParams,
-	api *lambda.LambdaApi,
-) (*tview.Table, func(lambdaName string)) {
-	var table = tview.NewTable()
-	populateLambdaDetailsTable(table, nil)
-
-	var refreshViewsFunc = func(lambdaName string) {
-		var data map[string]types.FunctionConfiguration
-		var dataChannel = make(chan map[string]types.FunctionConfiguration)
-		var resultChannel = make(chan struct{})
-
-		go func() {
-			dataChannel <- api.ListLambdas(false)
-		}()
-
-		go func() {
-			data = <-dataChannel
-			resultChannel <- struct{}{}
-		}()
-
-		go loadData(params.App, table.Box, resultChannel, func() {
-			var details *types.FunctionConfiguration = nil
-			var val, ok = data[lambdaName]
-			if ok {
-				details = &val
-			}
-			populateLambdaDetailsTable(table, details)
-		})
-	}
-
-	return table, refreshViewsFunc
-}
-
 func NewLambdasDetailsView(
 	app *tview.Application,
 	api *lambda.LambdaApi,
 	logger *log.Logger,
 ) *LambdasDetailsView {
-	var (
-		params = tableCreationParams{app, logger}
+	var lambdaDetails = tview.NewTable()
+	populateLambdaDetailsTable(lambdaDetails, nil)
 
-		lambdasTable, refreshLambdasTable   = createLambdasTable(params, api)
-		lambdaDetails, refreshLambdaDetails = createLambdaDetailsTable(params, api)
-
-		serviceView = NewServiceView(app)
-	)
-
-	var onTableSelction = func(row int) {
-		if row < 1 {
-			return
-		}
-		refreshLambdaDetails(lambdasTable.GetCell(row, 0).Text)
-	}
-
-	lambdasTable.SetSelectionChangedFunc(func(row, column int) {
-		onTableSelction(row)
-	})
-
-	lambdasTable.SetSelectedFunc(func(row, column int) {
-		onTableSelction(row)
-		app.SetFocus(lambdaDetails)
-	})
+	var lambdasTable = tview.NewTable()
+	populateLambdasTable(lambdasTable, make(map[string]types.FunctionConfiguration, 0))
 
 	var inputField = createSearchInput("Lambdas")
-	inputField.SetDoneFunc(func(key tcell.Key) {
-		switch key {
-		case tcell.KeyEnter:
-			refreshLambdasTable(inputField.GetText())
-		case tcell.KeyEsc:
-			inputField.SetText("")
-		default:
-			return
-		}
-	})
-
 	const detailsViewSize = 4000
 	const tableViewSize = 6000
 
+	var serviceView = NewServiceView(app)
 	serviceView.RootView.
 		AddItem(lambdaDetails, 0, detailsViewSize, false).
 		AddItem(lambdasTable, 0, tableViewSize, false).
@@ -200,13 +106,98 @@ func NewLambdasDetailsView(
 		},
 	)
 	return &LambdasDetailsView{
-		LambdasTable:   lambdasTable,
-		DetailsTable:   lambdaDetails,
-		SearchInput:    inputField,
-		RefreshLambdas: refreshLambdasTable,
-		RefreshDetails: refreshLambdaDetails,
-		RootView:       serviceView.RootView,
+		LambdasTable: lambdasTable,
+		DetailsTable: lambdaDetails,
+		SearchInput:  inputField,
+		RootView:     serviceView.RootView,
+		app:          app,
+		api:          api,
 	}
+}
+
+func (inst *LambdasDetailsView) RefreshLambdas(search string) {
+	var data map[string]types.FunctionConfiguration
+	var dataChannel = make(chan map[string]types.FunctionConfiguration)
+	var resultChannel = make(chan struct{})
+
+	go func() {
+		if len(search) > 0 {
+			dataChannel <- inst.api.FilterByName(search)
+		} else {
+			dataChannel <- inst.api.ListLambdas(false)
+		}
+	}()
+
+	go func() {
+		data = <-dataChannel
+		resultChannel <- struct{}{}
+	}()
+
+	go loadData(inst.app, inst.LambdasTable.Box, resultChannel, func() {
+		populateLambdasTable(inst.LambdasTable, data)
+	})
+}
+
+func (inst *LambdasDetailsView) RefreshDetails(lambdaName string, force bool) {
+	var data map[string]types.FunctionConfiguration
+	var dataChannel = make(chan map[string]types.FunctionConfiguration)
+	var resultChannel = make(chan struct{})
+
+	go func() {
+		dataChannel <- inst.api.ListLambdas(force)
+	}()
+
+	go func() {
+		data = <-dataChannel
+		resultChannel <- struct{}{}
+	}()
+
+	go loadData(inst.app, inst.DetailsTable.Box, resultChannel, func() {
+		var details *types.FunctionConfiguration = nil
+		var val, ok = data[lambdaName]
+		if ok {
+			details = &val
+		}
+		populateLambdaDetailsTable(inst.DetailsTable, details)
+	})
+}
+
+func (inst *LambdasDetailsView) InitInputCapture() {
+	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {
+		switch key {
+		case tcell.KeyEnter:
+			inst.RefreshLambdas(inst.SearchInput.GetText())
+		case tcell.KeyEsc:
+			inst.SearchInput.SetText("")
+		default:
+			return
+		}
+	})
+
+	var refreshDetails = func(row int, force bool) {
+		if row < 1 {
+			return
+		}
+		inst.RefreshDetails(inst.LambdasTable.GetCell(row, 0).Text, force)
+	}
+
+	inst.LambdasTable.SetSelectionChangedFunc(func(row, column int) {
+		refreshDetails(row, false)
+	})
+
+	inst.LambdasTable.SetSelectedFunc(func(row, column int) {
+		refreshDetails(row, false)
+		inst.app.SetFocus(inst.LambdasTable)
+	})
+
+	inst.DetailsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		var selctedRow, _ = inst.LambdasTable.GetSelection()
+		switch event.Key() {
+		case tcell.KeyCtrlR:
+			refreshDetails(selctedRow, true)
+		}
+		return event
+	})
 }
 
 func createLambdaHomeView(
@@ -239,6 +230,8 @@ func createLambdaHomeView(
 	var serviceRootView = NewServiceRootView(
 		app, string(LAMBDA), pages, orderedPages).Init()
 
+    lambdasDetailsView.InitInputCapture()
+
 	var selectedGroupName = ""
 	lambdasDetailsView.DetailsTable.SetSelectedFunc(func(row, column int) {
 		selectedGroupName = lambdasDetailsView.DetailsTable.GetCell(7, 1).Text
@@ -253,10 +246,11 @@ func createLambdaHomeView(
 		serviceRootView.ChangePage(2, logEventsView.LogEventsTable)
 	})
 
-	var searchPrefix = ""
 	var searchEvent = ""
 	logEventsView.InitInputCapture()
 	logEventsView.InitSearchInputBuffer(&searchEvent)
+
+	var searchPrefix = ""
 	logStreamsView.InitInputCapture()
 	logStreamsView.InitSearchInputBuffer(&searchPrefix)
 
