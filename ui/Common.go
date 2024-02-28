@@ -227,6 +227,30 @@ func (inst *ServiceView) InitViewNavigation(orderedViews []view) {
 	})
 }
 
+func (inst *ServiceView) InitViewTabNavigation(rootView rootView, orderedViews []view) {
+	// Sets current view index when selected
+	var viewIdx = 0
+	for i, v := range orderedViews {
+		v.SetFocusFunc(func() { viewIdx = i })
+	}
+
+	var numViews = len(orderedViews)
+	rootView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyBacktab:
+			viewIdx = (viewIdx - 1 + numViews) % numViews
+			inst.app.SetFocus(orderedViews[viewIdx])
+			return nil
+		case tcell.KeyTab:
+			viewIdx = (viewIdx + 1) % numViews
+			inst.app.SetFocus(orderedViews[viewIdx])
+			return nil
+		}
+
+		return event
+	})
+}
+
 func (inst *ServiceView) SetResizableViews(
 	topView view, bottomView view,
 	topDefaultSize int, bottomDefaultSize int,
