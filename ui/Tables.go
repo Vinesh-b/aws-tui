@@ -93,6 +93,11 @@ func searchRefsInTable(table *tview.Table, searchCols []int, search string) {
 		return
 	}
 
+	if len(searchCols) <= 0 {
+		for c := range table.GetColumnCount() {
+			searchCols = append(searchCols, c)
+		}
+	}
 	var rows = table.GetRowCount()
 	for r := 1; r < rows; r++ {
 		for _, c := range searchCols {

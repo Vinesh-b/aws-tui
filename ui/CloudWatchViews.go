@@ -20,7 +20,6 @@ type LogEventsView struct {
 	ExpandedLogsTextArea *tview.TextArea
 	SearchInput          *tview.InputField
 	RefreshEvents        func(groupName string, streamName string, extend bool)
-	RefreshTableSearch   func(search string)
 	RootView             *tview.Flex
 
 	app *tview.Application
@@ -64,19 +63,6 @@ func NewLogEventsView(
 		params                                = tableCreationParams{app, logger}
 		logEventsTable, refreshLogEventsTable = createLogItemsTable(params, api)
 	)
-	var refreshTableSearch = func(search string) {
-		var resultChannel = make(chan struct{})
-		go func() {
-			resultChannel <- struct{}{}
-		}()
-		go loadData(app, logEventsTable.Box, resultChannel, func() {
-			if len(search) == 0 {
-				clearSearchHighlights(logEventsTable)
-			} else {
-				searchRefsInTable(logEventsTable, []int{0, 1}, search)
-			}
-		})
-	}
 
 	var expandedLogsView = tview.NewTextArea()
 	expandedLogsView.
@@ -112,7 +98,7 @@ func NewLogEventsView(
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			inputField.SetText("")
-			refreshTableSearch("")
+			highlightTableSearch(app, logEventsTable, "", []int{})
 		}
 		return event
 	})
@@ -139,7 +125,6 @@ func NewLogEventsView(
 		ExpandedLogsTextArea: expandedLogsView,
 		SearchInput:          inputField,
 		RefreshEvents:        refreshLogEventsTable,
-		RefreshTableSearch:   refreshTableSearch,
 		RootView:             eventsView,
 		app:                  app,
 	}
@@ -150,7 +135,7 @@ func (inst *LogEventsView) InitSearchInputDoneCallback(search *string) {
 		switch key {
 		case tcell.KeyEnter:
 			*search = inst.SearchInput.GetText()
-			inst.RefreshTableSearch(*search)
+			highlightTableSearch(inst.app, inst.LogEventsTable, *search, []int{0, 1})
 			inst.app.SetFocus(inst.LogEventsTable)
 		}
 	})

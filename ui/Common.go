@@ -108,3 +108,22 @@ func initPageNavigation(
 		return event
 	})
 }
+
+func highlightTableSearch(
+	app *tview.Application,
+	table *tview.Table,
+	search string,
+	cols []int,
+) {
+	var resultChannel = make(chan struct{})
+	go func() {
+		resultChannel <- struct{}{}
+	}()
+	go loadData(app, table.Box, resultChannel, func() {
+		if len(search) == 0 {
+			clearSearchHighlights(table)
+		} else {
+			searchRefsInTable(table, cols, search)
+		}
+	})
+}
