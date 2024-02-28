@@ -14,17 +14,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-type S3BucketsDetailsView struct {
-	BucketsTable   *tview.Table
-	ObjectsTable   *tview.Table
-	SearchInput    *tview.InputField
-	RefreshBuckets func(search string, reset bool)
-	RefreshObjects func(bucketName string, reset bool)
-	RootView       *tview.Flex
-	app            *tview.Application
-	bucketName     string
-}
-
 func populateS3BucketsTable(table *tview.Table, data map[string]types.Bucket) {
 	var tableData []tableRow
 	for _, row := range data {
@@ -77,65 +66,14 @@ func populateS3ObjectsTable(table *tview.Table, data []types.Object, extend bool
 	table.ScrollToBeginning()
 }
 
-func createS3BucketsTable(params tableCreationParams, api *s3.S3BucketsApi) (
-	*tview.Table, func(search string, reset bool),
-) {
-	var table = tview.NewTable()
-	populateS3BucketsTable(table, make(map[string]types.Bucket, 0))
-
-	var refreshViewsFunc = func(search string, reset bool) {
-		var data map[string]types.Bucket
-		var dataChannel = make(chan map[string]types.Bucket)
-		var resultChannel = make(chan struct{})
-
-		go func() {
-			if len(search) > 0 {
-				dataChannel <- api.FilterByName(search)
-			} else {
-				dataChannel <- api.ListBuckets(reset)
-			}
-		}()
-
-		go func() {
-			data = <-dataChannel
-			resultChannel <- struct{}{}
-		}()
-
-		go loadData(params.App, table.Box, resultChannel, func() {
-			populateS3BucketsTable(table, data)
-		})
-	}
-
-	return table, refreshViewsFunc
-}
-
-func createS3ObjectsTable(
-	params tableCreationParams,
-	api *s3.S3BucketsApi,
-) (*tview.Table, func(bucketName string, extend bool)) {
-	var table = tview.NewTable()
-	populateS3ObjectsTable(table, nil, false)
-
-	var refreshViewsFunc = func(bucketName string, extend bool) {
-		var data []types.Object
-		var dataChannel = make(chan []types.Object)
-		var resultChannel = make(chan struct{})
-
-		go func() {
-			dataChannel <- api.ListObjects(bucketName, !extend)
-		}()
-
-		go func() {
-			data = <-dataChannel
-			resultChannel <- struct{}{}
-		}()
-
-		go loadData(params.App, table.Box, resultChannel, func() {
-			populateS3ObjectsTable(table, data, extend)
-		})
-	}
-
-	return table, refreshViewsFunc
+type S3BucketsDetailsView struct {
+	BucketsTable      *tview.Table
+	ObjectsTable      *tview.Table
+	SearchInput       *tview.InputField
+	RootView          *tview.Flex
+	selctedBucketName string
+	app               *tview.Application
+	api               *s3.S3BucketsApi
 }
 
 func NewS3bucketsDetailsView(
@@ -143,42 +81,18 @@ func NewS3bucketsDetailsView(
 	api *s3.S3BucketsApi,
 	logger *log.Logger,
 ) *S3BucketsDetailsView {
-	var (
-		params = tableCreationParams{app, logger}
+	var bucketsTable = tview.NewTable()
+	populateS3BucketsTable(bucketsTable, make(map[string]types.Bucket, 0))
 
-		bucketsTable, refreshBucketsTable = createS3BucketsTable(params, api)
-		objectsTable, refreshObjectsTable = createS3ObjectsTable(params, api)
-
-		serviceView = NewServiceView(app)
-	)
-
-	var onBucketSelction = func(row int) {
-		if row < 1 {
-			return
-		}
-		refreshObjectsTable(bucketsTable.GetCell(row, 0).Text, true)
-	}
-
-	bucketsTable.SetSelectedFunc(func(row, column int) {
-		onBucketSelction(row)
-		app.SetFocus(objectsTable)
-	})
+	var objectsTable = tview.NewTable()
+	populateS3ObjectsTable(objectsTable, nil, false)
 
 	var inputField = createSearchInput("Buckets")
-	inputField.SetDoneFunc(func(key tcell.Key) {
-		switch key {
-		case tcell.KeyEnter:
-			refreshBucketsTable(inputField.GetText(), false)
-		case tcell.KeyEsc:
-			inputField.SetText("")
-		default:
-			return
-		}
-	})
 
 	const objectsTableSize = 4000
 	const bucketsTableSize = 3000
 
+	var serviceView = NewServiceView(app)
 	serviceView.RootView.
 		AddItem(objectsTable, 0, objectsTableSize, false).
 		AddItem(bucketsTable, 0, bucketsTableSize, false).
@@ -201,24 +115,88 @@ func NewS3bucketsDetailsView(
 	)
 
 	return &S3BucketsDetailsView{
-		BucketsTable:   bucketsTable,
-		ObjectsTable:   objectsTable,
-		SearchInput:    inputField,
-		RefreshBuckets: refreshBucketsTable,
-		RefreshObjects: refreshObjectsTable,
-		RootView:       serviceView.RootView,
-		app:            app,
-		bucketName:     "",
+		BucketsTable:      bucketsTable,
+		ObjectsTable:      objectsTable,
+		SearchInput:       inputField,
+		RootView:          serviceView.RootView,
+		selctedBucketName: "",
+		app:               app,
+		api:               api,
 	}
 }
 
+func (inst *S3BucketsDetailsView) RefreshBuckets(search string, force bool) {
+	var data map[string]types.Bucket
+	var dataChannel = make(chan map[string]types.Bucket)
+	var resultChannel = make(chan struct{})
+
+	go func() {
+		if len(search) > 0 {
+			dataChannel <- inst.api.FilterByName(search)
+		} else {
+			dataChannel <- inst.api.ListBuckets(force)
+		}
+	}()
+
+	go func() {
+		data = <-dataChannel
+		resultChannel <- struct{}{}
+	}()
+
+	go loadData(inst.app, inst.BucketsTable.Box, resultChannel, func() {
+		populateS3BucketsTable(inst.BucketsTable, data)
+	})
+}
+
+func (inst *S3BucketsDetailsView) RefreshObjects(bucketName string, force bool) {
+	var data []types.Object
+	var dataChannel = make(chan []types.Object)
+	var resultChannel = make(chan struct{})
+
+	go func() {
+		dataChannel <- inst.api.ListObjects(bucketName, force)
+	}()
+
+	go func() {
+		data = <-dataChannel
+		resultChannel <- struct{}{}
+	}()
+
+	go loadData(inst.app, inst.ObjectsTable.Box, resultChannel, func() {
+		populateS3ObjectsTable(inst.ObjectsTable, data, !force)
+	})
+}
+
 func (inst *S3BucketsDetailsView) InitInputCapture() {
+	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {
+		switch key {
+		case tcell.KeyEnter:
+			inst.RefreshBuckets(inst.SearchInput.GetText(), false)
+		case tcell.KeyEsc:
+			inst.SearchInput.SetText("")
+		default:
+			return
+		}
+	})
+
+	var refreshObjects = func(row int) {
+		if row < 1 {
+			return
+		}
+		inst.RefreshObjects(inst.BucketsTable.GetCell(row, 0).Text, true)
+	}
+
+	inst.BucketsTable.SetSelectedFunc(func(row, column int) {
+		refreshObjects(row)
+		inst.app.SetFocus(inst.ObjectsTable)
+	})
+
 	inst.ObjectsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			inst.RefreshObjects(inst.bucketName, false)
+			inst.RefreshObjects(inst.selctedBucketName, true)
 		case tcell.KeyCtrlN:
-			inst.RefreshObjects(inst.bucketName, true)
+			inst.RefreshObjects(inst.selctedBucketName, false)
 		}
 		return event
 	})
@@ -229,8 +207,8 @@ func (inst *S3BucketsDetailsView) InitBucketSelectedCallback() {
 		if row < 1 {
 			return
 		}
-		inst.bucketName = inst.BucketsTable.GetCell(row, 0).Text
-		inst.RefreshObjects(inst.bucketName, false)
+		inst.selctedBucketName = inst.BucketsTable.GetCell(row, 0).Text
+		inst.RefreshObjects(inst.selctedBucketName, true)
 		inst.app.SetFocus(inst.ObjectsTable)
 	})
 
