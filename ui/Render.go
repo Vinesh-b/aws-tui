@@ -60,6 +60,7 @@ func RenderUI(config aws.Config) {
 		CLOUDWATCH_ALARMS: createAlarmsHomeView(app, config, inAppLogger),
 		CLOUDFORMATION:    createStacksHomeView(app, config, inAppLogger),
 		DYNAMODB:          createDynamoDBHomeView(app, config, inAppLogger),
+		S3BUCKETS:         createS3bucketsHomeView(app, config, inAppLogger),
 
 		DEBUG_LOGS: errorTextArea,
 	}

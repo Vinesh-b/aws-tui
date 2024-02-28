@@ -13,6 +13,7 @@ const (
 	CLOUDWATCH_ALARMS viewId = "CloudWatch Alarms"
 	CLOUDFORMATION    viewId = "CloudFormation"
 	DYNAMODB          viewId = "DynamoDB"
+	S3BUCKETS         viewId = "S3 Buckets"
 
 	HELP       viewId = "Help"
 	SETTINGS   viewId = "Settings"
@@ -47,9 +48,14 @@ func servicesHomeView() *tview.List {
 			rune('4'), nil,
 		).
 		AddItem(
+			string(S3BUCKETS),
+			"󱐖 View S3 buckets and objects",
+			rune('7'), nil,
+		).
+		AddItem(
 			string(CLOUDFORMATION),
 			" View Stacks",
-			rune('5'), nil,
+			rune('6'), nil,
 		).
 		AddItem("----------------------------------------", "", 0, nil).
 		AddItem(
