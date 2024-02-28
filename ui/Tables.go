@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	cw_types "github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	ddb_types "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -226,93 +225,6 @@ func populateServicesTable(table *tview.Table) {
 	}
 
 	initBasicTable(table, "Services", tableData, false)
-	table.Select(0, 0)
-	table.ScrollToBeginning()
-}
-
-func populateAlarmsTable(table *tview.Table, data map[string]cw_types.MetricAlarm) {
-	var tableData []tableRow
-	for _, row := range data {
-		tableData = append(tableData, tableRow{
-			*row.AlarmName,
-			string(row.StateValue),
-		})
-	}
-
-	initSelectableTable(table, "Alarms",
-		tableRow{
-			"Name",
-			"State",
-		},
-		tableData,
-		[]int{0, 1},
-	)
-	table.GetCell(0, 0).SetExpansion(1)
-	table.Select(0, 0)
-	table.ScrollToBeginning()
-}
-
-func populateAlarmDetailsGrid(grid *tview.Grid, data *cw_types.MetricAlarm) {
-	grid.
-		Clear().
-		SetRows(1, 2, 1, 3, 1, 1, 1, 1, 1, 1, 0).
-		SetColumns(18, 0)
-	grid.
-		SetTitle("Alarm Details").
-		SetTitleAlign(tview.AlignLeft).
-		SetBorder(true)
-
-	var tableData []tableRow
-	if data != nil {
-		tableData = []tableRow{
-			{"Name", aws.ToString(data.AlarmName)},
-			{"Description", aws.ToString(data.AlarmDescription)},
-			{"State", string(data.StateValue)},
-			{"StateReason", aws.ToString(data.StateReason)},
-			{"MetricName", aws.ToString(data.MetricName)},
-			{"MetricNamespace", aws.ToString(data.Namespace)},
-			{"Period", fmt.Sprintf("%d", aws.ToInt32(data.Period))},
-			{"Threshold", fmt.Sprintf("%.2f", aws.ToFloat64(data.Threshold))},
-			{"DataPoints", fmt.Sprintf("%d", aws.ToInt32(data.DatapointsToAlarm))},
-		}
-	}
-
-	for idx, row := range tableData {
-		grid.AddItem(
-			tview.NewTextView().
-				SetWrap(false).
-				SetText(row[0]).
-				SetTextColor(tertiaryTextColor),
-			idx, 0, 1, 1, 0, 0, false,
-		)
-		grid.AddItem(
-			tview.NewTextView().
-				SetWrap(true).
-				SetText(row[1]).
-				SetTextColor(tertiaryTextColor),
-			idx, 1, 1, 1, 0, 0, false,
-		)
-	}
-}
-
-func populateAlarmHistoryTable(table *tview.Table, data []cw_types.AlarmHistoryItem) {
-	var tableData []tableRow
-	for _, row := range data {
-		tableData = append(tableData, tableRow{
-			row.Timestamp.Format(time.DateTime),
-			*row.HistorySummary,
-		})
-	}
-
-	initSelectableTable(table, "Alarm History",
-		tableRow{
-			"Timestamp",
-			"History",
-		},
-		tableData,
-		[]int{0, 1},
-	)
-	table.GetCell(0, 0).SetExpansion(1)
 	table.Select(0, 0)
 	table.ScrollToBeginning()
 }
