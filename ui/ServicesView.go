@@ -22,9 +22,30 @@ const (
 
 func servicesHomeView() *tview.List {
 	var servicesList = tview.NewList().
+		SetWrapAround(true).
 		SetSecondaryTextColor(tcell.ColorGrey).
 		SetSelectedTextColor(tertiaryTextColor).
 		SetSelectedBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+
+	servicesList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		var currentIdx = servicesList.GetCurrentItem()
+		switch event.Key() {
+		case tcell.KeyRune:
+			switch event.Rune() {
+			case rune('k'):
+				currentIdx--
+				servicesList.SetCurrentItem(currentIdx)
+				return nil
+			case rune('j'):
+				currentIdx++
+				servicesList.SetCurrentItem(currentIdx)
+				return nil
+			}
+		}
+
+		return event
+	})
+
 	servicesList.
 		AddItem(
 			string(LAMBDA),
