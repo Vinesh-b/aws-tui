@@ -8,7 +8,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	cw_types "github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
-	cwl_types "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	ddb_types "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -227,80 +226,6 @@ func populateServicesTable(table *tview.Table) {
 	}
 
 	initBasicTable(table, "Services", tableData, false)
-	table.Select(0, 0)
-	table.ScrollToBeginning()
-}
-
-func populateLogGroupsTable(table *tview.Table, data []cwl_types.LogGroup) {
-	var tableData []tableRow
-	for _, row := range data {
-		tableData = append(tableData, tableRow{
-			*row.LogGroupName,
-		})
-	}
-
-	initSelectableTable(table, "LogGroups",
-		tableRow{
-			"Name",
-		},
-		tableData,
-		[]int{0},
-	)
-	table.GetCell(0, 0).SetExpansion(1)
-	table.Select(0, 0)
-	table.ScrollToBeginning()
-}
-
-func populateLogStreamsTable(table *tview.Table, data []cwl_types.LogStream, extend bool) {
-	var tableData []tableRow
-	for _, row := range data {
-		tableData = append(tableData, tableRow{
-			*row.LogStreamName,
-		})
-	}
-
-	var title = "LogStreams"
-	if extend {
-		extendTable(table, title, tableData)
-		return
-	}
-
-	initSelectableTable(table, title,
-		tableRow{
-			"Name",
-		},
-		tableData,
-		[]int{0},
-	)
-	table.GetCell(0, 0).SetExpansion(1)
-	table.Select(0, 0)
-	table.ScrollToBeginning()
-}
-
-func populateLogEventsTable(table *tview.Table, data []cwl_types.OutputLogEvent, extend bool) {
-	var tableData []tableRow
-	for _, row := range data {
-		tableData = append(tableData, tableRow{
-			time.UnixMilli(*row.Timestamp).Format("2006-01-02 15:04:05.000"),
-			*row.Message,
-		})
-	}
-
-	var title = "LogEvents"
-	if extend {
-		extendTable(table, title, tableData)
-		return
-	}
-
-	initSelectableTable(table, title,
-		tableRow{
-			"Timestamp",
-			"Message",
-		},
-		tableData,
-		[]int{0, 1},
-	)
-	table.GetCell(0, 0).SetExpansion(1)
 	table.Select(0, 0)
 	table.ScrollToBeginning()
 }

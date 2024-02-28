@@ -3,6 +3,7 @@ package ui
 import (
 	"encoding/json"
 	"log"
+	"time"
 
 	"aws-tui/cloudwatchlogs"
 
@@ -21,6 +22,80 @@ type LogEventsView struct {
 	RootView             *tview.Flex
 
 	app *tview.Application
+}
+
+func populateLogGroupsTable(table *tview.Table, data []types.LogGroup) {
+	var tableData []tableRow
+	for _, row := range data {
+		tableData = append(tableData, tableRow{
+			*row.LogGroupName,
+		})
+	}
+
+	initSelectableTable(table, "LogGroups",
+		tableRow{
+			"Name",
+		},
+		tableData,
+		[]int{0},
+	)
+	table.GetCell(0, 0).SetExpansion(1)
+	table.Select(0, 0)
+	table.ScrollToBeginning()
+}
+
+func populateLogStreamsTable(table *tview.Table, data []types.LogStream, extend bool) {
+	var tableData []tableRow
+	for _, row := range data {
+		tableData = append(tableData, tableRow{
+			*row.LogStreamName,
+		})
+	}
+
+	var title = "LogStreams"
+	if extend {
+		extendTable(table, title, tableData)
+		return
+	}
+
+	initSelectableTable(table, title,
+		tableRow{
+			"Name",
+		},
+		tableData,
+		[]int{0},
+	)
+	table.GetCell(0, 0).SetExpansion(1)
+	table.Select(0, 0)
+	table.ScrollToBeginning()
+}
+
+func populateLogEventsTable(table *tview.Table, data []types.OutputLogEvent, extend bool) {
+	var tableData []tableRow
+	for _, row := range data {
+		tableData = append(tableData, tableRow{
+			time.UnixMilli(*row.Timestamp).Format("2006-01-02 15:04:05.000"),
+			*row.Message,
+		})
+	}
+
+	var title = "LogEvents"
+	if extend {
+		extendTable(table, title, tableData)
+		return
+	}
+
+	initSelectableTable(table, title,
+		tableRow{
+			"Timestamp",
+			"Message",
+		},
+		tableData,
+		[]int{0, 1},
+	)
+	table.GetCell(0, 0).SetExpansion(1)
+	table.Select(0, 0)
+	table.ScrollToBeginning()
 }
 
 func createLogItemsTable(
