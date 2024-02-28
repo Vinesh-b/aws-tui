@@ -69,6 +69,7 @@ func RenderUI(config aws.Config, version string) {
 		DYNAMODB:          createDynamoDBHomeView(app, config, inAppLogger),
 		S3BUCKETS:         createS3bucketsHomeView(app, config, inAppLogger),
 
+		HELP:       createHelpHomeView(app, config, inAppLogger),
 		DEBUG_LOGS: errorTextArea,
 	}
 
