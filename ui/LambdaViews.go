@@ -67,6 +67,7 @@ func populateLambdaDetailsTable(table *tview.Table, data *types.FunctionConfigur
 	table.Select(0, 0)
 	table.ScrollToBeginning()
 }
+
 func createLambdasTable(params tableCreationParams, api *lambda.LambdaApi) (
 	*tview.Table, func(search string),
 ) {

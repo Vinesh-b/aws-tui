@@ -22,10 +22,10 @@ func NewLambdaApi(
 	logger *log.Logger,
 ) *LambdaApi {
 	return &LambdaApi{
-		config: config,
-		logger: logger,
-		client: lambda.NewFromConfig(config),
-        allLambdas: make(map[string]types.FunctionConfiguration),
+		config:     config,
+		logger:     logger,
+		client:     lambda.NewFromConfig(config),
+		allLambdas: make(map[string]types.FunctionConfiguration),
 	}
 }
 
