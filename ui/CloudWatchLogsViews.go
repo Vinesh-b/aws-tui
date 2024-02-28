@@ -434,38 +434,27 @@ func createLogsHomeView(
 		AddPage("Streams", logStreamsView.RootView, true, true).
 		AddAndSwitchToPage("Groups", logGroupsView.RootView, true)
 
-	var pagesNavIdx = 0
 	var orderedPages = []string{
 		"Groups",
 		"Streams",
 		"Events",
 	}
 
-	var paginationView = createPaginatorView(string(CLOUDWATCH_LOGS))
-	var rootView = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(pages, 0, 1, true).
-		AddItem(paginationView.RootView, 1, 0, false)
-
-	initPageNavigation(app, pages, &pagesNavIdx, orderedPages, paginationView)
-
-	var switchAndFocus = func(pageIdx int, view tview.Primitive) {
-		pagesNavIdx = pageIdx
-		pages.SwitchToPage(orderedPages[pageIdx])
-		app.SetFocus(view)
-	}
+	var serviceRootView = NewServiceRootView(
+		app, string(CLOUDWATCH_LOGS), pages, orderedPages).Init()
 
 	var selectedGroupName = ""
 	logGroupsView.LogGroupsTable.SetSelectedFunc(func(row, column int) {
 		selectedGroupName = logGroupsView.LogGroupsTable.GetCell(row, 0).Text
 		logStreamsView.RefreshStreams(selectedGroupName, nil, false)
-		switchAndFocus(1, logStreamsView.LogStreamsTable)
+		serviceRootView.ChangePage(1, logStreamsView.LogStreamsTable)
 	})
 
 	var streamName = ""
 	logStreamsView.LogStreamsTable.SetSelectedFunc(func(row, column int) {
 		streamName = logStreamsView.LogStreamsTable.GetCell(row, 0).Text
 		logEventsView.RefreshEvents(selectedGroupName, streamName, false)
-		switchAndFocus(2, logEventsView.LogEventsTable)
+		serviceRootView.ChangePage(2, logEventsView.LogEventsTable)
 	})
 
 	var searchPrefix = ""
@@ -475,5 +464,5 @@ func createLogsHomeView(
 	logStreamsView.InitInputCapture(&selectedGroupName, &searchPrefix)
 	logStreamsView.InitSearchInputDoneCallback(&selectedGroupName, &searchPrefix)
 
-	return rootView
+	return serviceRootView.RootView
 }

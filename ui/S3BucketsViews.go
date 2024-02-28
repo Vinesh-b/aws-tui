@@ -243,20 +243,15 @@ func createS3bucketsHomeView(
 	var pages = tview.NewPages().
 		AddAndSwitchToPage("S3Buckets", s3DetailsView.RootView, true)
 
-	var pagesNavIdx = 0
 	var orderedPages = []string{
 		"S3Buckets",
 	}
 
-	var paginationView = createPaginatorView(string(S3BUCKETS))
-	var rootView = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(pages, 0, 1, true).
-		AddItem(paginationView.RootView, 1, 0, false)
-
-	initPageNavigation(app, pages, &pagesNavIdx, orderedPages, paginationView)
+	var serviceRootView = NewServiceRootView(
+		app, string(S3BUCKETS), pages, orderedPages).Init()
 
 	s3DetailsView.InitInputCapture()
 	s3DetailsView.InitBucketSelectedCallback()
 
-	return rootView
+	return serviceRootView.RootView
 }

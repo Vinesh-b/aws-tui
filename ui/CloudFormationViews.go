@@ -376,24 +376,13 @@ func createStacksHomeView(
 		AddPage("Events", stackEventsView.RootView, true, true).
 		AddAndSwitchToPage("Stacks", stacksDetailsView.RootView, true)
 
-	var pagesNavIdx = 0
 	var orderedPages = []string{
 		"Stacks",
 		"Events",
 	}
 
-	var paginationView = createPaginatorView(string(CLOUDFORMATION))
-	var rootView = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(pages, 0, 1, true).
-		AddItem(paginationView.RootView, 1, 0, false)
-
-	initPageNavigation(app, pages, &pagesNavIdx, orderedPages, paginationView)
-
-	var switchAndFocus = func(pageIdx int, view tview.Primitive) {
-		pagesNavIdx = pageIdx
-		pages.SwitchToPage(orderedPages[pageIdx])
-		app.SetFocus(view)
-	}
+	var serviceRootView = NewServiceRootView(
+		app, string(CLOUDFORMATION), pages, orderedPages).Init()
 
 	var selectedStackName = ""
 	stackEventsView.RootView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -407,12 +396,12 @@ func createStacksHomeView(
 	stacksDetailsView.DetailsTable.SetSelectedFunc(func(row, column int) {
 		selectedStackName = stacksDetailsView.DetailsTable.GetCell(0, 1).Text
 		stackEventsView.RefreshEvents(selectedStackName)
-		switchAndFocus(1, stackEventsView.EventsTable)
+		serviceRootView.ChangePage(1, stackEventsView.EventsTable)
 	})
 
 	var searchEvent = ""
 	stackEventsView.InitInputCapture(&selectedStackName)
 	stackEventsView.InitSearchInputDoneCallback(&searchEvent)
 
-	return rootView
+	return serviceRootView.RootView
 }

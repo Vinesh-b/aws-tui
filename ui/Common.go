@@ -118,7 +118,7 @@ func createPaginatorView(service string) paginatorView {
 	var serviceName = tview.NewTextView().
 		SetTextAlign(tview.AlignLeft).
 		SetTextColor(tertiaryTextColor).
-        SetText(service)
+		SetText(service)
 
 	var rootView = tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(serviceName, 0, 1, false).
@@ -133,33 +133,70 @@ func createPaginatorView(service string) paginatorView {
 	}
 }
 
-func initPageNavigation(
+type ServiceRootView struct {
+	pages         *tview.Pages
+	paginatorView paginatorView
+	pageIndex     *int
+	RootView      *tview.Flex
+	orderedPages  []string
+	app           *tview.Application
+}
+
+func NewServiceRootView(
 	app *tview.Application,
+	serviceName string,
 	pages *tview.Pages,
-	pageIdx *int,
-	orderedPageNames []string,
-	paginatorview paginatorView,
-) {
-	var numPages = len(orderedPageNames)
+	orderedPages []string,
+) *ServiceRootView {
 
-	var changePage = func(pageIdx int) {
-		var pageName = orderedPageNames[pageIdx]
-		pages.SwitchToPage(pageName)
-		paginatorview.PageNameView.SetText(pageName)
-		paginatorview.PageCounterView.SetText(fmt.Sprintf("<%d/%d>", pageIdx+1, numPages))
+	var paginatorView = createPaginatorView(serviceName)
+	var rootView = tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(pages, 0, 1, true).
+		AddItem(paginatorView.RootView, 1, 0, false)
+
+	var pageIndex = 0
+	return &ServiceRootView{
+		RootView:      rootView,
+		pages:         pages,
+		paginatorView: paginatorView,
+		pageIndex:     &pageIndex,
+		orderedPages:  orderedPages,
+		app:           app,
 	}
+}
 
-	changePage(0)
+func (inst *ServiceRootView) Init() *ServiceRootView {
+	inst.initPageNavigation()
+	return inst
+}
 
-	pages.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+func (inst *ServiceRootView) ChangePage(pageIdx int, focusView tview.Primitive) {
+	var numPages = len(inst.orderedPages)
+	*inst.pageIndex = (pageIdx + numPages) % numPages
+	var pageName = inst.orderedPages[*inst.pageIndex]
+	inst.pages.SwitchToPage(pageName)
+	if focusView != nil {
+		inst.app.SetFocus(focusView)
+	}
+	inst.paginatorView.PageNameView.SetText(pageName)
+	inst.paginatorView.PageCounterView.SetText(
+		fmt.Sprintf("<%d/%d>", *inst.pageIndex+1, numPages),
+	)
+}
+
+func (inst *ServiceRootView) initPageNavigation() {
+	var numPages = len(inst.orderedPages)
+	inst.ChangePage(0, nil)
+
+	inst.pages.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlH:
-			*pageIdx = (*pageIdx - 1 + numPages) % numPages
-			changePage(*pageIdx)
+			*inst.pageIndex = (*inst.pageIndex - 1 + numPages) % numPages
+			inst.ChangePage(*inst.pageIndex, nil)
 			return nil
 		case tcell.KeyCtrlL:
-			*pageIdx = (*pageIdx + 1) % numPages
-			changePage(*pageIdx)
+			*inst.pageIndex = (*inst.pageIndex + 1) % numPages
+			inst.ChangePage(*inst.pageIndex, nil)
 			return nil
 		}
 		return event
