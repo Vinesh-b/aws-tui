@@ -142,8 +142,10 @@ func NewDynamoDBDetailsView(
 
 type DynamoDBTableItemsView struct {
 	DDBItemsTable *tview.Table
+	SearchInput   *tview.InputField
 	RefreshTable  func(search string)
 	RootView      *tview.Flex
+	app           *tview.Application
 }
 
 func createDynamoDBItemsTable(
@@ -162,9 +164,9 @@ func createDynamoDBItemsTable(
 		go func() {
 			if len(search) > 0 {
 				dataChannel <- api.ScanTable(search)
-			}else {
-                dataChannel <- make([]map[string]interface{}, 0)
-            }
+			} else {
+				dataChannel <- make([]map[string]interface{}, 0)
+			}
 		}()
 
 		go func() {
@@ -203,6 +205,7 @@ func NewDynamoDBTableItemsView(
 			app.SetFocus(itemsTable)
 		case tcell.KeyEsc:
 			inputField.SetText("")
+			highlightTableSearch(app, itemsTable, "", []int{})
 		default:
 			return
 		}
@@ -224,9 +227,21 @@ func NewDynamoDBTableItemsView(
 
 	return &DynamoDBTableItemsView{
 		DDBItemsTable: itemsTable,
+		SearchInput:   inputField,
 		RefreshTable:  refreshItemsTable,
 		RootView:      ddbDetailsView,
+		app:           app,
 	}
+}
+func (inst *DynamoDBTableItemsView) InitSearchInputDoneCallback(search *string) {
+	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {
+		switch key {
+		case tcell.KeyEnter:
+			*search = inst.SearchInput.GetText()
+			highlightTableSearch(inst.app, inst.DDBItemsTable, *search, []int{})
+			inst.app.SetFocus(inst.DDBItemsTable)
+		}
+	})
 }
 
 func createDynamoDBHomeView(
@@ -247,12 +262,17 @@ func createDynamoDBHomeView(
 		AddPage("Home", ddbDetailsView.RootView, true, true)
 
 	var pagesNavIdx = 0
-	initPageNavigation(app, pages, &pagesNavIdx,
-		[]string{
-			"Home",
-			"TableItems",
-		},
-	)
+	var orderedPages = []string{
+		"Home",
+		"TableItems",
+	}
+	initPageNavigation(app, pages, &pagesNavIdx, orderedPages)
+
+	var switchAndFocus = func(pageIdx int, view tview.Primitive) {
+		pagesNavIdx = pageIdx
+		pages.SwitchToPage(orderedPages[pageIdx])
+		app.SetFocus(view)
+	}
 
 	ddbDetailsView.DDBTablesTable.SetSelectionChangedFunc(func(row, column int) {
 		if row < 1 {
@@ -261,6 +281,18 @@ func createDynamoDBHomeView(
 		var selectedTableName = ddbDetailsView.DDBTablesTable.GetCell(row, 0).Text
 		go ddbDetailsView.RefreshDetails(selectedTableName)
 	})
+
+	ddbDetailsView.DDBTablesTable.SetSelectedFunc(func(row, column int) {
+		if row < 1 {
+			return
+		}
+		var selectedTableName = ddbDetailsView.DDBTablesTable.GetCell(row, 0).Text
+		go ddbItemsView.RefreshTable(selectedTableName)
+		switchAndFocus(1, ddbItemsView.DDBItemsTable)
+	})
+
+    var searchString = ""
+    ddbItemsView.InitSearchInputDoneCallback(&searchString)
 
 	return pages
 }

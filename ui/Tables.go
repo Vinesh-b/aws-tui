@@ -466,8 +466,7 @@ func populateDynamoDBTabelDetailsTable(table *tview.Table, data *ddb_types.Table
 
 func populateDynamoDBTable(table *tview.Table, data []map[string]interface{}) {
 
-	initSelectableJsonTable(table, "Table",	data)
-	table.GetCell(0, 0).SetExpansion(1)
+	initSelectableJsonTable(table, "Table", data)
 	table.Select(0, 0)
 	table.ScrollToBeginning()
 }
