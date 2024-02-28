@@ -231,7 +231,6 @@ func populateServicesTable(table *tview.Table) {
 	table.ScrollToBeginning()
 }
 
-
 func populateLogGroupsTable(table *tview.Table, data []cwl_types.LogGroup) {
 	var tableData []tableRow
 	for _, row := range data {
