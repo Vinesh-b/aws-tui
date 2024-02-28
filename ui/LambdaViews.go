@@ -242,7 +242,7 @@ func createLambdaHomeView(
 	var selectedGroupName = ""
 	lambdasDetailsView.DetailsTable.SetSelectedFunc(func(row, column int) {
 		selectedGroupName = lambdasDetailsView.DetailsTable.GetCell(7, 1).Text
-		logStreamsView.RefreshStreams(selectedGroupName, nil, false)
+		logStreamsView.RefreshStreams(selectedGroupName, false)
 		serviceRootView.ChangePage(1, logStreamsView.LogStreamsTable)
 	})
 
@@ -257,8 +257,8 @@ func createLambdaHomeView(
 	var searchEvent = ""
 	logEventsView.InitInputCapture()
 	logEventsView.InitSearchInputBuffer(&searchEvent)
-	logStreamsView.InitInputCapture(&selectedGroupName, &searchPrefix)
-	logStreamsView.InitSearchInputDoneCallback(&selectedGroupName, &searchPrefix)
+	logStreamsView.InitInputCapture()
+	logStreamsView.InitSearchInputBuffer(&searchPrefix)
 
 	return serviceRootView.RootView
 }
