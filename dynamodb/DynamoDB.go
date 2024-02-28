@@ -3,6 +3,7 @@ package dynamodb
 import (
 	"context"
 	"log"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -51,6 +52,22 @@ func (inst *DynamoDBApi) ListTables(force bool) []string {
 	return inst.allTables
 }
 
+func (inst *DynamoDBApi) FilterByName(name string) []string {
+
+	if len(inst.allTables) < 1 {
+		inst.ListTables(true)
+	}
+
+	var foundTables []string
+
+	for _, tableName := range inst.allTables {
+		found := strings.Contains(tableName, name)
+		if found {
+			foundTables = append(foundTables, tableName)
+		}
+	}
+	return foundTables
+}
 func (inst *DynamoDBApi) DescribeTable(tableName string) *types.TableDescription {
 
 	var output, err = inst.client.DescribeTable(context.TODO(),

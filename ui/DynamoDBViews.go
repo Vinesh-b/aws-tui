@@ -153,7 +153,7 @@ func createDynamoDBTablesTable(
 
 		go func() {
 			if len(search) > 0 {
-				//dataChannel <- api.FilterTablesByName(search)
+				dataChannel <- api.FilterByName(search)
 			} else {
 				dataChannel <- api.ListTables(false)
 			}
