@@ -45,7 +45,7 @@ func changeColourScheme(colour tcell.Color) {
 	tview.Styles.MoreContrastBackgroundColor = colour
 }
 
-func RenderUI(config aws.Config) {
+func RenderUI(config aws.Config, version string) {
 	resetGlobalStyle()
 
 	var (
@@ -80,19 +80,19 @@ func RenderUI(config aws.Config) {
 	var currentServiceView = tview.NewFlex()
 	currentServiceView.AddItem(serviceViews[LAMBDA], 0, 1, false)
 
-	var flexHome = tview.NewFlex().SetDirection(tview.FlexColumn)
-	flexHome.AddItem(tview.NewFlex().
-		AddItem(currentServiceView, 0, 1, false),
-		0, 1, false,
-	)
-
 	var servicesList = servicesHomeView()
-	var flexSearch = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(servicesList, 0, 1, true)
+	var flexLanding = tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(servicesList, 0, 1, true).
+		AddItem(tview.NewTextView().
+			SetText(version).
+			SetTextColor(tcell.ColorGrey),
+			5, 0, false,
+		)
+	flexLanding.SetBorder(true)
 
 	var pages = tview.NewPages().
-		AddPage("ServiceHome", flexHome, true, true).
-		AddAndSwitchToPage("Search", flexSearch, true)
+		AddPage("ServiceHome", currentServiceView, true, true).
+		AddAndSwitchToPage("Search", flexLanding, true)
 
 	servicesList.SetSelectedFunc(func(i int, serviceName string, _ string, r rune) {
 		var resultChannel = make(chan struct{})

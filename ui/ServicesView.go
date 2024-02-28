@@ -25,7 +25,6 @@ func servicesHomeView() *tview.List {
 		SetSecondaryTextColor(tcell.ColorGrey).
 		SetSelectedTextColor(tertiaryTextColor).
 		SetSelectedBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
-	servicesList.SetBorder(true)
 	servicesList.
 		AddItem(
 			string(LAMBDA),
