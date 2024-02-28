@@ -17,12 +17,12 @@ var (
 	titleColour        tcell.Color = tcell.NewHexColor(0x43B143)
 	backgroundColor    tcell.Color = tcell.NewHexColor(0x212129)
 
-	// Purple
-	contrastBackgroundColor     tcell.Color = tcell.NewHexColor(0x4B0082)
-	moreContrastBackgroundColor tcell.Color = tcell.NewHexColor(0x5A00A3)
+	// Grey (Default)
+	contrastBackgroundColor     tcell.Color = tcell.NewHexColor(0x303030)
+	moreContrastBackgroundColor tcell.Color = tcell.NewHexColor(0x404040)
 )
 
-func initGlobalStyle() {
+func resetGlobalStyle() {
 	tview.Borders.TopLeft = tview.BoxDrawingsLightArcDownAndRight
 	tview.Borders.TopRight = tview.BoxDrawingsLightArcDownAndLeft
 	tview.Borders.BottomLeft = tview.BoxDrawingsLightArcUpAndRight
@@ -38,8 +38,15 @@ func initGlobalStyle() {
 	tview.Styles.MoreContrastBackgroundColor = moreContrastBackgroundColor
 }
 
+func changeColourScheme(colour tcell.Color) {
+	resetGlobalStyle()
+
+	tview.Styles.BorderColor = colour
+	tview.Styles.MoreContrastBackgroundColor = colour
+}
+
 func RenderUI(config aws.Config) {
-	initGlobalStyle()
+	resetGlobalStyle()
 
 	var (
 		app           = tview.NewApplication()

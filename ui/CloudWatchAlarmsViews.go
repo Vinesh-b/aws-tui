@@ -289,6 +289,9 @@ func createAlarmsHomeView(
 	config aws.Config,
 	logger *log.Logger,
 ) tview.Primitive {
+	changeColourScheme(tcell.NewHexColor(0x660000))
+	defer resetGlobalStyle()
+
 	var api = cloudwatch.NewCloudWatchAlarmsApi(config, logger)
 	var alarmsDetailsView = NewAlarmsDetailsView(app, api, logger)
 

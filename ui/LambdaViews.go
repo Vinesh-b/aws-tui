@@ -209,6 +209,9 @@ func createLambdaHomeView(
 	config aws.Config,
 	logger *log.Logger,
 ) tview.Primitive {
+	changeColourScheme(tcell.NewHexColor(0xCC6600))
+	defer resetGlobalStyle()
+
 	var (
 		api                = lambda.NewLambdaApi(config, logger)
 		cwl_api            = cloudwatchlogs.NewCloudWatchLogsApi(config, logger)

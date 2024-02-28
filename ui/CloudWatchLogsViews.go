@@ -432,6 +432,9 @@ func createLogsHomeView(
 	config aws.Config,
 	logger *log.Logger,
 ) tview.Primitive {
+	changeColourScheme(tcell.NewHexColor(0xBB00DD))
+	defer resetGlobalStyle()
+
 	var api = cloudwatchlogs.NewCloudWatchLogsApi(config, logger)
 	var logEventsView = NewLogEventsView(app, api, logger)
 	var logStreamsView = NewLogStreamsView(app, api, logger)

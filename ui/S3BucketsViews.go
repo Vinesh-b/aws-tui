@@ -236,6 +236,9 @@ func createS3bucketsHomeView(
 	config aws.Config,
 	logger *log.Logger,
 ) tview.Primitive {
+	changeColourScheme(tcell.NewHexColor(0x005500))
+	defer resetGlobalStyle()
+
 	var (
 		api           = s3.NewS3BucketsApi(config, logger)
 		s3DetailsView = NewS3bucketsDetailsView(app, api, logger)

@@ -435,6 +435,9 @@ func createDynamoDBHomeView(
 	config aws.Config,
 	logger *log.Logger,
 ) tview.Primitive {
+	changeColourScheme(tcell.NewHexColor(0x003388))
+	defer resetGlobalStyle()
+
 	var (
 		api = dynamodb.NewDynamoDBApi(config, logger)
 

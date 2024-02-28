@@ -371,6 +371,9 @@ func createStacksHomeView(
 	config aws.Config,
 	logger *log.Logger,
 ) tview.Primitive {
+	changeColourScheme(tcell.NewHexColor(0x660033))
+	defer resetGlobalStyle()
+
 	var (
 		api               = cloudformation.NewCloudFormationApi(config, logger)
 		stacksDetailsView = NewStacksDetailsView(app, api, logger)
