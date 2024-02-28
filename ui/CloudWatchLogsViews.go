@@ -429,7 +429,7 @@ func createLogsHomeView(
 	app *tview.Application,
 	config aws.Config,
 	logger *log.Logger,
-) *tview.Pages {
+) tview.Primitive {
 	var api = cloudwatchlogs.NewCloudWatchLogsApi(config, logger)
 	var logEventsView = NewLogEventsView(app, api, logger)
 	var logStreamsView = NewLogStreamsView(app, api, logger)
@@ -447,7 +447,12 @@ func createLogsHomeView(
 		"Events",
 	}
 
-	initPageNavigation(app, pages, &pagesNavIdx, orderedPages)
+	var paginationView = createPaginatorView()
+	var rootView = tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(pages, 0, 1, true).
+		AddItem(paginationView.RootView, 1, 0, false)
+
+	initPageNavigation(app, pages, &pagesNavIdx, orderedPages, paginationView.PageCounterView)
 
 	var switchAndFocus = func(pageIdx int, view tview.Primitive) {
 		pagesNavIdx = pageIdx
@@ -476,5 +481,5 @@ func createLogsHomeView(
 	logStreamsView.InitInputCapture(&selectedGroupName, &searchPrefix)
 	logStreamsView.InitSearchInputDoneCallback(&selectedGroupName, &searchPrefix)
 
-	return pages
+	return rootView
 }

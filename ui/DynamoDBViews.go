@@ -369,7 +369,7 @@ func createDynamoDBHomeView(
 	app *tview.Application,
 	config aws.Config,
 	logger *log.Logger,
-) *tview.Pages {
+) tview.Primitive {
 	var (
 		api = dynamodb.NewDynamoDBApi(config, logger)
 
@@ -387,7 +387,13 @@ func createDynamoDBHomeView(
 		"Home",
 		"TableItems",
 	}
-	initPageNavigation(app, pages, &pagesNavIdx, orderedPages)
+
+	var paginationView = createPaginatorView()
+	var rootView = tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(pages, 0, 1, true).
+		AddItem(paginationView.RootView, 1, 0, false)
+
+	initPageNavigation(app, pages, &pagesNavIdx, orderedPages, paginationView.PageCounterView)
 
 	var switchAndFocus = func(pageIdx int, view tview.Primitive) {
 		pagesNavIdx = pageIdx
@@ -415,5 +421,5 @@ func createDynamoDBHomeView(
 	var searchString = ""
 	ddbItemsView.InitSearchInputDoneCallback(&searchString)
 
-	return pages
+	return rootView
 }

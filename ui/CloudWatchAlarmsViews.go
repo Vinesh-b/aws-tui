@@ -288,7 +288,7 @@ func createAlarmsHomeView(
 	app *tview.Application,
 	config aws.Config,
 	logger *log.Logger,
-) *tview.Pages {
+) tview.Primitive {
 	var api = cloudwatch.NewCloudWatchAlarmsApi(config, logger)
 	var alarmsDetailsView = NewAlarmsDetailsView(app, api, logger)
 
@@ -296,11 +296,16 @@ func createAlarmsHomeView(
 		AddAndSwitchToPage("Alarms", alarmsDetailsView.RootView, true)
 
 	var pagesNavIdx = 0
-	initPageNavigation(app, pages, &pagesNavIdx,
-		[]string{
-			"Alarms",
-		},
-	)
+	var orderedPages = []string{
+		"Alarms",
+	}
 
-	return pages
+	var paginationView = createPaginatorView()
+	var rootView = tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(pages, 0, 1, true).
+		AddItem(paginationView.RootView, 1, 0, false)
+
+	initPageNavigation(app, pages, &pagesNavIdx, orderedPages, paginationView.PageCounterView)
+
+	return rootView
 }

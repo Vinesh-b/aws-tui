@@ -207,7 +207,7 @@ func createLambdaHomeView(
 	app *tview.Application,
 	config aws.Config,
 	logger *log.Logger,
-) *tview.Pages {
+) tview.Primitive {
 	var (
 		api                = lambda.NewLambdaApi(config, logger)
 		cwl_api            = cloudwatchlogs.NewCloudWatchLogsApi(config, logger)
@@ -227,7 +227,13 @@ func createLambdaHomeView(
 		"Streams",
 		"Events",
 	}
-	initPageNavigation(app, pages, &pagesNavIdx, orderedPages)
+
+	var paginationView = createPaginatorView()
+	var rootView = tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(pages, 0, 1, true).
+		AddItem(paginationView.RootView, 1, 0, false)
+
+	initPageNavigation(app, pages, &pagesNavIdx, orderedPages, paginationView.PageCounterView)
 
 	var switchAndFocus = func(pageIdx int, view tview.Primitive) {
 		pagesNavIdx = pageIdx
@@ -256,5 +262,5 @@ func createLambdaHomeView(
 	logStreamsView.InitInputCapture(&selectedGroupName, &searchPrefix)
 	logStreamsView.InitSearchInputDoneCallback(&selectedGroupName, &searchPrefix)
 
-	return pages
+	return rootView
 }

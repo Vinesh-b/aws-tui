@@ -87,22 +87,48 @@ func initViewNavigation(
 	})
 }
 
+type pageInfoView struct {
+	PageCounterView *tview.TextView
+	RootView        *tview.Flex
+}
+
+func createPaginatorView() pageInfoView {
+
+	var pageCount = tview.NewTextView().
+		SetTextAlign(tview.AlignCenter).
+		SetTextColor(tertiaryTextColor)
+	pageCount.SetBorderPadding(0, 0, 1, 1)
+	var rootView = tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(pageCount, 0, 1, false)
+	return pageInfoView{
+		PageCounterView: pageCount,
+		RootView:        rootView,
+	}
+}
+
 func initPageNavigation(
 	app *tview.Application,
 	pages *tview.Pages,
 	pageIdx *int,
 	orderedPageNames []string,
+	paginationView *tview.TextView,
 ) {
 	var numPages = len(orderedPageNames)
+	paginationView.SetText(fmt.Sprintf("<%d/%d>", *pageIdx+1, numPages))
+
 	pages.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlH:
 			*pageIdx = (*pageIdx - 1 + numPages) % numPages
-			pages.SwitchToPage(orderedPageNames[*pageIdx])
+			var pageName = orderedPageNames[*pageIdx]
+			pages.SwitchToPage(pageName)
+			paginationView.SetText(fmt.Sprintf("<%d/%d>", *pageIdx+1, numPages))
 			return nil
 		case tcell.KeyCtrlL:
 			*pageIdx = (*pageIdx + 1) % numPages
-			pages.SwitchToPage(orderedPageNames[*pageIdx])
+			var pageName = orderedPageNames[*pageIdx]
+			pages.SwitchToPage(pageName)
+			paginationView.SetText(fmt.Sprintf("<%d/%d>", *pageIdx+1, numPages))
 			return nil
 		}
 		return event
