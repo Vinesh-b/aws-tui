@@ -14,17 +14,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-type AlarmsDetailsView struct {
-	AlarmsTable    *tview.Table
-	HistoryTable   *tview.Table
-	DetailsGrid    *tview.Grid
-	SearchInput    *tview.InputField
-	RefreshAlarms  func(search string)
-	RefreshHistory func(alarmName string)
-	RefreshDetails func(alarmName string)
-	RootView       *tview.Flex
-}
-
 func populateAlarmsTable(table *tview.Table, data map[string]types.MetricAlarm) {
 	var tableData []tableRow
 	for _, row := range data {
@@ -112,100 +101,14 @@ func populateAlarmHistoryTable(table *tview.Table, data []types.AlarmHistoryItem
 	table.ScrollToBeginning()
 }
 
-func createAlarmsTable(
-	params tableCreationParams,
-	api *cloudwatch.CloudWatchAlarmsApi,
-) (*tview.Table, func(search string)) {
-	var table = tview.NewTable()
-	populateAlarmsTable(table, make(map[string]types.MetricAlarm, 0))
-
-	var refreshViewsFunc = func(search string) {
-		var data map[string]types.MetricAlarm
-		var dataChannel = make(chan map[string]types.MetricAlarm)
-		var resultChannel = make(chan struct{})
-
-		go func() {
-			if len(search) > 0 {
-				dataChannel <- api.FilterByName(search)
-			} else {
-				dataChannel <- api.ListAlarms(false)
-			}
-		}()
-
-		go func() {
-			data = <-dataChannel
-			resultChannel <- struct{}{}
-		}()
-
-		go loadData(params.App, table.Box, resultChannel, func() {
-			populateAlarmsTable(table, data)
-		})
-	}
-
-	return table, refreshViewsFunc
-}
-
-func createAlarmHistoryTable(
-	params tableCreationParams,
-	api *cloudwatch.CloudWatchAlarmsApi,
-) (*tview.Table, func(name string)) {
-	var table = tview.NewTable()
-	populateAlarmHistoryTable(table, make([]types.AlarmHistoryItem, 0))
-
-	var refreshViewsFunc = func(name string) {
-		var data []types.AlarmHistoryItem
-		var dataChannel = make(chan []types.AlarmHistoryItem)
-		var resultChannel = make(chan struct{})
-
-		go func() {
-			dataChannel <- api.ListAlarmHistory(name)
-		}()
-
-		go func() {
-			data = <-dataChannel
-			resultChannel <- struct{}{}
-		}()
-
-		go loadData(params.App, table.Box, resultChannel, func() {
-			populateAlarmHistoryTable(table, data)
-		})
-	}
-
-	return table, refreshViewsFunc
-}
-
-func createAlarmDetailsGrid(
-	params tableCreationParams,
-	api *cloudwatch.CloudWatchAlarmsApi,
-) (*tview.Grid, func(alarmName string)) {
-	var table = tview.NewGrid()
-	populateAlarmDetailsGrid(table, nil)
-
-	var refreshViewsFunc = func(alarmName string) {
-		var data map[string]types.MetricAlarm
-		var dataChannel = make(chan map[string]types.MetricAlarm)
-		var resultChannel = make(chan struct{})
-
-		go func() {
-			dataChannel <- api.ListAlarms(false)
-		}()
-
-		go func() {
-			data = <-dataChannel
-			resultChannel <- struct{}{}
-		}()
-
-		go loadData(params.App, table.Box, resultChannel, func() {
-			var details *types.MetricAlarm = nil
-			var val, ok = data[alarmName]
-			if ok {
-				details = &val
-			}
-			populateAlarmDetailsGrid(table, details)
-		})
-	}
-
-	return table, refreshViewsFunc
+type AlarmsDetailsView struct {
+	AlarmsTable  *tview.Table
+	HistoryTable *tview.Table
+	DetailsGrid  *tview.Grid
+	SearchInput  *tview.InputField
+	RootView     *tview.Flex
+	app          *tview.Application
+	api          *cloudwatch.CloudWatchAlarmsApi
 }
 
 func NewAlarmsDetailsView(
@@ -213,38 +116,18 @@ func NewAlarmsDetailsView(
 	api *cloudwatch.CloudWatchAlarmsApi,
 	logger *log.Logger,
 ) *AlarmsDetailsView {
-	var (
-		params = tableCreationParams{app, logger}
+	var alarmsTable = tview.NewTable()
+	populateAlarmsTable(alarmsTable, make(map[string]types.MetricAlarm, 0))
 
-		alarmsTable, refreshAlarmsTable   = createAlarmsTable(params, api)
-		alarmDetails, refreshAlarmDetails = createAlarmDetailsGrid(params, api)
-		alarmHistory, refreshAlarmHistory = createAlarmHistoryTable(params, api)
+	var alarmHistory = tview.NewTable()
+	populateAlarmHistoryTable(alarmHistory, make([]types.AlarmHistoryItem, 0))
 
-		serviceView = NewServiceView(app)
-	)
-
-	alarmsTable.SetSelectedFunc(func(row, column int) {
-		if row < 1 {
-			return
-		}
-		var name = alarmsTable.GetCell(row, 0).Text
-		go refreshAlarmDetails(name)
-		go refreshAlarmHistory(name)
-	})
+	var alarmDetails = tview.NewGrid()
+	populateAlarmDetailsGrid(alarmDetails, nil)
 
 	var inputField = createSearchInput("Alarms")
-	inputField.SetDoneFunc(func(key tcell.Key) {
-		switch key {
-		case tcell.KeyEnter:
-			go refreshAlarmsTable(inputField.GetText())
-			app.SetFocus(alarmsTable)
-		case tcell.KeyEsc:
-			inputField.SetText("")
-		default:
-			return
-		}
-	})
 
+	var serviceView = NewServiceView(app)
 	serviceView.RootView.
 		AddItem(alarmDetails, 0, 3500, false).
 		AddItem(alarmHistory, 0, 3000, false).
@@ -264,16 +147,104 @@ func NewAlarmsDetailsView(
 	)
 
 	return &AlarmsDetailsView{
-		AlarmsTable:    alarmsTable,
-		DetailsGrid:    alarmDetails,
-		HistoryTable:   alarmHistory,
-		SearchInput:    inputField,
-		RefreshAlarms:  refreshAlarmsTable,
-		RefreshDetails: refreshAlarmDetails,
-		RefreshHistory: refreshAlarmHistory,
-		RootView:       serviceView.RootView,
+		AlarmsTable:  alarmsTable,
+		DetailsGrid:  alarmDetails,
+		HistoryTable: alarmHistory,
+		SearchInput:  inputField,
+		RootView:     serviceView.RootView,
+		app:          app,
+		api:          api,
 	}
 
+}
+
+func (inst *AlarmsDetailsView) RefreshAlarms(search string, force bool) {
+	var data map[string]types.MetricAlarm
+	var dataChannel = make(chan map[string]types.MetricAlarm)
+	var resultChannel = make(chan struct{})
+
+	go func() {
+		if len(search) > 0 {
+			dataChannel <- inst.api.FilterByName(search)
+		} else {
+			dataChannel <- inst.api.ListAlarms(force)
+		}
+	}()
+
+	go func() {
+		data = <-dataChannel
+		resultChannel <- struct{}{}
+	}()
+
+	go loadData(inst.app, inst.AlarmsTable.Box, resultChannel, func() {
+		populateAlarmsTable(inst.AlarmsTable, data)
+	})
+}
+
+func (inst *AlarmsDetailsView) RefreshHistory(alarmName string) {
+	var data []types.AlarmHistoryItem
+	var dataChannel = make(chan []types.AlarmHistoryItem)
+	var resultChannel = make(chan struct{})
+
+	go func() {
+		dataChannel <- inst.api.ListAlarmHistory(alarmName)
+	}()
+
+	go func() {
+		data = <-dataChannel
+		resultChannel <- struct{}{}
+	}()
+
+	go loadData(inst.app, inst.HistoryTable.Box, resultChannel, func() {
+		populateAlarmHistoryTable(inst.HistoryTable, data)
+	})
+}
+
+func (inst *AlarmsDetailsView) RefreshDetails(alarmName string) {
+	var data map[string]types.MetricAlarm
+	var dataChannel = make(chan map[string]types.MetricAlarm)
+	var resultChannel = make(chan struct{})
+
+	go func() {
+		dataChannel <- inst.api.ListAlarms(false)
+	}()
+
+	go func() {
+		data = <-dataChannel
+		resultChannel <- struct{}{}
+	}()
+
+	go loadData(inst.app, inst.DetailsGrid.Box, resultChannel, func() {
+		var details *types.MetricAlarm = nil
+		var val, ok = data[alarmName]
+		if ok {
+			details = &val
+		}
+		populateAlarmDetailsGrid(inst.DetailsGrid, details)
+	})
+}
+
+func (inst *AlarmsDetailsView) InitInputCapture() {
+	inst.AlarmsTable.SetSelectedFunc(func(row, column int) {
+		if row < 1 {
+			return
+		}
+		var name = inst.AlarmsTable.GetCell(row, 0).Text
+		inst.RefreshDetails(name)
+		inst.RefreshHistory(name)
+	})
+
+	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {
+		switch key {
+		case tcell.KeyEnter:
+			inst.RefreshAlarms(inst.SearchInput.GetText(), false)
+			inst.app.SetFocus(inst.AlarmsTable)
+		case tcell.KeyEsc:
+			inst.SearchInput.SetText("")
+		default:
+			return
+		}
+	})
 }
 
 func createAlarmsHomeView(
@@ -286,6 +257,7 @@ func createAlarmsHomeView(
 
 	var api = cloudwatch.NewCloudWatchAlarmsApi(config, logger)
 	var alarmsDetailsView = NewAlarmsDetailsView(app, api, logger)
+	alarmsDetailsView.InitInputCapture()
 
 	var pages = tview.NewPages().
 		AddAndSwitchToPage("Alarms", alarmsDetailsView.RootView, true)
