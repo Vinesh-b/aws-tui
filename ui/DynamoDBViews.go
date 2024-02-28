@@ -88,6 +88,7 @@ func populateDynamoDBTable(
 	if description == nil || len(data) == 0 {
 		return
 	}
+	table.SetTitle(aws.ToString(description.TableName))
 
 	var headingIdx = 0
 	var headingIdxMap = make(map[string]int)
