@@ -56,6 +56,8 @@ func RenderUI(config aws.Config) {
 			CLOUDWATCH_ALARMS: createAlarmsHomeView(app, config, inAppLogger),
 			CLOUDFORMATION:    createStacksHomeView(app, config, inAppLogger),
 			DYNAMODB:          createDynamoDBHomeView(app, config, inAppLogger),
+
+			DEBUG_LOGS: errorTextArea,
 		}
 	)
 
@@ -73,37 +75,29 @@ func RenderUI(config aws.Config) {
 		0, 1, false,
 	)
 
-	var servicesSearch = servicesHomeView()
+	var servicesList = servicesHomeView()
 	var flexSearch = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(servicesSearch, 3, 0, true)
+		AddItem(servicesList, 0, 1, true)
 
 	var pages = tview.NewPages().
-		AddPage("ErrorLogs", errorTextArea, true, true).
 		AddPage("ServiceHome", flexHome, true, true).
 		AddAndSwitchToPage("Search", flexSearch, true)
 
-	servicesSearch.SetDoneFunc(func(key tcell.Key) {
+	servicesList.SetSelectedFunc(func(i int, serviceName string, _ string, r rune) {
 		var resultChannel = make(chan struct{})
 		var table = tview.NewTable()
 
-		switch key {
-		case tcell.KeyEnter:
-			var view, ok = serviceViews[viewId(servicesSearch.GetText())]
-			if ok {
-				go func() {
-					resultChannel <- struct{}{}
-				}()
-				go loadData(params.App, table.Box, resultChannel, func() {
-					currentServiceView.Clear()
-					currentServiceView.AddItem(view, 0, 1, false)
-					pages.SwitchToPage("ServiceHome")
-					app.SetFocus(view)
-				})
-			}
-		case tcell.KeyEsc:
-			servicesSearch.SetText("")
-		default:
-			return
+		var view, ok = serviceViews[viewId(serviceName)]
+		if ok {
+			go func() {
+				resultChannel <- struct{}{}
+			}()
+			go loadData(params.App, table.Box, resultChannel, func() {
+				currentServiceView.Clear()
+				currentServiceView.AddItem(view, 0, 1, false)
+				pages.SwitchToPage("ServiceHome")
+				app.SetFocus(view)
+			})
 		}
 	})
 
@@ -112,7 +106,7 @@ func RenderUI(config aws.Config) {
 		case tcell.KeyESC:
 			pages.SwitchToPage("Search")
 			app.SetRoot(pages, true)
-			app.SetFocus(servicesSearch)
+			app.SetFocus(servicesList)
 		}
 		return event
 	})

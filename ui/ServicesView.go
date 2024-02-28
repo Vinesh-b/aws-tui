@@ -2,7 +2,6 @@ package ui
 
 import (
 	"github.com/gdamore/tcell/v2"
-	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/rivo/tview"
 )
 
@@ -14,39 +13,47 @@ const (
 	CLOUDWATCH_ALARMS viewId = "CloudWatchAlarms"
 	CLOUDFORMATION    viewId = "CloudFormation"
 	DYNAMODB          viewId = "DynamoDB"
+
+	DEBUG_LOGS viewId = "DebugLogs"
 )
 
-func newNode(text string, id viewId) *tview.TreeNode {
-	return tview.NewTreeNode(text).
-		SetReference(id).
-		SetSelectable(true)
-}
+func servicesHomeView() *tview.List {
+	var servicesList = tview.NewList().
+		SetSecondaryTextColor(tcell.ColorGrey).
+		SetSelectedBackgroundColor(tview.Styles.MoreContrastBackgroundColor)
+	servicesList.SetBorder(true)
+	servicesList.
+		AddItem(
+			string(LAMBDA),
+			"󰘧 View lambdas and logs",
+			rune('1'), nil,
+		).
+		AddItem(
+			string(CLOUDWATCH_LOGS),
+			" View Logs for all services",
+			rune('2'), nil,
+		).
+		AddItem(
+			string(CLOUDWATCH_ALARMS),
+			"󰞏 View metric alarms",
+			rune('3'), nil,
+		).
+		AddItem(
+			string(DYNAMODB),
+			" View and search DynamoDB tables",
+			rune('4'), nil,
+		).
+		AddItem(
+			string(CLOUDFORMATION),
+			" View Stacks",
+			rune('5'), nil,
+		).
+		AddItem("------------------------------", "", 0, nil).
+		AddItem(
+			string(DEBUG_LOGS),
+			" View debug logs",
+			0, nil,
+		)
 
-func servicesHomeView() *tview.InputField {
-	var allViews = []string{
-		string(LAMBDA),
-		string(CLOUDWATCH_LOGS),
-		string(CLOUDWATCH_ALARMS),
-		string(CLOUDFORMATION),
-		string(DYNAMODB),
-	}
-
-	var searchInputField = tview.NewInputField().SetFieldWidth(32)
-	searchInputField.
-		SetBorder(true).
-		SetTitle("Search").
-		SetTitleAlign(tview.AlignLeft)
-
-	searchInputField.SetAutocompleteStyles(
-		tview.Styles.ContrastBackgroundColor,
-		tcell.Style{},
-		tcell.Style{}.
-			Foreground(tview.Styles.TertiaryTextColor).
-			Background(tview.Styles.PrimitiveBackgroundColor),
-	)
-	searchInputField.SetAutocompleteFunc(func(currentText string) (entries []string) {
-		return fuzzy.FindFold(currentText, allViews)
-	})
-
-	return searchInputField
+	return servicesList
 }
