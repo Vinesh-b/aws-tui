@@ -81,9 +81,10 @@ func extendTable(table *tview.Table, title string, data []tableRow) {
 	}
 }
 
-func searchRefsInTable(table *tview.Table, searchCols []int, search string) {
+func searchRefsInTable(table *tview.Table, searchCols []int, search string) []int {
+    var resultPositions = []int{}
 	if len(search) <= 0 {
-		return
+		return resultPositions
 	}
 
 	if len(searchCols) <= 0 {
@@ -101,9 +102,12 @@ func searchRefsInTable(table *tview.Table, searchCols []int, search string) {
 			var text = cell.Reference.(string)
 			if strings.Contains(text, search) {
 				cell.SetTextColor(tertiaryTextColor)
+                resultPositions = append(resultPositions, r)
 			}
 		}
 	}
+
+    return resultPositions
 }
 
 func clearSearchHighlights(table *tview.Table) {

@@ -354,16 +354,19 @@ func highlightTableSearch(
 	table *tview.Table,
 	search string,
 	cols []int,
-) {
+) chan []int {
 	var resultChannel = make(chan struct{})
+	var foundPositions = make(chan []int)
 	go func() {
 		resultChannel <- struct{}{}
 	}()
 	go loadData(app, table.Box, resultChannel, func() {
 		if len(search) == 0 {
 			clearSearchHighlights(table)
+			foundPositions <- []int{}
 		} else {
-			searchRefsInTable(table, cols, search)
+			foundPositions <- searchRefsInTable(table, cols, search)
 		}
 	})
+	return foundPositions
 }
