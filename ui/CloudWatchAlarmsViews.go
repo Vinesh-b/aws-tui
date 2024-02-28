@@ -245,9 +245,9 @@ func NewAlarmsDetailsView(
 
 	var flexHomeView = tview.NewFlex().SetDirection(tview.FlexRow)
 	flexHomeView.AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(alarmDetails, 0, 3000, false).
-		AddItem(alarmHistory, 0, 2500, false).
-		AddItem(alarmsTable, 0, 4500, false),
+		AddItem(alarmDetails, 0, 3500, false).
+		AddItem(alarmHistory, 0, 3000, false).
+		AddItem(alarmsTable, 0, 3500, false),
 		0, 4000, false,
 	)
 
