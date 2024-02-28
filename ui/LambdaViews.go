@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"log"
 
 	"aws-tui/cloudwatchlogs"
@@ -22,6 +23,50 @@ type LambdasDetailsView struct {
 	RootView       *tview.Flex
 }
 
+func populateLambdasTable(table *tview.Table, data map[string]types.FunctionConfiguration) {
+	var tableData []tableRow
+	for _, row := range data {
+		tableData = append(tableData, tableRow{
+			*row.FunctionName,
+			*row.LastModified,
+		})
+	}
+
+	initSelectableTable(table, "Lambdas",
+		tableRow{
+			"Name",
+			"LastModified",
+		},
+		tableData,
+		[]int{0, 1},
+	)
+	table.GetCell(0, 0).SetExpansion(1)
+	table.Select(0, 0)
+	table.ScrollToBeginning()
+}
+
+func populateLambdaDetailsTable(table *tview.Table, data *types.FunctionConfiguration) {
+	var tableData []tableRow
+	if data != nil {
+		tableData = []tableRow{
+			{"Description", *data.Description},
+			{"Arn", *data.FunctionArn},
+			{"Version", *data.Version},
+			{"MemorySize", fmt.Sprintf("%d", *data.MemorySize)},
+			{"Runtime", string(data.Runtime)},
+			{"Arch", fmt.Sprintf("%v", data.Architectures)},
+			{"Timeout", fmt.Sprintf("%d", *data.Timeout)},
+			{"LoggingGroup", *data.LoggingConfig.LogGroup},
+			{"AppLogLevel", string(data.LoggingConfig.ApplicationLogLevel)},
+			{"State", string(data.State)},
+			{"LastModified", *data.LastModified},
+		}
+	}
+
+	initBasicTable(table, "Lambda Details", tableData, false)
+	table.Select(0, 0)
+	table.ScrollToBeginning()
+}
 func createLambdasTable(params tableCreationParams, api *lambda.LambdaApi) (
 	*tview.Table, func(search string),
 ) {

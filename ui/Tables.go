@@ -10,7 +10,6 @@ import (
 	cw_types "github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	cwl_types "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	ddb_types "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	lambds_types "github.com/aws/aws-sdk-go-v2/service/lambda/types"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -232,50 +231,6 @@ func populateServicesTable(table *tview.Table) {
 	table.ScrollToBeginning()
 }
 
-func populateLambdasTable(table *tview.Table, data map[string]lambds_types.FunctionConfiguration) {
-	var tableData []tableRow
-	for _, row := range data {
-		tableData = append(tableData, tableRow{
-			*row.FunctionName,
-			*row.LastModified,
-		})
-	}
-
-	initSelectableTable(table, "Lambdas",
-		tableRow{
-			"Name",
-			"LastModified",
-		},
-		tableData,
-		[]int{0, 1},
-	)
-	table.GetCell(0, 0).SetExpansion(1)
-	table.Select(0, 0)
-	table.ScrollToBeginning()
-}
-
-func populateLambdaDetailsTable(table *tview.Table, data *lambds_types.FunctionConfiguration) {
-	var tableData []tableRow
-	if data != nil {
-		tableData = []tableRow{
-			{"Description", *data.Description},
-			{"Arn", *data.FunctionArn},
-			{"Version", *data.Version},
-			{"MemorySize", fmt.Sprintf("%d", *data.MemorySize)},
-			{"Runtime", string(data.Runtime)},
-			{"Arch", fmt.Sprintf("%v", data.Architectures)},
-			{"Timeout", fmt.Sprintf("%d", *data.Timeout)},
-			{"LoggingGroup", *data.LoggingConfig.LogGroup},
-			{"AppLogLevel", string(data.LoggingConfig.ApplicationLogLevel)},
-			{"State", string(data.State)},
-			{"LastModified", *data.LastModified},
-		}
-	}
-
-	initBasicTable(table, "Lambda Details", tableData, false)
-	table.Select(0, 0)
-	table.ScrollToBeginning()
-}
 
 func populateLogGroupsTable(table *tview.Table, data []cwl_types.LogGroup) {
 	var tableData []tableRow
