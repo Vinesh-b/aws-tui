@@ -149,6 +149,65 @@ func initBasicTable(
 	}
 }
 
+func initSelectableJsonTable(
+	table *tview.Table,
+	title string,
+	data []map[string]interface{},
+) {
+	table.
+		Clear().
+		SetBorders(false).
+		SetFixed(1, 2)
+	table.
+		SetTitle(title).
+		SetTitleAlign(tview.AlignLeft).
+		SetBorderPadding(0, 0, 0, 0).
+		SetBorder(true)
+
+	var headingIdxMap = make(map[string]int)
+
+	var colIdx = 0
+	for _, rowData := range data {
+		for colName := range rowData {
+			var _, ok = headingIdxMap[colName]
+			if !ok {
+				headingIdxMap[colName] = colIdx
+				colIdx++
+			}
+		}
+
+		for heading, colIdx := range headingIdxMap {
+			table.SetCell(0, colIdx, tview.NewTableCell(heading).
+				SetAlign(tview.AlignLeft).
+				SetTextColor(secondaryTextColor).
+				SetSelectable(false).
+				SetBackgroundColor(contrastBackgroundColor),
+			)
+		}
+
+		for rowIdx, rowData := range data {
+			for colName, colIdx := range headingIdxMap {
+				var cellData = ""
+				var val, ok = rowData[colName]
+				if ok {
+					cellData = fmt.Sprintf("%v", val)
+				}
+				var text = clampStringLen(&cellData, 100)
+				table.SetCell(rowIdx+1, colIdx, tview.NewTableCell(text).
+					SetReference(cellData).
+					SetAlign(tview.AlignLeft),
+				)
+			}
+		}
+
+		if len(data) > 0 {
+			table.SetSelectable(true, false).SetSelectedStyle(
+				tcell.Style{}.Background(moreContrastBackgroundColor),
+			)
+		}
+	}
+}
+
 func populateServicesTable(table *tview.Table) {
 	var tableData = []tableRow{
 		{"Lambda"},
@@ -400,39 +459,10 @@ func populateDynamoDBTabelDetailsTable(table *tview.Table, data *ddb_types.Table
 	table.ScrollToBeginning()
 }
 
-//func populateDynamoDBTable(table *tview.Table, data []map[string]interface{}) {
-//	var tableData []tableRow
-//	for _, row := range data {
-//		var currentRow tableRow
-//		for _, val := range row {
-//			switch c := val.(type) {
-//			case string:
-//				currentRow = append(currentRow, string(c))
-//			case float64:
-//				currentRow = append(currentRow, fmt.Sprintf("%f", c))
-//			case int32:
-//				currentRow = append(currentRow, fmt.Sprintf("%d", c))
-//			case bool:
-//				currentRow = append(currentRow, fmt.Sprintf("%t", c))
-//			default:
-//				currentRow = append(currentRow, "null")
-//			}
-//
-//		}
-//		tableData = append(tableData, currentRow)
-//	}
-//
-//	var headings tableRow
-//	for key, _ := range data[0] {
-//		headings = append(headings, key)
-//	}
-//
-//	initSelectableTable(table, "Table",
-//		headings,
-//		tableData,
-//		[]int{0},
-//	)
-//	table.GetCell(0, 0).SetExpansion(1)
-//	table.Select(0, 0)
-//	table.ScrollToBeginning()
-//}
+func populateDynamoDBTable(table *tview.Table, data []map[string]interface{}) {
+
+	initSelectableJsonTable(table, "Table",	data)
+	table.GetCell(0, 0).SetExpansion(1)
+	table.Select(0, 0)
+	table.ScrollToBeginning()
+}

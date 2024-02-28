@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
@@ -60,24 +61,20 @@ func (inst *DynamoDBApi) DescribeTable(tableName string) *types.TableDescription
 	return output.Table
 }
 
-//func (inst *DynamoDBApi) ScanTable(tableName string) []map[string]interface{} {
-//	var items []map[string]interface{}
-//	var err error
-//	var response *dynamodb.ScanOutput
-//	scanPaginator := dynamodb.NewScanPaginator(inst.client, &dynamodb.ScanInput{
-//		TableName: aws.String(tableName),
-//		Limit:     aws.Int32(20),
-//	})
-//	for scanPaginator.HasMorePages() {
-//		response, err = scanPaginator.NextPage(context.TODO())
-//		if err != nil {
-//			log.Printf("Scan failed: %v\n", err)
-//			break
-//		} else {
-//			var temp map[string]interface{}
-//			var marshalled = attributevalue.UnmarshalListOfMaps(response.Items, &temp)
-//			items = append(items, marshalled...)
-//		}
-//	}
-//	return items
-//}
+func (inst *DynamoDBApi) ScanTable(tableName string) []map[string]interface{} {
+	var items []map[string]interface{}
+	scanPaginator := dynamodb.NewScanPaginator(inst.client, &dynamodb.ScanInput{
+		TableName: aws.String(tableName),
+		Limit:     aws.Int32(20),
+	})
+	var output, err = scanPaginator.NextPage(context.TODO())
+	if err != nil {
+		log.Printf("Scan failed: %v\n", err)
+	} else {
+		var temp []map[string]interface{}
+		attributevalue.UnmarshalListOfMaps(output.Items, &temp)
+		items = append(items, temp...)
+	}
+	return items
+
+}
