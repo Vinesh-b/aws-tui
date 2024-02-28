@@ -70,25 +70,23 @@ func (inst *CloudFormationApi) FilterByName(name string) map[string]types.StackS
 	return foundStacks
 }
 
-func (inst *CloudFormationApi) DescribeStackEvents(stackName string) []types.StackEvent {
-	inst.stackEventsPaginator = cloudformation.NewDescribeStackEventsPaginator(
-		inst.client, &cloudformation.DescribeStackEventsInput{
-			StackName: aws.String(stackName),
-		},
-	)
-
-	var empty = make([]types.StackEvent, 1)
-	var output *cloudformation.DescribeStackEventsOutput
-	var err error
-	for inst.stackEventsPaginator.HasMorePages() {
-		output, err = inst.stackEventsPaginator.NextPage(context.TODO())
-		if err != nil {
-			inst.logger.Println(err)
-			return empty
-		}
+func (inst *CloudFormationApi) DescribeStackEvents(stackName string, force bool) []types.StackEvent {
+	if inst.stackEventsPaginator == nil || force {
+		inst.stackEventsPaginator = cloudformation.NewDescribeStackEventsPaginator(
+			inst.client, &cloudformation.DescribeStackEventsInput{
+				StackName: aws.String(stackName),
+			},
+		)
 	}
 
-	if output == nil {
+	var empty []types.StackEvent
+	if !inst.stackEventsPaginator.HasMorePages() {
+		return empty
+	}
+
+	var output, err = inst.stackEventsPaginator.NextPage(context.TODO())
+	if err != nil {
+		inst.logger.Println(err)
 		return empty
 	}
 
