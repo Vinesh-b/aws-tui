@@ -1,0 +1,110 @@
+package ui
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
+)
+
+func loadData(
+	app *tview.Application,
+	view *tview.Box,
+	resultChannel chan struct{},
+	updateViewFunc func(),
+) {
+	var (
+		idx           = 0
+		originalTitle = view.GetTitle()
+		loadingSymbol = [8]string{"⢎⡰", "⢎⡡", "⢎⡑", "⢎⠱", "⠎⡱", "⢊⡱", "⢌⡱", "⢆⡱"}
+
+		timeoutCtx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+	)
+	defer cancel()
+
+	for {
+		select {
+		case <-resultChannel:
+			app.QueueUpdateDraw(updateViewFunc)
+			return
+		case <-timeoutCtx.Done():
+			app.QueueUpdateDraw(func() {
+				view.SetTitle("Timed out")
+			})
+			return
+		default:
+			app.QueueUpdateDraw(func() {
+				view.SetTitle(fmt.Sprintf(originalTitle+"%s", loadingSymbol[idx]))
+			})
+			idx = (idx + 1) % len(loadingSymbol)
+			time.Sleep(time.Millisecond * 100)
+		}
+	}
+}
+
+type tableCreationParams struct {
+	App    *tview.Application
+	Logger *log.Logger
+}
+
+type rootView interface {
+	tview.Primitive
+	SetInputCapture(callback func(*tcell.EventKey) *tcell.EventKey) *tview.Box
+}
+
+type view interface {
+	tview.Primitive
+	SetFocusFunc(callback func()) *tview.Box
+}
+
+func initViewNavigation(
+	app *tview.Application,
+	rootView rootView,
+	viewIdx *int,
+	orderedViews []view,
+) {
+	// Sets current view index when selected
+	for i, v := range orderedViews {
+		v.SetFocusFunc(func() { *viewIdx = i })
+	}
+
+	var numViews = len(orderedViews)
+	rootView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlJ:
+			*viewIdx = (*viewIdx - 1 + numViews) % numViews
+			app.SetFocus(orderedViews[*viewIdx])
+			return nil
+		case tcell.KeyCtrlK:
+			*viewIdx = (*viewIdx + 1) % numViews
+			app.SetFocus(orderedViews[*viewIdx])
+			return nil
+		}
+		return event
+	})
+}
+
+func initPageNavigation(
+	app *tview.Application,
+	pages *tview.Pages,
+	pageIdx *int,
+	orderedPageNames []string,
+) {
+	var numPages = len(orderedPageNames)
+	pages.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlH:
+			*pageIdx = (*pageIdx - 1 + numPages) % numPages
+			pages.SwitchToPage(orderedPageNames[*pageIdx])
+			return nil
+		case tcell.KeyCtrlL:
+			*pageIdx = (*pageIdx + 1) % numPages
+			pages.SwitchToPage(orderedPageNames[*pageIdx])
+			return nil
+		}
+		return event
+	})
+}
