@@ -227,7 +227,7 @@ func (inst *LogEventsView) InitInputCapture(selectedGroupName *string, streamNam
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			inst.RefreshEvents(*selectedGroupName, *streamName, false)
-		case tcell.KeyCtrlM:
+		case tcell.KeyCtrlN:
 			inst.RefreshEvents(*selectedGroupName, *streamName, true)
 		}
 		return event
@@ -323,7 +323,7 @@ func (inst *LogStreamsView) InitInputCapture(selectedGroupName *string, searchPr
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			inst.RefreshStreams(*selectedGroupName, searchPrefix, false)
-		case tcell.KeyCtrlM:
+		case tcell.KeyCtrlN:
 			inst.RefreshStreams(*selectedGroupName, searchPrefix, true)
 		}
 		return event

@@ -217,7 +217,7 @@ func (inst *S3BucketsDetailsView) InitInputCapture() {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			inst.RefreshObjects(inst.bucketName, false)
-		case tcell.KeyCtrlM:
+		case tcell.KeyCtrlN:
 			inst.RefreshObjects(inst.bucketName, true)
 		}
 		return event

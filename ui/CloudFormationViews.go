@@ -375,7 +375,7 @@ func (inst *CloudFormationStackEventsView) InitInputCapture(stackName *string) {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			inst.RefreshEvents(*stackName, false)
-		case tcell.KeyCtrlM:
+		case tcell.KeyCtrlN:
 			inst.RefreshEvents(*stackName, true)
 		}
 		return event
