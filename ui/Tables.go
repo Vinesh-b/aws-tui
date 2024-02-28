@@ -38,11 +38,11 @@ func initSelectableTable(
 		if len(headings) != len(data[0]) {
 			log.Panicln("Table data and headings dimensions do not match")
 		}
-
-		table.SetSelectable(true, false).SetSelectedStyle(
-			tcell.Style{}.Background(moreContrastBackgroundColor),
-		)
 	}
+
+	table.SetSelectable(true, false).SetSelectedStyle(
+		tcell.Style{}.Background(moreContrastBackgroundColor),
+	)
 
 	for col, heading := range headings {
 		table.SetCell(0, col, tview.NewTableCell(heading).

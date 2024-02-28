@@ -176,3 +176,60 @@ func (inst *CloudWatchLogsApi) ListFilteredLogEvents(
 
 	return output.Events, output.NextToken
 }
+
+func (inst *CloudWatchLogsApi) StartInightsQuery(
+	logGroups []string,
+	startTime time.Time,
+	endTime time.Time,
+	query string,
+) string {
+	var output, err = inst.client.StartQuery(
+		context.TODO(), &cloudwatchlogs.StartQueryInput{
+			StartTime:     aws.Int64(startTime.Unix()),
+			EndTime:       aws.Int64(endTime.Unix()),
+			LogGroupNames: logGroups,
+			QueryString:   aws.String(query),
+		},
+	)
+
+	if err != nil {
+		inst.logger.Println(err)
+		return ""
+	}
+
+	return aws.ToString(output.QueryId)
+}
+
+func (inst *CloudWatchLogsApi) GetInightsQueryResults(
+	queryId string,
+) ([][]types.ResultField, types.QueryStatus) {
+	var output, err = inst.client.GetQueryResults(
+		context.TODO(), &cloudwatchlogs.GetQueryResultsInput{
+			QueryId: aws.String(queryId),
+		})
+
+	var empty [][]types.ResultField
+	if err != nil {
+		inst.logger.Println(err)
+		return empty, types.QueryStatusUnknown
+	}
+
+	return output.Results, output.Status
+}
+
+func (inst *CloudWatchLogsApi) GetInsightsLogRecord(
+	recordPtr string,
+) map[string]string {
+	var output, err = inst.client.GetLogRecord(
+		context.TODO(), &cloudwatchlogs.GetLogRecordInput{
+			LogRecordPointer: aws.String(recordPtr),
+		})
+
+	var empty = make(map[string]string, 0)
+	if err != nil {
+		inst.logger.Println(err)
+		return empty
+	}
+
+	return output.LogRecord
+}

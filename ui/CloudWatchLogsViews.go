@@ -426,7 +426,7 @@ func createLogsHomeView(
 	}
 
 	var serviceRootView = NewServiceRootView(
-		app, string(CLOUDWATCH_LOGS), pages, orderedPages).Init()
+		app, string(CLOUDWATCH_LOGS_GROUPS), pages, orderedPages).Init()
 
 	var selectedGroupName = ""
 	logGroupsView.LogGroupsTable.SetSelectedFunc(func(row, column int) {

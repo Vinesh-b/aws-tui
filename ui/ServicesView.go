@@ -8,12 +8,13 @@ import (
 type viewId string
 
 const (
-	LAMBDA            viewId = "Lambda"
-	CLOUDWATCH_LOGS   viewId = "CloudWatch Logs"
-	CLOUDWATCH_ALARMS viewId = "CloudWatch Alarms"
-	CLOUDFORMATION    viewId = "CloudFormation"
-	DYNAMODB          viewId = "DynamoDB"
-	S3BUCKETS         viewId = "S3 Buckets"
+	LAMBDA                   viewId = "Lambda"
+	CLOUDWATCH_LOGS_GROUPS   viewId = "CloudWatch Logs Groups"
+	CLOUDWATCH_LOGS_INSIGHTS viewId = "CloudWatch Logs Insights"
+	CLOUDWATCH_ALARMS        viewId = "CloudWatch Alarms"
+	CLOUDFORMATION           viewId = "CloudFormation"
+	DYNAMODB                 viewId = "DynamoDB"
+	S3BUCKETS                viewId = "S3 Buckets"
 
 	HELP       viewId = "Help"
 	SETTINGS   viewId = "Settings"
@@ -53,29 +54,34 @@ func servicesHomeView() *tview.List {
 			rune('1'), nil,
 		).
 		AddItem(
-			string(CLOUDWATCH_LOGS),
+			string(CLOUDWATCH_LOGS_GROUPS),
 			" View Logs for all services",
 			rune('2'), nil,
 		).
 		AddItem(
+			string(CLOUDWATCH_LOGS_INSIGHTS),
+			"󰺮 Query and filter logs",
+			rune('3'), nil,
+		).
+		AddItem(
 			string(CLOUDWATCH_ALARMS),
 			"󰞏 View metric alarms",
-			rune('3'), nil,
+			rune('4'), nil,
 		).
 		AddItem(
 			string(DYNAMODB),
 			" View and search DynamoDB tables",
-			rune('4'), nil,
+			rune('5'), nil,
 		).
 		AddItem(
 			string(S3BUCKETS),
 			"󱐖 View S3 buckets and objects",
-			rune('7'), nil,
+			rune('6'), nil,
 		).
 		AddItem(
 			string(CLOUDFORMATION),
 			" View Stacks",
-			rune('6'), nil,
+			rune('7'), nil,
 		).
 		AddItem("----------------------------------------", "", 0, nil).
 		AddItem(

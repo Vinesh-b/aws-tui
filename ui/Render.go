@@ -62,12 +62,13 @@ func RenderUI(config aws.Config, version string) {
 	config.Logger = logging.StandardLogger{Logger: inAppLogger}
 
 	var serviceViews = map[viewId]tview.Primitive{
-		LAMBDA:            createLambdaHomeView(app, config, inAppLogger),
-		CLOUDWATCH_LOGS:   createLogsHomeView(app, config, inAppLogger),
-		CLOUDWATCH_ALARMS: createAlarmsHomeView(app, config, inAppLogger),
-		CLOUDFORMATION:    createStacksHomeView(app, config, inAppLogger),
-		DYNAMODB:          createDynamoDBHomeView(app, config, inAppLogger),
-		S3BUCKETS:         createS3bucketsHomeView(app, config, inAppLogger),
+		LAMBDA:                   createLambdaHomeView(app, config, inAppLogger),
+		CLOUDWATCH_LOGS_GROUPS:   createLogsHomeView(app, config, inAppLogger),
+		CLOUDWATCH_LOGS_INSIGHTS: createLogsInsightsHomeView(app, config, inAppLogger),
+		CLOUDWATCH_ALARMS:        createAlarmsHomeView(app, config, inAppLogger),
+		CLOUDFORMATION:           createStacksHomeView(app, config, inAppLogger),
+		DYNAMODB:                 createDynamoDBHomeView(app, config, inAppLogger),
+		S3BUCKETS:                createS3bucketsHomeView(app, config, inAppLogger),
 
 		HELP:       createHelpHomeView(app, config, inAppLogger),
 		DEBUG_LOGS: errorTextArea,
