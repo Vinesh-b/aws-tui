@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"encoding/json"
 	"log"
 	"time"
 
@@ -141,33 +140,7 @@ func NewLogEventsView(
 		serviceView = NewServiceView(app)
 	)
 
-	var expandedLogsView = tview.NewTextArea().SetSelectedStyle(
-		tcell.Style{}.Background(tview.Styles.MoreContrastBackgroundColor),
-	)
-	expandedLogsView.
-		SetBorder(true).
-		SetTitle("Message").
-		SetTitleAlign(tview.AlignLeft)
-
-	logEventsTable.SetSelectionChangedFunc(func(row, column int) {
-		var privateData = logEventsTable.GetCell(row, 1).Reference
-		if row < 1 || privateData == nil {
-			return
-		}
-		var logText = privateData.(string)
-		var anyJson map[string]interface{}
-
-		var err = json.Unmarshal([]byte(logText), &anyJson)
-		if err == nil {
-			var jsonBytes, _ = json.MarshalIndent(anyJson, "", "  ")
-			logText = string(jsonBytes)
-		}
-		expandedLogsView.SetText(logText, false)
-	})
-
-	logEventsTable.SetSelectedFunc(func(row, column int) {
-		app.SetFocus(expandedLogsView)
-	})
+	var expandedLogsView = createExpandedLogView(app, logEventsTable, 1)
 
 	var inputField = createSearchInput("Log Events")
 	inputField.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {

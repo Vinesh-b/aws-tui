@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -71,6 +72,42 @@ func createSearchInput(label string) *tview.InputField {
 		SetTitleAlign(tview.AlignLeft)
 
 	return inputField
+}
+
+func createExpandedLogView(
+	app *tview.Application,
+	table *tview.Table,
+	colIdx int,
+) *tview.TextArea {
+	var expandedView = tview.NewTextArea().SetSelectedStyle(
+		tcell.Style{}.Background(moreContrastBackgroundColor),
+	)
+	expandedView.
+		SetBorder(true).
+		SetTitle("Message").
+		SetTitleAlign(tview.AlignLeft)
+
+	table.SetSelectionChangedFunc(func(row, column int) {
+		var privateData = table.GetCell(row, colIdx).Reference
+		if row < 1 || privateData == nil {
+			return
+		}
+		var logText = privateData.(string)
+		var anyJson map[string]interface{}
+
+		var err = json.Unmarshal([]byte(logText), &anyJson)
+		if err == nil {
+			var jsonBytes, _ = json.MarshalIndent(anyJson, "", "  ")
+			logText = string(jsonBytes)
+		}
+		expandedView.SetText(logText, false)
+	})
+
+	table.SetSelectedFunc(func(row, column int) {
+		app.SetFocus(expandedView)
+	})
+
+	return expandedView
 }
 
 type paginatorView struct {
