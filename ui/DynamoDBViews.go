@@ -227,8 +227,8 @@ func NewDynamoDBDetailsView(
 	})
 
 	var ddbDetailsView = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(detailsTable, 0, 1, false).
-		AddItem(tablesTable, 0, 4, false).
+		AddItem(detailsTable, 0, 3000, false).
+		AddItem(tablesTable, 0, 5000, false).
 		AddItem(tview.NewFlex().
 			AddItem(inputField, 0, 1, true),
 			3, 0, true,
