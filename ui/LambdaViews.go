@@ -255,8 +255,8 @@ func createLambdaHomeView(
 
 	var searchPrefix = ""
 	var searchEvent = ""
-	logEventsView.InitInputCapture(&selectedGroupName, &streamName)
-	logEventsView.InitSearchInputDoneCallback(&searchEvent)
+	logEventsView.InitInputCapture()
+	logEventsView.InitSearchInputBuffer(&searchEvent)
 	logStreamsView.InitInputCapture(&selectedGroupName, &searchPrefix)
 	logStreamsView.InitSearchInputDoneCallback(&selectedGroupName, &searchPrefix)
 

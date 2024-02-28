@@ -17,10 +17,12 @@ type LogEventsView struct {
 	LogEventsTable       *tview.Table
 	ExpandedLogsTextArea *tview.TextArea
 	SearchInput          *tview.InputField
-	RefreshEvents        func(groupName string, streamName string, extend bool)
 	RootView             *tview.Flex
-
-	app *tview.Application
+	selectedLogGroup     string
+	selectedLogStream    string
+	eventSearchString    *string
+	app                  *tview.Application
+	api                  *cloudwatchlogs.CloudWatchLogsApi
 }
 
 func populateLogGroupsTable(table *tview.Table, data []types.LogGroup) {
@@ -99,46 +101,13 @@ func populateLogEventsTable(table *tview.Table, data []types.OutputLogEvent, ext
 	table.ScrollToBeginning()
 }
 
-func createLogEventsTable(
-	params tableCreationParams,
-	api *cloudwatchlogs.CloudWatchLogsApi,
-) (*tview.Table, func(groupName string, streamName string, extend bool)) {
-	var table = tview.NewTable()
-	populateLogEventsTable(table, make([]types.OutputLogEvent, 0), false)
-
-	var refreshViewsFunc = func(groupName string, streamName string, extend bool) {
-		var data []types.OutputLogEvent
-		var dataChannel = make(chan []types.OutputLogEvent)
-		var resultChannel = make(chan struct{})
-
-		go func() {
-			dataChannel <- api.ListLogEvents(groupName, streamName, !extend)
-		}()
-
-		go func() {
-			data = <-dataChannel
-			resultChannel <- struct{}{}
-		}()
-
-		go loadData(params.App, table.Box, resultChannel, func() {
-			populateLogEventsTable(table, data, extend)
-		})
-	}
-
-	return table, refreshViewsFunc
-}
-
 func NewLogEventsView(
 	app *tview.Application,
 	api *cloudwatchlogs.CloudWatchLogsApi,
 	logger *log.Logger,
 ) *LogEventsView {
-	var (
-		params                                = tableCreationParams{app, logger}
-		logEventsTable, refreshLogEventsTable = createLogEventsTable(params, api)
-
-		serviceView = NewServiceView(app)
-	)
+	var logEventsTable = tview.NewTable()
+	populateLogEventsTable(logEventsTable, make([]types.OutputLogEvent, 0), false)
 
 	var expandedLogsView = createExpandedLogView(app, logEventsTable, 1)
 
@@ -155,6 +124,7 @@ func NewLogEventsView(
 	const expandedLogsSize = 7
 	const logTableSize = 13
 
+	var serviceView = NewServiceView(app)
 	serviceView.RootView.
 		AddItem(expandedLogsView, 0, expandedLogsSize, false).
 		AddItem(logEventsTable, 0, logTableSize, true).
@@ -180,30 +150,85 @@ func NewLogEventsView(
 		LogEventsTable:       logEventsTable,
 		ExpandedLogsTextArea: expandedLogsView,
 		SearchInput:          inputField,
-		RefreshEvents:        refreshLogEventsTable,
 		RootView:             serviceView.RootView,
+		selectedLogGroup:     "",
+		selectedLogStream:    "",
 		app:                  app,
+		api:                  api,
 	}
 }
 
-func (inst *LogEventsView) InitSearchInputDoneCallback(search *string) {
-	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {
-		switch key {
-		case tcell.KeyEnter:
-			*search = inst.SearchInput.GetText()
-			highlightTableSearch(inst.app, inst.LogEventsTable, *search, []int{0, 1})
-			inst.app.SetFocus(inst.LogEventsTable)
-		}
+func (inst *LogEventsView) RefreshEvents(selectedGroup string, selectedStream string, extend bool) {
+	inst.selectedLogGroup = selectedGroup
+	inst.selectedLogStream = selectedStream
+	var data []types.OutputLogEvent
+	var dataChannel = make(chan []types.OutputLogEvent)
+	var resultChannel = make(chan struct{})
+
+	go func() {
+		dataChannel <- inst.api.ListLogEvents(
+			inst.selectedLogGroup,
+			inst.selectedLogStream,
+			!extend,
+		)
+	}()
+
+	go func() {
+		data = <-dataChannel
+		resultChannel <- struct{}{}
+	}()
+
+	go loadData(inst.app, inst.LogEventsTable.Box, resultChannel, func() {
+		populateLogEventsTable(inst.LogEventsTable, data, extend)
 	})
 }
 
-func (inst *LogEventsView) InitInputCapture(selectedGroupName *string, streamName *string) {
+func (inst *LogEventsView) InitSearchInputBuffer(searchStringBuffer *string) {
+	inst.eventSearchString = searchStringBuffer
+}
+
+func (inst *LogEventsView) InitInputCapture() {
+	var searchPositionsChan chan []int
+	var searchPositions []int
+	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {
+		switch key {
+		case tcell.KeyEnter:
+			*inst.eventSearchString = inst.SearchInput.GetText()
+			searchPositionsChan = highlightTableSearch(
+				inst.app,
+				inst.LogEventsTable,
+				*inst.eventSearchString,
+				[]int{0, 1},
+			)
+			inst.app.SetFocus(inst.LogEventsTable)
+			go func() {
+				searchPositions = <-searchPositionsChan
+				if len(searchPositions) > 0 {
+					inst.LogEventsTable.Select(searchPositions[0], 0)
+				}
+			}()
+		}
+	})
+
+	var nextSearch = 0
 	inst.LogEventsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			inst.RefreshEvents(*selectedGroupName, *streamName, false)
+			inst.RefreshEvents(inst.selectedLogGroup, inst.selectedLogStream, false)
 		case tcell.KeyCtrlN:
-			inst.RefreshEvents(*selectedGroupName, *streamName, true)
+			inst.RefreshEvents(inst.selectedLogGroup, inst.selectedLogStream, true)
+		}
+
+		var searchCount = len(searchPositions)
+		if searchCount > 0 {
+			switch event.Rune() {
+			case rune('n'):
+				nextSearch = (nextSearch + 1) % searchCount
+				inst.LogEventsTable.Select(searchPositions[nextSearch], 0)
+			case rune('N'):
+				nextSearch = (nextSearch - 1 + searchCount) % searchCount
+				inst.LogEventsTable.Select(searchPositions[nextSearch], 0)
+			}
 		}
 		return event
 	})
@@ -444,8 +469,8 @@ func createLogsHomeView(
 
 	var searchPrefix = ""
 	var searchEvent = ""
-	logEventsView.InitInputCapture(&selectedGroupName, &streamName)
-	logEventsView.InitSearchInputDoneCallback(&searchEvent)
+	logEventsView.InitInputCapture()
+	logEventsView.InitSearchInputBuffer(&searchEvent)
 	logStreamsView.InitInputCapture(&selectedGroupName, &searchPrefix)
 	logStreamsView.InitSearchInputDoneCallback(&selectedGroupName, &searchPrefix)
 
