@@ -146,14 +146,3 @@ func initBasicTable(
 		}
 	}
 }
-
-func populateServicesTable(table *tview.Table) {
-	var tableData = []tableRow{
-		{"Lambda"},
-		{"CloudWatch"},
-	}
-
-	initBasicTable(table, "Services", tableData, false)
-	table.Select(0, 0)
-	table.ScrollToBeginning()
-}
