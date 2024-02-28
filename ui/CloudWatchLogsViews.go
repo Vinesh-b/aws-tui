@@ -340,44 +340,12 @@ func (inst *LogStreamsView) InitSearchInputBuffer(searchBuffer *string) {
 }
 
 type LogGroupsView struct {
-	LogGroupsTable *tview.Table
-	SearchInput    *tview.InputField
-	RefreshGroups  func(search string)
-	RootView       *tview.Flex
-}
-
-func createLogGroupsTable(
-	params tableCreationParams,
-	api *cloudwatchlogs.CloudWatchLogsApi,
-) (*tview.Table, func(search string)) {
-	var table = tview.NewTable()
-	populateLogGroupsTable(table, make([]types.LogGroup, 0))
-
-	var refreshViewsFunc = func(search string) {
-		table.Clear()
-		var data []types.LogGroup
-		var dataChannel = make(chan []types.LogGroup)
-		var resultChannel = make(chan struct{})
-
-		go func() {
-			if len(search) > 0 {
-				dataChannel <- api.FilterGroupByName(search)
-			} else {
-				dataChannel <- api.ListLogGroups(false)
-			}
-		}()
-
-		go func() {
-			data = <-dataChannel
-			resultChannel <- struct{}{}
-		}()
-
-		go loadData(params.App, table.Box, resultChannel, func() {
-			populateLogGroupsTable(table, data)
-		})
-	}
-
-	return table, refreshViewsFunc
+	LogGroupsTable   *tview.Table
+	SearchInput      *tview.InputField
+	RootView         *tview.Flex
+	selectedLogGroup string
+	app              *tview.Application
+	api              *cloudwatchlogs.CloudWatchLogsApi
 }
 
 func NewLogGroupsView(
@@ -385,23 +353,12 @@ func NewLogGroupsView(
 	api *cloudwatchlogs.CloudWatchLogsApi,
 	logger *log.Logger,
 ) *LogGroupsView {
-	var params = tableCreationParams{app, logger}
-	var logGroupsTable, refreshLogGroupsTable = createLogGroupsTable(params, api)
-	var serviceView = NewServiceView(app)
+	var logGroupsTable = tview.NewTable()
+	populateLogGroupsTable(logGroupsTable, make([]types.LogGroup, 0))
 
 	var inputField = createSearchInput("Log Groups")
-	inputField.SetDoneFunc(func(key tcell.Key) {
-		switch key {
-		case tcell.KeyEnter:
-			refreshLogGroupsTable(inputField.GetText())
-			app.SetFocus(logGroupsTable)
-		case tcell.KeyEsc:
-			inputField.SetText("")
-		default:
-			return
-		}
-	})
 
+	var serviceView = NewServiceView(app)
 	serviceView.RootView.
 		AddItem(logGroupsTable, 0, 1, false).
 		AddItem(tview.NewFlex().
@@ -417,11 +374,50 @@ func NewLogGroupsView(
 	)
 
 	return &LogGroupsView{
-		LogGroupsTable: logGroupsTable,
-		SearchInput:    inputField,
-		RefreshGroups:  refreshLogGroupsTable,
-		RootView:       serviceView.RootView,
+		LogGroupsTable:   logGroupsTable,
+		SearchInput:      inputField,
+		RootView:         serviceView.RootView,
+		selectedLogGroup: "",
+		app:              app,
+		api:              api,
 	}
+}
+
+func (inst *LogGroupsView) RefreshGroups(search string) {
+	var data []types.LogGroup
+	var dataChannel = make(chan []types.LogGroup)
+	var resultChannel = make(chan struct{})
+
+	go func() {
+		if len(search) > 0 {
+			dataChannel <- inst.api.FilterGroupByName(search)
+		} else {
+			dataChannel <- inst.api.ListLogGroups(false)
+		}
+	}()
+
+	go func() {
+		data = <-dataChannel
+		resultChannel <- struct{}{}
+	}()
+
+	go loadData(inst.app, inst.LogGroupsTable.Box, resultChannel, func() {
+		populateLogGroupsTable(inst.LogGroupsTable, data)
+	})
+}
+
+func (inst *LogGroupsView) InitInputCapture() {
+	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {
+		switch key {
+		case tcell.KeyEnter:
+			inst.RefreshGroups(inst.SearchInput.GetText())
+			inst.app.SetFocus(inst.LogGroupsTable)
+		case tcell.KeyEsc:
+			inst.SearchInput.SetText("")
+		default:
+			return
+		}
+	})
 }
 
 func createLogsHomeView(
@@ -471,6 +467,7 @@ func createLogsHomeView(
 	logEventsView.InitSearchInputBuffer(&searchEvent)
 	logStreamsView.InitInputCapture()
 	logStreamsView.InitSearchInputBuffer(&searchPrefix)
+	logGroupsView.InitInputCapture()
 
 	return serviceRootView.RootView
 }
