@@ -61,8 +61,12 @@ func (inst *DynamoDBApi) DescribeTable(tableName string) *types.TableDescription
 	return output.Table
 }
 
-func (inst *DynamoDBApi) ScanTable(tableName string) []map[string]interface{} {
+func (inst *DynamoDBApi) ScanTable(
+	description *types.TableDescription,
+) []map[string]interface{} {
+	var tableName = *description.TableName
 	var items []map[string]interface{}
+
 	scanPaginator := dynamodb.NewScanPaginator(inst.client, &dynamodb.ScanInput{
 		TableName: aws.String(tableName),
 		Limit:     aws.Int32(20),
@@ -76,5 +80,4 @@ func (inst *DynamoDBApi) ScanTable(tableName string) []map[string]interface{} {
 		items = append(items, temp...)
 	}
 	return items
-
 }

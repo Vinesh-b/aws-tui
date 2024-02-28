@@ -157,6 +157,7 @@ func initBasicTable(
 func initSelectableJsonTable(
 	table *tview.Table,
 	title string,
+	description *ddb_types.TableDescription,
 	data []map[string]interface{},
 ) {
 	table.
@@ -169,47 +170,54 @@ func initSelectableJsonTable(
 		SetBorderPadding(0, 0, 0, 0).
 		SetBorder(true)
 
+	if description == nil || len(data) == 0 {
+		return
+	}
+
+	var headingIdx = 0
 	var headingIdxMap = make(map[string]int)
+	for _, atter := range description.KeySchema {
+		switch atter.KeyType {
+		case ddb_types.KeyTypeHash:
+			headingIdxMap[*atter.AttributeName] = 0
+			headingIdx++
+		case ddb_types.KeyTypeRange:
+			headingIdxMap[*atter.AttributeName] = 1
+			headingIdx++
+		}
+	}
 
-	var colIdx = 0
-	for _, rowData := range data {
-		for colName := range rowData {
-			var _, ok = headingIdxMap[colName]
+	for rowIdx, rowData := range data {
+		for heading := range rowData {
+			var colIdx, ok = headingIdxMap[heading]
 			if !ok {
-				headingIdxMap[colName] = colIdx
-				colIdx++
+				headingIdxMap[heading] = headingIdx
+				colIdx = headingIdx
+				headingIdx++
 			}
-		}
 
-		for heading, colIdx := range headingIdxMap {
-			table.SetCell(0, colIdx, tview.NewTableCell(heading).
-				SetAlign(tview.AlignLeft).
-				SetTextColor(secondaryTextColor).
-				SetSelectable(false).
-				SetBackgroundColor(contrastBackgroundColor),
+			var cellData = fmt.Sprintf("%v", rowData[heading])
+			var previewText = clampStringLen(&cellData, 100)
+			table.SetCell(rowIdx+1, colIdx, tview.NewTableCell(previewText).
+				SetReference(cellData).
+				SetAlign(tview.AlignLeft),
 			)
 		}
+	}
 
-		for rowIdx, rowData := range data {
-			for colName, colIdx := range headingIdxMap {
-				var cellData = ""
-				var val, ok = rowData[colName]
-				if ok {
-					cellData = fmt.Sprintf("%v", val)
-				}
-				var text = clampStringLen(&cellData, 100)
-				table.SetCell(rowIdx+1, colIdx, tview.NewTableCell(text).
-					SetReference(cellData).
-					SetAlign(tview.AlignLeft),
-				)
-			}
-		}
+	for heading, colIdx := range headingIdxMap {
+		table.SetCell(0, colIdx, tview.NewTableCell(heading).
+			SetAlign(tview.AlignLeft).
+			SetTextColor(secondaryTextColor).
+			SetSelectable(false).
+			SetBackgroundColor(contrastBackgroundColor),
+		)
+	}
 
-		if len(data) > 0 {
-			table.SetSelectable(true, false).SetSelectedStyle(
-				tcell.Style{}.Background(moreContrastBackgroundColor),
-			)
-		}
+	if len(data) > 0 {
+		table.SetSelectable(true, false).SetSelectedStyle(
+			tcell.Style{}.Background(moreContrastBackgroundColor),
+		)
 	}
 }
 
@@ -448,13 +456,26 @@ func populateDynamoDBTabelsTable(table *tview.Table, data []string) {
 
 func populateDynamoDBTabelDetailsTable(table *tview.Table, data *ddb_types.TableDescription) {
 	var tableData []tableRow
+	var partitionKey = ""
+	var sortKey = ""
+
 	if data != nil {
+		for _, atter := range data.KeySchema {
+			switch atter.KeyType {
+			case ddb_types.KeyTypeHash:
+				partitionKey = *atter.AttributeName
+			case ddb_types.KeyTypeRange:
+				sortKey = *atter.AttributeName
+			}
+		}
+
 		tableData = []tableRow{
 			{"Name", aws.ToString(data.TableName)},
 			{"Status", fmt.Sprintf("%s", data.TableStatus)},
-			{"ItemCount", fmt.Sprintf("%d", aws.ToInt64(data.ItemCount))},
 			{"CreationDate", data.CreationDateTime.Format(time.DateTime)},
-			{"ItemCount", fmt.Sprintf("%v", data.AttributeDefinitions)},
+			{"PartitionKey", partitionKey},
+			{"SortKey", sortKey},
+			{"ItemCount", fmt.Sprintf("%d", aws.ToInt64(data.ItemCount))},
 			{"GSIs", fmt.Sprintf("%v", data.GlobalSecondaryIndexes)},
 		}
 	}
@@ -464,9 +485,12 @@ func populateDynamoDBTabelDetailsTable(table *tview.Table, data *ddb_types.Table
 	table.ScrollToBeginning()
 }
 
-func populateDynamoDBTable(table *tview.Table, data []map[string]interface{}) {
-
-	initSelectableJsonTable(table, "Table", data)
+func populateDynamoDBTable(
+	table *tview.Table,
+	description *ddb_types.TableDescription,
+	data []map[string]interface{},
+) {
+	initSelectableJsonTable(table, "Table", description, data)
 	table.Select(0, 0)
 	table.ScrollToBeginning()
 }

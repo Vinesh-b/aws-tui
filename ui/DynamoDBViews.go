@@ -151,31 +151,35 @@ type DynamoDBTableItemsView struct {
 func createDynamoDBItemsTable(
 	params tableCreationParams,
 	api *dynamodb.DynamoDBApi,
-) (*tview.Table, func(search string)) {
+) (*tview.Table, func(tableName string)) {
 	var table = tview.NewTable()
-	populateDynamoDBTable(table, make([]map[string]interface{}, 0))
+	populateDynamoDBTable(table, nil, make([]map[string]interface{}, 0))
 
-	var refreshViewsFunc = func(search string) {
-		table.Clear()
+	var refreshViewsFunc = func(tableName string) {
 		var data []map[string]interface{}
 		var dataChannel = make(chan []map[string]interface{})
+		var descData *types.TableDescription = nil
+		var descDataChannel = make(chan *types.TableDescription)
 		var resultChannel = make(chan struct{})
 
 		go func() {
-			if len(search) > 0 {
-				dataChannel <- api.ScanTable(search)
-			} else {
+			if len(tableName) <= 0 {
 				dataChannel <- make([]map[string]interface{}, 0)
+				return
 			}
+			var description = api.DescribeTable(tableName)
+			descDataChannel <- description
+			dataChannel <- api.ScanTable(description)
 		}()
 
 		go func() {
+			descData = <-descDataChannel
 			data = <-dataChannel
 			resultChannel <- struct{}{}
 		}()
 
 		go loadData(params.App, table.Box, resultChannel, func() {
-			populateDynamoDBTable(table, data)
+			populateDynamoDBTable(table, descData, data)
 		})
 	}
 
@@ -291,8 +295,8 @@ func createDynamoDBHomeView(
 		switchAndFocus(1, ddbItemsView.DDBItemsTable)
 	})
 
-    var searchString = ""
-    ddbItemsView.InitSearchInputDoneCallback(&searchString)
+	var searchString = ""
+	ddbItemsView.InitSearchInputDoneCallback(&searchString)
 
 	return pages
 }
