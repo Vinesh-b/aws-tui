@@ -219,6 +219,8 @@ func NewAlarmsDetailsView(
 		alarmsTable, refreshAlarmsTable   = createAlarmsTable(params, api)
 		alarmDetails, refreshAlarmDetails = createAlarmDetailsGrid(params, api)
 		alarmHistory, refreshAlarmHistory = createAlarmHistoryTable(params, api)
+
+		serviceView = NewServiceView(app)
 	)
 
 	alarmsTable.SetSelectedFunc(func(row, column int) {
@@ -243,22 +245,16 @@ func NewAlarmsDetailsView(
 		}
 	})
 
-	var flexHomeView = tview.NewFlex().SetDirection(tview.FlexRow)
-	flexHomeView.AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+	serviceView.RootView.
 		AddItem(alarmDetails, 0, 3500, false).
 		AddItem(alarmHistory, 0, 3000, false).
-		AddItem(alarmsTable, 0, 3500, false),
-		0, 4000, false,
-	)
+		AddItem(alarmsTable, 0, 3500, false).
+		AddItem(tview.NewFlex().
+			AddItem(inputField, 0, 1, true),
+			3, 0, true,
+		)
 
-	// Keep at bottom
-	flexHomeView.AddItem(tview.NewFlex().
-		AddItem(inputField, 0, 1, true),
-		3, 0, true,
-	)
-
-	var startIdx = 0
-	initViewNavigation(app, flexHomeView, &startIdx,
+	serviceView.InitViewNavigation(
 		[]view{
 			inputField,
 			alarmsTable,
@@ -275,7 +271,7 @@ func NewAlarmsDetailsView(
 		RefreshAlarms:  refreshAlarmsTable,
 		RefreshDetails: refreshAlarmDetails,
 		RefreshHistory: refreshAlarmHistory,
-		RootView:       flexHomeView,
+		RootView:       serviceView.RootView,
 	}
 
 }

@@ -148,6 +148,8 @@ func NewStacksDetailsView(
 
 		stacksTable, refreshStacksTable     = createStacksTable(params, api)
 		stacksDetails, refreshStacksDetails = createStackDetailsTable(params, api)
+
+		serviceView = NewServiceView(app)
 	)
 
 	var onTableSelction = func(row int) {
@@ -178,16 +180,23 @@ func NewStacksDetailsView(
 		}
 	})
 
-	var stacksView = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(stacksDetails, 0, 5000, false).
-		AddItem(stacksTable, 0, 3000, false).
+	const stackDetailsSize = 5000
+	const stackTablesSize = 3000
+
+	serviceView.RootView.
+		AddItem(stacksDetails, 0, stackDetailsSize, false).
+		AddItem(stacksTable, 0, stackTablesSize, false).
 		AddItem(tview.NewFlex().
 			AddItem(inputField, 0, 1, true),
 			3, 0, true,
 		)
 
-	var startIdx = 0
-	initViewNavigation(app, stacksView, &startIdx,
+	serviceView.SetResizableViews(
+		stacksDetails, stacksTable,
+		stackDetailsSize, stackTablesSize,
+	)
+
+	serviceView.InitViewNavigation(
 		[]view{
 			inputField,
 			stacksTable,
@@ -200,7 +209,7 @@ func NewStacksDetailsView(
 		SearchInput:         inputField,
 		RefreshStacks:       refreshStacksTable,
 		RefreshStackDetails: refreshStacksDetails,
-		RootView:            stacksView,
+		RootView:            serviceView.RootView,
 	}
 }
 
@@ -288,6 +297,8 @@ func NewStackEventsView(
 		params = tableCreationParams{app, logger}
 
 		stackEventsTable, refreshStackEventsTable = createStackEventsTable(params, api)
+
+		serviceView = NewServiceView(app)
 	)
 
 	var expandedMsgView = tview.NewTextArea()
@@ -317,16 +328,23 @@ func NewStackEventsView(
 		}
 	})
 
-	var stackEventsView = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(expandedMsgView, 0, 5, false).
-		AddItem(stackEventsTable, 0, 15, false).
+	const expandedMsgSize = 5
+	const stackEventsSize = 15
+
+	serviceView.RootView.
+		AddItem(expandedMsgView, 0, expandedMsgSize, false).
+		AddItem(stackEventsTable, 0, stackEventsSize, false).
 		AddItem(tview.NewFlex().
 			AddItem(inputField, 0, 1, true),
 			3, 0, true,
 		)
 
-	var startIdx = 0
-	initViewNavigation(app, stackEventsView, &startIdx,
+	serviceView.SetResizableViews(
+		expandedMsgView, stackEventsTable,
+		expandedMsgSize, stackEventsSize,
+	)
+
+	serviceView.InitViewNavigation(
 		[]view{
 			inputField,
 			stackEventsTable,
@@ -336,7 +354,7 @@ func NewStackEventsView(
 		EventsTable:   stackEventsTable,
 		RefreshEvents: refreshStackEventsTable,
 		SearchInput:   inputField,
-		RootView:      stackEventsView,
+		RootView:      serviceView.RootView,
 		app:           app,
 	}
 }

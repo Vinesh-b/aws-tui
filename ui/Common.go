@@ -73,33 +73,6 @@ func createSearchInput(label string) *tview.InputField {
 	return inputField
 }
 
-func initViewNavigation(
-	app *tview.Application,
-	rootView rootView,
-	viewIdx *int,
-	orderedViews []view,
-) {
-	// Sets current view index when selected
-	for i, v := range orderedViews {
-		v.SetFocusFunc(func() { *viewIdx = i })
-	}
-
-	var numViews = len(orderedViews)
-	rootView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlJ:
-			*viewIdx = (*viewIdx - 1 + numViews) % numViews
-			app.SetFocus(orderedViews[*viewIdx])
-			return nil
-		case tcell.KeyCtrlK:
-			*viewIdx = (*viewIdx + 1) % numViews
-			app.SetFocus(orderedViews[*viewIdx])
-			return nil
-		}
-		return event
-	})
-}
-
 type paginatorView struct {
 	PageCounterView *tview.TextView
 	PageNameView    *tview.TextView
@@ -201,6 +174,100 @@ func (inst *ServiceRootView) initPageNavigation() {
 		}
 		return event
 	})
+}
+
+type ServiceView struct {
+	RootView              *tview.Flex
+	viewIdx               *int
+	orderedViews          []view
+	viewResizeEnabled     bool
+	topView               view
+	bottomView            view
+	topViewDefaultSize    int
+	bottomViewDefaultSize int
+	app                   *tview.Application
+}
+
+func NewServiceView(
+	app *tview.Application,
+) *ServiceView {
+	var rootView = tview.NewFlex().SetDirection(tview.FlexRow)
+	var viewIndex = 0
+	return &ServiceView{
+		RootView:          rootView,
+		viewIdx:           &viewIndex,
+		viewResizeEnabled: false,
+		app:               app,
+	}
+}
+
+func (inst *ServiceView) InitViewNavigation(orderedViews []view) {
+	inst.orderedViews = orderedViews
+	// Sets current view index when selected
+	for i, v := range inst.orderedViews {
+		v.SetFocusFunc(func() { *inst.viewIdx = i })
+	}
+
+	var numViews = len(inst.orderedViews)
+	inst.RootView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlJ:
+			*inst.viewIdx = (*inst.viewIdx - 1 + numViews) % numViews
+			inst.app.SetFocus(inst.orderedViews[*inst.viewIdx])
+			return nil
+		case tcell.KeyCtrlK:
+			*inst.viewIdx = (*inst.viewIdx + 1) % numViews
+			inst.app.SetFocus(inst.orderedViews[*inst.viewIdx])
+			return nil
+		}
+
+		if inst.viewResizeEnabled {
+			event = inst.paneResizeHightHandler(event)
+		}
+
+		return event
+	})
+}
+
+func (inst *ServiceView) SetResizableViews(
+	topView view, bottomView view,
+	topDefaultSize int, bottomDefaultSize int,
+) {
+	inst.topView = topView
+	inst.bottomView = bottomView
+	inst.topViewDefaultSize = topDefaultSize
+	inst.bottomViewDefaultSize = bottomDefaultSize
+	inst.viewResizeEnabled = true
+}
+
+func (inst *ServiceView) paneResizeHightHandler(
+	event *tcell.EventKey,
+) *tcell.EventKey {
+	var _, _, _, topSize = inst.topView.GetRect()
+	var _, _, _, bottomSize = inst.bottomView.GetRect()
+	switch event.Modifiers() {
+	case tcell.ModAlt:
+		switch event.Rune() {
+		case rune('j'):
+			if bottomSize > 0 {
+				inst.RootView.ResizeItem(inst.topView, 0, topSize+1)
+				inst.RootView.ResizeItem(inst.bottomView, 0, bottomSize-1)
+			}
+			return nil
+		case rune('k'):
+			if topSize > 0 {
+				inst.RootView.ResizeItem(inst.topView, 0, topSize-1)
+				inst.RootView.ResizeItem(inst.bottomView, 0, bottomSize+1)
+			}
+			return nil
+		case rune('0'):
+			inst.RootView.ResizeItem(inst.topView, 0, inst.topViewDefaultSize)
+			inst.RootView.ResizeItem(inst.bottomView, 0, inst.bottomViewDefaultSize)
+			return nil
+		}
+	}
+
+	return event
 }
 
 func highlightTableSearch(

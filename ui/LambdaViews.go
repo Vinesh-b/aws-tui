@@ -144,6 +144,8 @@ func NewLambdasDetailsView(
 
 		lambdasTable, refreshLambdasTable   = createLambdasTable(params, api)
 		lambdaDetails, refreshLambdaDetails = createLambdaDetailsTable(params, api)
+
+		serviceView = NewServiceView(app)
 	)
 
 	var onTableSelction = func(row int) {
@@ -174,16 +176,23 @@ func NewLambdasDetailsView(
 		}
 	})
 
-	var lambdasView = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(lambdaDetails, 0, 3000, false).
-		AddItem(lambdasTable, 0, 4000, false).
+	const detailsViewSize = 4000
+	const tableViewSize = 6000
+
+	serviceView.RootView.
+		AddItem(lambdaDetails, 0, detailsViewSize, false).
+		AddItem(lambdasTable, 0, tableViewSize, false).
 		AddItem(tview.NewFlex().
 			AddItem(inputField, 0, 1, true),
 			3, 0, true,
 		)
 
-	var startIdx = 0
-	initViewNavigation(app, lambdasView, &startIdx,
+	serviceView.SetResizableViews(
+		lambdaDetails, lambdasTable,
+		detailsViewSize, tableViewSize,
+	)
+
+	serviceView.InitViewNavigation(
 		[]view{
 			inputField,
 			lambdasTable,
@@ -196,7 +205,7 @@ func NewLambdasDetailsView(
 		SearchInput:    inputField,
 		RefreshLambdas: refreshLambdasTable,
 		RefreshDetails: refreshLambdaDetails,
-		RootView:       lambdasView,
+		RootView:       serviceView.RootView,
 	}
 }
 

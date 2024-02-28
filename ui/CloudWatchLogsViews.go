@@ -135,6 +135,8 @@ func NewLogEventsView(
 	var (
 		params                                = tableCreationParams{app, logger}
 		logEventsTable, refreshLogEventsTable = createLogEventsTable(params, api)
+
+		serviceView = NewServiceView(app)
 	)
 
 	var expandedLogsView = tview.NewTextArea().SetSelectedStyle(
@@ -175,16 +177,23 @@ func NewLogEventsView(
 		return event
 	})
 
-	var eventsView = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(expandedLogsView, 0, 7, false).
-		AddItem(logEventsTable, 0, 13, true).
+	const expandedLogsSize = 7
+	const logTableSize = 13
+
+	serviceView.RootView.
+		AddItem(expandedLogsView, 0, expandedLogsSize, false).
+		AddItem(logEventsTable, 0, logTableSize, true).
 		AddItem(tview.NewFlex().
 			AddItem(inputField, 0, 1, true),
 			3, 0, true,
 		)
 
-	var eventsViewNavIdx = 0
-	initViewNavigation(app, eventsView, &eventsViewNavIdx,
+	serviceView.SetResizableViews(
+		expandedLogsView, logEventsTable,
+		expandedLogsSize, logTableSize,
+	)
+
+	serviceView.InitViewNavigation(
 		[]view{
 			inputField,
 			logEventsTable,
@@ -197,7 +206,7 @@ func NewLogEventsView(
 		ExpandedLogsTextArea: expandedLogsView,
 		SearchInput:          inputField,
 		RefreshEvents:        refreshLogEventsTable,
-		RootView:             eventsView,
+		RootView:             serviceView.RootView,
 		app:                  app,
 	}
 }
@@ -270,6 +279,8 @@ func NewLogStreamsView(
 	var (
 		params                                 = tableCreationParams{app, logger}
 		logStreamsTable, refreshLogStreamTable = createLogStreamsTable(params, api)
+
+		serviceView = NewServiceView(app)
 	)
 
 	var inputField = createSearchInput("Stream Prefix")
@@ -284,15 +295,14 @@ func NewLogStreamsView(
 		}
 	})
 
-	var streamsView = tview.NewFlex().SetDirection(tview.FlexRow).
+	serviceView.RootView.
 		AddItem(logStreamsTable, 0, 1, true).
 		AddItem(tview.NewFlex().
 			AddItem(inputField, 0, 1, true),
 			3, 0, true,
 		)
 
-	var streamsViewNavIdx = 0
-	initViewNavigation(app, streamsView, &streamsViewNavIdx,
+	serviceView.InitViewNavigation(
 		[]view{
 			inputField,
 			logStreamsTable,
@@ -303,7 +313,7 @@ func NewLogStreamsView(
 		LogStreamsTable: logStreamsTable,
 		SearchInput:     inputField,
 		RefreshStreams:  refreshLogStreamTable,
-		RootView:        streamsView,
+		RootView:        serviceView.RootView,
 		app:             app,
 	}
 }
@@ -379,6 +389,7 @@ func NewLogGroupsView(
 ) *LogGroupsView {
 	var params = tableCreationParams{app, logger}
 	var logGroupsTable, refreshLogGroupsTable = createLogGroupsTable(params, api)
+	var serviceView = NewServiceView(app)
 
 	var inputField = createSearchInput("Log Groups")
 	inputField.SetDoneFunc(func(key tcell.Key) {
@@ -393,15 +404,14 @@ func NewLogGroupsView(
 		}
 	})
 
-	var groupsView = tview.NewFlex().SetDirection(tview.FlexRow).
+	serviceView.RootView.
 		AddItem(logGroupsTable, 0, 1, false).
 		AddItem(tview.NewFlex().
 			AddItem(inputField, 0, 1, true),
 			3, 0, true,
 		)
 
-	var groupsViewNavIdx = 0
-	initViewNavigation(app, groupsView, &groupsViewNavIdx,
+	serviceView.InitViewNavigation(
 		[]view{
 			inputField,
 			logGroupsTable,
@@ -412,7 +422,7 @@ func NewLogGroupsView(
 		LogGroupsTable: logGroupsTable,
 		SearchInput:    inputField,
 		RefreshGroups:  refreshLogGroupsTable,
-		RootView:       groupsView,
+		RootView:       serviceView.RootView,
 	}
 }
 

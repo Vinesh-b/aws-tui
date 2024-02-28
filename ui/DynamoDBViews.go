@@ -212,6 +212,8 @@ func NewDynamoDBDetailsView(
 
 		tablesTable, refreshTablesTable   = createDynamoDBTablesTable(params, api)
 		detailsTable, refreshDetailsTable = createDynamoDBTableDetailsTable(params, api)
+
+		serviceView = NewServiceView(app)
 	)
 
 	var inputField = createSearchInput("Tables")
@@ -226,16 +228,23 @@ func NewDynamoDBDetailsView(
 		}
 	})
 
-	var ddbDetailsView = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(detailsTable, 0, 3000, false).
-		AddItem(tablesTable, 0, 5000, false).
+	const detailsSize = 3000
+	const tablesSize = 5000
+
+	serviceView.RootView.
+		AddItem(detailsTable, 0, detailsSize, false).
+		AddItem(tablesTable, 0, tablesSize, false).
 		AddItem(tview.NewFlex().
 			AddItem(inputField, 0, 1, true),
 			3, 0, true,
 		)
 
-	var viewNavIdx = 0
-	initViewNavigation(app, ddbDetailsView, &viewNavIdx,
+	serviceView.SetResizableViews(
+		detailsTable, tablesTable,
+		detailsSize, tablesSize,
+	)
+
+	serviceView.InitViewNavigation(
 		[]view{
 			inputField,
 			tablesTable,
@@ -249,7 +258,7 @@ func NewDynamoDBDetailsView(
 		SearchInput:        inputField,
 		RefreshTablesTable: refreshTablesTable,
 		RefreshDetails:     refreshDetailsTable,
-		RootView:           ddbDetailsView,
+		RootView:           serviceView.RootView,
 	}
 }
 
@@ -312,6 +321,8 @@ func NewDynamoDBTableItemsView(
 		params = tableCreationParams{app, logger}
 
 		itemsTable, refreshItemsTable = createDynamoDBItemsTable(params, api)
+
+		serviceView = NewServiceView(app)
 	)
 
 	var inputField = createSearchInput("Item")
@@ -345,7 +356,7 @@ func NewDynamoDBTableItemsView(
 		SetTitle("Query").
 		SetTitleAlign(tview.AlignLeft)
 
-	var ddbDetailsView = tview.NewFlex().SetDirection(tview.FlexRow).
+	serviceView.RootView.
 		AddItem(itemsTable, 0, 4, false).
 		AddItem(queryView, 5, 0, false).
 		AddItem(tview.NewFlex().
@@ -353,8 +364,7 @@ func NewDynamoDBTableItemsView(
 			3, 0, true,
 		)
 
-	var viewNavIdx = 0
-	initViewNavigation(app, ddbDetailsView, &viewNavIdx,
+	serviceView.InitViewNavigation(
 		[]view{
 			inputField,
 			runQueryBtn,
@@ -368,7 +378,7 @@ func NewDynamoDBTableItemsView(
 		DDBItemsTable: itemsTable,
 		SearchInput:   inputField,
 		RefreshTable:  refreshItemsTable,
-		RootView:      ddbDetailsView,
+		RootView:      serviceView.RootView,
 		app:           app,
 		api:           api,
 		queryPkInput:  pkQueryValInput,

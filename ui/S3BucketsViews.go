@@ -148,6 +148,8 @@ func NewS3bucketsDetailsView(
 
 		bucketsTable, refreshBucketsTable = createS3BucketsTable(params, api)
 		objectsTable, refreshObjectsTable = createS3ObjectsTable(params, api)
+
+		serviceView = NewServiceView(app)
 	)
 
 	var onBucketSelction = func(row int) {
@@ -174,16 +176,23 @@ func NewS3bucketsDetailsView(
 		}
 	})
 
-	var bucketsView = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(objectsTable, 0, 4000, false).
-		AddItem(bucketsTable, 0, 3000, false).
+	const objectsTableSize = 4000
+	const bucketsTableSize = 3000
+
+	serviceView.RootView.
+		AddItem(objectsTable, 0, objectsTableSize, false).
+		AddItem(bucketsTable, 0, bucketsTableSize, false).
 		AddItem(tview.NewFlex().
 			AddItem(inputField, 0, 1, true),
 			3, 0, true,
 		)
 
-	var startIdx = 0
-	initViewNavigation(app, bucketsView, &startIdx,
+	serviceView.SetResizableViews(
+		objectsTable, bucketsTable,
+		objectsTableSize, bucketsTableSize,
+	)
+
+	serviceView.InitViewNavigation(
 		[]view{
 			inputField,
 			bucketsTable,
@@ -197,7 +206,7 @@ func NewS3bucketsDetailsView(
 		SearchInput:    inputField,
 		RefreshBuckets: refreshBucketsTable,
 		RefreshObjects: refreshObjectsTable,
-		RootView:       bucketsView,
+		RootView:       serviceView.RootView,
 		app:            app,
 		bucketName:     "",
 	}
