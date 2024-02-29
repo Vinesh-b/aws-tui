@@ -112,14 +112,6 @@ func NewLogEventsView(
 	var expandedLogsView = createExpandedLogView(app, logEventsTable, 1, DATA_TYPE_STRING)
 
 	var inputField = createSearchInput("Log Events")
-	inputField.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlR:
-			inputField.SetText("")
-			highlightTableSearch(app, logEventsTable, "", []int{})
-		}
-		return event
-	})
 
 	const expandedLogsSize = 7
 	const logTableSize = 13
@@ -190,8 +182,8 @@ func (inst *LogEventsView) InitSearchInputBuffer(searchStringBuffer *string) {
 func (inst *LogEventsView) InitInputCapture() {
 	var searchPositionsChan chan []int
 	var searchPositions []int
-	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {
-		switch key {
+	inst.SearchInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
 		case tcell.KeyEnter:
 			*inst.eventSearchString = inst.SearchInput.GetText()
 			searchPositionsChan = highlightTableSearch(
@@ -207,7 +199,12 @@ func (inst *LogEventsView) InitInputCapture() {
 					inst.LogEventsTable.Select(searchPositions[0], 0)
 				}
 			}()
+		case tcell.KeyCtrlR:
+			inst.SearchInput.SetText("")
+			highlightTableSearch(inst.app, inst.LogEventsTable, "", []int{})
 		}
+
+		return event
 	})
 
 	var nextSearch = 0
