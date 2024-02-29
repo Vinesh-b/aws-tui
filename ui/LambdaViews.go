@@ -230,19 +230,19 @@ func createLambdaHomeView(
 	var serviceRootView = NewServiceRootView(
 		app, string(LAMBDA), pages, orderedPages).Init()
 
-    lambdasDetailsView.InitInputCapture()
+	lambdasDetailsView.InitInputCapture()
 
 	var selectedGroupName = ""
 	lambdasDetailsView.DetailsTable.SetSelectedFunc(func(row, column int) {
 		selectedGroupName = lambdasDetailsView.DetailsTable.GetCell(7, 1).Text
-		logStreamsView.RefreshStreams(selectedGroupName, false)
+		logStreamsView.RefreshStreams(selectedGroupName, true)
 		serviceRootView.ChangePage(1, logStreamsView.LogStreamsTable)
 	})
 
 	var streamName = ""
 	logStreamsView.LogStreamsTable.SetSelectedFunc(func(row, column int) {
 		streamName = logStreamsView.LogStreamsTable.GetCell(row, 0).Text
-		logEventsView.RefreshEvents(selectedGroupName, streamName, false)
+		logEventsView.RefreshEvents(selectedGroupName, streamName, true)
 		serviceRootView.ChangePage(2, logEventsView.LogEventsTable)
 	})
 

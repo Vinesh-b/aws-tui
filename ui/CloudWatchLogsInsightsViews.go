@@ -399,7 +399,7 @@ func createLogsInsightsHomeView(
 		var logStream = record["@logStream"]
 		var _, logGroup, _ = strings.Cut(record["@log"], ":")
 
-		logEventsView.RefreshEvents(logGroup, logStream, false)
+		logEventsView.RefreshEvents(logGroup, logStream, true)
 		serviceRootView.ChangePage(2, logEventsView.LogEventsTable)
 	})
 

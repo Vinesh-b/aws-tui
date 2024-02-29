@@ -150,7 +150,7 @@ func NewLogEventsView(
 	}
 }
 
-func (inst *LogEventsView) RefreshEvents(selectedGroup string, selectedStream string, extend bool) {
+func (inst *LogEventsView) RefreshEvents(selectedGroup string, selectedStream string, force bool) {
 	inst.selectedLogGroup = selectedGroup
 	inst.selectedLogStream = selectedStream
 	var data []types.OutputLogEvent
@@ -161,7 +161,7 @@ func (inst *LogEventsView) RefreshEvents(selectedGroup string, selectedStream st
 		dataChannel <- inst.api.ListLogEvents(
 			inst.selectedLogGroup,
 			inst.selectedLogStream,
-			!extend,
+			force,
 		)
 	}()
 
@@ -171,7 +171,7 @@ func (inst *LogEventsView) RefreshEvents(selectedGroup string, selectedStream st
 	}()
 
 	go loadData(inst.app, inst.LogEventsTable.Box, resultChannel, func() {
-		populateLogEventsTable(inst.LogEventsTable, data, extend)
+		populateLogEventsTable(inst.LogEventsTable, data, !force)
 	})
 }
 
@@ -211,9 +211,9 @@ func (inst *LogEventsView) InitInputCapture() {
 	inst.LogEventsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			inst.RefreshEvents(inst.selectedLogGroup, inst.selectedLogStream, false)
-		case tcell.KeyCtrlN:
 			inst.RefreshEvents(inst.selectedLogGroup, inst.selectedLogStream, true)
+		case tcell.KeyCtrlN:
+			inst.RefreshEvents(inst.selectedLogGroup, inst.selectedLogStream, false)
 		}
 
 		var searchCount = len(searchPositions)
@@ -287,7 +287,7 @@ func NewLogStreamsView(
 	}
 }
 
-func (inst *LogStreamsView) RefreshStreams(groupName string, extend bool) {
+func (inst *LogStreamsView) RefreshStreams(groupName string, force bool) {
 	inst.selectedLogGroup = groupName
 
 	var data []types.LogStream
@@ -298,7 +298,7 @@ func (inst *LogStreamsView) RefreshStreams(groupName string, extend bool) {
 		dataChannel <- inst.api.ListLogStreams(
 			inst.selectedLogGroup,
 			inst.streamSearchbuffer,
-			!extend,
+			force,
 		)
 	}()
 
@@ -308,7 +308,7 @@ func (inst *LogStreamsView) RefreshStreams(groupName string, extend bool) {
 	}()
 
 	go loadData(inst.app, inst.LogStreamsTable.Box, resultChannel, func() {
-		populateLogStreamsTable(inst.LogStreamsTable, data, extend)
+		populateLogStreamsTable(inst.LogStreamsTable, data, !force)
 	})
 }
 func (inst *LogStreamsView) InitInputCapture() {
@@ -316,7 +316,7 @@ func (inst *LogStreamsView) InitInputCapture() {
 		switch key {
 		case tcell.KeyEnter:
 			*inst.streamSearchbuffer = inst.SearchInput.GetText()
-			inst.RefreshStreams(inst.selectedLogGroup, false)
+			inst.RefreshStreams(inst.selectedLogGroup, true)
 			inst.app.SetFocus(inst.LogStreamsTable)
 		}
 	})
@@ -324,9 +324,9 @@ func (inst *LogStreamsView) InitInputCapture() {
 	inst.LogStreamsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			inst.RefreshStreams(inst.selectedLogGroup, false)
-		case tcell.KeyCtrlN:
 			inst.RefreshStreams(inst.selectedLogGroup, true)
+		case tcell.KeyCtrlN:
+			inst.RefreshStreams(inst.selectedLogGroup, false)
 		}
 		return event
 	})
@@ -447,14 +447,14 @@ func createLogsHomeView(
 	var selectedGroupName = ""
 	logGroupsView.LogGroupsTable.SetSelectedFunc(func(row, column int) {
 		selectedGroupName = logGroupsView.LogGroupsTable.GetCell(row, 0).Text
-		logStreamsView.RefreshStreams(selectedGroupName, false)
+		logStreamsView.RefreshStreams(selectedGroupName, true)
 		serviceRootView.ChangePage(1, logStreamsView.LogStreamsTable)
 	})
 
 	var streamName = ""
 	logStreamsView.LogStreamsTable.SetSelectedFunc(func(row, column int) {
 		streamName = logStreamsView.LogStreamsTable.GetCell(row, 0).Text
-		logEventsView.RefreshEvents(selectedGroupName, streamName, false)
+		logEventsView.RefreshEvents(selectedGroupName, streamName, true)
 		serviceRootView.ChangePage(2, logEventsView.LogEventsTable)
 	})
 
