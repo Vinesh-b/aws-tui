@@ -36,6 +36,7 @@ func (inst *CloudWatchLogsApi) ListLogGroups(force bool) []types.LogGroup {
 		return inst.allLogGroups
 	}
 
+	inst.allLogGroups = nil
 	var nextToken *string = nil
 
 	for {

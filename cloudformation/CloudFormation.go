@@ -35,6 +35,8 @@ func (inst *CloudFormationApi) ListStacks(force bool) map[string]types.StackSumm
 		return inst.allStacks
 	}
 
+	inst.allStacks = make(map[string]types.StackSummary)
+
 	var paginator = cloudformation.NewListStacksPaginator(
 		inst.client, &cloudformation.ListStacksInput{},
 	)

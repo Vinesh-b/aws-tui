@@ -23,10 +23,10 @@ func NewCloudWatchAlarmsApi(
 	logger *log.Logger,
 ) *CloudWatchAlarmsApi {
 	return &CloudWatchAlarmsApi{
-		config: config,
-		logger: logger,
-		client: cloudwatch.NewFromConfig(config),
-        allMetricAlarms: make(map[string]types.MetricAlarm),
+		config:          config,
+		logger:          logger,
+		client:          cloudwatch.NewFromConfig(config),
+		allMetricAlarms: make(map[string]types.MetricAlarm),
 	}
 }
 
@@ -35,6 +35,7 @@ func (inst *CloudWatchAlarmsApi) ListAlarms(force bool) map[string]types.MetricA
 		return inst.allMetricAlarms
 	}
 
+	inst.allMetricAlarms = make(map[string]types.MetricAlarm)
 	var nextToken *string = nil
 
 	for {

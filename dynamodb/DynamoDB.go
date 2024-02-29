@@ -37,6 +37,7 @@ func (inst *DynamoDBApi) ListTables(force bool) []string {
 		return inst.allTables
 	}
 
+    inst.allTables = nil
 	var paginator = dynamodb.NewListTablesPaginator(
 		inst.client, &dynamodb.ListTablesInput{},
 	)

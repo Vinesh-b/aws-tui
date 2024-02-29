@@ -35,6 +35,8 @@ func (inst *S3BucketsApi) ListBuckets(force bool) map[string]types.Bucket {
 		return inst.allbuckets
 	}
 
+	inst.allbuckets = make(map[string]types.Bucket)
+
 	var output, err = inst.client.ListBuckets(
 		context.TODO(), &s3.ListBucketsInput{},
 	)

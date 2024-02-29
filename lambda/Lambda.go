@@ -34,6 +34,8 @@ func (inst *LambdaApi) ListLambdas(force bool) map[string]types.FunctionConfigur
 		return inst.allLambdas
 	}
 
+    inst.allLambdas = make(map[string]types.FunctionConfiguration)
+
 	var paginator = lambda.NewListFunctionsPaginator(
 		inst.client, &lambda.ListFunctionsInput{},
 	)
