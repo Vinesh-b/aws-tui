@@ -65,21 +65,22 @@ func populateDynamoDBTable(
 	table *tview.Table,
 	description *types.TableDescription,
 	data []map[string]interface{},
+	extend bool,
 ) {
+	if description == nil {
+		return
+	}
+
 	table.
-		Clear().
-		SetBorders(false).
-		SetFixed(1, 2)
-	table.
-		SetTitle("Table").
+		SetFixed(1, 2).
+		SetTitle(aws.ToString(description.TableName)).
 		SetTitleAlign(tview.AlignLeft).
 		SetBorderPadding(0, 0, 0, 0).
 		SetBorder(true)
 
-	if description == nil || len(data) == 0 {
+	if len(data) == 0 {
 		return
 	}
-	table.SetTitle(aws.ToString(description.TableName))
 
 	var headingIdx = 0
 	var headingIdxMap = make(map[string]int)
@@ -92,6 +93,13 @@ func populateDynamoDBTable(
 			headingIdxMap[*atter.AttributeName] = 1
 			headingIdx++
 		}
+	}
+
+	var rowIdxOffset = 0
+	if extend {
+		rowIdxOffset = table.GetRowCount()
+	} else {
+		table.Clear()
 	}
 
 	for rowIdx, rowData := range data {
@@ -113,7 +121,7 @@ func populateDynamoDBTable(
 				newCell.SetReference(rowData)
 			}
 
-			table.SetCell(rowIdx+1, colIdx, newCell)
+			table.SetCell(rowIdx+rowIdxOffset+1, colIdx, newCell)
 		}
 	}
 
@@ -256,16 +264,26 @@ func (inst *DynamoDBDetailsView) InitInputCapture() {
 	})
 }
 
+type ddbTableOp int
+
+const (
+	DDB_TABLE_SCAN ddbTableOp = iota
+	DDB_TABLE_QUERY
+)
+
 type DynamoDBTableItemsView struct {
 	ItemsTable        *tview.Table
 	SearchInput       *tview.InputField
 	RootView          *tview.Flex
 	app               *tview.Application
 	api               *dynamodb.DynamoDBApi
+	tableName         string
+	tableDescription  *types.TableDescription
 	itemsSearchBuffer *string
 	queryPkInput      *tview.InputField
 	querySkInput      *tview.InputField
 	runQueryBtn       *tview.Button
+	lastTableOp       ddbTableOp
 }
 
 func NewDynamoDBTableItemsView(
@@ -274,7 +292,7 @@ func NewDynamoDBTableItemsView(
 	logger *log.Logger,
 ) *DynamoDBTableItemsView {
 	var itemsTable = tview.NewTable()
-	populateDynamoDBTable(itemsTable, nil, make([]map[string]interface{}, 0))
+	populateDynamoDBTable(itemsTable, nil, make([]map[string]interface{}, 0), false)
 
 	var inputField = createSearchInput("Item")
 
@@ -327,18 +345,21 @@ func NewDynamoDBTableItemsView(
 	)
 
 	return &DynamoDBTableItemsView{
-		ItemsTable:   itemsTable,
-		SearchInput:  inputField,
-		RootView:     serviceView.RootView,
-		app:          app,
-		api:          api,
-		queryPkInput: pkQueryValInput,
-		querySkInput: skQueryValInput,
-		runQueryBtn:  runQueryBtn,
+		ItemsTable:       itemsTable,
+		SearchInput:      inputField,
+		RootView:         serviceView.RootView,
+		app:              app,
+		api:              api,
+		tableDescription: nil,
+		queryPkInput:     pkQueryValInput,
+		querySkInput:     skQueryValInput,
+		runQueryBtn:      runQueryBtn,
 	}
 }
 
-func (inst *DynamoDBTableItemsView) RefreshItems(tableName string) {
+func (inst *DynamoDBTableItemsView) RefreshItems(tableName string, force bool) {
+	inst.tableName = tableName
+
 	var data []map[string]interface{}
 	var dataChannel = make(chan []map[string]interface{})
 	var descData *types.TableDescription = nil
@@ -350,9 +371,12 @@ func (inst *DynamoDBTableItemsView) RefreshItems(tableName string) {
 			dataChannel <- make([]map[string]interface{}, 0)
 			return
 		}
-		var description = inst.api.DescribeTable(tableName)
-		descDataChannel <- description
-		dataChannel <- inst.api.ScanTable(description)
+		if force || inst.tableDescription == nil {
+			inst.tableDescription = inst.api.DescribeTable(inst.tableName)
+		}
+		descDataChannel <- inst.tableDescription
+		dataChannel <- inst.api.ScanTable(inst.tableDescription, force)
+		inst.lastTableOp = DDB_TABLE_SCAN
 	}()
 
 	go func() {
@@ -362,15 +386,53 @@ func (inst *DynamoDBTableItemsView) RefreshItems(tableName string) {
 	}()
 
 	go loadData(inst.app, inst.ItemsTable.Box, resultChannel, func() {
-		populateDynamoDBTable(inst.ItemsTable, descData, data)
+		populateDynamoDBTable(inst.ItemsTable, descData, data, !force)
 	})
 }
 
-func (inst *DynamoDBTableItemsView) InitInputCapture() {
+func (inst *DynamoDBTableItemsView) RefreshItemsForQuery(tableName string, force bool) {
+	var data []map[string]interface{}
+	var dataChannel = make(chan []map[string]interface{})
+	var descData *types.TableDescription = nil
+	var descDataChannel = make(chan *types.TableDescription)
+	var resultChannel = make(chan struct{})
+
+	go func() {
+		if len(tableName) <= 0 {
+			dataChannel <- make([]map[string]interface{}, 0)
+			return
+		}
+
+		if force || inst.tableDescription == nil {
+			inst.tableDescription = inst.api.DescribeTable(inst.tableName)
+		}
+
+		descDataChannel <- inst.tableDescription
+		dataChannel <- inst.api.QueryTable(
+			inst.tableDescription,
+			inst.queryPkInput.GetText(),
+			inst.querySkInput.GetText(),
+			force,
+		)
+		inst.lastTableOp = DDB_TABLE_QUERY
+	}()
+
+	go func() {
+		descData = <-descDataChannel
+		data = <-dataChannel
+		resultChannel <- struct{}{}
+	}()
+
+	go loadData(inst.app, inst.ItemsTable.Box, resultChannel, func() {
+		populateDynamoDBTable(inst.ItemsTable, descData, data, !force)
+	})
+}
+
+func (inst *DynamoDBTableItemsView) InitInputCapture() *DynamoDBTableItemsView {
 	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			inst.RefreshItems(inst.SearchInput.GetText())
+			inst.RefreshItems(inst.SearchInput.GetText(), true)
 			inst.app.SetFocus(inst.SearchInput)
 		case tcell.KeyEsc:
 			inst.SearchInput.SetText("")
@@ -388,44 +450,45 @@ func (inst *DynamoDBTableItemsView) InitInputCapture() {
 			inst.app.SetFocus(inst.ItemsTable)
 		}
 	})
-}
-func (inst *DynamoDBTableItemsView) InitSearchInputBuffer(searchStringBuffer *string) {
-	inst.itemsSearchBuffer = searchStringBuffer
-}
 
-func (inst *DynamoDBTableItemsView) InitQueryCallback(tableName *string, force bool) {
 	inst.runQueryBtn.SetSelectedFunc(func() {
-		var data []map[string]interface{}
-		var dataChannel = make(chan []map[string]interface{})
-		var descData *types.TableDescription = nil
-		var descDataChannel = make(chan *types.TableDescription)
-		var resultChannel = make(chan struct{})
-
-		go func() {
-			if len(*tableName) <= 0 {
-				dataChannel <- make([]map[string]interface{}, 0)
-				return
-			}
-			var description = inst.api.DescribeTable(*tableName)
-			descDataChannel <- description
-			dataChannel <- inst.api.QueryTable(
-				description,
-				inst.queryPkInput.GetText(),
-				inst.querySkInput.GetText(),
-				force,
-			)
-		}()
-
-		go func() {
-			descData = <-descDataChannel
-			data = <-dataChannel
-			resultChannel <- struct{}{}
-		}()
-
-		go loadData(inst.app, inst.ItemsTable.Box, resultChannel, func() {
-			populateDynamoDBTable(inst.ItemsTable, descData, data)
-		})
+		inst.RefreshItemsForQuery(inst.tableName, true)
 	})
+
+	inst.ItemsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlR:
+			const forceRefresh = true
+			switch inst.lastTableOp {
+			case DDB_TABLE_QUERY:
+				inst.RefreshItemsForQuery(inst.tableName, forceRefresh)
+			case DDB_TABLE_SCAN:
+				inst.RefreshItems(inst.tableName, forceRefresh)
+			}
+		case tcell.KeyCtrlN:
+			const forceRefresh = false
+			switch inst.lastTableOp {
+			case DDB_TABLE_QUERY:
+				inst.RefreshItemsForQuery(inst.tableName, forceRefresh)
+			case DDB_TABLE_SCAN:
+				inst.RefreshItems(inst.tableName, forceRefresh)
+			}
+		}
+		return event
+	})
+	return inst
+}
+
+func (inst *DynamoDBTableItemsView) InitSearchInputBuffer(searchStringBuffer *string,
+) *DynamoDBTableItemsView {
+	inst.itemsSearchBuffer = searchStringBuffer
+	return inst
+}
+
+func (inst *DynamoDBTableItemsView) SetTableName(tableName string,
+) *DynamoDBTableItemsView {
+	inst.tableName = tableName
+	return inst
 }
 
 func createDynamoDBHomeView(
@@ -470,15 +533,17 @@ func createDynamoDBHomeView(
 			return
 		}
 		selectedTableName = ddbDetailsView.TablesTable.GetCell(row, 0).Text
-		ddbItemsView.RefreshItems(selectedTableName)
+		ddbItemsView.RefreshItems(selectedTableName, true)
 		serviceRootView.ChangePage(1, ddbItemsView.ItemsTable)
 	})
 
 	ddbDetailsView.InitInputCapture()
 
 	var searchString = ""
-	ddbItemsView.InitSearchInputBuffer(&searchString)
-	ddbItemsView.InitQueryCallback(&selectedTableName, true)
+	ddbItemsView.
+		InitSearchInputBuffer(&searchString).
+		SetTableName(selectedTableName).
+		InitInputCapture()
 
 	return serviceRootView.RootView
 }

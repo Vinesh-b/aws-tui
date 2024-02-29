@@ -18,6 +18,7 @@ type DynamoDBApi struct {
 	client         *dynamodb.Client
 	allTables      []string
 	queryPaginator *dynamodb.QueryPaginator
+	scanPaginator  *dynamodb.ScanPaginator
 }
 
 func NewDynamoDBApi(
@@ -82,14 +83,18 @@ func (inst *DynamoDBApi) DescribeTable(tableName string) *types.TableDescription
 
 func (inst *DynamoDBApi) ScanTable(
 	description *types.TableDescription,
+	force bool,
 ) []map[string]interface{} {
 	var items []map[string]interface{}
 
-	var paginator = dynamodb.NewScanPaginator(inst.client, &dynamodb.ScanInput{
-		TableName: description.TableName,
-		Limit:     aws.Int32(20),
-	})
-	var output, err = paginator.NextPage(context.TODO())
+	if force || inst.scanPaginator == nil {
+		inst.scanPaginator = dynamodb.NewScanPaginator(inst.client, &dynamodb.ScanInput{
+			TableName: description.TableName,
+			Limit:     aws.Int32(20),
+		})
+	}
+
+	var output, err = inst.scanPaginator.NextPage(context.TODO())
 	if err != nil {
 		inst.logger.Printf("Scan failed: %v\n", err)
 	} else {
