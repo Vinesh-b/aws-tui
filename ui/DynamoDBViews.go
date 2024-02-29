@@ -272,18 +272,18 @@ const (
 )
 
 type DynamoDBTableItemsView struct {
-	ItemsTable        *tview.Table
-	SearchInput       *tview.InputField
-	RootView          *tview.Flex
-	app               *tview.Application
-	api               *dynamodb.DynamoDBApi
-	tableName         string
-	tableDescription  *types.TableDescription
-	itemsSearchBuffer *string
-	queryPkInput      *tview.InputField
-	querySkInput      *tview.InputField
-	runQueryBtn       *tview.Button
-	lastTableOp       ddbTableOp
+	ItemsTable       *tview.Table
+	SearchInput      *tview.InputField
+	RootView         *tview.Flex
+	app              *tview.Application
+	api              *dynamodb.DynamoDBApi
+	tableName        string
+	tableDescription *types.TableDescription
+	searchPositions  []int
+	queryPkInput     *tview.InputField
+	querySkInput     *tview.InputField
+	runQueryBtn      *tview.Button
+	lastTableOp      ddbTableOp
 }
 
 func NewDynamoDBTableItemsView(
@@ -429,32 +429,32 @@ func (inst *DynamoDBTableItemsView) RefreshItemsForQuery(tableName string, force
 }
 
 func (inst *DynamoDBTableItemsView) InitInputCapture() *DynamoDBTableItemsView {
-	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {
-		switch key {
+	inst.SearchInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
 		case tcell.KeyEnter:
-			inst.RefreshItems(inst.SearchInput.GetText(), true)
-			inst.app.SetFocus(inst.SearchInput)
-		case tcell.KeyEsc:
-			inst.SearchInput.SetText("")
-			highlightTableSearch(inst.app, inst.ItemsTable, "", []int{})
-		default:
-			return
-		}
-	})
-
-	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {
-		switch key {
-		case tcell.KeyEnter:
-			*inst.itemsSearchBuffer = inst.SearchInput.GetText()
-			highlightTableSearch(inst.app, inst.ItemsTable, *inst.itemsSearchBuffer, []int{})
+            // Broken as the table stores a ref to a map and not a string
+            // which is what search currently supports
+            break
+			inst.searchPositions = highlightTableSearch(
+				inst.app,
+				inst.ItemsTable,
+				inst.SearchInput.GetText(),
+				[]int{0},
+			)
 			inst.app.SetFocus(inst.ItemsTable)
+		case tcell.KeyCtrlR:
+			inst.SearchInput.SetText("")
+			clearSearchHighlights(inst.ItemsTable)
+			inst.searchPositions = nil
 		}
+		return event
 	})
 
 	inst.runQueryBtn.SetSelectedFunc(func() {
 		inst.RefreshItemsForQuery(inst.tableName, true)
 	})
 
+	var nextSearch = 0
 	inst.ItemsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
@@ -474,14 +474,22 @@ func (inst *DynamoDBTableItemsView) InitInputCapture() *DynamoDBTableItemsView {
 				inst.RefreshItems(inst.tableName, forceRefresh)
 			}
 		}
+
+		var searchCount = len(inst.searchPositions)
+		if searchCount > 0 {
+			switch event.Rune() {
+			case rune('n'):
+				nextSearch = (nextSearch + 1) % searchCount
+				inst.ItemsTable.Select(inst.searchPositions[nextSearch], 0)
+			case rune('N'):
+				nextSearch = (nextSearch - 1 + searchCount) % searchCount
+				inst.ItemsTable.Select(inst.searchPositions[nextSearch], 0)
+			}
+		}
+
 		return event
 	})
-	return inst
-}
 
-func (inst *DynamoDBTableItemsView) InitSearchInputBuffer(searchStringBuffer *string,
-) *DynamoDBTableItemsView {
-	inst.itemsSearchBuffer = searchStringBuffer
 	return inst
 }
 
@@ -539,9 +547,7 @@ func createDynamoDBHomeView(
 
 	ddbDetailsView.InitInputCapture()
 
-	var searchString = ""
 	ddbItemsView.
-		InitSearchInputBuffer(&searchString).
 		SetTableName(selectedTableName).
 		InitInputCapture()
 

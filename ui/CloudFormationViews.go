@@ -248,13 +248,13 @@ func populateStackEventsTable(table *tview.Table, data []types.StackEvent, exten
 }
 
 type CloudFormationStackEventsView struct {
-	EventsTable        *tview.Table
-	SearchInput        *tview.InputField
-	RootView           *tview.Flex
-	selectedStack      string
-	searchEventsBuffer *string
-	app                *tview.Application
-	api                *cloudformation.CloudFormationApi
+	EventsTable     *tview.Table
+	SearchInput     *tview.InputField
+	RootView        *tview.Flex
+	selectedStack   string
+	searchPositions []int
+	app             *tview.Application
+	api             *cloudformation.CloudFormationApi
 }
 
 func NewStackEventsView(
@@ -306,13 +306,12 @@ func NewStackEventsView(
 		},
 	)
 	return &CloudFormationStackEventsView{
-		EventsTable:        stackEventsTable,
-		SearchInput:        inputField,
-		RootView:           serviceView.RootView,
-		selectedStack:      "",
-		searchEventsBuffer: nil,
-		app:                app,
-		api:                api,
+		EventsTable:   stackEventsTable,
+		SearchInput:   inputField,
+		RootView:      serviceView.RootView,
+		selectedStack: "",
+		app:           app,
+		api:           api,
 	}
 }
 
@@ -342,15 +341,25 @@ func (inst *CloudFormationStackEventsView) RefreshEvents(stackName string, force
 }
 
 func (inst *CloudFormationStackEventsView) InitInputCapture() {
-	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {
-		switch key {
+	inst.SearchInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
 		case tcell.KeyEnter:
-			*inst.searchEventsBuffer = inst.SearchInput.GetText()
-			highlightTableSearch(inst.app, inst.EventsTable, *inst.searchEventsBuffer, []int{})
+			inst.searchPositions = highlightTableSearch(
+				inst.app,
+				inst.EventsTable,
+				inst.SearchInput.GetText(),
+				[]int{},
+			)
 			inst.app.SetFocus(inst.EventsTable)
+		case tcell.KeyCtrlR:
+			inst.SearchInput.SetText("")
+            clearSearchHighlights(inst.EventsTable)
+			inst.searchPositions = nil
 		}
+		return event
 	})
 
+	var nextSearch = 0
 	inst.EventsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
@@ -358,12 +367,19 @@ func (inst *CloudFormationStackEventsView) InitInputCapture() {
 		case tcell.KeyCtrlN:
 			inst.RefreshEvents(inst.selectedStack, false)
 		}
+		var searchCount = len(inst.searchPositions)
+		if searchCount > 0 {
+			switch event.Rune() {
+			case rune('n'):
+				nextSearch = (nextSearch + 1) % searchCount
+				inst.EventsTable.Select(inst.searchPositions[nextSearch], 0)
+			case rune('N'):
+				nextSearch = (nextSearch - 1 + searchCount) % searchCount
+				inst.EventsTable.Select(inst.searchPositions[nextSearch], 0)
+			}
+		}
 		return event
 	})
-}
-
-func (inst *CloudFormationStackEventsView) InitSearchInputBuffer(searchStringBuffer *string) {
-	inst.searchEventsBuffer = searchStringBuffer
 }
 
 func createStacksHomeView(
@@ -398,8 +414,6 @@ func createStacksHomeView(
 		serviceRootView.ChangePage(1, stackEventsView.EventsTable)
 	})
 
-	var searchEvent = ""
-	stackEventsView.InitSearchInputBuffer(&searchEvent)
 	stackEventsView.InitInputCapture()
 	stacksDetailsView.InitInputCapture()
 

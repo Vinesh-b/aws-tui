@@ -246,9 +246,7 @@ func createLambdaHomeView(
 		serviceRootView.ChangePage(2, logEventsView.LogEventsTable)
 	})
 
-	var searchEvent = ""
 	logEventsView.InitInputCapture()
-	logEventsView.InitSearchInputBuffer(&searchEvent)
 
 	var searchPrefix = ""
 	logStreamsView.InitInputCapture()

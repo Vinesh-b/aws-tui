@@ -20,7 +20,7 @@ type LogEventsView struct {
 	RootView             *tview.Flex
 	selectedLogGroup     string
 	selectedLogStream    string
-	eventSearchString    *string
+	searchPositions      []int
 	app                  *tview.Application
 	api                  *cloudwatchlogs.CloudWatchLogsApi
 }
@@ -175,35 +175,22 @@ func (inst *LogEventsView) RefreshEvents(selectedGroup string, selectedStream st
 	})
 }
 
-func (inst *LogEventsView) InitSearchInputBuffer(searchStringBuffer *string) {
-	inst.eventSearchString = searchStringBuffer
-}
-
 func (inst *LogEventsView) InitInputCapture() {
-	var searchPositionsChan chan []int
-	var searchPositions []int
 	inst.SearchInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEnter:
-			*inst.eventSearchString = inst.SearchInput.GetText()
-			searchPositionsChan = highlightTableSearch(
+			inst.searchPositions = highlightTableSearch(
 				inst.app,
 				inst.LogEventsTable,
-				*inst.eventSearchString,
+				inst.SearchInput.GetText(),
 				[]int{0, 1},
 			)
 			inst.app.SetFocus(inst.LogEventsTable)
-			go func() {
-				searchPositions = <-searchPositionsChan
-				if len(searchPositions) > 0 {
-					inst.LogEventsTable.Select(searchPositions[0], 0)
-				}
-			}()
 		case tcell.KeyCtrlR:
 			inst.SearchInput.SetText("")
-			highlightTableSearch(inst.app, inst.LogEventsTable, "", []int{})
+			clearSearchHighlights(inst.LogEventsTable)
+			inst.searchPositions = nil
 		}
-
 		return event
 	})
 
@@ -216,15 +203,15 @@ func (inst *LogEventsView) InitInputCapture() {
 			inst.RefreshEvents(inst.selectedLogGroup, inst.selectedLogStream, false)
 		}
 
-		var searchCount = len(searchPositions)
+		var searchCount = len(inst.searchPositions)
 		if searchCount > 0 {
 			switch event.Rune() {
 			case rune('n'):
 				nextSearch = (nextSearch + 1) % searchCount
-				inst.LogEventsTable.Select(searchPositions[nextSearch], 0)
+				inst.LogEventsTable.Select(inst.searchPositions[nextSearch], 0)
 			case rune('N'):
 				nextSearch = (nextSearch - 1 + searchCount) % searchCount
-				inst.LogEventsTable.Select(searchPositions[nextSearch], 0)
+				inst.LogEventsTable.Select(inst.searchPositions[nextSearch], 0)
 			}
 		}
 		return event
@@ -459,9 +446,7 @@ func createLogsHomeView(
 	})
 
 	var searchPrefix = ""
-	var searchEvent = ""
 	logEventsView.InitInputCapture()
-	logEventsView.InitSearchInputBuffer(&searchEvent)
 	logStreamsView.InitInputCapture()
 	logStreamsView.InitSearchInputBuffer(&searchPrefix)
 	logGroupsView.InitInputCapture()
