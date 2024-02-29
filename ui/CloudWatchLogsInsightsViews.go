@@ -15,16 +15,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-type LogGroupsSelectionView struct {
-	LogGroupsTable     *tview.Table
-	SeletedGroupsTable *tview.Table
-	SearchInput        *tview.InputField
-	RefreshGroups      func(groupName string, extend bool)
-	RootView           *tview.Flex
-
-	app *tview.Application
-}
-
 func populateSelectedGroupsTable(table *tview.Table, data []string, extend bool) {
 	var tableData []tableRow
 	for _, row := range data {
@@ -51,33 +41,13 @@ func populateSelectedGroupsTable(table *tview.Table, data []string, extend bool)
 	table.ScrollToBeginning()
 }
 
-func createSelectedGroupsTable(
-	params tableCreationParams,
-	api *cloudwatchlogs.CloudWatchLogsApi,
-) (*tview.Table, func(groupName string, extend bool)) {
-	var table = tview.NewTable()
-	populateSelectedGroupsTable(table, make([]string, 0), false)
-
-	var refreshViewsFunc = func(groupName string, extend bool) {
-		var data []string
-		var dataChannel = make(chan []string)
-		var resultChannel = make(chan struct{})
-
-		go func() {
-			dataChannel <- []string{groupName}
-		}()
-
-		go func() {
-			data = <-dataChannel
-			resultChannel <- struct{}{}
-		}()
-
-		go loadData(params.App, table.Box, resultChannel, func() {
-			populateSelectedGroupsTable(table, data, extend)
-		})
-	}
-
-	return table, refreshViewsFunc
+type LogGroupsSelectionView struct {
+	LogGroupsTable     *tview.Table
+	SeletedGroupsTable *tview.Table
+	SearchInput        *tview.InputField
+	RootView           *tview.Flex
+	app                *tview.Application
+	api                *cloudwatchlogs.CloudWatchLogsApi
 }
 
 func NewLogGroupsSelectionView(
@@ -85,22 +55,13 @@ func NewLogGroupsSelectionView(
 	api *cloudwatchlogs.CloudWatchLogsApi,
 	logger *log.Logger,
 ) *LogGroupsSelectionView {
-	var (
-		params                                    = tableCreationParams{app, logger}
-		selectedGroupsTable, refreshSelctedGroups = createSelectedGroupsTable(params, api)
+	var selectedGroupsTable = tview.NewTable()
+	populateSelectedGroupsTable(selectedGroupsTable, make([]string, 0), false)
 
-		serviceView   = NewServiceView(app)
-		logGroupsView = NewLogGroupsView(app, api, logger)
-	)
+	var logGroupsView = NewLogGroupsView(app, api, logger)
+	logGroupsView.InitInputCapture()
 
-	logGroupsView.LogGroupsTable.SetSelectedFunc(func(row, column int) {
-		if row < 1 {
-			return
-		}
-		var groupName = logGroupsView.LogGroupsTable.GetCell(row, 0).Reference.(string)
-		refreshSelctedGroups(groupName, true)
-	})
-
+	var serviceView = NewServiceView(app)
 	serviceView.RootView.
 		AddItem(selectedGroupsTable, 0, 1, false).
 		AddItem(logGroupsView.LogGroupsTable, 0, 1, false).
@@ -120,26 +81,41 @@ func NewLogGroupsSelectionView(
 	return &LogGroupsSelectionView{
 		SeletedGroupsTable: selectedGroupsTable,
 		LogGroupsTable:     logGroupsView.LogGroupsTable,
-		RefreshGroups:      refreshSelctedGroups,
 		SearchInput:        logGroupsView.SearchInput,
 		RootView:           serviceView.RootView,
 		app:                app,
+		api:                api,
 	}
 }
 
-type InsightsQueryResultsView struct {
-	QueryResultsTable   *tview.Table
-	ExpandedResult      *tview.TextArea
-	QueryInput          *tview.TextArea
-	QueryStartDateInput *tview.InputField
-	QueryEndDateInput   *tview.InputField
-	RunQueryButton      *tview.Button
-	SearchInput         *tview.InputField
-	RefreshResults      func(queryId string)
-	RootView            *tview.Flex
-	app                 *tview.Application
-	api                 *cloudwatchlogs.CloudWatchLogsApi
-	QueryId             string
+func (inst *LogGroupsSelectionView) RefreshSelectedGroups(groupName string, force bool) {
+	var data []string
+	var dataChannel = make(chan []string)
+	var resultChannel = make(chan struct{})
+
+	go func() {
+		dataChannel <- []string{groupName}
+	}()
+
+	go func() {
+		data = <-dataChannel
+		resultChannel <- struct{}{}
+	}()
+
+	go loadData(inst.app, inst.SeletedGroupsTable.Box, resultChannel, func() {
+		populateSelectedGroupsTable(inst.SeletedGroupsTable, data, !force)
+	})
+}
+
+func (inst *LogGroupsSelectionView) InitInputCapture() {
+	inst.LogGroupsTable.SetSelectedFunc(func(row, column int) {
+		if row < 1 {
+			return
+		}
+		var groupName = inst.LogGroupsTable.GetCell(row, 0).Reference.(string)
+		inst.RefreshSelectedGroups(groupName, false)
+	})
+
 }
 
 func populateQueryResultsTable(table *tview.Table, data [][]types.ResultField, extend bool) {
@@ -191,34 +167,19 @@ func populateQueryResultsTable(table *tview.Table, data [][]types.ResultField, e
 	table.ScrollToBeginning()
 }
 
-func createQueryResultsTable(
-	params tableCreationParams,
-	api *cloudwatchlogs.CloudWatchLogsApi,
-) (*tview.Table, func(queryId string)) {
-	var table = tview.NewTable()
-	populateQueryResultsTable(table, make([][]types.ResultField, 0), false)
-
-	var refreshViewsFunc = func(queryId string) {
-		var data [][]types.ResultField
-		var dataChannel = make(chan [][]types.ResultField)
-		var resultChannel = make(chan struct{})
-
-		go func() {
-			var result, _ = api.GetInightsQueryResults(queryId)
-			dataChannel <- result
-		}()
-
-		go func() {
-			data = <-dataChannel
-			resultChannel <- struct{}{}
-		}()
-
-		go loadData(params.App, table.Box, resultChannel, func() {
-			populateQueryResultsTable(table, data, false) // update accoring query status
-		})
-	}
-
-	return table, refreshViewsFunc
+type InsightsQueryResultsView struct {
+	QueryResultsTable   *tview.Table
+	ExpandedResult      *tview.TextArea
+	QueryInput          *tview.TextArea
+	QueryStartDateInput *tview.InputField
+	QueryEndDateInput   *tview.InputField
+	RunQueryButton      *tview.Button
+	SearchInput         *tview.InputField
+	RootView            *tview.Flex
+	app                 *tview.Application
+	api                 *cloudwatchlogs.CloudWatchLogsApi
+	queryId             string
+	selectedLogGroups   *[]string
 }
 
 func NewInsightsQueryResultsView(
@@ -226,12 +187,8 @@ func NewInsightsQueryResultsView(
 	api *cloudwatchlogs.CloudWatchLogsApi,
 	logger *log.Logger,
 ) *InsightsQueryResultsView {
-	var (
-		params                            = tableCreationParams{app, logger}
-		resultsTable, refreshResultsTable = createQueryResultsTable(params, api)
-
-		serviceView = NewServiceView(app)
-	)
+	var resultsTable = tview.NewTable()
+	populateQueryResultsTable(resultsTable, make([][]types.ResultField, 0), false)
 
 	var queryInputView = createTextArea("Query")
 	queryInputView.SetText(
@@ -253,6 +210,7 @@ func NewInsightsQueryResultsView(
 		AddItem(runQueryButton, 1, 0, false)
 	queryRunView.SetBorder(true)
 
+	var serviceView = NewServiceView(app)
 	serviceView.InitViewTabNavigation(queryRunView, []view{
 		startDateInput,
 		endDateInput,
@@ -266,14 +224,6 @@ func NewInsightsQueryResultsView(
 	var expandedResultView = createExpandedLogView(app, resultsTable, -1)
 
 	var inputField = createSearchInput("Search Results")
-	inputField.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlR:
-			inputField.SetText("")
-			highlightTableSearch(app, resultsTable, "", []int{})
-		}
-		return event
-	})
 
 	const expandedLogsSize = 5
 	const resultsTableSize = 10
@@ -311,23 +261,81 @@ func NewInsightsQueryResultsView(
 		QueryEndDateInput:   endDateInput,
 		RunQueryButton:      runQueryButton,
 		SearchInput:         inputField,
-		RefreshResults:      refreshResultsTable,
 		RootView:            serviceView.RootView,
 		app:                 app,
 		api:                 api,
-		QueryId:             "",
+		queryId:             "",
 	}
 }
 
+func (inst *InsightsQueryResultsView) RefreshResults(queryId string) {
+	var data [][]types.ResultField
+	var dataChannel = make(chan [][]types.ResultField)
+	var resultChannel = make(chan struct{})
+
+	go func() {
+		var result, _ = inst.api.GetInightsQueryResults(queryId)
+		dataChannel <- result
+	}()
+
+	go func() {
+		data = <-dataChannel
+		resultChannel <- struct{}{}
+	}()
+
+	go loadData(inst.app, inst.QueryResultsTable.Box, resultChannel, func() {
+		populateQueryResultsTable(inst.QueryResultsTable, data, false) // update accoring query status
+	})
+}
+
 func (inst *InsightsQueryResultsView) InitInputCapture() {
+	inst.SearchInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlR:
+			inst.SearchInput.SetText("")
+			highlightTableSearch(inst.app, inst.QueryResultsTable, "", []int{})
+		}
+		return event
+	})
+
 	inst.QueryResultsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			inst.RefreshResults(inst.QueryId)
+			inst.RefreshResults(inst.queryId)
 		}
 
 		return event
 	})
+
+	inst.RunQueryButton.SetSelectedFunc(func() {
+		var layout = "2006-01-02 15:04:05"
+		var startTime, err_1 = time.Parse(layout, inst.QueryStartDateInput.GetText())
+		var endTime, err_2 = time.Parse(layout, inst.QueryEndDateInput.GetText())
+
+		if err_1 != nil || err_2 != nil {
+			return
+		}
+
+		var queryIdChan = make(chan string, 1)
+		go func() {
+			queryIdChan <- inst.api.StartInightsQuery(
+				*inst.selectedLogGroups,
+				startTime,
+				endTime,
+				inst.QueryInput.GetText(),
+			)
+		}()
+
+		go func() {
+			inst.queryId = <-queryIdChan
+			inst.RefreshResults(inst.queryId)
+		}()
+
+	})
+}
+
+func (inst *InsightsQueryResultsView) InitSearchInputBuffer(selectedGroups *[]string) {
+	inst.selectedLogGroups = selectedGroups
 }
 
 func createLogsInsightsHomeView(
@@ -374,34 +382,9 @@ func createLogsInsightsHomeView(
 		serviceRootView.ChangePage(1, insightsResultsView.QueryInput)
 	})
 
+	groupSelectionView.InitInputCapture()
 	insightsResultsView.InitInputCapture()
-	insightsResultsView.RunQueryButton.SetSelectedFunc(func() {
-
-		var layout = "2006-01-02 15:04:05"
-		var startTime, err_1 = time.Parse(layout, insightsResultsView.QueryStartDateInput.GetText())
-		var endTime, err_2 = time.Parse(layout, insightsResultsView.QueryEndDateInput.GetText())
-
-		if err_1 != nil || err_2 != nil {
-			logger.Println("Bad date time")
-			return
-		}
-
-		var queryIdChan = make(chan string, 1)
-		go func() {
-			queryIdChan <- api.StartInightsQuery(
-				logGroups,
-				startTime,
-				endTime,
-				insightsResultsView.QueryInput.GetText(),
-			)
-		}()
-
-		go func() {
-			insightsResultsView.QueryId = <-queryIdChan
-			insightsResultsView.RefreshResults(insightsResultsView.QueryId)
-		}()
-
-	})
+	insightsResultsView.InitSearchInputBuffer(&logGroups)
 
 	var recordPtr = ""
 	insightsResultsView.QueryResultsTable.SetSelectedFunc(func(row, column int) {
