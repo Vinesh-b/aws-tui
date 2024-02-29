@@ -95,10 +95,18 @@ func createTextArea(title string) *tview.TextArea {
 	return textArea
 }
 
+type messageDataType int
+
+const (
+	DATA_TYPE_STRING messageDataType = iota
+	DATA_TYPE_MAP_STRING_ANY
+)
+
 func createExpandedLogView(
 	app *tview.Application,
 	table *tview.Table,
 	fixedColIdx int,
+	dataType messageDataType,
 ) *tview.TextArea {
 	var expandedView = createTextArea("Message")
 
@@ -112,14 +120,24 @@ func createExpandedLogView(
 		if row < 1 || privateData == nil {
 			return
 		}
-		var logText = privateData.(string)
-		var anyJson map[string]interface{}
 
-		var err = json.Unmarshal([]byte(logText), &anyJson)
-		if err == nil {
-			var jsonBytes, _ = json.MarshalIndent(anyJson, "", "  ")
-			logText = string(jsonBytes)
+		var anyJson map[string]interface{}
+		var logText = ""
+
+		switch dataType {
+		case DATA_TYPE_STRING:
+			var logText = privateData.(string)
+			var err = json.Unmarshal([]byte(logText), &anyJson)
+			if err != nil {
+				expandedView.SetText(logText, false)
+				return
+			}
+		case DATA_TYPE_MAP_STRING_ANY:
+			anyJson = privateData.(map[string]interface{})
 		}
+
+		var jsonBytes, _ = json.MarshalIndent(anyJson, "", "  ")
+		logText = string(jsonBytes)
 		expandedView.SetText(logText, false)
 	})
 

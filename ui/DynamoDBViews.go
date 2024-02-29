@@ -105,10 +105,15 @@ func populateDynamoDBTable(
 
 			var cellData = fmt.Sprintf("%v", rowData[heading])
 			var previewText = clampStringLen(&cellData, 100)
-			table.SetCell(rowIdx+1, colIdx, tview.NewTableCell(previewText).
-				SetReference(cellData).
-				SetAlign(tview.AlignLeft),
-			)
+			var newCell = tview.NewTableCell(previewText).
+				SetAlign(tview.AlignLeft)
+
+			// Store the ref to the full row data in the first cell
+			if colIdx == 0 {
+				newCell.SetReference(rowData)
+			}
+
+			table.SetCell(rowIdx+1, colIdx, newCell)
 		}
 	}
 
@@ -273,6 +278,8 @@ func NewDynamoDBTableItemsView(
 
 	var inputField = createSearchInput("Item")
 
+	var expandItemView = createExpandedLogView(app, itemsTable, 0, DATA_TYPE_MAP_STRING_ANY)
+
 	var pkQueryValInput = tview.NewInputField().
 		SetFieldWidth(0).
 		SetLabel(" Partition Key ")
@@ -290,14 +297,23 @@ func NewDynamoDBTableItemsView(
 		SetTitle("Query").
 		SetTitleAlign(tview.AlignLeft)
 
+	const expandItemViewSize = 3
+	const itemsTableSize = 7
+
 	var serviceView = NewServiceView(app)
 	serviceView.RootView.
-		AddItem(itemsTable, 0, 4, false).
+		AddItem(expandItemView, 0, expandItemViewSize, false).
+		AddItem(itemsTable, 0, itemsTableSize, false).
 		AddItem(queryView, 5, 0, false).
 		AddItem(tview.NewFlex().
 			AddItem(inputField, 0, 1, true),
 			3, 0, true,
 		)
+
+	serviceView.SetResizableViews(
+		expandItemView, itemsTable,
+		expandItemViewSize, itemsTableSize,
+	)
 
 	serviceView.InitViewNavigation(
 		[]view{
@@ -306,6 +322,7 @@ func NewDynamoDBTableItemsView(
 			skQueryValInput,
 			pkQueryValInput,
 			itemsTable,
+			expandItemView,
 		},
 	)
 

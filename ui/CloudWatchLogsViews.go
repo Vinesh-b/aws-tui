@@ -109,7 +109,7 @@ func NewLogEventsView(
 	var logEventsTable = tview.NewTable()
 	populateLogEventsTable(logEventsTable, make([]types.OutputLogEvent, 0), false)
 
-	var expandedLogsView = createExpandedLogView(app, logEventsTable, 1)
+	var expandedLogsView = createExpandedLogView(app, logEventsTable, 1, DATA_TYPE_STRING)
 
 	var inputField = createSearchInput("Log Events")
 	inputField.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {

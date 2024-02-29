@@ -221,7 +221,7 @@ func NewInsightsQueryResultsView(
 		AddItem(queryInputView, 0, 1, false).
 		AddItem(queryRunView, 34, 0, false)
 
-	var expandedResultView = createExpandedLogView(app, resultsTable, -1)
+	var expandedResultView = createExpandedLogView(app, resultsTable, -1, DATA_TYPE_STRING)
 
 	var inputField = createSearchInput("Search Results")
 
