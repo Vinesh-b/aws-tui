@@ -97,8 +97,7 @@ func populateLogEventsTable(table *tview.Table, data []types.OutputLogEvent, ext
 		[]int{0, 1},
 	)
 	table.GetCell(0, 0).SetExpansion(1)
-	table.Select(0, 0)
-	table.ScrollToBeginning()
+	table.Select(1, 0)
 }
 
 func NewLogEventsView(

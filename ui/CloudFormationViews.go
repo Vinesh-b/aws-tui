@@ -37,8 +37,7 @@ func populateStacksTable(table *tview.Table, data map[string]types.StackSummary)
 		[]int{0, 1},
 	)
 	table.GetCell(0, 0).SetExpansion(1)
-	table.Select(0, 0)
-	table.ScrollToBeginning()
+	table.Select(1, 0)
 }
 
 func populateStackDetailsTable(table *tview.Table, data *types.StackSummary) {
@@ -61,7 +60,6 @@ func populateStackDetailsTable(table *tview.Table, data *types.StackSummary) {
 
 	initBasicTable(table, "Stack Details", tableData, false)
 	table.Select(0, 0)
-	table.ScrollToBeginning()
 }
 
 type CloudFormationDetailsView struct {
@@ -243,8 +241,7 @@ func populateStackEventsTable(table *tview.Table, data []types.StackEvent, exten
 		[]int{0},
 	)
 	table.GetCell(0, 0).SetExpansion(1)
-	table.Select(0, 0)
-	table.ScrollToBeginning()
+	table.Select(1, 0)
 }
 
 type CloudFormationStackEventsView struct {

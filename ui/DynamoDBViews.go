@@ -26,8 +26,7 @@ func populateDynamoDBTabelsTable(table *tview.Table, data []string) {
 		[]int{0},
 	)
 	table.GetCell(0, 0).SetExpansion(1)
-	table.Select(0, 0)
-	table.ScrollToBeginning()
+	table.Select(1, 0)
 }
 
 func populateDynamoDBTabelDetailsTable(table *tview.Table, data *types.TableDescription) {
@@ -58,7 +57,6 @@ func populateDynamoDBTabelDetailsTable(table *tview.Table, data *types.TableDesc
 
 	initBasicTable(table, "Table Details", tableData, false)
 	table.Select(0, 0)
-	table.ScrollToBeginning()
 }
 
 func populateDynamoDBTable(
@@ -139,8 +137,7 @@ func populateDynamoDBTable(
 			tcell.Style{}.Background(moreContrastBackgroundColor),
 		)
 	}
-	table.Select(0, 0)
-	table.ScrollToBeginning()
+	table.Select(1, 0)
 }
 
 type DynamoDBDetailsView struct {
@@ -432,9 +429,9 @@ func (inst *DynamoDBTableItemsView) InitInputCapture() *DynamoDBTableItemsView {
 	inst.SearchInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEnter:
-            // Broken as the table stores a ref to a map and not a string
-            // which is what search currently supports
-            break
+			// Broken as the table stores a ref to a map and not a string
+			// which is what search currently supports
+			break
 			inst.searchPositions = highlightTableSearch(
 				inst.app,
 				inst.ItemsTable,
