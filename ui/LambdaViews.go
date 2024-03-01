@@ -115,7 +115,7 @@ func NewLambdasDetailsView(
 	}
 }
 
-func (inst *LambdasDetailsView) RefreshLambdas(search string) {
+func (inst *LambdasDetailsView) RefreshLambdas(search string, force bool) {
 	var data map[string]types.FunctionConfiguration
 	var dataChannel = make(chan map[string]types.FunctionConfiguration)
 	var resultChannel = make(chan struct{})
@@ -124,7 +124,7 @@ func (inst *LambdasDetailsView) RefreshLambdas(search string) {
 		if len(search) > 0 {
 			dataChannel <- inst.api.FilterByName(search)
 		} else {
-			dataChannel <- inst.api.ListLambdas(false)
+			dataChannel <- inst.api.ListLambdas(force)
 		}
 	}()
 
@@ -166,7 +166,7 @@ func (inst *LambdasDetailsView) InitInputCapture() {
 	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			inst.RefreshLambdas(inst.SearchInput.GetText())
+			inst.RefreshLambdas(inst.SearchInput.GetText(), false)
 		case tcell.KeyEsc:
 			inst.SearchInput.SetText("")
 		default:
@@ -188,6 +188,14 @@ func (inst *LambdasDetailsView) InitInputCapture() {
 	inst.LambdasTable.SetSelectedFunc(func(row, column int) {
 		refreshDetails(row, false)
 		inst.app.SetFocus(inst.LambdasTable)
+	})
+
+	inst.LambdasTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlR:
+			inst.RefreshLambdas("", true)
+		}
+		return event
 	})
 
 	inst.DetailsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
