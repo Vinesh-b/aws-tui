@@ -95,10 +95,16 @@ func populateDynamoDBTable(
 
 	var rowIdxOffset = 0
 	if extend {
-		rowIdxOffset = table.GetRowCount()
+		rowIdxOffset = table.GetRowCount() - 1
 	} else {
 		table.Clear()
 	}
+
+	var tableTitle = fmt.Sprintf("%s (%d)",
+		aws.ToString(description.TableName),
+		len(data)+rowIdxOffset,
+	)
+	table.SetTitle(tableTitle)
 
 	for rowIdx, rowData := range data {
 		for heading := range rowData {
