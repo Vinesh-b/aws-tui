@@ -187,7 +187,7 @@ func (inst *LambdasDetailsView) InitInputCapture() {
 
 	inst.LambdasTable.SetSelectedFunc(func(row, column int) {
 		refreshDetails(row, false)
-		inst.app.SetFocus(inst.LambdasTable)
+		inst.app.SetFocus(inst.DetailsTable)
 	})
 
 	inst.LambdasTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
