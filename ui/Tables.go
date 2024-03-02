@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"log"
 	"strings"
 
@@ -40,6 +41,9 @@ func initSelectableTable(
 		}
 	}
 
+	var tableTitle = fmt.Sprintf("%s (%d)", title, len(data))
+	table.SetTitle(tableTitle)
+
 	table.SetSelectable(true, false).SetSelectedStyle(
 		tcell.Style{}.Background(moreContrastBackgroundColor),
 	)
@@ -67,8 +71,9 @@ func initSelectableTable(
 }
 
 func extendTable(table *tview.Table, title string, data []tableRow) {
-	table.SetTitle(title)
 	var rows = table.GetRowCount()
+	var tableTitle = fmt.Sprintf("%s (%d)", title, len(data)+rows)
+	table.SetTitle(tableTitle)
 
 	for rowIdx, rowData := range data {
 		for colIdx, cellData := range rowData {
@@ -82,7 +87,7 @@ func extendTable(table *tview.Table, title string, data []tableRow) {
 }
 
 func searchRefsInTable(table *tview.Table, searchCols []int, search string) []int {
-    var resultPositions = []int{}
+	var resultPositions = []int{}
 	if len(search) <= 0 {
 		return resultPositions
 	}
@@ -102,12 +107,12 @@ func searchRefsInTable(table *tview.Table, searchCols []int, search string) []in
 			var text = cell.Reference.(string)
 			if strings.Contains(text, search) {
 				cell.SetTextColor(tertiaryTextColor)
-                resultPositions = append(resultPositions, r)
+				resultPositions = append(resultPositions, r)
 			}
 		}
 	}
 
-    return resultPositions
+	return resultPositions
 }
 
 func clearSearchHighlights(table *tview.Table) {
