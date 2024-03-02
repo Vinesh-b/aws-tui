@@ -3,6 +3,9 @@ package ui
 import (
 	"fmt"
 	"log"
+	"path/filepath"
+	"slices"
+	"strings"
 	"time"
 
 	"aws-tui/s3"
@@ -33,11 +36,59 @@ func populateS3BucketsTable(table *tview.Table, data map[string]types.Bucket) {
 	)
 	table.GetCell(0, 0).SetExpansion(1)
 	table.Select(0, 0)
-	table.ScrollToBeginning()
 }
 
-func populateS3ObjectsTable(table *tview.Table, data []types.Object, extend bool) {
+func parentDir(s3ObjectPrefix string) string {
+	var vals = strings.Split(s3ObjectPrefix, "/")
+	if len(vals) <= 2 {
+		return ""
+	}
+
+	var parent = strings.Join(vals[0:len(vals)-2], "/")
+	return fmt.Sprintf("%s/", parent)
+}
+
+func appendToObjectsTable(
+	table *tview.Table,
+	title string,
+	data []tableRow,
+	rowOffset int,
+	prefix string,
+) {
+	// Don't count the headings row in the title hence the -1
+	var tableTitle = fmt.Sprintf("%s (%d)", title, len(data)+rowOffset-1)
+	table.SetTitle(tableTitle)
+
+	for rowIdx, rowData := range data {
+		for colIdx, cellData := range rowData {
+			var text = cellData
+			if colIdx == 0 {
+				text, _ = filepath.Rel(prefix, cellData)
+			}
+			table.SetCell(rowIdx+rowOffset, colIdx, tview.NewTableCell(text).
+				SetReference(cellData).
+				SetAlign(tview.AlignLeft),
+			)
+		}
+	}
+}
+
+func populateS3ObjectsTable(
+	table *tview.Table,
+	data []types.Object,
+	dirs []types.CommonPrefix,
+	prefix string,
+	extend bool,
+) {
 	var tableData []tableRow
+	for _, row := range dirs {
+		tableData = append(tableData, tableRow{
+			aws.ToString(row.Prefix),
+			"-",
+			"-",
+		})
+	}
+
 	for _, row := range data {
 		tableData = append(tableData, tableRow{
 			aws.ToString(row.Key),
@@ -48,22 +99,61 @@ func populateS3ObjectsTable(table *tview.Table, data []types.Object, extend bool
 
 	var title = "Objects"
 	if extend {
-		extendTable(table, title, tableData)
+		var rowOffset = table.GetRowCount()
+		appendToObjectsTable(table, title, tableData, rowOffset, prefix)
 		return
 	}
 
-	initSelectableTable(table, title,
-		tableRow{
-			"Key",
-			"Size",
-			"LastModified",
-		},
-		tableData,
-		[]int{0, 1, 2, 3},
+	var headings = tableRow{
+		"Key",
+		"Size",
+		"LastModified",
+	}
+
+	table.
+		Clear().
+		SetBorders(false).
+		SetFixed(1, len(headings)-1)
+	table.
+		SetTitle(title).
+		SetTitleAlign(tview.AlignLeft).
+		SetBorderPadding(0, 0, 0, 0).
+		SetBorder(true)
+
+	if len(tableData) > 0 {
+		if len(headings) != len(tableData[0]) {
+			log.Panicln("Table data and headings dimensions do not match")
+		}
+	}
+
+	table.SetSelectable(true, false).SetSelectedStyle(
+		tcell.Style{}.Background(moreContrastBackgroundColor),
 	)
+
+	var rowOffset = 0
+	for col, heading := range headings {
+		table.SetCell(rowOffset, col, tview.NewTableCell(heading).
+			SetAlign(tview.AlignLeft).
+			SetTextColor(secondaryTextColor).
+			SetSelectable(false).
+			SetBackgroundColor(contrastBackgroundColor),
+		)
+	}
+	rowOffset++
+
+	var parentDirRow = tableRow{"../", "-", "-"}
+	for colIdx, cellData := range parentDirRow {
+		table.SetCell(rowOffset, colIdx, tview.NewTableCell(cellData).
+			SetReference(parentDir(prefix)).
+			SetAlign(tview.AlignLeft),
+		)
+	}
+	rowOffset++
+
+	appendToObjectsTable(table, title, tableData, rowOffset, prefix)
+
 	table.GetCell(0, 0).SetExpansion(1)
 	table.Select(0, 0)
-	table.ScrollToBeginning()
 }
 
 type S3BucketsDetailsView struct {
@@ -72,6 +162,7 @@ type S3BucketsDetailsView struct {
 	SearchInput       *tview.InputField
 	RootView          *tview.Flex
 	selctedBucketName string
+	currentPrefix     string
 	app               *tview.Application
 	api               *s3.S3BucketsApi
 }
@@ -85,7 +176,7 @@ func NewS3bucketsDetailsView(
 	populateS3BucketsTable(bucketsTable, make(map[string]types.Bucket, 0))
 
 	var objectsTable = tview.NewTable()
-	populateS3ObjectsTable(objectsTable, nil, false)
+	populateS3ObjectsTable(objectsTable, nil, nil, "", false)
 
 	var inputField = createSearchInput("Buckets")
 
@@ -120,6 +211,7 @@ func NewS3bucketsDetailsView(
 		SearchInput:       inputField,
 		RootView:          serviceView.RootView,
 		selctedBucketName: "",
+		currentPrefix:     "",
 		app:               app,
 		api:               api,
 	}
@@ -148,22 +240,35 @@ func (inst *S3BucketsDetailsView) RefreshBuckets(search string, force bool) {
 	})
 }
 
-func (inst *S3BucketsDetailsView) RefreshObjects(bucketName string, force bool) {
+func (inst *S3BucketsDetailsView) RefreshObjects(bucketName string, prefix string, force bool) {
 	var data []types.Object
 	var dataChannel = make(chan []types.Object)
+	var dirs []types.CommonPrefix
+	var dirsChannel = make(chan []types.CommonPrefix)
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		dataChannel <- inst.api.ListObjects(bucketName, force)
+		var objects, dirs = inst.api.ListObjects(bucketName, prefix, force)
+		var filterObjs = objects
+		// the current dir is retured in the objects list and we don't want that
+		for idx, val := range objects {
+			if aws.ToString(val.Key) == prefix {
+				filterObjs = slices.Delete(objects, idx, idx+1)
+				break
+			}
+		}
+		dirsChannel <- dirs
+		dataChannel <- filterObjs
 	}()
 
 	go func() {
+		dirs = <-dirsChannel
 		data = <-dataChannel
 		resultChannel <- struct{}{}
 	}()
 
 	go loadData(inst.app, inst.ObjectsTable.Box, resultChannel, func() {
-		populateS3ObjectsTable(inst.ObjectsTable, data, !force)
+		populateS3ObjectsTable(inst.ObjectsTable, data, dirs, prefix, !force)
 	})
 }
 
@@ -179,39 +284,35 @@ func (inst *S3BucketsDetailsView) InitInputCapture() {
 		}
 	})
 
-	var refreshObjects = func(row int) {
+	inst.BucketsTable.SetSelectedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}
-		inst.RefreshObjects(inst.BucketsTable.GetCell(row, 0).Text, true)
-	}
-
-	inst.BucketsTable.SetSelectedFunc(func(row, column int) {
-		refreshObjects(row)
+		inst.selctedBucketName = inst.BucketsTable.GetCell(row, 0).Text
+		inst.RefreshObjects(inst.BucketsTable.GetCell(row, 0).Text, "", true)
 		inst.app.SetFocus(inst.ObjectsTable)
 	})
 
 	inst.ObjectsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			inst.RefreshObjects(inst.selctedBucketName, true)
+			inst.currentPrefix = ""
+			inst.RefreshObjects(inst.selctedBucketName, "", true)
 		case tcell.KeyCtrlN:
-			inst.RefreshObjects(inst.selctedBucketName, false)
+			inst.RefreshObjects(inst.selctedBucketName, inst.currentPrefix, false)
 		}
 		return event
 	})
-}
 
-func (inst *S3BucketsDetailsView) InitBucketSelectedCallback() {
-	inst.BucketsTable.SetSelectedFunc(func(row, column int) {
-		if row < 1 {
+	inst.ObjectsTable.SetSelectedFunc(func(row, column int) {
+		var reference = inst.ObjectsTable.GetCell(row, 0).GetReference()
+		if reference == nil {
 			return
 		}
-		inst.selctedBucketName = inst.BucketsTable.GetCell(row, 0).Text
-		inst.RefreshObjects(inst.selctedBucketName, true)
-		inst.app.SetFocus(inst.ObjectsTable)
+		inst.currentPrefix = reference.(string)
+		// Load and show files in this directory.
+		inst.RefreshObjects(inst.selctedBucketName, reference.(string), true)
 	})
-
 }
 
 func createS3bucketsHomeView(
@@ -238,7 +339,6 @@ func createS3bucketsHomeView(
 		app, string(S3BUCKETS), pages, orderedPages).Init()
 
 	s3DetailsView.InitInputCapture()
-	s3DetailsView.InitBucketSelectedCallback()
 
 	return serviceRootView.RootView
 }

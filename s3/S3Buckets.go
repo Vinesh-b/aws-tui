@@ -70,25 +70,34 @@ func (inst *S3BucketsApi) FilterByName(name string) map[string]types.Bucket {
 	return foundBuckets
 }
 
-func (inst *S3BucketsApi) ListObjects(bucketName string, force bool) []types.Object {
+func (inst *S3BucketsApi) ListObjects(
+	bucketName string,
+	prefix string,
+	force bool,
+) ([]types.Object, []types.CommonPrefix) {
+	var objPrefix = &prefix
+	if len(prefix) == 0 {
+		objPrefix = nil
+	}
 	if force || inst.objectsPaginator == nil {
 		inst.objectsPaginator = s3.NewListObjectsV2Paginator(
 			inst.client, &s3.ListObjectsV2Input{
-				Bucket:  aws.String(bucketName),
-				MaxKeys: aws.Int32(100),
+				Bucket:    aws.String(bucketName),
+				MaxKeys:   aws.Int32(200),
+				Delimiter: aws.String("/"),
+				Prefix:    objPrefix,
 			})
 	}
 
-	var empty []types.Object
 	if !inst.objectsPaginator.HasMorePages() {
-		return empty
+		return nil, nil
 	}
 
 	var output, err = inst.objectsPaginator.NextPage(context.TODO())
 	if err != nil {
 		inst.logger.Println(err)
-		return empty
+		return nil, nil
 	}
 
-	return output.Contents
+	return output.Contents, output.CommonPrefixes
 }
