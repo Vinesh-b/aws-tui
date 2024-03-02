@@ -72,7 +72,8 @@ func initSelectableTable(
 
 func extendTable(table *tview.Table, title string, data []tableRow) {
 	var rows = table.GetRowCount()
-	var tableTitle = fmt.Sprintf("%s (%d)", title, len(data)+rows)
+	// Don't count the headings row in the title
+	var tableTitle = fmt.Sprintf("%s (%d)", title, len(data)+rows-1)
 	table.SetTitle(tableTitle)
 
 	for rowIdx, rowData := range data {
