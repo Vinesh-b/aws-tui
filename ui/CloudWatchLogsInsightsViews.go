@@ -15,19 +15,15 @@ import (
 	"github.com/rivo/tview"
 )
 
-func populateSelectedGroupsTable(table *tview.Table, data []string, extend bool) {
+func populateSelectedGroupsTable(table *tview.Table, data map[string]struct{}) {
 	var tableData []tableRow
-	for _, row := range data {
+	for row := range data {
 		tableData = append(tableData, tableRow{
 			row,
 		})
 	}
 
 	var title = "Selected Groups"
-	if extend {
-		extendTable(table, title, tableData)
-		return
-	}
 
 	initSelectableTable(table, title,
 		tableRow{
@@ -37,8 +33,7 @@ func populateSelectedGroupsTable(table *tview.Table, data []string, extend bool)
 		[]int{0},
 	)
 	table.GetCell(0, 0).SetExpansion(1)
-	table.Select(0, 0)
-	table.ScrollToBeginning()
+	table.Select(1, 0)
 }
 
 type LogGroupsSelectionView struct {
@@ -46,6 +41,7 @@ type LogGroupsSelectionView struct {
 	SeletedGroupsTable *tview.Table
 	SearchInput        *tview.InputField
 	RootView           *tview.Flex
+	selectedGroups     map[string]struct{}
 	app                *tview.Application
 	api                *cloudwatchlogs.CloudWatchLogsApi
 }
@@ -56,7 +52,7 @@ func NewLogGroupsSelectionView(
 	logger *log.Logger,
 ) *LogGroupsSelectionView {
 	var selectedGroupsTable = tview.NewTable()
-	populateSelectedGroupsTable(selectedGroupsTable, make([]string, 0), false)
+	populateSelectedGroupsTable(selectedGroupsTable, map[string]struct{}{})
 
 	var logGroupsView = NewLogGroupsView(app, api, logger)
 	logGroupsView.InitInputCapture()
@@ -83,27 +79,30 @@ func NewLogGroupsSelectionView(
 		LogGroupsTable:     logGroupsView.LogGroupsTable,
 		SearchInput:        logGroupsView.SearchInput,
 		RootView:           serviceView.RootView,
+		selectedGroups:     map[string]struct{}{},
 		app:                app,
 		api:                api,
 	}
 }
 
 func (inst *LogGroupsSelectionView) RefreshSelectedGroups(groupName string, force bool) {
-	var data []string
-	var dataChannel = make(chan []string)
+	if force {
+		inst.selectedGroups = map[string]struct{}{}
+	}
+
+	if len(groupName) <= 0 {
+		return
+	}
+
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		dataChannel <- []string{groupName}
-	}()
-
-	go func() {
-		data = <-dataChannel
+		inst.selectedGroups[groupName] = struct{}{}
 		resultChannel <- struct{}{}
 	}()
 
 	go loadData(inst.app, inst.SeletedGroupsTable.Box, resultChannel, func() {
-		populateSelectedGroupsTable(inst.SeletedGroupsTable, data, !force)
+		populateSelectedGroupsTable(inst.SeletedGroupsTable, inst.selectedGroups)
 	})
 }
 
@@ -163,7 +162,7 @@ func populateQueryResultsTable(table *tview.Table, data [][]types.ResultField, e
 			tcell.Style{}.Background(moreContrastBackgroundColor),
 		)
 	}
-	table.Select(0, 0)
+	table.Select(1, 0)
 	table.ScrollToBeginning()
 }
 
