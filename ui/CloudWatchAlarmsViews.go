@@ -133,15 +133,23 @@ func NewAlarmsDetailsView(
 
 	var inputField = createSearchInput("Alarms")
 
+	const alarmsTableSize = 3500
+	const alarmHistorySize = 3000
+
 	var serviceView = NewServiceView(app)
 	serviceView.RootView.
-		AddItem(alarmDetails, 0, 3500, false).
-		AddItem(alarmHistory, 0, 3000, false).
-		AddItem(alarmsTable, 0, 3500, false).
+		AddItem(alarmDetails, 14, 0, false).
+		AddItem(alarmHistory, 0, alarmHistorySize, false).
+		AddItem(alarmsTable, 0, alarmsTableSize, false).
 		AddItem(tview.NewFlex().
 			AddItem(inputField, 0, 1, true),
 			3, 0, true,
 		)
+
+	serviceView.SetResizableViews(
+		alarmHistory, alarmsTable,
+		alarmHistorySize, alarmsTableSize,
+	)
 
 	serviceView.InitViewNavigation(
 		[]view{
