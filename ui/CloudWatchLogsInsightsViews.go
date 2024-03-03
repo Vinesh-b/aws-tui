@@ -272,7 +272,18 @@ func (inst *InsightsQueryResultsView) RefreshResults(queryId string) {
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		data, _ = inst.api.GetInightsQueryResults(queryId)
+		var results [][]types.ResultField
+		var status types.QueryStatus
+		for range 10 {
+			results, status = inst.api.GetInightsQueryResults(queryId)
+			if status == types.QueryStatusRunning || status == types.QueryStatusScheduled {
+				time.Sleep(2 * time.Second)
+			} else {
+				break
+			}
+		}
+
+		data = results
 		resultChannel <- struct{}{}
 	}()
 
