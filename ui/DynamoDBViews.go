@@ -65,20 +65,24 @@ func populateDynamoDBTable(
 	data []map[string]interface{},
 	extend bool,
 ) {
-	if description == nil {
-		return
-	}
-
 	table.
 		SetFixed(1, 2).
-		SetTitle(aws.ToString(description.TableName)).
+		SetTitle("Table Items").
 		SetTitleAlign(tview.AlignLeft).
 		SetBorderPadding(0, 0, 0, 0).
 		SetBorder(true)
 
-	if len(data) == 0 {
+	if description == nil || len(data) == 0 {
 		return
 	}
+
+	var rowIdxOffset = 0
+
+	var tableTitle = fmt.Sprintf("%s (%d)",
+		aws.ToString(description.TableName),
+		len(data)+rowIdxOffset,
+	)
+	table.SetTitle(tableTitle)
 
 	var headingIdx = 0
 	var headingIdxMap = make(map[string]int)
@@ -93,18 +97,11 @@ func populateDynamoDBTable(
 		}
 	}
 
-	var rowIdxOffset = 0
 	if extend {
 		rowIdxOffset = table.GetRowCount() - 1
 	} else {
 		table.Clear()
 	}
-
-	var tableTitle = fmt.Sprintf("%s (%d)",
-		aws.ToString(description.TableName),
-		len(data)+rowIdxOffset,
-	)
-	table.SetTitle(tableTitle)
 
 	for rowIdx, rowData := range data {
 		for heading := range rowData {
@@ -120,7 +117,8 @@ func populateDynamoDBTable(
 			var newCell = tview.NewTableCell(previewText).
 				SetAlign(tview.AlignLeft)
 
-			// Store the ref to the full row data in the first cell
+			// Store the ref to the full row data in the first cell. It will
+			// always exist as a PK is required for all tables
 			if colIdx == 0 {
 				newCell.SetReference(rowData)
 			}
