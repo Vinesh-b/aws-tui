@@ -90,14 +90,12 @@ func (inst *LogGroupsSelectionView) RefreshSelectedGroups(groupName string, forc
 		inst.selectedGroups = map[string]struct{}{}
 	}
 
-	if len(groupName) <= 0 {
-		return
-	}
-
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		inst.selectedGroups[groupName] = struct{}{}
+		if len(groupName) > 0 {
+			inst.selectedGroups[groupName] = struct{}{}
+		}
 		resultChannel <- struct{}{}
 	}()
 
@@ -115,6 +113,20 @@ func (inst *LogGroupsSelectionView) InitInputCapture() {
 		inst.RefreshSelectedGroups(groupName, false)
 	})
 
+	inst.SeletedGroupsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		var row, _ = inst.SeletedGroupsTable.GetSelection()
+		if row == 0 || len(inst.selectedGroups) == 0 {
+			return event
+		}
+
+		switch event.Rune() {
+		case rune('u'):
+			var groupName = inst.SeletedGroupsTable.GetCell(row, 0).Text
+			delete(inst.selectedGroups, groupName)
+			inst.RefreshSelectedGroups("", false)
+		}
+		return event
+	})
 }
 
 func populateQueryResultsTable(table *tview.Table, data [][]types.ResultField, extend bool) {
