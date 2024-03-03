@@ -386,6 +386,15 @@ func (inst *LogGroupsView) InitInputCapture() {
 			return
 		}
 	})
+
+	inst.LogGroupsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlR:
+			inst.RefreshGroups(inst.SearchInput.GetText())
+		}
+		return event
+	})
+
 }
 
 func createLogsHomeView(
