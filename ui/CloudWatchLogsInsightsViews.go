@@ -109,8 +109,11 @@ func (inst *LogGroupsSelectionView) InitInputCapture() {
 		if row < 1 {
 			return
 		}
-		var groupName = inst.LogGroupsTable.GetCell(row, 0).Reference.(string)
-		inst.RefreshSelectedGroups(groupName, false)
+		var ref = inst.LogGroupsTable.GetCell(row, 0).Reference
+		if ref != nil {
+			var groupName = ref.(string)
+			inst.RefreshSelectedGroups(groupName, false)
+		}
 	})
 
 	inst.SeletedGroupsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
