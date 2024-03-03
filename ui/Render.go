@@ -45,6 +45,27 @@ func changeColourScheme(colour tcell.Color) {
 	tview.Styles.MoreContrastBackgroundColor = colour
 }
 
+const (
+	HOME_PAGE             string = "Services"
+	SELECTED_SERVICE             = "ServiceHome"
+	FLOATING_SERVICE_LIST        = "FloatingServices"
+)
+
+func floatingView(p tview.Primitive, width, height int) tview.Primitive {
+	var wrapper = tview.NewFlex().
+		AddItem(p, 0, 1, true)
+	wrapper.SetBorder(true).SetTitle("Quick select")
+	var window = tview.NewFlex().
+		AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(nil, 0, 1, false).
+			AddItem(wrapper, height, 1, true).
+			AddItem(nil, 0, 1, false), width, 1, true).
+		AddItem(nil, 0, 1, false)
+
+	return window
+}
+
 func RenderUI(config aws.Config, version string) {
 	resetGlobalStyle()
 
@@ -93,9 +114,12 @@ func RenderUI(config aws.Config, version string) {
 	flexLanding.SetBorder(true)
 
 	var pages = tview.NewPages().
-		AddPage("ServiceHome", currentServiceView, true, true).
-		AddAndSwitchToPage("Search", flexLanding, true)
+		AddPage(SELECTED_SERVICE, currentServiceView, true, true).
+		AddPage(FLOATING_SERVICE_LIST, floatingView(servicesList, 70, 25), true, true).
+		AddAndSwitchToPage(HOME_PAGE, flexLanding, true)
 
+	var showServicesListToggle = false
+	var lastFocus = app.GetFocus()
 	servicesList.SetSelectedFunc(func(i int, serviceName string, _ string, r rune) {
 		var resultChannel = make(chan struct{})
 		var table = tview.NewTable()
@@ -108,8 +132,10 @@ func RenderUI(config aws.Config, version string) {
 			go loadData(params.App, table.Box, resultChannel, func() {
 				currentServiceView.Clear()
 				currentServiceView.AddItem(view, 0, 1, false)
-				pages.SwitchToPage("ServiceHome")
+				pages.SwitchToPage(SELECTED_SERVICE)
 				app.SetFocus(view)
+				lastFocus = view
+				showServicesListToggle = true
 			})
 		}
 	})
@@ -117,9 +143,18 @@ func RenderUI(config aws.Config, version string) {
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyESC:
-			pages.SwitchToPage("Search")
-			app.SetRoot(pages, true)
+			pages.SwitchToPage(HOME_PAGE)
 			app.SetFocus(servicesList)
+		case tcell.KeyCtrlSpace:
+			if showServicesListToggle {
+				lastFocus = app.GetFocus()
+				pages.ShowPage(FLOATING_SERVICE_LIST)
+				app.SetFocus(servicesList)
+			} else {
+				pages.HidePage(FLOATING_SERVICE_LIST)
+				app.SetFocus(lastFocus)
+			}
+			showServicesListToggle = !showServicesListToggle
 		}
 		return event
 	})
