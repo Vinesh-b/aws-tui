@@ -293,6 +293,14 @@ func (inst *S3BucketsDetailsView) InitInputCapture() {
 		inst.app.SetFocus(inst.ObjectsTable)
 	})
 
+	inst.BucketsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlR:
+			inst.RefreshBuckets(inst.SearchInput.GetText(), true)
+		}
+		return event
+	})
+
 	inst.ObjectsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
