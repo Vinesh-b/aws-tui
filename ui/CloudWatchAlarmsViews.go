@@ -79,7 +79,7 @@ func populateAlarmDetailsGrid(grid *tview.Grid, data *types.MetricAlarm) {
 	}
 }
 
-func populateAlarmHistoryTable(table *tview.Table, data []types.AlarmHistoryItem) {
+func populateAlarmHistoryTable(table *tview.Table, data []types.AlarmHistoryItem, extend bool) {
 	var tableData []tableRow
 	for _, row := range data {
 		tableData = append(tableData, tableRow{
@@ -88,7 +88,13 @@ func populateAlarmHistoryTable(table *tview.Table, data []types.AlarmHistoryItem
 		})
 	}
 
-	initSelectableTable(table, "Alarm History",
+	var title = "Alarm History"
+	if extend {
+		extendTable(table, title, tableData)
+		return
+	}
+
+	initSelectableTable(table, title,
 		tableRow{
 			"Timestamp",
 			"History",
@@ -120,7 +126,7 @@ func NewAlarmsDetailsView(
 	populateAlarmsTable(alarmsTable, make(map[string]types.MetricAlarm, 0))
 
 	var alarmHistory = tview.NewTable()
-	populateAlarmHistoryTable(alarmHistory, make([]types.AlarmHistoryItem, 0))
+	populateAlarmHistoryTable(alarmHistory, make([]types.AlarmHistoryItem, 0), false)
 
 	var alarmDetails = tview.NewGrid()
 	populateAlarmDetailsGrid(alarmDetails, nil)
@@ -181,13 +187,13 @@ func (inst *AlarmsDetailsView) RefreshAlarms(search string, force bool) {
 	})
 }
 
-func (inst *AlarmsDetailsView) RefreshHistory(alarmName string) {
+func (inst *AlarmsDetailsView) RefreshHistory(alarmName string, force bool) {
 	var data []types.AlarmHistoryItem
 	var dataChannel = make(chan []types.AlarmHistoryItem)
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		dataChannel <- inst.api.ListAlarmHistory(alarmName)
+		dataChannel <- inst.api.ListAlarmHistory(alarmName, force)
 	}()
 
 	go func() {
@@ -196,7 +202,7 @@ func (inst *AlarmsDetailsView) RefreshHistory(alarmName string) {
 	}()
 
 	go loadData(inst.app, inst.HistoryTable.Box, resultChannel, func() {
-		populateAlarmHistoryTable(inst.HistoryTable, data)
+		populateAlarmHistoryTable(inst.HistoryTable, data, !force)
 	})
 }
 
@@ -225,13 +231,38 @@ func (inst *AlarmsDetailsView) RefreshDetails(alarmName string) {
 }
 
 func (inst *AlarmsDetailsView) InitInputCapture() {
-	inst.AlarmsTable.SetSelectedFunc(func(row, column int) {
+	var refreshDetails = func(row int) {
 		if row < 1 {
 			return
 		}
 		var name = inst.AlarmsTable.GetCell(row, 0).Text
 		inst.RefreshDetails(name)
-		inst.RefreshHistory(name)
+		inst.RefreshHistory(name, true)
+	}
+
+	inst.AlarmsTable.SetSelectedFunc(func(row, column int) {
+		refreshDetails(row)
+	})
+
+	inst.AlarmsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlR:
+			inst.RefreshAlarms(inst.SearchInput.GetText(), true)
+			var row, _ = inst.AlarmsTable.GetSelection()
+			refreshDetails(row)
+		}
+		return event
+	})
+
+	inst.HistoryTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlR:
+			var row, _ = inst.AlarmsTable.GetSelection()
+			refreshDetails(row)
+		case tcell.KeyCtrlN:
+			inst.RefreshHistory("", false)
+		}
+		return event
 	})
 
 	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {

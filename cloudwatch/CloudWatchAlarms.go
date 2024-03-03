@@ -16,6 +16,8 @@ type CloudWatchAlarmsApi struct {
 	client             *cloudwatch.Client
 	allMetricAlarms    map[string]types.MetricAlarm
 	allCompositeAlarms map[string]types.CompositeAlarm
+	alarmsPaginator    *cloudwatch.DescribeAlarmsPaginator
+	historyPaginator   *cloudwatch.DescribeAlarmHistoryPaginator
 }
 
 func NewCloudWatchAlarmsApi(
@@ -23,10 +25,13 @@ func NewCloudWatchAlarmsApi(
 	logger *log.Logger,
 ) *CloudWatchAlarmsApi {
 	return &CloudWatchAlarmsApi{
-		config:          config,
-		logger:          logger,
-		client:          cloudwatch.NewFromConfig(config),
-		allMetricAlarms: make(map[string]types.MetricAlarm),
+		config:             config,
+		logger:             logger,
+		client:             cloudwatch.NewFromConfig(config),
+		allMetricAlarms:    make(map[string]types.MetricAlarm),
+		allCompositeAlarms: nil,
+		alarmsPaginator:    nil,
+		historyPaginator:   nil,
 	}
 }
 
@@ -36,29 +41,22 @@ func (inst *CloudWatchAlarmsApi) ListAlarms(force bool) map[string]types.MetricA
 	}
 
 	inst.allMetricAlarms = make(map[string]types.MetricAlarm)
-	var nextToken *string = nil
+	inst.alarmsPaginator = cloudwatch.NewDescribeAlarmsPaginator(
+		inst.client,
+		&cloudwatch.DescribeAlarmsInput{
+			MaxRecords: aws.Int32(100),
+		},
+	)
 
-	for {
-		output, err := inst.client.DescribeAlarms(
-			context.TODO(), &cloudwatch.DescribeAlarmsInput{
-				MaxRecords: aws.Int32(50),
-				NextToken:  nextToken,
-			},
-		)
-
+	for inst.alarmsPaginator.HasMorePages() {
+		var output, err = inst.alarmsPaginator.NextPage(context.TODO())
 		if err != nil {
 			inst.logger.Println(err)
 			break
 		}
 
-		nextToken = output.NextToken
-
 		for _, val := range output.MetricAlarms {
 			inst.allMetricAlarms[*val.AlarmName] = val
-		}
-
-		if nextToken == nil {
-			break
 		}
 	}
 
@@ -82,30 +80,29 @@ func (inst *CloudWatchAlarmsApi) FilterByName(name string) map[string]types.Metr
 	return foundAlarms
 }
 
-func (inst *CloudWatchAlarmsApi) ListAlarmHistory(name string) []types.AlarmHistoryItem {
-	var nextToken *string = nil
-	var foundHistory []types.AlarmHistoryItem
-
-	for {
-		output, err := inst.client.DescribeAlarmHistory(
-			context.TODO(), &cloudwatch.DescribeAlarmHistoryInput{
+func (inst *CloudWatchAlarmsApi) ListAlarmHistory(name string, force bool) []types.AlarmHistoryItem {
+	if force || inst.historyPaginator == nil {
+		inst.historyPaginator = cloudwatch.NewDescribeAlarmHistoryPaginator(
+			inst.client,
+			&cloudwatch.DescribeAlarmHistoryInput{
 				AlarmName:  aws.String(name),
 				MaxRecords: aws.Int32(50),
-				NextToken:  nextToken,
 			},
 		)
-
-		if err != nil {
-			inst.logger.Println(err)
-			break
-		}
-
-		nextToken = output.NextToken
-		foundHistory = append(foundHistory, output.AlarmHistoryItems...)
-		if nextToken == nil {
-			break
-		}
 	}
+
+	var foundHistory []types.AlarmHistoryItem
+	if !inst.historyPaginator.HasMorePages() {
+		return foundHistory
+	}
+
+	var output, err = inst.historyPaginator.NextPage(context.TODO())
+	if err != nil {
+		inst.logger.Println(err)
+		return foundHistory
+	}
+
+	foundHistory = append(foundHistory, output.AlarmHistoryItems...)
 
 	return foundHistory
 }
