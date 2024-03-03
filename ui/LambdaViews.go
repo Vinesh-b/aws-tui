@@ -42,8 +42,7 @@ func populateLambdasTable(table *tview.Table, data map[string]types.FunctionConf
 		[]int{0, 1},
 	)
 	table.GetCell(0, 0).SetExpansion(1)
-	table.Select(0, 0)
-	table.ScrollToBeginning()
+	table.Select(1, 0)
 }
 
 func populateLambdaDetailsTable(table *tview.Table, data *types.FunctionConfiguration) {
@@ -117,19 +116,15 @@ func NewLambdasDetailsView(
 
 func (inst *LambdasDetailsView) RefreshLambdas(search string, force bool) {
 	var data map[string]types.FunctionConfiguration
-	var dataChannel = make(chan map[string]types.FunctionConfiguration)
 	var resultChannel = make(chan struct{})
 
 	go func() {
 		if len(search) > 0 {
-			dataChannel <- inst.api.FilterByName(search)
+			data = inst.api.FilterByName(search)
 		} else {
-			dataChannel <- inst.api.ListLambdas(force)
+			data = inst.api.ListLambdas(force)
 		}
-	}()
 
-	go func() {
-		data = <-dataChannel
 		resultChannel <- struct{}{}
 	}()
 
@@ -140,15 +135,10 @@ func (inst *LambdasDetailsView) RefreshLambdas(search string, force bool) {
 
 func (inst *LambdasDetailsView) RefreshDetails(lambdaName string, force bool) {
 	var data map[string]types.FunctionConfiguration
-	var dataChannel = make(chan map[string]types.FunctionConfiguration)
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		dataChannel <- inst.api.ListLambdas(force)
-	}()
-
-	go func() {
-		data = <-dataChannel
+		data = inst.api.ListLambdas(force)
 		resultChannel <- struct{}{}
 	}()
 

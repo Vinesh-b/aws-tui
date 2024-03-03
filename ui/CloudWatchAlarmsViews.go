@@ -174,19 +174,14 @@ func NewAlarmsDetailsView(
 
 func (inst *AlarmsDetailsView) RefreshAlarms(search string, force bool) {
 	var data map[string]types.MetricAlarm
-	var dataChannel = make(chan map[string]types.MetricAlarm)
 	var resultChannel = make(chan struct{})
 
 	go func() {
 		if len(search) > 0 {
-			dataChannel <- inst.api.FilterByName(search)
+			data = inst.api.FilterByName(search)
 		} else {
-			dataChannel <- inst.api.ListAlarms(force)
+			data = inst.api.ListAlarms(force)
 		}
-	}()
-
-	go func() {
-		data = <-dataChannel
 		resultChannel <- struct{}{}
 	}()
 
@@ -197,15 +192,10 @@ func (inst *AlarmsDetailsView) RefreshAlarms(search string, force bool) {
 
 func (inst *AlarmsDetailsView) RefreshHistory(alarmName string, force bool) {
 	var data []types.AlarmHistoryItem
-	var dataChannel = make(chan []types.AlarmHistoryItem)
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		dataChannel <- inst.api.ListAlarmHistory(alarmName, force)
-	}()
-
-	go func() {
-		data = <-dataChannel
+		data = inst.api.ListAlarmHistory(alarmName, force)
 		resultChannel <- struct{}{}
 	}()
 
@@ -216,15 +206,10 @@ func (inst *AlarmsDetailsView) RefreshHistory(alarmName string, force bool) {
 
 func (inst *AlarmsDetailsView) RefreshDetails(alarmName string) {
 	var data map[string]types.MetricAlarm
-	var dataChannel = make(chan map[string]types.MetricAlarm)
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		dataChannel <- inst.api.ListAlarms(false)
-	}()
-
-	go func() {
-		data = <-dataChannel
+		data = inst.api.ListAlarms(false)
 		resultChannel <- struct{}{}
 	}()
 

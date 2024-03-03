@@ -120,19 +120,14 @@ func NewStacksDetailsView(
 
 func (inst *CloudFormationDetailsView) RefreshStacks(search string, reset bool) {
 	var data map[string]types.StackSummary
-	var dataChannel = make(chan map[string]types.StackSummary)
 	var resultChannel = make(chan struct{})
 
 	go func() {
 		if len(search) > 0 {
-			dataChannel <- inst.api.FilterByName(search)
+			data = inst.api.FilterByName(search)
 		} else {
-			dataChannel <- inst.api.ListStacks(reset)
+			data = inst.api.ListStacks(reset)
 		}
-	}()
-
-	go func() {
-		data = <-dataChannel
 		resultChannel <- struct{}{}
 	}()
 
@@ -143,15 +138,10 @@ func (inst *CloudFormationDetailsView) RefreshStacks(search string, reset bool) 
 
 func (inst *CloudFormationDetailsView) RefreshDetails(stackName string, force bool) {
 	var data map[string]types.StackSummary
-	var dataChannel = make(chan map[string]types.StackSummary)
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		dataChannel <- inst.api.ListStacks(force)
-	}()
-
-	go func() {
-		data = <-dataChannel
+		data = inst.api.ListStacks(force)
 		resultChannel <- struct{}{}
 	}()
 
@@ -316,19 +306,14 @@ func (inst *CloudFormationStackEventsView) RefreshEvents(stackName string, force
 	inst.selectedStack = stackName
 
 	var data []types.StackEvent
-	var dataChannel = make(chan []types.StackEvent)
 	var resultChannel = make(chan struct{})
 
 	go func() {
 		if len(stackName) > 0 {
-			dataChannel <- inst.api.DescribeStackEvents(inst.selectedStack, force)
+			data = inst.api.DescribeStackEvents(inst.selectedStack, force)
 		} else {
-			dataChannel <- make([]types.StackEvent, 0)
+			data = make([]types.StackEvent, 0)
 		}
-	}()
-
-	go func() {
-		data = <-dataChannel
 		resultChannel <- struct{}{}
 	}()
 
@@ -350,7 +335,7 @@ func (inst *CloudFormationStackEventsView) InitInputCapture() {
 			inst.app.SetFocus(inst.EventsTable)
 		case tcell.KeyCtrlR:
 			inst.SearchInput.SetText("")
-            clearSearchHighlights(inst.EventsTable)
+			clearSearchHighlights(inst.EventsTable)
 			inst.searchPositions = nil
 		}
 		return event

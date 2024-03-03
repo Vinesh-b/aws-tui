@@ -203,19 +203,14 @@ func NewDynamoDBDetailsView(
 
 func (inst *DynamoDBDetailsView) RefreshTables(search string, force bool) {
 	var data []string
-	var dataChannel = make(chan []string)
 	var resultChannel = make(chan struct{})
 
 	go func() {
 		if len(search) > 0 {
-			dataChannel <- inst.api.FilterByName(search)
+			data = inst.api.FilterByName(search)
 		} else {
-			dataChannel <- inst.api.ListTables(force)
+			data = inst.api.ListTables(force)
 		}
-	}()
-
-	go func() {
-		data = <-dataChannel
 		resultChannel <- struct{}{}
 	}()
 
@@ -226,15 +221,10 @@ func (inst *DynamoDBDetailsView) RefreshTables(search string, force bool) {
 
 func (inst *DynamoDBDetailsView) RefreshDetails(tableName string) {
 	var data *types.TableDescription = nil
-	var dataChannel = make(chan *types.TableDescription)
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		dataChannel <- inst.api.DescribeTable(tableName)
-	}()
-
-	go func() {
-		data = <-dataChannel
+		data = inst.api.DescribeTable(tableName)
 		resultChannel <- struct{}{}
 	}()
 
@@ -362,27 +352,21 @@ func (inst *DynamoDBTableItemsView) RefreshItems(tableName string, force bool) {
 	inst.tableName = tableName
 
 	var data []map[string]interface{}
-	var dataChannel = make(chan []map[string]interface{})
 	var descData *types.TableDescription = nil
-	var descDataChannel = make(chan *types.TableDescription)
 	var resultChannel = make(chan struct{})
 
 	go func() {
 		if len(tableName) <= 0 {
-			dataChannel <- make([]map[string]interface{}, 0)
+			data = make([]map[string]interface{}, 0)
 			return
 		}
 		if force || inst.tableDescription == nil {
 			inst.tableDescription = inst.api.DescribeTable(inst.tableName)
 		}
-		descDataChannel <- inst.tableDescription
-		dataChannel <- inst.api.ScanTable(inst.tableDescription, force)
+		descData = inst.tableDescription
+		data = inst.api.ScanTable(inst.tableDescription, force)
 		inst.lastTableOp = DDB_TABLE_SCAN
-	}()
 
-	go func() {
-		descData = <-descDataChannel
-		data = <-dataChannel
 		resultChannel <- struct{}{}
 	}()
 
@@ -393,14 +377,12 @@ func (inst *DynamoDBTableItemsView) RefreshItems(tableName string, force bool) {
 
 func (inst *DynamoDBTableItemsView) RefreshItemsForQuery(tableName string, force bool) {
 	var data []map[string]interface{}
-	var dataChannel = make(chan []map[string]interface{})
 	var descData *types.TableDescription = nil
-	var descDataChannel = make(chan *types.TableDescription)
 	var resultChannel = make(chan struct{})
 
 	go func() {
 		if len(tableName) <= 0 {
-			dataChannel <- make([]map[string]interface{}, 0)
+			data = make([]map[string]interface{}, 0)
 			return
 		}
 
@@ -408,19 +390,15 @@ func (inst *DynamoDBTableItemsView) RefreshItemsForQuery(tableName string, force
 			inst.tableDescription = inst.api.DescribeTable(inst.tableName)
 		}
 
-		descDataChannel <- inst.tableDescription
-		dataChannel <- inst.api.QueryTable(
+		descData = inst.tableDescription
+		data = inst.api.QueryTable(
 			inst.tableDescription,
 			inst.queryPkInput.GetText(),
 			inst.querySkInput.GetText(),
 			force,
 		)
 		inst.lastTableOp = DDB_TABLE_QUERY
-	}()
 
-	go func() {
-		descData = <-descDataChannel
-		data = <-dataChannel
 		resultChannel <- struct{}{}
 	}()
 

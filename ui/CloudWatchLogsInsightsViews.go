@@ -269,16 +269,10 @@ func NewInsightsQueryResultsView(
 
 func (inst *InsightsQueryResultsView) RefreshResults(queryId string) {
 	var data [][]types.ResultField
-	var dataChannel = make(chan [][]types.ResultField)
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		var result, _ = inst.api.GetInightsQueryResults(queryId)
-		dataChannel <- result
-	}()
-
-	go func() {
-		data = <-dataChannel
+		data, _ = inst.api.GetInightsQueryResults(queryId)
 		resultChannel <- struct{}{}
 	}()
 

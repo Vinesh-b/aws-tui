@@ -219,19 +219,14 @@ func NewS3bucketsDetailsView(
 
 func (inst *S3BucketsDetailsView) RefreshBuckets(search string, force bool) {
 	var data map[string]types.Bucket
-	var dataChannel = make(chan map[string]types.Bucket)
 	var resultChannel = make(chan struct{})
 
 	go func() {
 		if len(search) > 0 {
-			dataChannel <- inst.api.FilterByName(search)
+			data = inst.api.FilterByName(search)
 		} else {
-			dataChannel <- inst.api.ListBuckets(force)
+			data = inst.api.ListBuckets(force)
 		}
-	}()
-
-	go func() {
-		data = <-dataChannel
 		resultChannel <- struct{}{}
 	}()
 
@@ -242,13 +237,11 @@ func (inst *S3BucketsDetailsView) RefreshBuckets(search string, force bool) {
 
 func (inst *S3BucketsDetailsView) RefreshObjects(bucketName string, prefix string, force bool) {
 	var data []types.Object
-	var dataChannel = make(chan []types.Object)
 	var dirs []types.CommonPrefix
-	var dirsChannel = make(chan []types.CommonPrefix)
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		var objects, dirs = inst.api.ListObjects(bucketName, prefix, force)
+		var objects, commonPrefixes = inst.api.ListObjects(bucketName, prefix, force)
 		var filterObjs = objects
 		// the current dir is retured in the objects list and we don't want that
 		for idx, val := range objects {
@@ -257,13 +250,9 @@ func (inst *S3BucketsDetailsView) RefreshObjects(bucketName string, prefix strin
 				break
 			}
 		}
-		dirsChannel <- dirs
-		dataChannel <- filterObjs
-	}()
+		dirs = commonPrefixes
+		data = filterObjs
 
-	go func() {
-		dirs = <-dirsChannel
-		data = <-dataChannel
 		resultChannel <- struct{}{}
 	}()
 

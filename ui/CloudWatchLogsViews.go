@@ -153,19 +153,14 @@ func (inst *LogEventsView) RefreshEvents(selectedGroup string, selectedStream st
 	inst.selectedLogGroup = selectedGroup
 	inst.selectedLogStream = selectedStream
 	var data []types.OutputLogEvent
-	var dataChannel = make(chan []types.OutputLogEvent)
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		dataChannel <- inst.api.ListLogEvents(
+		data = inst.api.ListLogEvents(
 			inst.selectedLogGroup,
 			inst.selectedLogStream,
 			force,
 		)
-	}()
-
-	go func() {
-		data = <-dataChannel
 		resultChannel <- struct{}{}
 	}()
 
@@ -277,19 +272,14 @@ func (inst *LogStreamsView) RefreshStreams(groupName string, force bool) {
 	inst.selectedLogGroup = groupName
 
 	var data []types.LogStream
-	var dataChannel = make(chan []types.LogStream)
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		dataChannel <- inst.api.ListLogStreams(
+		data = inst.api.ListLogStreams(
 			inst.selectedLogGroup,
 			inst.streamSearchbuffer,
 			force,
 		)
-	}()
-
-	go func() {
-		data = <-dataChannel
 		resultChannel <- struct{}{}
 	}()
 
@@ -368,19 +358,14 @@ func NewLogGroupsView(
 
 func (inst *LogGroupsView) RefreshGroups(search string) {
 	var data []types.LogGroup
-	var dataChannel = make(chan []types.LogGroup)
 	var resultChannel = make(chan struct{})
 
 	go func() {
 		if len(search) > 0 {
-			dataChannel <- inst.api.FilterGroupByName(search)
+			data = inst.api.FilterGroupByName(search)
 		} else {
-			dataChannel <- inst.api.ListLogGroups(false)
+			data = inst.api.ListLogGroups(false)
 		}
-	}()
-
-	go func() {
-		data = <-dataChannel
 		resultChannel <- struct{}{}
 	}()
 
