@@ -138,10 +138,12 @@ func populateQueryResultsTable(table *tview.Table, data [][]types.ResultField, e
 		SetBorders(false).
 		SetFixed(1, 0)
 	table.
-		SetTitle("Query Results").
 		SetTitleAlign(tview.AlignLeft).
 		SetBorderPadding(0, 0, 0, 0).
 		SetBorder(true)
+
+	var tableTitle = fmt.Sprintf("Query Results (%d)", len(data))
+	table.SetTitle(tableTitle)
 
 	var headingIdx = 0
 	var headingIdxMap = make(map[string]int)
@@ -389,14 +391,13 @@ func createLogsInsightsHomeView(
 		if row < 1 {
 			return
 		}
+		logGroups = nil
 		for r := range groupSelectionView.SeletedGroupsTable.GetRowCount() {
 			var group = groupSelectionView.SeletedGroupsTable.GetCell(r+1, 0).Text
 			if len(group) > 0 {
 				logGroups = append(logGroups, group)
 			}
 		}
-
-		logger.Println(logGroups)
 
 		serviceRootView.ChangePage(1, insightsResultsView.QueryInput)
 	})
