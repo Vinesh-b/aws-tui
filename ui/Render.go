@@ -87,6 +87,7 @@ func RenderUI(config aws.Config, version string) {
 		CLOUDWATCH_LOGS_GROUPS:   createLogsHomeView(app, config, inAppLogger),
 		CLOUDWATCH_LOGS_INSIGHTS: createLogsInsightsHomeView(app, config, inAppLogger),
 		CLOUDWATCH_ALARMS:        createAlarmsHomeView(app, config, inAppLogger),
+		CLOUDWATCH_METRICS:       createMetricsHomeView(app, config, inAppLogger),
 		CLOUDFORMATION:           createStacksHomeView(app, config, inAppLogger),
 		DYNAMODB:                 createDynamoDBHomeView(app, config, inAppLogger),
 		S3BUCKETS:                createS3bucketsHomeView(app, config, inAppLogger),
