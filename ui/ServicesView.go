@@ -9,9 +9,9 @@ type viewId string
 
 const (
 	LAMBDA                   viewId = "Lambda"
-	CLOUDWATCH_LOGS_GROUPS   viewId = "CloudWatch Logs Groups"
-	CLOUDWATCH_LOGS_INSIGHTS viewId = "CloudWatch Logs Insights"
-	CLOUDWATCH_ALARMS        viewId = "CloudWatch Alarms"
+	CLOUDWATCH_LOGS_GROUPS   viewId = "Log Groups"
+	CLOUDWATCH_LOGS_INSIGHTS viewId = "Log Insights"
+	CLOUDWATCH_ALARMS        viewId = "Alarms"
 	CLOUDFORMATION           viewId = "CloudFormation"
 	DYNAMODB                 viewId = "DynamoDB"
 	S3BUCKETS                viewId = "S3 Buckets"
