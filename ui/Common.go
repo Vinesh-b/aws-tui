@@ -309,6 +309,7 @@ func (inst *ServiceView) InitViewTabNavigation(rootView rootView, orderedViews [
 		v.SetFocusFunc(func() { viewIdx = i })
 	}
 
+	viewIdx = -1
 	var numViews = len(orderedViews)
 	rootView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
