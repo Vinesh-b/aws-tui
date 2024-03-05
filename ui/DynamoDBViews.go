@@ -59,15 +59,17 @@ func populateDynamoDBTabelDetailsTable(table *tview.Table, data *types.TableDesc
 	table.Select(0, 0)
 }
 
-func populateDynamoDBTable(
-	table *tview.Table,
+type dynamoDBGenericTable struct {
+	Table           *tview.Table
+	attributeIdxMap map[string]int
+}
+
+func (inst *dynamoDBGenericTable) populateDynamoDBTable(
 	description *types.TableDescription,
 	data []map[string]interface{},
 	extend bool,
 ) {
-	table.
-		SetFixed(1, 2).
-		SetTitle("Table Items").
+	inst.Table.
 		SetTitleAlign(tview.AlignLeft).
 		SetBorderPadding(0, 0, 0, 0).
 		SetBorder(true)
@@ -76,39 +78,39 @@ func populateDynamoDBTable(
 		return
 	}
 
-
+	var rowIdxOffset = 0
+	if extend {
+		rowIdxOffset = inst.Table.GetRowCount() - 1
+	} else {
+		inst.Table.Clear()
+		inst.attributeIdxMap = make(map[string]int)
+	}
 
 	var headingIdx = 0
-	var headingIdxMap = make(map[string]int)
 	for _, atter := range description.KeySchema {
 		switch atter.KeyType {
 		case types.KeyTypeHash:
-			headingIdxMap[*atter.AttributeName] = 0
+			inst.attributeIdxMap[*atter.AttributeName] = 0
 			headingIdx++
 		case types.KeyTypeRange:
-			headingIdxMap[*atter.AttributeName] = 1
+			inst.attributeIdxMap[*atter.AttributeName] = 1
 			headingIdx++
 		}
 	}
 
-	var rowIdxOffset = 0
-	if extend {
-		rowIdxOffset = table.GetRowCount() - 1
-	} else {
-		table.Clear()
-	}
+	inst.Table.SetFixed(1, headingIdx)
 
 	var tableTitle = fmt.Sprintf("%s (%d)",
 		aws.ToString(description.TableName),
 		len(data)+rowIdxOffset,
 	)
-	table.SetTitle(tableTitle)
+	inst.Table.SetTitle(tableTitle)
 
 	for rowIdx, rowData := range data {
 		for heading := range rowData {
-			var colIdx, ok = headingIdxMap[heading]
+			var colIdx, ok = inst.attributeIdxMap[heading]
 			if !ok {
-				headingIdxMap[heading] = headingIdx
+				inst.attributeIdxMap[heading] = headingIdx
 				colIdx = headingIdx
 				headingIdx++
 			}
@@ -124,12 +126,12 @@ func populateDynamoDBTable(
 				newCell.SetReference(rowData)
 			}
 
-			table.SetCell(rowIdx+rowIdxOffset+1, colIdx, newCell)
+			inst.Table.SetCell(rowIdx+rowIdxOffset+1, colIdx, newCell)
 		}
 	}
 
-	for heading, colIdx := range headingIdxMap {
-		table.SetCell(0, colIdx, tview.NewTableCell(heading).
+	for heading, colIdx := range inst.attributeIdxMap {
+		inst.Table.SetCell(0, colIdx, tview.NewTableCell(heading).
 			SetAlign(tview.AlignLeft).
 			SetTextColor(secondaryTextColor).
 			SetSelectable(false).
@@ -138,11 +140,11 @@ func populateDynamoDBTable(
 	}
 
 	if len(data) > 0 {
-		table.SetSelectable(true, false).SetSelectedStyle(
+		inst.Table.SetSelectable(true, false).SetSelectedStyle(
 			tcell.Style{}.Background(moreContrastBackgroundColor),
 		)
 	}
-	table.Select(1, 0)
+	inst.Table.Select(1, 0)
 }
 
 type DynamoDBDetailsView struct {
@@ -264,7 +266,7 @@ const (
 )
 
 type DynamoDBTableItemsView struct {
-	ItemsTable       *tview.Table
+	ItemsTable       *dynamoDBGenericTable
 	SearchInput      *tview.InputField
 	RootView         *tview.Flex
 	app              *tview.Application
@@ -284,7 +286,8 @@ func NewDynamoDBTableItemsView(
 	logger *log.Logger,
 ) *DynamoDBTableItemsView {
 	var itemsTable = tview.NewTable()
-	populateDynamoDBTable(itemsTable, nil, make([]map[string]interface{}, 0), false)
+	var genericTable = dynamoDBGenericTable{Table: itemsTable}
+	genericTable.populateDynamoDBTable(nil, nil, false)
 
 	var inputField = createSearchInput("Item")
 
@@ -337,7 +340,7 @@ func NewDynamoDBTableItemsView(
 	)
 
 	return &DynamoDBTableItemsView{
-		ItemsTable:       itemsTable,
+		ItemsTable:       &genericTable,
 		SearchInput:      inputField,
 		RootView:         serviceView.RootView,
 		app:              app,
@@ -371,8 +374,8 @@ func (inst *DynamoDBTableItemsView) RefreshItems(tableName string, force bool) {
 		resultChannel <- struct{}{}
 	}()
 
-	go loadData(inst.app, inst.ItemsTable.Box, resultChannel, func() {
-		populateDynamoDBTable(inst.ItemsTable, descData, data, !force)
+	go loadData(inst.app, inst.ItemsTable.Table.Box, resultChannel, func() {
+		inst.ItemsTable.populateDynamoDBTable(descData, data, !force)
 	})
 }
 
@@ -403,8 +406,8 @@ func (inst *DynamoDBTableItemsView) RefreshItemsForQuery(tableName string, force
 		resultChannel <- struct{}{}
 	}()
 
-	go loadData(inst.app, inst.ItemsTable.Box, resultChannel, func() {
-		populateDynamoDBTable(inst.ItemsTable, descData, data, !force)
+	go loadData(inst.app, inst.ItemsTable.Table.Box, resultChannel, func() {
+		inst.ItemsTable.populateDynamoDBTable(descData, data, !force)
 	})
 }
 
@@ -417,14 +420,14 @@ func (inst *DynamoDBTableItemsView) InitInputCapture() *DynamoDBTableItemsView {
 			break
 			inst.searchPositions = highlightTableSearch(
 				inst.app,
-				inst.ItemsTable,
+				inst.ItemsTable.Table,
 				inst.SearchInput.GetText(),
 				[]int{0},
 			)
-			inst.app.SetFocus(inst.ItemsTable)
+			inst.app.SetFocus(inst.ItemsTable.Table)
 		case tcell.KeyCtrlR:
 			inst.SearchInput.SetText("")
-			clearSearchHighlights(inst.ItemsTable)
+			clearSearchHighlights(inst.ItemsTable.Table)
 			inst.searchPositions = nil
 		}
 		return event
@@ -435,7 +438,7 @@ func (inst *DynamoDBTableItemsView) InitInputCapture() *DynamoDBTableItemsView {
 	})
 
 	var nextSearch = 0
-	inst.ItemsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	inst.ItemsTable.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			const forceRefresh = true
@@ -460,10 +463,10 @@ func (inst *DynamoDBTableItemsView) InitInputCapture() *DynamoDBTableItemsView {
 			switch event.Rune() {
 			case rune('n'):
 				nextSearch = (nextSearch + 1) % searchCount
-				inst.ItemsTable.Select(inst.searchPositions[nextSearch], 0)
+				inst.ItemsTable.Table.Select(inst.searchPositions[nextSearch], 0)
 			case rune('N'):
 				nextSearch = (nextSearch - 1 + searchCount) % searchCount
-				inst.ItemsTable.Select(inst.searchPositions[nextSearch], 0)
+				inst.ItemsTable.Table.Select(inst.searchPositions[nextSearch], 0)
 			}
 		}
 
@@ -522,7 +525,7 @@ func createDynamoDBHomeView(
 		}
 		selectedTableName = ddbDetailsView.TablesTable.GetCell(row, 0).Text
 		ddbItemsView.RefreshItems(selectedTableName, true)
-		serviceRootView.ChangePage(1, ddbItemsView.ItemsTable)
+		serviceRootView.ChangePage(1, ddbItemsView.ItemsTable.Table)
 	})
 
 	ddbDetailsView.InitInputCapture()
