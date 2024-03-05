@@ -290,6 +290,7 @@ func NewStackEventsView(
 		[]view{
 			inputField,
 			stackEventsTable,
+			expandedMsgView,
 		},
 	)
 	return &CloudFormationStackEventsView{
