@@ -328,12 +328,19 @@ func NewDynamoDBTableItemsView(
 		expandItemViewSize, itemsTableSize,
 	)
 
+	serviceView.InitViewTabNavigation(
+		queryView,
+		[]view{
+			pkQueryValInput,
+			skQueryValInput,
+			runQueryBtn,
+		},
+	)
+
 	serviceView.InitViewNavigation(
 		[]view{
 			inputField,
-			runQueryBtn,
-			skQueryValInput,
-			pkQueryValInput,
+			queryView,
 			itemsTable,
 			expandItemView,
 		},
