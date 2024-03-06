@@ -77,7 +77,6 @@ func RenderUI(config aws.Config, version string) {
 			log.Default().Prefix(),
 			log.Default().Flags(),
 		)
-		params = tableCreationParams{app, inAppLogger}
 	)
 
 	config.Logger = logging.StandardLogger{Logger: inAppLogger}
@@ -122,22 +121,15 @@ func RenderUI(config aws.Config, version string) {
 	var showServicesListToggle = false
 	var lastFocus = app.GetFocus()
 	servicesList.SetSelectedFunc(func(i int, serviceName string, _ string, r rune) {
-		var resultChannel = make(chan struct{})
-		var table = tview.NewTable()
-
 		var view, ok = serviceViews[viewId(serviceName)]
 		if ok {
-			go func() {
-				resultChannel <- struct{}{}
-			}()
-			go loadData(params.App, table.Box, resultChannel, func() {
-				currentServiceView.Clear()
-				currentServiceView.AddItem(view, 0, 1, false)
-				pages.SwitchToPage(SELECTED_SERVICE)
-				app.SetFocus(view)
-				lastFocus = view
-				showServicesListToggle = true
-			})
+			currentServiceView.Clear()
+			currentServiceView.AddItem(view, 0, 1, false)
+			pages.SwitchToPage(SELECTED_SERVICE)
+			app.SetFocus(view)
+
+			lastFocus = view
+			showServicesListToggle = true
 		}
 	})
 
