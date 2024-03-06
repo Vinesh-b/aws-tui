@@ -160,6 +160,7 @@ type S3BucketsDetailsView struct {
 	BucketsTable      *tview.Table
 	ObjectsTable      *tview.Table
 	SearchInput       *tview.InputField
+	ObjectInput       *tview.InputField
 	RootView          *tview.Flex
 	selctedBucketName string
 	currentPrefix     string
@@ -178,7 +179,8 @@ func NewS3bucketsDetailsView(
 	var objectsTable = tview.NewTable()
 	populateS3ObjectsTable(objectsTable, nil, nil, "", false)
 
-	var inputField = createSearchInput("Buckets")
+	var bucketInputField = createSearchInput("Buckets")
+	var objectKeyInputField = createSearchInput("Object Path")
 
 	const objectsTableSize = 4000
 	const bucketsTableSize = 3000
@@ -186,9 +188,13 @@ func NewS3bucketsDetailsView(
 	var serviceView = NewServiceView(app)
 	serviceView.RootView.
 		AddItem(objectsTable, 0, objectsTableSize, false).
+		AddItem(tview.NewFlex().
+			AddItem(objectKeyInputField, 0, 1, false),
+			3, 0, false,
+		).
 		AddItem(bucketsTable, 0, bucketsTableSize, false).
 		AddItem(tview.NewFlex().
-			AddItem(inputField, 0, 1, true),
+			AddItem(bucketInputField, 0, 1, true),
 			3, 0, true,
 		)
 
@@ -199,8 +205,9 @@ func NewS3bucketsDetailsView(
 
 	serviceView.InitViewNavigation(
 		[]view{
-			inputField,
+			bucketInputField,
 			bucketsTable,
+			objectKeyInputField,
 			objectsTable,
 		},
 	)
@@ -208,7 +215,8 @@ func NewS3bucketsDetailsView(
 	return &S3BucketsDetailsView{
 		BucketsTable:      bucketsTable,
 		ObjectsTable:      objectsTable,
-		SearchInput:       inputField,
+		SearchInput:       bucketInputField,
+		ObjectInput:       objectKeyInputField,
 		RootView:          serviceView.RootView,
 		selctedBucketName: "",
 		currentPrefix:     "",
@@ -273,6 +281,14 @@ func (inst *S3BucketsDetailsView) InitInputCapture() {
 		}
 	})
 
+	inst.ObjectInput.SetDoneFunc(func(key tcell.Key) {
+		switch key {
+		case tcell.KeyEnter:
+			inst.RefreshObjects(inst.selctedBucketName, inst.ObjectInput.GetText(), true)
+		}
+
+	})
+
 	inst.BucketsTable.SetSelectedFunc(func(row, column int) {
 		if row < 1 {
 			return
@@ -303,12 +319,19 @@ func (inst *S3BucketsDetailsView) InitInputCapture() {
 
 	inst.ObjectsTable.SetSelectedFunc(func(row, column int) {
 		var reference = inst.ObjectsTable.GetCell(row, 0).GetReference()
-		if reference == nil {
+		if reference == nil || inst.selctedBucketName == "" {
 			return
 		}
+
 		inst.currentPrefix = reference.(string)
-		// Load and show files in this directory.
-		inst.RefreshObjects(inst.selctedBucketName, reference.(string), true)
+		var isDir = inst.currentPrefix == "" || inst.currentPrefix[len(inst.currentPrefix)-1] == '/'
+
+		if isDir {
+			// Load and show files in this directory.
+			inst.RefreshObjects(inst.selctedBucketName, inst.currentPrefix, true)
+		} else {
+			inst.api.DownloadFile(inst.selctedBucketName, inst.currentPrefix, filepath.Base(inst.currentPrefix))
+		}
 	})
 }
 
