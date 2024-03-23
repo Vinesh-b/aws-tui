@@ -2,6 +2,7 @@ package lambda
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"strings"
 
@@ -34,7 +35,7 @@ func (inst *LambdaApi) ListLambdas(force bool) map[string]types.FunctionConfigur
 		return inst.allLambdas
 	}
 
-    inst.allLambdas = make(map[string]types.FunctionConfiguration)
+	inst.allLambdas = make(map[string]types.FunctionConfiguration)
 
 	var paginator = lambda.NewListFunctionsPaginator(
 		inst.client, &lambda.ListFunctionsInput{},
@@ -69,4 +70,35 @@ func (inst *LambdaApi) FilterByName(name string) map[string]types.FunctionConfig
 		}
 	}
 	return foundLambdas
+}
+
+func (inst *LambdaApi) InvokeLambda(
+	name string,
+	payload map[string]any,
+) *lambda.InvokeOutput {
+	var err error = nil
+	var jsonPayload []byte
+
+	jsonPayload, err = json.Marshal(payload)
+	if err != nil {
+		inst.logger.Println(err)
+		return nil
+	}
+
+	var output *lambda.InvokeOutput = nil
+
+	output, err = inst.client.Invoke(context.TODO(),
+		&lambda.InvokeInput{
+			FunctionName:   aws.String(name),
+			Payload:        jsonPayload,
+			LogType:        types.LogTypeTail,
+			InvocationType: types.InvocationTypeRequestResponse,
+		},
+	)
+
+	if err != nil {
+		inst.logger.Println(err)
+	}
+
+	return output
 }
