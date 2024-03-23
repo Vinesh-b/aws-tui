@@ -253,12 +253,14 @@ func (inst *ServiceRootView) initPageNavigation() {
 
 type ServiceView struct {
 	RootView              *tview.Flex
+	LastFocusedView       tview.Primitive
 	orderedViews          []view
 	viewResizeEnabled     bool
 	topView               view
 	bottomView            view
 	topViewDefaultSize    int
 	bottomViewDefaultSize int
+	selectedViewIdx       int
 	app                   *tview.Application
 }
 
@@ -268,6 +270,7 @@ func NewServiceView(
 	var rootView = tview.NewFlex().SetDirection(tview.FlexRow)
 	return &ServiceView{
 		RootView:          rootView,
+		LastFocusedView:   nil,
 		viewResizeEnabled: false,
 		app:               app,
 	}
@@ -275,22 +278,19 @@ func NewServiceView(
 
 func (inst *ServiceView) InitViewNavigation(orderedViews []view) {
 	inst.orderedViews = orderedViews
-	// Sets current view index when selected
 	var viewIdx = 0
-	for i, v := range inst.orderedViews {
-		v.SetFocusFunc(func() { viewIdx = i })
-	}
-
 	var numViews = len(inst.orderedViews)
 	inst.RootView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlJ:
 			viewIdx = (viewIdx - 1 + numViews) % numViews
-			inst.app.SetFocus(inst.orderedViews[viewIdx])
+			inst.LastFocusedView = inst.orderedViews[viewIdx]
+			inst.app.SetFocus(inst.LastFocusedView)
 			return nil
 		case tcell.KeyCtrlK:
 			viewIdx = (viewIdx + 1) % numViews
-			inst.app.SetFocus(inst.orderedViews[viewIdx])
+			inst.LastFocusedView = inst.orderedViews[viewIdx]
+			inst.app.SetFocus(inst.LastFocusedView)
 			return nil
 		}
 
@@ -304,12 +304,7 @@ func (inst *ServiceView) InitViewNavigation(orderedViews []view) {
 
 func (inst *ServiceView) InitViewTabNavigation(rootView rootView, orderedViews []view) {
 	// Sets current view index when selected
-	var viewIdx = 0
-	for i, v := range orderedViews {
-		v.SetFocusFunc(func() { viewIdx = i })
-	}
-
-	viewIdx = -1
+	var viewIdx = -1
 	var numViews = len(orderedViews)
 	rootView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
