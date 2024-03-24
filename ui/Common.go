@@ -254,7 +254,6 @@ func (inst *ServiceRootView) initPageNavigation() {
 type ServiceView struct {
 	RootView              *tview.Flex
 	LastFocusedView       tview.Primitive
-	orderedViews          []view
 	viewResizeEnabled     bool
 	topView               view
 	bottomView            view
@@ -280,19 +279,18 @@ func NewServiceView(
 }
 
 func (inst *ServiceView) InitViewNavigation(orderedViews []view) {
-	inst.orderedViews = orderedViews
 	var viewIdx = 0
-	var numViews = len(inst.orderedViews)
+	var numViews = len(orderedViews)
 	inst.RootView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlJ:
 			viewIdx = (viewIdx - 1 + numViews) % numViews
-			inst.LastFocusedView = inst.orderedViews[viewIdx]
+			inst.LastFocusedView = orderedViews[viewIdx]
 			inst.app.SetFocus(inst.LastFocusedView)
 			return nil
 		case tcell.KeyCtrlK:
 			viewIdx = (viewIdx + 1) % numViews
-			inst.LastFocusedView = inst.orderedViews[viewIdx]
+			inst.LastFocusedView = orderedViews[viewIdx]
 			inst.app.SetFocus(inst.LastFocusedView)
 			return nil
 		}
