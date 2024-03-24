@@ -102,6 +102,18 @@ const (
 	DATA_TYPE_MAP_STRING_ANY
 )
 
+func tryFormatToJson(text string) (string, bool) {
+	var anyJson map[string]interface{}
+	var err = json.Unmarshal([]byte(text), &anyJson)
+	if err != nil {
+		return text, false
+	}
+
+	var jsonBytes, _ = json.MarshalIndent(anyJson, "", "  ")
+
+	return string(jsonBytes), true
+}
+
 func createExpandedLogView(
 	app *tview.Application,
 	table *tview.Table,
