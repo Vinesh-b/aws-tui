@@ -136,7 +136,7 @@ func NewAlarmsDetailsView(
 	const alarmsTableSize = 3500
 	const alarmHistorySize = 3000
 
-	var serviceView = NewServiceView(app)
+	var serviceView = NewServiceView(app, logger)
 	serviceView.RootView.
 		AddItem(alarmDetails, 14, 0, false).
 		AddItem(alarmHistory, 0, alarmHistorySize, false).

@@ -172,7 +172,7 @@ func NewDynamoDBDetailsView(
 	const detailsSize = 3000
 	const tablesSize = 5000
 
-	var serviceView = NewServiceView(app)
+	var serviceView = NewServiceView(app, logger)
 	serviceView.RootView.
 		AddItem(detailsTable, 0, detailsSize, false).
 		AddItem(tablesTable, 0, tablesSize, false).
@@ -313,7 +313,7 @@ func NewDynamoDBTableItemsView(
 	const expandItemViewSize = 3
 	const itemsTableSize = 7
 
-	var serviceView = NewServiceView(app)
+	var serviceView = NewServiceView(app, logger)
 	serviceView.RootView.
 		AddItem(expandItemView, 0, expandItemViewSize, false).
 		AddItem(itemsTable, 0, itemsTableSize, false).

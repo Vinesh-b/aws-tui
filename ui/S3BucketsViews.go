@@ -185,7 +185,7 @@ func NewS3bucketsDetailsView(
 	const objectsTableSize = 4000
 	const bucketsTableSize = 3000
 
-	var serviceView = NewServiceView(app)
+	var serviceView = NewServiceView(app, logger)
 	serviceView.RootView.
 		AddItem(objectsTable, 0, objectsTableSize, false).
 		AddItem(tview.NewFlex().

@@ -57,7 +57,7 @@ func NewLogGroupsSelectionView(
 	var logGroupsView = NewLogGroupsView(app, api, logger)
 	logGroupsView.InitInputCapture()
 
-	var serviceView = NewServiceView(app)
+	var serviceView = NewServiceView(app, logger)
 	serviceView.RootView.
 		AddItem(selectedGroupsTable, 0, 1, false).
 		AddItem(logGroupsView.LogGroupsTable, 0, 1, false).
@@ -226,7 +226,7 @@ func NewInsightsQueryResultsView(
 		AddItem(runQueryButton, 1, 0, false)
 	queryRunView.SetBorder(true)
 
-	var serviceView = NewServiceView(app)
+	var serviceView = NewServiceView(app, logger)
 	serviceView.InitViewTabNavigation(queryRunView, []view{
 		startDateInput,
 		endDateInput,

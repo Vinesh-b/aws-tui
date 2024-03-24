@@ -77,7 +77,7 @@ func NewMetricsDetailsView(
 	const metricsTableSize = 3500
 	const detailsTableSize = 3500
 
-	var serviceView = NewServiceView(app)
+	var serviceView = NewServiceView(app, logger)
 	serviceView.RootView.
 		AddItem(detailsTable, 0, metricsTableSize, false).
 		AddItem(metricsTable, 0, metricsTableSize, false).

@@ -115,7 +115,7 @@ func NewLogEventsView(
 	const expandedLogsSize = 7
 	const logTableSize = 13
 
-	var serviceView = NewServiceView(app)
+	var serviceView = NewServiceView(app, logger)
 	serviceView.RootView.
 		AddItem(expandedLogsView, 0, expandedLogsSize, false).
 		AddItem(logEventsTable, 0, logTableSize, true).
@@ -242,7 +242,7 @@ func NewLogStreamsView(
 		}
 	})
 
-	var serviceView = NewServiceView(app)
+	var serviceView = NewServiceView(app, logger)
 	serviceView.RootView.
 		AddItem(logStreamsTable, 0, 1, true).
 		AddItem(tview.NewFlex().
@@ -331,7 +331,7 @@ func NewLogGroupsView(
 
 	var inputField = createSearchInput("Log Groups")
 
-	var serviceView = NewServiceView(app)
+	var serviceView = NewServiceView(app, logger)
 	serviceView.RootView.
 		AddItem(logGroupsTable, 0, 1, false).
 		AddItem(tview.NewFlex().

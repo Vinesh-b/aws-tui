@@ -87,7 +87,7 @@ func NewStacksDetailsView(
 	const stackDetailsSize = 5000
 	const stackTablesSize = 3000
 
-	var serviceView = NewServiceView(app)
+	var serviceView = NewServiceView(app, logger)
 	serviceView.RootView.
 		AddItem(stacksDetails, 0, stackDetailsSize, false).
 		AddItem(stacksTable, 0, stackTablesSize, false).
@@ -272,7 +272,7 @@ func NewStackEventsView(
 	const expandedMsgSize = 5
 	const stackEventsSize = 15
 
-	var serviceView = NewServiceView(app)
+	var serviceView = NewServiceView(app, logger)
 	serviceView.RootView.
 		AddItem(expandedMsgView, 0, expandedMsgSize, false).
 		AddItem(stackEventsTable, 0, stackEventsSize, false).

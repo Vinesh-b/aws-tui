@@ -262,10 +262,12 @@ type ServiceView struct {
 	bottomViewDefaultSize int
 	selectedViewIdx       int
 	app                   *tview.Application
+	logger                *log.Logger
 }
 
 func NewServiceView(
 	app *tview.Application,
+	logger *log.Logger,
 ) *ServiceView {
 	var rootView = tview.NewFlex().SetDirection(tview.FlexRow)
 	return &ServiceView{
@@ -273,6 +275,7 @@ func NewServiceView(
 		LastFocusedView:   nil,
 		viewResizeEnabled: false,
 		app:               app,
+		logger:            logger,
 	}
 }
 

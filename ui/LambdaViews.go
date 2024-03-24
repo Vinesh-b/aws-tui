@@ -196,7 +196,7 @@ func NewLambdasDetailsView(
 	const detailsViewSize = 4000
 	const tableViewSize = 6000
 
-	var serviceView = NewServiceView(app)
+	var serviceView = NewServiceView(app, logger)
 	serviceView.RootView.
 		AddItem(lambdaDetails.Table, 0, detailsViewSize, false).
 		AddItem(lambdasList.Table, 0, tableViewSize, false).
