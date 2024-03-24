@@ -18,6 +18,7 @@ import (
 
 type LambdaDetailsTable struct {
 	Table *tview.Table
+	Data  *types.FunctionConfiguration
 
 	selectedLambda string
 	logger         *log.Logger
@@ -32,13 +33,14 @@ func NewLambdaDetailsTable(
 ) *LambdaDetailsTable {
 	var table = &LambdaDetailsTable{
 		Table: tview.NewTable(),
+		Data:  nil,
 
 		logger: logger,
 		app:    app,
 		api:    api,
 	}
 
-	table.populateLambdaDetailsTable(nil)
+	table.populateLambdaDetailsTable()
 	table.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
@@ -50,21 +52,21 @@ func NewLambdaDetailsTable(
 	return table
 }
 
-func (inst *LambdaDetailsTable) populateLambdaDetailsTable(data *types.FunctionConfiguration) {
+func (inst *LambdaDetailsTable) populateLambdaDetailsTable() {
 	var tableData []tableRow
-	if data != nil {
+	if inst.Data != nil {
 		tableData = []tableRow{
-			{"Description", *data.Description},
-			{"Arn", *data.FunctionArn},
-			{"Version", *data.Version},
-			{"MemorySize", fmt.Sprintf("%d", *data.MemorySize)},
-			{"Runtime", string(data.Runtime)},
-			{"Arch", fmt.Sprintf("%v", data.Architectures)},
-			{"Timeout", fmt.Sprintf("%d", *data.Timeout)},
-			{"LoggingGroup", *data.LoggingConfig.LogGroup},
-			{"AppLogLevel", string(data.LoggingConfig.ApplicationLogLevel)},
-			{"State", string(data.State)},
-			{"LastModified", *data.LastModified},
+			{"Description", *inst.Data.Description},
+			{"Arn", *inst.Data.FunctionArn},
+			{"Version", *inst.Data.Version},
+			{"MemorySize", fmt.Sprintf("%d", *inst.Data.MemorySize)},
+			{"Runtime", string(inst.Data.Runtime)},
+			{"Arch", fmt.Sprintf("%v", inst.Data.Architectures)},
+			{"Timeout", fmt.Sprintf("%d", *inst.Data.Timeout)},
+			{"LoggingGroup", *inst.Data.LoggingConfig.LogGroup},
+			{"AppLogLevel", string(inst.Data.LoggingConfig.ApplicationLogLevel)},
+			{"State", string(inst.Data.State)},
+			{"LastModified", *inst.Data.LastModified},
 		}
 	}
 
@@ -84,18 +86,18 @@ func (inst *LambdaDetailsTable) RefreshDetails(lambdaName string, force bool) {
 	}()
 
 	go loadData(inst.app, inst.Table.Box, resultChannel, func() {
-		var details *types.FunctionConfiguration = nil
 		var val, ok = data[lambdaName]
 		if ok {
-			details = &val
+			inst.Data = &val
 		}
-		inst.populateLambdaDetailsTable(details)
+		inst.populateLambdaDetailsTable()
 	})
 }
 
 type LambdasListTable struct {
 	Table          *tview.Table
 	SelectedLambda string
+	Data           map[string]types.FunctionConfiguration
 
 	logger *log.Logger
 	app    *tview.Application
@@ -110,13 +112,14 @@ func NewLambdasListTable(
 
 	var table = &LambdasListTable{
 		Table: tview.NewTable(),
+		Data:  nil,
 
 		logger: logger,
 		app:    app,
 		api:    api,
 	}
 
-	table.populateLambdasTable(nil)
+	table.populateLambdasTable()
 	table.Table.SetSelectionChangedFunc(func(row, column int) {
 		if row < 1 {
 			return
@@ -135,9 +138,9 @@ func NewLambdasListTable(
 	return table
 }
 
-func (inst *LambdasListTable) populateLambdasTable(data map[string]types.FunctionConfiguration) {
+func (inst *LambdasListTable) populateLambdasTable() {
 	var tableData []tableRow
-	for _, row := range data {
+	for _, row := range inst.Data {
 		tableData = append(tableData, tableRow{
 			*row.FunctionName,
 			*row.LastModified,
@@ -157,21 +160,20 @@ func (inst *LambdasListTable) populateLambdasTable(data map[string]types.Functio
 }
 
 func (inst *LambdasListTable) RefreshLambdas(search string, force bool) {
-	var data map[string]types.FunctionConfiguration
 	var resultChannel = make(chan struct{})
 
 	go func() {
 		if len(search) > 0 {
-			data = inst.api.FilterByName(search)
+			inst.Data = inst.api.FilterByName(search)
 		} else {
-			data = inst.api.ListLambdas(force)
+			inst.Data = inst.api.ListLambdas(force)
 		}
 
 		resultChannel <- struct{}{}
 	}()
 
 	go loadData(inst.app, inst.Table.Box, resultChannel, func() {
-		inst.populateLambdasTable(data)
+		inst.populateLambdasTable()
 	})
 }
 
