@@ -35,16 +35,17 @@ func NewLambdaDetailsTable(
 		Table: tview.NewTable(),
 		Data:  nil,
 
-		logger: logger,
-		app:    app,
-		api:    api,
+		selectedLambda: "",
+		logger:         logger,
+		app:            app,
+		api:            api,
 	}
 
 	table.populateLambdaDetailsTable()
 	table.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			table.RefreshDetails("", true)
+			table.RefreshDetails(table.selectedLambda, true)
 		}
 		return event
 	})
@@ -264,16 +265,6 @@ func (inst *LambdasDetailsView) initInputCapture() {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			inst.LambdasTable.RefreshLambdas("", true)
-		}
-		return event
-	})
-
-	inst.DetailsTable.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		var selctedRow, _ = inst.LambdasTable.Table.GetSelection()
-		switch event.Key() {
-		case tcell.KeyCtrlR:
-			refreshSelection(selctedRow)
-			inst.DetailsTable.RefreshDetails(inst.SelectedLambda, false)
 		}
 		return event
 	})
