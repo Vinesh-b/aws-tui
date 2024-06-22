@@ -310,6 +310,22 @@ func NewDynamoDBTableItemsView(
 		SetTitle("Query").
 		SetTitleAlign(tview.AlignLeft)
 
+	var atterNameInput = tview.NewInputField().
+		SetFieldWidth(0).
+		SetLabel(" Attribute Name  ")
+	var atterValueInput = tview.NewInputField().
+		SetFieldWidth(0).
+		SetLabel(" Attribute Value ")
+	var runScanBtn = tview.NewButton("Run")
+	var scanView = tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(atterNameInput, 1, 0, false).
+		AddItem(atterValueInput, 1, 0, false).
+		AddItem(runScanBtn, 1, 0, false)
+	scanView.
+		SetBorder(true).
+		SetTitle("Scan").
+		SetTitleAlign(tview.AlignLeft)
+
 	const expandItemViewSize = 3
 	const itemsTableSize = 7
 
@@ -317,7 +333,11 @@ func NewDynamoDBTableItemsView(
 	serviceView.RootView.
 		AddItem(expandItemView, 0, expandItemViewSize, false).
 		AddItem(itemsTable, 0, itemsTableSize, false).
-		AddItem(queryView, 5, 0, false).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
+			AddItem(queryView, 0, 1, false).
+			AddItem(scanView, 0, 1, false),
+			5, 0, false,
+		).
 		AddItem(tview.NewFlex().
 			AddItem(inputField, 0, 1, true),
 			3, 0, true,
@@ -326,6 +346,15 @@ func NewDynamoDBTableItemsView(
 	serviceView.SetResizableViews(
 		expandItemView, itemsTable,
 		expandItemViewSize, itemsTableSize,
+	)
+
+	serviceView.InitViewTabNavigation(
+		scanView,
+		[]view{
+			atterNameInput,
+			atterValueInput,
+			runScanBtn,
+		},
 	)
 
 	serviceView.InitViewTabNavigation(
@@ -341,6 +370,7 @@ func NewDynamoDBTableItemsView(
 		[]view{
 			inputField,
 			queryView,
+			scanView,
 			itemsTable,
 			expandItemView,
 		},

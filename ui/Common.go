@@ -12,6 +12,7 @@ import (
 	"github.com/rivo/tview"
 )
 
+// Todo add timeout param
 func loadData(
 	app *tview.Application,
 	view *tview.Box,
