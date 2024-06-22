@@ -11,10 +11,11 @@ import (
 )
 
 type StateMachineApi struct {
-	logger           *log.Logger
-	config           aws.Config
-	client           *sfn.Client
-	allStateMachines map[string]types.StateMachineListItem
+	logger             *log.Logger
+	config             aws.Config
+	client             *sfn.Client
+	allStateMachines   map[string]types.StateMachineListItem
+	nextExectionsToken *string
 }
 
 func NewStateMachineApi(
@@ -69,4 +70,26 @@ func (inst *StateMachineApi) FilterByName(name string) map[string]types.StateMac
 		}
 	}
 	return foundLambdas
+}
+
+func (inst *StateMachineApi) ListExecutions(name string, nextToken *string) ([]types.ExecutionListItem, *string) {
+	var stateMachine = inst.allStateMachines[name]
+
+	var paginator = sfn.NewListExecutionsPaginator(
+		inst.client, &sfn.ListExecutionsInput{
+			StateMachineArn: stateMachine.StateMachineArn,
+			NextToken:       nextToken,
+		},
+	)
+
+	for paginator.HasMorePages() {
+		var output, err = paginator.NextPage(context.TODO())
+		if err != nil {
+			inst.logger.Println(err)
+			break
+		}
+
+		return output.Executions, output.NextToken
+	}
+	return nil, nil
 }
