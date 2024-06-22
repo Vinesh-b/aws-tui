@@ -90,6 +90,7 @@ func RenderUI(config aws.Config, version string) {
 		CLOUDFORMATION:           createStacksHomeView(app, config, inAppLogger),
 		DYNAMODB:                 createDynamoDBHomeView(app, config, inAppLogger),
 		S3BUCKETS:                createS3bucketsHomeView(app, config, inAppLogger),
+		STATE_MACHINES:           createStepFunctionsHomeView(app, config, inAppLogger),
 
 		HELP:       createHelpHomeView(app, config, inAppLogger),
 		DEBUG_LOGS: errorTextArea,
