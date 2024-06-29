@@ -93,3 +93,16 @@ func (inst *StateMachineApi) ListExecutions(name string, nextToken *string) ([]t
 	}
 	return nil, nil
 }
+
+func (inst *StateMachineApi) DescribeExecution(executionArn string) *sfn.DescribeExecutionOutput {
+	var response, err = inst.client.DescribeExecution(context.TODO(), &sfn.DescribeExecutionInput{
+		ExecutionArn: &executionArn,
+	})
+
+	if err != nil {
+		inst.logger.Println(err)
+		return nil
+	}
+
+	return response
+}
