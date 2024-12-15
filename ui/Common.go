@@ -161,6 +161,27 @@ func createExpandedLogView(
 	return expandedView
 }
 
+type JsonTextView[T any] struct {
+	TextArea        *tview.TextArea
+	ExtractTextFunc func(data T) string
+}
+
+func (inst *JsonTextView[T]) SetText(
+	data T,
+) {
+	var anyJson map[string]interface{}
+
+	var logText = inst.ExtractTextFunc(data)
+	var err = json.Unmarshal([]byte(logText), &anyJson)
+	if err != nil {
+		inst.TextArea.SetText(logText, false)
+		return
+	}
+	var jsonBytes, _ = json.MarshalIndent(anyJson, "", "  ")
+	logText = string(jsonBytes)
+	inst.TextArea.SetText(logText, false)
+}
+
 type paginatorView struct {
 	PageCounterView *tview.TextView
 	PageNameView    *tview.TextView
