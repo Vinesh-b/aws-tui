@@ -503,13 +503,47 @@ func NewStateMachineExectionDetailsView(
 	api *statemachine.StateMachineApi,
 	logger *log.Logger,
 ) *StateMachineExectionDetailsView {
-	const summaryViewSize = 3000
-	const detailsViewSize = 9000
+
+	var inputsExpandedView = JsonTextView[StateDetails]{
+		TextArea: createTextArea("Input"),
+		ExtractTextFunc: func(data StateDetails) string {
+			return data.Input
+		},
+	}
+	var outputsExpandedView = JsonTextView[StateDetails]{
+		TextArea: createTextArea("Output"),
+		ExtractTextFunc: func(data StateDetails) string {
+			return data.Output
+		},
+	}
+
+	executionDetails.Table.SetSelectionChangedFunc(func(row, column int) {
+		var privateDataColIdx = 0
+		var col = column
+		if privateDataColIdx >= 0 {
+			col = privateDataColIdx
+		}
+		var privateData = executionDetails.Table.GetCell(row, col).Reference
+		if row < 1 || privateData == nil {
+			return
+		}
+		inputsExpandedView.SetText(privateData.(StateDetails))
+		outputsExpandedView.SetText(privateData.(StateDetails))
+	})
+
+	const summaryViewSize = 2000
+	const detailsViewSize = 6000
+	const expandedViewSize = 4000
 
 	var serviceView = NewServiceView(app, logger)
 	serviceView.RootView.
-		AddItem(executionSummary.Table, 0, summaryViewSize, false).
-		AddItem(executionDetails.Table, 0, detailsViewSize, false)
+		AddItem(executionSummary.Table, 0, summaryViewSize, true).
+		AddItem(executionDetails.Table, 0, detailsViewSize, false).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
+			AddItem(inputsExpandedView.TextArea, 0, 1, false).
+			AddItem(outputsExpandedView.TextArea, 0, 1, false),
+			0, expandedViewSize, false,
+		)
 
 	serviceView.SetResizableViews(
 		executionSummary.Table, executionDetails.Table,
