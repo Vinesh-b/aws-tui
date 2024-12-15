@@ -365,7 +365,7 @@ func (inst *StateMachineExecutionDetailsTable) populateTable() {
 			row.EndTime.Sub(row.StartTime).String(),
 		})
 	}
-	initSelectableTable(inst.Table, "Execution Details",
+	initSelectableTable2(inst.Table, "Execution Details",
 		tableRow{
 			"Name",
 			"Type",
@@ -373,7 +373,8 @@ func (inst *StateMachineExecutionDetailsTable) populateTable() {
 			"Duration",
 		},
 		tableData,
-		[]int{},
+		results,
+		0,
 	)
 	inst.Table.Select(1, 0)
 }
