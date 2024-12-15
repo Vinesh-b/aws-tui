@@ -106,3 +106,17 @@ func (inst *StateMachineApi) DescribeExecution(executionArn string) *sfn.Describ
 
 	return response
 }
+
+func (inst *StateMachineApi) GetExecutionHistory(executionArn string) *sfn.GetExecutionHistoryOutput {
+	var response, err = inst.client.GetExecutionHistory(context.TODO(), &sfn.GetExecutionHistoryInput{
+		ExecutionArn: &executionArn,
+        IncludeExecutionData: aws.Bool(true),
+	})
+
+	if err != nil {
+		inst.logger.Println(err)
+		return nil
+	}
+
+	return response
+}

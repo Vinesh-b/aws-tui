@@ -2,6 +2,8 @@ package ui
 
 import (
 	"log"
+	"slices"
+	"strings"
 	"time"
 
 	"aws-tui/statemachine"
@@ -254,6 +256,142 @@ func (inst *StateMachineExecutionSummaryTable) RefreshExecutionDetails(execution
 	})
 }
 
+type StateMachineExecutionDetailsTable struct {
+	Table                *tview.Table
+	Data                 *sfn.GetExecutionHistoryOutput
+	SelectedExecutionArn string
+
+	logger *log.Logger
+	app    *tview.Application
+	api    *statemachine.StateMachineApi
+}
+
+func NewStateMachineExecutionDetailsTable(
+	app *tview.Application,
+	api *statemachine.StateMachineApi,
+	logger *log.Logger,
+) *StateMachineExecutionDetailsTable {
+
+	var table = &StateMachineExecutionDetailsTable{
+		Table:                tview.NewTable(),
+		Data:                 nil,
+		SelectedExecutionArn: "",
+
+		logger: logger,
+		app:    app,
+		api:    api,
+	}
+
+	table.populateTable()
+	table.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlR:
+			table.RefreshExecutionDetails(table.SelectedExecutionArn, true)
+		}
+		return event
+	})
+
+	return table
+}
+
+type StateDetails struct {
+	Id        int64
+	Name      string
+	Type      string
+	Status    string
+	Input     string
+	Output    string
+	StartTime time.Time
+	EndTime   time.Time
+}
+
+func (inst *StateMachineExecutionDetailsTable) populateTable() {
+	var tableData []tableRow
+	var enteredEventTypes = []types.HistoryEventType{
+		types.HistoryEventTypeTaskStateEntered,
+		types.HistoryEventTypePassStateEntered,
+		types.HistoryEventTypeParallelStateEntered,
+		types.HistoryEventTypeFailStateEntered,
+		types.HistoryEventTypeSucceedStateEntered,
+		types.HistoryEventTypeMapStateEntered,
+		types.HistoryEventTypeChoiceStateEntered,
+	}
+
+	var exitedEventTypes = []types.HistoryEventType{
+		types.HistoryEventTypeTaskStateExited,
+		types.HistoryEventTypePassStateExited,
+		types.HistoryEventTypeParallelStateExited,
+		types.HistoryEventTypeMapStateExited,
+		types.HistoryEventTypeChoiceStateExited,
+		types.HistoryEventTypeSucceedStateExited,
+	}
+
+	var results = []StateDetails{}
+
+	if inst.Data != nil {
+		for _, row := range inst.Data.Events {
+			if slices.Contains(enteredEventTypes, row.Type) {
+				results = append(results, StateDetails{
+					Id:        row.Id,
+					Name:      aws.ToString(row.StateEnteredEventDetails.Name),
+					Type:      strings.Replace(string(row.Type), "Entered", "", 1),
+					Status:    "Entered",
+					Input:     aws.ToString(row.StateEnteredEventDetails.Input),
+					Output:    "",
+					StartTime: aws.ToTime(row.Timestamp),
+					EndTime:   aws.ToTime(row.Timestamp),
+				})
+			}
+
+			if slices.Contains(exitedEventTypes, row.Type) {
+				var idx = slices.IndexFunc(results, func(d StateDetails) bool {
+					return d.Name == aws.ToString(row.StateExitedEventDetails.Name)
+				})
+
+				if idx > -1 {
+					results[idx].Status = "Succeeded"
+					results[idx].Output = aws.ToString(row.StateExitedEventDetails.Output)
+					results[idx].EndTime = aws.ToTime(row.Timestamp)
+				}
+			}
+		}
+	}
+
+	for _, row := range results {
+		tableData = append(tableData, tableRow{
+			row.Name,
+			row.Type,
+			row.Status,
+			row.EndTime.Sub(row.StartTime).String(),
+		})
+	}
+	initSelectableTable(inst.Table, "Execution Details",
+		tableRow{
+			"Name",
+			"Type",
+			"Status",
+			"Duration",
+		},
+		tableData,
+		[]int{},
+	)
+	inst.Table.Select(1, 0)
+}
+
+func (inst *StateMachineExecutionDetailsTable) RefreshExecutionDetails(executionArn string, force bool) {
+	inst.SelectedExecutionArn = executionArn
+	var resultChannel = make(chan struct{})
+
+	go func() {
+		inst.Data = inst.api.GetExecutionHistory(executionArn)
+		resultChannel <- struct{}{}
+	}()
+
+	go loadData(inst.app, inst.Table.Box, resultChannel, func() {
+		inst.populateTable()
+	})
+}
+
 type StateMachinesDetailsView struct {
 	RootView                    *tview.Flex
 	SelectedStateMachine        string
@@ -350,6 +488,7 @@ type StateMachineExectionDetailsView struct {
 	RootView         *tview.Flex
 	SelectedExection string
 	SummaryTable     *StateMachineExecutionSummaryTable
+	DetailsTable     *StateMachineExecutionDetailsTable
 
 	searchInput *tview.InputField
 	app         *tview.Application
@@ -358,19 +497,28 @@ type StateMachineExectionDetailsView struct {
 
 func NewStateMachineExectionDetailsView(
 	executionSummary *StateMachineExecutionSummaryTable,
+	executionDetails *StateMachineExecutionDetailsTable,
 	app *tview.Application,
 	api *statemachine.StateMachineApi,
 	logger *log.Logger,
 ) *StateMachineExectionDetailsView {
-	const detailsViewSize = 4000
+	const summaryViewSize = 3000
+	const detailsViewSize = 9000
 
 	var serviceView = NewServiceView(app, logger)
 	serviceView.RootView.
-		AddItem(executionSummary.Table, 0, detailsViewSize, false)
+		AddItem(executionSummary.Table, 0, summaryViewSize, false).
+		AddItem(executionDetails.Table, 0, detailsViewSize, false)
+
+	serviceView.SetResizableViews(
+		executionSummary.Table, executionDetails.Table,
+		summaryViewSize, detailsViewSize,
+	)
 
 	serviceView.InitViewNavigation(
 		[]view{
 			executionSummary.Table,
+			executionDetails.Table,
 		},
 	)
 	var detailsView = &StateMachineExectionDetailsView{
@@ -378,6 +526,7 @@ func NewStateMachineExectionDetailsView(
 		SelectedExection: "",
 
 		SummaryTable: executionSummary,
+		DetailsTable: executionDetails,
 		app:          app,
 		api:          api,
 	}
@@ -407,6 +556,7 @@ func createStepFunctionsHomeView(
 
 		executionDetailsView = NewStateMachineExectionDetailsView(
 			NewStateMachineExecutionSummaryTable(app, api, logger),
+			NewStateMachineExecutionDetailsTable(app, api, logger),
 			app, api, logger)
 	)
 
@@ -429,6 +579,7 @@ func createStepFunctionsHomeView(
 			Table.
 			GetCell(row, 0).Text
 		executionDetailsView.SummaryTable.RefreshExecutionDetails(selectedExecution, true)
+		executionDetailsView.DetailsTable.RefreshExecutionDetails(selectedExecution, true)
 		serviceRootView.ChangePage(1, executionDetailsView.SummaryTable.Table)
 	})
 
