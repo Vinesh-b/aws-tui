@@ -184,7 +184,7 @@ func (inst *StateMachineExecutionsTable) RefreshExecutions(search string, force 
 	})
 }
 
-type StateMachineExecutionDetailsTable struct {
+type StateMachineExecutionSummaryTable struct {
 	Table                *tview.Table
 	Data                 *sfn.DescribeExecutionOutput
 	SelectedExecutionArn string
@@ -194,13 +194,13 @@ type StateMachineExecutionDetailsTable struct {
 	api    *statemachine.StateMachineApi
 }
 
-func NewStateMachineExecutionDetailsTable(
+func NewStateMachineExecutionSummaryTable(
 	app *tview.Application,
 	api *statemachine.StateMachineApi,
 	logger *log.Logger,
-) *StateMachineExecutionDetailsTable {
+) *StateMachineExecutionSummaryTable {
 
-	var table = &StateMachineExecutionDetailsTable{
+	var table = &StateMachineExecutionSummaryTable{
 		Table:                tview.NewTable(),
 		Data:                 nil,
 		SelectedExecutionArn: "",
@@ -222,7 +222,7 @@ func NewStateMachineExecutionDetailsTable(
 	return table
 }
 
-func (inst *StateMachineExecutionDetailsTable) populateTable() {
+func (inst *StateMachineExecutionSummaryTable) populateTable() {
 	var tableData []tableRow
 	if inst.Data != nil {
 		tableData = []tableRow{
@@ -235,12 +235,12 @@ func (inst *StateMachineExecutionDetailsTable) populateTable() {
 		}
 	}
 
-	initBasicTable(inst.Table, "Execution Details", tableData, false)
+	initBasicTable(inst.Table, "Execution Summary", tableData, false)
 	inst.Table.Select(0, 0)
 	inst.Table.ScrollToBeginning()
 }
 
-func (inst *StateMachineExecutionDetailsTable) RefreshExecutionDetails(executionArn string, force bool) {
+func (inst *StateMachineExecutionSummaryTable) RefreshExecutionDetails(executionArn string, force bool) {
 	inst.SelectedExecutionArn = executionArn
 	var resultChannel = make(chan struct{})
 
@@ -349,7 +349,7 @@ func (inst *StateMachinesDetailsView) initInputCapture() {
 type StateMachineExectionDetailsView struct {
 	RootView         *tview.Flex
 	SelectedExection string
-	DetailsTable     *StateMachineExecutionDetailsTable
+	SummaryTable     *StateMachineExecutionSummaryTable
 
 	searchInput *tview.InputField
 	app         *tview.Application
@@ -357,7 +357,7 @@ type StateMachineExectionDetailsView struct {
 }
 
 func NewStateMachineExectionDetailsView(
-	executionDetails *StateMachineExecutionDetailsTable,
+	executionSummary *StateMachineExecutionSummaryTable,
 	app *tview.Application,
 	api *statemachine.StateMachineApi,
 	logger *log.Logger,
@@ -366,18 +366,18 @@ func NewStateMachineExectionDetailsView(
 
 	var serviceView = NewServiceView(app, logger)
 	serviceView.RootView.
-		AddItem(executionDetails.Table, 0, detailsViewSize, false)
+		AddItem(executionSummary.Table, 0, detailsViewSize, false)
 
 	serviceView.InitViewNavigation(
 		[]view{
-			executionDetails.Table,
+			executionSummary.Table,
 		},
 	)
 	var detailsView = &StateMachineExectionDetailsView{
 		RootView:         serviceView.RootView,
 		SelectedExection: "",
 
-		DetailsTable: executionDetails,
+		SummaryTable: executionSummary,
 		app:          app,
 		api:          api,
 	}
@@ -406,7 +406,7 @@ func createStepFunctionsHomeView(
 			app, api, logger)
 
 		executionDetailsView = NewStateMachineExectionDetailsView(
-			NewStateMachineExecutionDetailsTable(app, api, logger),
+			NewStateMachineExecutionSummaryTable(app, api, logger),
 			app, api, logger)
 	)
 
@@ -428,8 +428,8 @@ func createStepFunctionsHomeView(
 			StateMachineExecutionsTable.
 			Table.
 			GetCell(row, 0).Text
-		executionDetailsView.DetailsTable.RefreshExecutionDetails(selectedExecution, true)
-		serviceRootView.ChangePage(1, executionDetailsView.DetailsTable.Table)
+		executionDetailsView.SummaryTable.RefreshExecutionDetails(selectedExecution, true)
+		serviceRootView.ChangePage(1, executionDetailsView.SummaryTable.Table)
 	})
 
 	stateMachinesDetailsView.initInputCapture()
