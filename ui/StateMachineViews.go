@@ -531,29 +531,30 @@ func NewStateMachineExectionDetailsView(
 		outputsExpandedView.SetText(privateData.(StateDetails))
 	})
 
-	const summaryViewSize = 2000
-	const detailsViewSize = 6000
-	const expandedViewSize = 4000
+	var inputOutputView = tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(inputsExpandedView.TextArea, 0, 1, false).
+		AddItem(outputsExpandedView.TextArea, 0, 1, false)
+
+	const detailsViewSize = 10
+	const inputOutputViewSize = 10
 
 	var serviceView = NewServiceView(app, logger)
 	serviceView.RootView.
-		AddItem(executionSummary.Table, 0, summaryViewSize, true).
+		AddItem(executionSummary.Table, 8, 0, true).
 		AddItem(executionDetails.Table, 0, detailsViewSize, false).
-		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
-			AddItem(inputsExpandedView.TextArea, 0, 1, false).
-			AddItem(outputsExpandedView.TextArea, 0, 1, false),
-			0, expandedViewSize, false,
-		)
+		AddItem(inputOutputView, 0, inputOutputViewSize, false)
 
 	serviceView.SetResizableViews(
-		executionSummary.Table, executionDetails.Table,
-		summaryViewSize, detailsViewSize,
+		executionDetails.Table, inputOutputView,
+		detailsViewSize, inputOutputViewSize,
 	)
 
 	serviceView.InitViewNavigation(
 		[]view{
-			executionSummary.Table,
+			outputsExpandedView.TextArea,
+			inputsExpandedView.TextArea,
 			executionDetails.Table,
+			executionSummary.Table,
 		},
 	)
 	var detailsView = &StateMachineExectionDetailsView{
