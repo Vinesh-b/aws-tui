@@ -17,21 +17,6 @@ const (
 	FLOATING_SERVICE_LIST        = "FloatingServices"
 )
 
-func floatingView(p tview.Primitive, width, height int) tview.Primitive {
-	var wrapper = tview.NewFlex().
-		AddItem(p, 0, 1, true)
-	wrapper.SetBorder(true).SetTitle("Quick select")
-	var window = tview.NewFlex().
-		AddItem(nil, 0, 1, false).
-		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-			AddItem(nil, 0, 1, false).
-			AddItem(wrapper, height, 1, true).
-			AddItem(nil, 0, 1, false), width, 1, true).
-		AddItem(nil, 0, 1, false)
-
-	return window
-}
-
 func RenderUI(config aws.Config, version string) {
 	uicore.ResetGlobalStyle()
 
@@ -82,7 +67,10 @@ func RenderUI(config aws.Config, version string) {
 
 	var pages = tview.NewPages().
 		AddPage(SELECTED_SERVICE, currentServiceView, true, true).
-		AddPage(FLOATING_SERVICE_LIST, floatingView(servicesList, 70, 25), true, true).
+		AddPage(FLOATING_SERVICE_LIST,
+			uicore.FloatingView("Quick select", servicesList, 70, 25),
+			true, true,
+		).
 		AddAndSwitchToPage(HOME_PAGE, flexLanding, true)
 
 	var showServicesListToggle = false
