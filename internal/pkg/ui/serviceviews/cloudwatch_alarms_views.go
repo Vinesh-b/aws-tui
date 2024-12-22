@@ -109,13 +109,13 @@ func populateAlarmHistoryTable(table *tview.Table, data []types.AlarmHistoryItem
 }
 
 type AlarmsDetailsView struct {
-	AlarmsTable  *tview.Table
-	HistoryTable *tview.Table
-	DetailsGrid  *tview.Grid
-	SearchInput  *tview.InputField
-	RootView     *tview.Flex
-	app          *tview.Application
-	api          *awsapi.CloudWatchAlarmsApi
+	AlarmsTable    *tview.Table
+	HistoryTable   *tview.Table
+	DetailsGrid    *tview.Grid
+	RootView       *tview.Flex
+	searchableView *core.SearchableView
+	app            *tview.Application
+	api            *awsapi.CloudWatchAlarmsApi
 }
 
 func NewAlarmsDetailsView(
@@ -132,20 +132,18 @@ func NewAlarmsDetailsView(
 	var alarmDetails = tview.NewGrid()
 	populateAlarmDetailsGrid(alarmDetails, nil)
 
-	var inputField = core.CreateSearchInput("Alarms")
-
 	const alarmsTableSize = 3500
 	const alarmHistorySize = 3000
 
-	var serviceView = core.NewServiceView(app, logger)
-	serviceView.RootView.
+	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(alarmDetails, 14, 0, false).
 		AddItem(alarmHistory, 0, alarmHistorySize, false).
-		AddItem(alarmsTable, 0, alarmsTableSize, false).
-		AddItem(tview.NewFlex().
-			AddItem(inputField, 0, 1, true),
-			3, 0, true,
-		)
+		AddItem(alarmsTable, 0, alarmsTableSize, true)
+
+	var searchabelView = core.NewSearchableView(app, logger, mainPage)
+	var serviceView = core.NewServiceView(app, logger)
+
+	serviceView.RootView = searchabelView.RootView
 
 	serviceView.SetResizableViews(
 		alarmHistory, alarmsTable,
@@ -154,7 +152,6 @@ func NewAlarmsDetailsView(
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			inputField,
 			alarmsTable,
 			alarmHistory,
 			alarmDetails,
@@ -162,13 +159,13 @@ func NewAlarmsDetailsView(
 	)
 
 	return &AlarmsDetailsView{
-		AlarmsTable:  alarmsTable,
-		DetailsGrid:  alarmDetails,
-		HistoryTable: alarmHistory,
-		SearchInput:  inputField,
-		RootView:     serviceView.RootView,
-		app:          app,
-		api:          api,
+		AlarmsTable:    alarmsTable,
+		DetailsGrid:    alarmDetails,
+		HistoryTable:   alarmHistory,
+		RootView:       serviceView.RootView,
+		searchableView: searchabelView,
+		app:            app,
+		api:            api,
 	}
 
 }
@@ -241,7 +238,7 @@ func (inst *AlarmsDetailsView) InitInputCapture() {
 	inst.AlarmsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			inst.RefreshAlarms(inst.SearchInput.GetText(), true)
+			inst.RefreshAlarms(inst.searchableView.GetText(), true)
 			var row, _ = inst.AlarmsTable.GetSelection()
 			refreshDetails(row)
 		}
@@ -259,13 +256,13 @@ func (inst *AlarmsDetailsView) InitInputCapture() {
 		return event
 	})
 
-	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {
+	inst.searchableView.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			inst.RefreshAlarms(inst.SearchInput.GetText(), false)
+			inst.RefreshAlarms(inst.searchableView.GetText(), false)
 			inst.app.SetFocus(inst.AlarmsTable)
 		case tcell.KeyEsc:
-			inst.SearchInput.SetText("")
+			inst.searchableView.SetText("")
 		default:
 			return
 		}

@@ -64,12 +64,12 @@ func populateStackDetailsTable(table *tview.Table, data *types.StackSummary) {
 }
 
 type CloudFormationDetailsView struct {
-	StacksTable  *tview.Table
-	DetailsTable *tview.Table
-	SearchInput  *tview.InputField
-	RootView     *tview.Flex
-	app          *tview.Application
-	api          *awsapi.CloudFormationApi
+	StacksTable    *tview.Table
+	DetailsTable   *tview.Table
+	RootView       *tview.Flex
+	searchabelView *core.SearchableView
+	app            *tview.Application
+	api            *awsapi.CloudFormationApi
 }
 
 func NewStacksDetailsView(
@@ -83,19 +83,17 @@ func NewStacksDetailsView(
 	var stacksDetails = tview.NewTable()
 	populateStackDetailsTable(stacksDetails, nil)
 
-	var inputField = core.CreateSearchInput("Stacks")
-
 	const stackDetailsSize = 5000
 	const stackTablesSize = 3000
 
-	var serviceView = core.NewServiceView(app, logger)
-	serviceView.RootView.
+	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(stacksDetails, 0, stackDetailsSize, false).
-		AddItem(stacksTable, 0, stackTablesSize, false).
-		AddItem(tview.NewFlex().
-			AddItem(inputField, 0, 1, true),
-			3, 0, true,
-		)
+		AddItem(stacksTable, 0, stackTablesSize, true)
+
+	var searchabelView = core.NewSearchableView(app, logger, mainPage)
+	var serviceView = core.NewServiceView(app, logger)
+
+	serviceView.RootView = searchabelView.RootView
 
 	serviceView.SetResizableViews(
 		stacksDetails, stacksTable,
@@ -104,18 +102,17 @@ func NewStacksDetailsView(
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			inputField,
 			stacksTable,
 			stacksDetails,
 		},
 	)
 	return &CloudFormationDetailsView{
-		StacksTable:  stacksTable,
-		DetailsTable: stacksDetails,
-		SearchInput:  inputField,
-		RootView:     serviceView.RootView,
-		app:          app,
-		api:          api,
+		StacksTable:    stacksTable,
+		DetailsTable:   stacksDetails,
+		RootView:       serviceView.RootView,
+		searchabelView: searchabelView,
+		app:            app,
+		api:            api,
 	}
 }
 
@@ -157,12 +154,12 @@ func (inst *CloudFormationDetailsView) RefreshDetails(stackName string, force bo
 }
 
 func (inst *CloudFormationDetailsView) InitInputCapture() {
-	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {
+	inst.searchabelView.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			inst.RefreshStacks(inst.SearchInput.GetText(), false)
+			inst.RefreshStacks(inst.searchabelView.GetText(), false)
 		case tcell.KeyEsc:
-			inst.SearchInput.SetText("")
+			inst.searchabelView.SetText("")
 		default:
 			return
 		}

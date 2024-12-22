@@ -58,18 +58,16 @@ func NewLogGroupsSelectionView(
 	var logGroupsView = NewLogGroupsView(app, api, logger)
 	logGroupsView.InitInputCapture()
 
-	var serviceView = core.NewServiceView(app, logger)
-	serviceView.RootView.
+	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(selectedGroupsTable, 0, 1, false).
-		AddItem(logGroupsView.LogGroupsTable, 0, 1, false).
-		AddItem(tview.NewFlex().
-			AddItem(logGroupsView.SearchInput, 0, 1, true),
-			3, 0, true,
-		)
+		AddItem(logGroupsView.LogGroupsTable, 0, 1, true)
+
+	var searchabelView = core.NewSearchableView(app, logger, mainPage)
+	var serviceView = core.NewServiceView(app, logger)
+	serviceView.RootView = searchabelView.RootView
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			logGroupsView.SearchInput,
 			logGroupsView.LogGroupsTable,
 			selectedGroupsTable,
 		},
@@ -78,7 +76,6 @@ func NewLogGroupsSelectionView(
 	return &LogGroupsSelectionView{
 		SeletedGroupsTable: selectedGroupsTable,
 		LogGroupsTable:     logGroupsView.LogGroupsTable,
-		SearchInput:        logGroupsView.SearchInput,
 		RootView:           serviceView.RootView,
 		selectedGroups:     map[string]struct{}{},
 		app:                app,
@@ -191,12 +188,12 @@ type InsightsQueryResultsView struct {
 	QueryStartDateInput *tview.InputField
 	QueryEndDateInput   *tview.InputField
 	RunQueryButton      *tview.Button
-	SearchInput         *tview.InputField
 	RootView            *tview.Flex
 	app                 *tview.Application
 	api                 *awsapi.CloudWatchLogsApi
 	queryId             string
 	selectedLogGroups   *[]string
+	searchableView      *core.SearchableView
 }
 
 func NewInsightsQueryResultsView(
@@ -240,20 +237,17 @@ func NewInsightsQueryResultsView(
 
 	var expandedResultView = core.CreateExpandedLogView(app, resultsTable, -1, core.DATA_TYPE_STRING)
 
-	var inputField = core.CreateSearchInput("Search Results")
-
 	const expandedLogsSize = 5
 	const resultsTableSize = 10
 	const queryViewSize = 9
 
-	serviceView.RootView.
+	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(expandedResultView, 0, expandedLogsSize, false).
 		AddItem(resultsTable, 0, resultsTableSize, true).
-		AddItem(queryView, queryViewSize, 0, true).
-		AddItem(tview.NewFlex().
-			AddItem(inputField, 0, 1, true),
-			3, 0, true,
-		)
+		AddItem(queryView, queryViewSize, 0, true)
+
+	var searchabelView = core.NewSearchableView(app, logger, mainPage)
+	serviceView.RootView = searchabelView.RootView
 
 	serviceView.SetResizableViews(
 		expandedResultView, resultsTable,
@@ -262,7 +256,6 @@ func NewInsightsQueryResultsView(
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			inputField,
 			queryRunView,
 			queryInputView,
 			resultsTable,
@@ -277,8 +270,8 @@ func NewInsightsQueryResultsView(
 		QueryStartDateInput: startDateInput,
 		QueryEndDateInput:   endDateInput,
 		RunQueryButton:      runQueryButton,
-		SearchInput:         inputField,
 		RootView:            serviceView.RootView,
+		searchableView:      searchabelView,
 		app:                 app,
 		api:                 api,
 		queryId:             "",
@@ -311,10 +304,10 @@ func (inst *InsightsQueryResultsView) RefreshResults(queryId string) {
 }
 
 func (inst *InsightsQueryResultsView) InitInputCapture() {
-	inst.SearchInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	inst.searchableView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			inst.SearchInput.SetText("")
+			inst.searchableView.SetText("")
 			core.HighlightTableSearch(inst.QueryResultsTable, "", []int{})
 		}
 		return event

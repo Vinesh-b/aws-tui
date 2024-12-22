@@ -149,12 +149,12 @@ func (inst *dynamoDBGenericTable) populateDynamoDBTable(
 }
 
 type DynamoDBDetailsView struct {
-	TablesTable  *tview.Table
-	DetailsTable *tview.Table
-	SearchInput  *tview.InputField
-	RootView     *tview.Flex
-	app          *tview.Application
-	api          *awsapi.DynamoDBApi
+	TablesTable    *tview.Table
+	DetailsTable   *tview.Table
+	RootView       *tview.Flex
+	searchabelView *core.SearchableView
+	app            *tview.Application
+	api            *awsapi.DynamoDBApi
 }
 
 func NewDynamoDBDetailsView(
@@ -168,19 +168,17 @@ func NewDynamoDBDetailsView(
 	var detailsTable = tview.NewTable()
 	populateDynamoDBTabelDetailsTable(detailsTable, nil)
 
-	var inputField = core.CreateSearchInput("Tables")
-
 	const detailsSize = 3000
 	const tablesSize = 5000
 
-	var serviceView = core.NewServiceView(app, logger)
-	serviceView.RootView.
+	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(detailsTable, 0, detailsSize, false).
-		AddItem(tablesTable, 0, tablesSize, false).
-		AddItem(tview.NewFlex().
-			AddItem(inputField, 0, 1, true),
-			3, 0, true,
-		)
+		AddItem(tablesTable, 0, tablesSize, true)
+
+	var searchabelView = core.NewSearchableView(app, logger, mainPage)
+	var serviceView = core.NewServiceView(app, logger)
+
+	serviceView.RootView = searchabelView.RootView
 
 	serviceView.SetResizableViews(
 		detailsTable, tablesTable,
@@ -189,19 +187,18 @@ func NewDynamoDBDetailsView(
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			inputField,
 			tablesTable,
 			detailsTable,
 		},
 	)
 
 	return &DynamoDBDetailsView{
-		TablesTable:  tablesTable,
-		DetailsTable: detailsTable,
-		SearchInput:  inputField,
-		RootView:     serviceView.RootView,
-		app:          app,
-		api:          api,
+		TablesTable:    tablesTable,
+		DetailsTable:   detailsTable,
+		RootView:       serviceView.RootView,
+		searchabelView: searchabelView,
+		app:            app,
+		api:            api,
 	}
 }
 
@@ -238,12 +235,12 @@ func (inst *DynamoDBDetailsView) RefreshDetails(tableName string) {
 }
 
 func (inst *DynamoDBDetailsView) InitInputCapture() {
-	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {
+	inst.searchabelView.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			inst.RefreshTables(inst.SearchInput.GetText(), true)
+			inst.RefreshTables(inst.searchabelView.GetText(), true)
 		case tcell.KeyEsc:
-			inst.SearchInput.SetText("")
+			inst.searchabelView.SetText("")
 		default:
 			return
 		}
@@ -268,7 +265,6 @@ const (
 
 type DynamoDBTableItemsView struct {
 	ItemsTable       *dynamoDBGenericTable
-	SearchInput      *tview.InputField
 	RootView         *tview.Flex
 	app              *tview.Application
 	api              *awsapi.DynamoDBApi
@@ -279,6 +275,7 @@ type DynamoDBTableItemsView struct {
 	querySkInput     *tview.InputField
 	runQueryBtn      *tview.Button
 	lastTableOp      ddbTableOp
+	searchabelView   *core.SearchableView
 }
 
 func NewDynamoDBTableItemsView(
@@ -289,8 +286,6 @@ func NewDynamoDBTableItemsView(
 	var itemsTable = tview.NewTable()
 	var genericTable = dynamoDBGenericTable{Table: itemsTable}
 	genericTable.populateDynamoDBTable(nil, nil, false)
-
-	var inputField = core.CreateSearchInput("Item")
 
 	var expandItemView = core.CreateExpandedLogView(app, itemsTable, 0, core.DATA_TYPE_MAP_STRING_ANY)
 
@@ -330,19 +325,19 @@ func NewDynamoDBTableItemsView(
 	const expandItemViewSize = 3
 	const itemsTableSize = 7
 
-	var serviceView = core.NewServiceView(app, logger)
-	serviceView.RootView.
+	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(expandItemView, 0, expandItemViewSize, false).
 		AddItem(itemsTable, 0, itemsTableSize, false).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
 			AddItem(queryView, 0, 1, false).
 			AddItem(scanView, 0, 1, false),
-			5, 0, false,
-		).
-		AddItem(tview.NewFlex().
-			AddItem(inputField, 0, 1, true),
-			3, 0, true,
+			5, 0, true,
 		)
+
+	var searchabelView = core.NewSearchableView(app, logger, mainPage)
+	var serviceView = core.NewServiceView(app, logger)
+
+	serviceView.RootView = searchabelView.RootView
 
 	serviceView.SetResizableViews(
 		expandItemView, itemsTable,
@@ -369,7 +364,6 @@ func NewDynamoDBTableItemsView(
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			inputField,
 			queryView,
 			scanView,
 			itemsTable,
@@ -379,7 +373,6 @@ func NewDynamoDBTableItemsView(
 
 	return &DynamoDBTableItemsView{
 		ItemsTable:       &genericTable,
-		SearchInput:      inputField,
 		RootView:         serviceView.RootView,
 		app:              app,
 		api:              api,
@@ -387,6 +380,7 @@ func NewDynamoDBTableItemsView(
 		queryPkInput:     pkQueryValInput,
 		querySkInput:     skQueryValInput,
 		runQueryBtn:      runQueryBtn,
+		searchabelView:   searchabelView,
 	}
 }
 
@@ -450,7 +444,7 @@ func (inst *DynamoDBTableItemsView) RefreshItemsForQuery(tableName string, force
 }
 
 func (inst *DynamoDBTableItemsView) InitInputCapture() *DynamoDBTableItemsView {
-	inst.SearchInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	inst.searchabelView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEnter:
 			// Broken as the table stores a ref to a map and not a string
@@ -458,12 +452,12 @@ func (inst *DynamoDBTableItemsView) InitInputCapture() *DynamoDBTableItemsView {
 			break
 			inst.searchPositions = core.HighlightTableSearch(
 				inst.ItemsTable.Table,
-				inst.SearchInput.GetText(),
+				inst.searchabelView.GetText(),
 				[]int{0},
 			)
 			inst.app.SetFocus(inst.ItemsTable.Table)
 		case tcell.KeyCtrlR:
-			inst.SearchInput.SetText("")
+			inst.searchabelView.SetText("")
 			core.ClearSearchHighlights(inst.ItemsTable.Table)
 			inst.searchPositions = nil
 		}

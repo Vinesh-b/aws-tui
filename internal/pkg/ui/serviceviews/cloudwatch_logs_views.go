@@ -17,8 +17,8 @@ import (
 type LogEventsView struct {
 	LogEventsTable       *tview.Table
 	ExpandedLogsTextArea *tview.TextArea
-	SearchInput          *tview.InputField
 	RootView             *tview.Flex
+	searchableView       *core.SearchableView
 	selectedLogGroup     string
 	selectedLogStream    string
 	searchPositions      []int
@@ -111,19 +111,16 @@ func NewLogEventsView(
 
 	var expandedLogsView = core.CreateExpandedLogView(app, logEventsTable, 1, core.DATA_TYPE_STRING)
 
-	var inputField = core.CreateSearchInput("Log Events")
-
 	const expandedLogsSize = 7
 	const logTableSize = 13
 
-	var serviceView = core.NewServiceView(app, logger)
-	serviceView.RootView.
+	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(expandedLogsView, 0, expandedLogsSize, false).
-		AddItem(logEventsTable, 0, logTableSize, true).
-		AddItem(tview.NewFlex().
-			AddItem(inputField, 0, 1, true),
-			3, 0, true,
-		)
+		AddItem(logEventsTable, 0, logTableSize, true)
+
+	var searchabelView = core.NewSearchableView(app, logger, mainPage)
+	var serviceView = core.NewServiceView(app, logger)
+	serviceView.RootView = searchabelView.RootView
 
 	serviceView.SetResizableViews(
 		expandedLogsView, logEventsTable,
@@ -132,7 +129,6 @@ func NewLogEventsView(
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			inputField,
 			logEventsTable,
 			expandedLogsView,
 		},
@@ -141,8 +137,8 @@ func NewLogEventsView(
 	return &LogEventsView{
 		LogEventsTable:       logEventsTable,
 		ExpandedLogsTextArea: expandedLogsView,
-		SearchInput:          inputField,
 		RootView:             serviceView.RootView,
+		searchableView:       searchabelView,
 		selectedLogGroup:     "",
 		selectedLogStream:    "",
 		app:                  app,
@@ -171,17 +167,17 @@ func (inst *LogEventsView) RefreshEvents(selectedGroup string, selectedStream st
 }
 
 func (inst *LogEventsView) InitInputCapture() {
-	inst.SearchInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	inst.searchableView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEnter:
 			inst.searchPositions = core.HighlightTableSearch(
 				inst.LogEventsTable,
-				inst.SearchInput.GetText(),
+				inst.searchableView.GetText(),
 				[]int{0, 1},
 			)
 			inst.app.SetFocus(inst.LogEventsTable)
 		case tcell.KeyCtrlR:
-			inst.SearchInput.SetText("")
+			inst.searchableView.SetText("")
 			core.ClearSearchHighlights(inst.LogEventsTable)
 			inst.searchPositions = nil
 		}
@@ -214,8 +210,8 @@ func (inst *LogEventsView) InitInputCapture() {
 
 type LogStreamsView struct {
 	LogStreamsTable    *tview.Table
-	SearchInput        *tview.InputField
 	RootView           *tview.Flex
+	searchableView     *core.SearchableView
 	selectedLogGroup   string
 	streamSearchbuffer *string
 	app                *tview.Application
@@ -230,37 +226,35 @@ func NewLogStreamsView(
 	var logStreamsTable = tview.NewTable()
 	populateLogStreamsTable(logStreamsTable, make([]types.LogStream, 0), false)
 
-	var inputField = core.CreateSearchInput("Stream Prefix")
-	inputField.SetDoneFunc(func(key tcell.Key) {
+	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(logStreamsTable, 0, 1, true)
+
+	var searchabelView = core.NewSearchableView(app, logger, mainPage)
+	searchabelView.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
 			app.SetFocus(logStreamsTable)
 		case tcell.KeyEsc:
-			inputField.SetText("")
+			searchabelView.SetText("")
 		default:
 			return
 		}
 	})
 
 	var serviceView = core.NewServiceView(app, logger)
-	serviceView.RootView.
-		AddItem(logStreamsTable, 0, 1, true).
-		AddItem(tview.NewFlex().
-			AddItem(inputField, 0, 1, true),
-			3, 0, true,
-		)
+
+	serviceView.RootView = searchabelView.RootView
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			inputField,
 			logStreamsTable,
 		},
 	)
 
 	return &LogStreamsView{
 		LogStreamsTable:    logStreamsTable,
-		SearchInput:        inputField,
 		RootView:           serviceView.RootView,
+		searchableView:     searchabelView,
 		selectedLogGroup:   "",
 		streamSearchbuffer: nil,
 		app:                app,
@@ -288,10 +282,10 @@ func (inst *LogStreamsView) RefreshStreams(groupName string, force bool) {
 	})
 }
 func (inst *LogStreamsView) InitInputCapture() {
-	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {
+	inst.searchableView.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			*inst.streamSearchbuffer = inst.SearchInput.GetText()
+			*inst.streamSearchbuffer = inst.searchableView.GetText()
 			inst.RefreshStreams(inst.selectedLogGroup, true)
 			inst.app.SetFocus(inst.LogStreamsTable)
 		}
@@ -314,8 +308,8 @@ func (inst *LogStreamsView) InitSearchInputBuffer(searchBuffer *string) {
 
 type LogGroupsView struct {
 	LogGroupsTable   *tview.Table
-	SearchInput      *tview.InputField
 	RootView         *tview.Flex
+	searchableView   *core.SearchableView
 	selectedLogGroup string
 	app              *tview.Application
 	api              *awsapi.CloudWatchLogsApi
@@ -329,27 +323,24 @@ func NewLogGroupsView(
 	var logGroupsTable = tview.NewTable()
 	populateLogGroupsTable(logGroupsTable, make([]types.LogGroup, 0))
 
-	var inputField = core.CreateSearchInput("Log Groups")
+	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(logGroupsTable, 0, 1, true)
 
+	var searchabelView = core.NewSearchableView(app, logger, mainPage)
 	var serviceView = core.NewServiceView(app, logger)
-	serviceView.RootView.
-		AddItem(logGroupsTable, 0, 1, false).
-		AddItem(tview.NewFlex().
-			AddItem(inputField, 0, 1, true),
-			3, 0, true,
-		)
+
+	serviceView.RootView = searchabelView.RootView
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			inputField,
 			logGroupsTable,
 		},
 	)
 
 	return &LogGroupsView{
 		LogGroupsTable:   logGroupsTable,
-		SearchInput:      inputField,
 		RootView:         serviceView.RootView,
+		searchableView:   searchabelView,
 		selectedLogGroup: "",
 		app:              app,
 		api:              api,
@@ -375,13 +366,13 @@ func (inst *LogGroupsView) RefreshGroups(search string) {
 }
 
 func (inst *LogGroupsView) InitInputCapture() {
-	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {
+	inst.searchableView.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			inst.RefreshGroups(inst.SearchInput.GetText())
+			inst.RefreshGroups(inst.searchableView.GetText())
 			inst.app.SetFocus(inst.LogGroupsTable)
 		case tcell.KeyEsc:
-			inst.SearchInput.SetText("")
+			inst.searchableView.SetText("")
 		default:
 			return
 		}
@@ -390,7 +381,7 @@ func (inst *LogGroupsView) InitInputCapture() {
 	inst.LogGroupsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			inst.RefreshGroups(inst.SearchInput.GetText())
+			inst.RefreshGroups(inst.searchableView.GetText())
 		}
 		return event
 	})

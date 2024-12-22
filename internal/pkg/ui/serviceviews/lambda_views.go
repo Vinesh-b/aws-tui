@@ -184,9 +184,9 @@ type LambdasDetailsView struct {
 	LambdasTable   *LambdasListTable
 	DetailsTable   *LambdaDetailsTable
 
-	searchInput *tview.InputField
-	app         *tview.Application
-	api         *awsapi.LambdaApi
+	searchableView *core.SearchableView
+	app            *tview.Application
+	api            *awsapi.LambdaApi
 }
 
 func NewLambdasDetailsView(
@@ -196,19 +196,17 @@ func NewLambdasDetailsView(
 	api *awsapi.LambdaApi,
 	logger *log.Logger,
 ) *LambdasDetailsView {
-
-	var inputField = core.CreateSearchInput("Lambdas")
 	const detailsViewSize = 4000
 	const tableViewSize = 6000
 
-	var serviceView = core.NewServiceView(app, logger)
-	serviceView.RootView.
+	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(lambdaDetails.Table, 0, detailsViewSize, false).
-		AddItem(lambdasList.Table, 0, tableViewSize, false).
-		AddItem(tview.NewFlex().
-			AddItem(inputField, 0, 1, true),
-			3, 0, true,
-		)
+		AddItem(lambdasList.Table, 0, tableViewSize, true)
+
+	var searchabelView = core.NewSearchableView(app, logger, mainPage)
+	var serviceView = core.NewServiceView(app, logger)
+
+	serviceView.RootView = searchabelView.RootView
 
 	serviceView.SetResizableViews(
 		lambdaDetails.Table, lambdasList.Table,
@@ -217,7 +215,6 @@ func NewLambdasDetailsView(
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			inputField,
 			lambdasList.Table,
 			lambdaDetails.Table,
 		},
@@ -226,11 +223,11 @@ func NewLambdasDetailsView(
 		RootView:       serviceView.RootView,
 		SelectedLambda: "",
 
-		LambdasTable: lambdasList,
-		DetailsTable: lambdaDetails,
-		searchInput:  inputField,
-		app:          app,
-		api:          api,
+		LambdasTable:   lambdasList,
+		DetailsTable:   lambdaDetails,
+		searchableView: searchabelView,
+		app:            app,
+		api:            api,
 	}
 	detailsView.initInputCapture()
 
@@ -238,12 +235,12 @@ func NewLambdasDetailsView(
 }
 
 func (inst *LambdasDetailsView) initInputCapture() {
-	inst.searchInput.SetDoneFunc(func(key tcell.Key) {
+	inst.searchableView.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			inst.LambdasTable.RefreshLambdas(inst.searchInput.GetText(), false)
+			inst.LambdasTable.RefreshLambdas(inst.searchableView.GetText(), false)
 		case tcell.KeyEsc:
-			inst.searchInput.SetText("")
+			inst.searchableView.SetText("")
 		default:
 			return
 		}

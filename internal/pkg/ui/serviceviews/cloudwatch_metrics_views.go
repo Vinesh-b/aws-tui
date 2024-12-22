@@ -53,13 +53,13 @@ func populateMetricDetailsTable(table *tview.Table, data *types.Metric) {
 }
 
 type MetricsDetailsView struct {
-	MetricsTable *tview.Table
-	HistoryTable *tview.Table
-	DetailsTable *tview.Table
-	SearchInput  *tview.InputField
-	RootView     *tview.Flex
-	app          *tview.Application
-	api          *awsapi.CloudWatchMetricsApi
+	MetricsTable   *tview.Table
+	HistoryTable   *tview.Table
+	DetailsTable   *tview.Table
+	RootView       *tview.Flex
+	searchableView *core.SearchableView
+	app            *tview.Application
+	api            *awsapi.CloudWatchMetricsApi
 }
 
 func NewMetricsDetailsView(
@@ -73,19 +73,17 @@ func NewMetricsDetailsView(
 	var detailsTable = tview.NewTable()
 	populateMetricDetailsTable(detailsTable, nil)
 
-	var inputField = core.CreateSearchInput("Metrics")
-
 	const metricsTableSize = 3500
 	const detailsTableSize = 3500
 
-	var serviceView = core.NewServiceView(app, logger)
-	serviceView.RootView.
+	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(detailsTable, 0, metricsTableSize, false).
-		AddItem(metricsTable, 0, metricsTableSize, false).
-		AddItem(tview.NewFlex().
-			AddItem(inputField, 0, 1, true),
-			3, 0, true,
-		)
+		AddItem(metricsTable, 0, metricsTableSize, true)
+
+	var searchabelView = core.NewSearchableView(app, logger, mainPage)
+	var serviceView = core.NewServiceView(app, logger)
+
+	serviceView.RootView = searchabelView.RootView
 
 	serviceView.SetResizableViews(
 		detailsTable, metricsTable,
@@ -94,21 +92,19 @@ func NewMetricsDetailsView(
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			inputField,
 			metricsTable,
 			detailsTable,
 		},
 	)
 
 	return &MetricsDetailsView{
-		MetricsTable: metricsTable,
-		DetailsTable: detailsTable,
-		SearchInput:  inputField,
-		RootView:     serviceView.RootView,
-		app:          app,
-		api:          api,
+		MetricsTable:   metricsTable,
+		DetailsTable:   detailsTable,
+		RootView:       serviceView.RootView,
+		searchableView: searchabelView,
+		app:            app,
+		api:            api,
 	}
-
 }
 
 func (inst *MetricsDetailsView) RefreshMetrics(search string, force bool) {
@@ -148,7 +144,7 @@ func (inst *MetricsDetailsView) InitInputCapture() {
 	inst.MetricsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			inst.RefreshMetrics(inst.SearchInput.GetText(), true)
+			inst.RefreshMetrics(inst.searchableView.GetText(), true)
 		}
 		return event
 	})
@@ -160,13 +156,13 @@ func (inst *MetricsDetailsView) InitInputCapture() {
 		inst.RefreshDetails()
 	})
 
-	inst.SearchInput.SetDoneFunc(func(key tcell.Key) {
+	inst.searchableView.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			inst.RefreshMetrics(inst.SearchInput.GetText(), false)
+			inst.RefreshMetrics(inst.searchableView.GetText(), false)
 			inst.app.SetFocus(inst.MetricsTable)
 		case tcell.KeyEsc:
-			inst.SearchInput.SetText("")
+			inst.searchableView.SetText("")
 		default:
 			return
 		}

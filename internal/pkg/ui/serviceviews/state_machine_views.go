@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"aws-tui/internal/pkg/awsapi"
-    "aws-tui/internal/pkg/ui/core"
+	"aws-tui/internal/pkg/ui/core"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
@@ -400,9 +400,9 @@ type StateMachinesDetailsView struct {
 	StateMachineExecutionsTable *StateMachineExecutionsTable
 	StateMachinesTable          *StateMachinesListTable
 
-	searchInput *tview.InputField
-	app         *tview.Application
-	api         *awsapi.StateMachineApi
+	searchabelView *core.SearchableView
+	app            *tview.Application
+	api            *awsapi.StateMachineApi
 }
 
 func NewStateMachinesDetailsView(
@@ -413,18 +413,17 @@ func NewStateMachinesDetailsView(
 	logger *log.Logger,
 ) *StateMachinesDetailsView {
 
-	var inputField = core.CreateSearchInput("State Machine")
 	const detailsViewSize = 4000
 	const tableViewSize = 6000
 
-	var serviceView = core.NewServiceView(app, logger)
-	serviceView.RootView.
+	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(stateMachineExecutions.Table, 0, detailsViewSize, false).
-		AddItem(stateMachinesList.Table, 0, tableViewSize, false).
-		AddItem(tview.NewFlex().
-			AddItem(inputField, 0, 1, true),
-			3, 0, true,
-		)
+		AddItem(stateMachinesList.Table, 0, tableViewSize, true)
+
+	var searchabelView = core.NewSearchableView(app, logger, mainPage)
+	var serviceView = core.NewServiceView(app, logger)
+
+	serviceView.RootView = searchabelView.RootView
 
 	serviceView.SetResizableViews(
 		stateMachineExecutions.Table, stateMachinesList.Table,
@@ -433,7 +432,6 @@ func NewStateMachinesDetailsView(
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			inputField,
 			stateMachinesList.Table,
 			stateMachineExecutions.Table,
 		},
@@ -444,9 +442,9 @@ func NewStateMachinesDetailsView(
 		StateMachinesTable:          stateMachinesList,
 		StateMachineExecutionsTable: stateMachineExecutions,
 
-		searchInput: inputField,
-		app:         app,
-		api:         api,
+		searchabelView: searchabelView,
+		app:            app,
+		api:            api,
 	}
 	detailsView.initInputCapture()
 
@@ -454,12 +452,12 @@ func NewStateMachinesDetailsView(
 }
 
 func (inst *StateMachinesDetailsView) initInputCapture() {
-	inst.searchInput.SetDoneFunc(func(key tcell.Key) {
+	inst.searchabelView.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			inst.StateMachinesTable.RefreshStateMachines(inst.searchInput.GetText(), false)
+			inst.StateMachinesTable.RefreshStateMachines(inst.searchabelView.GetText(), false)
 		case tcell.KeyEsc:
-			inst.searchInput.SetText("")
+			inst.searchabelView.SetText("")
 		default:
 			return
 		}
