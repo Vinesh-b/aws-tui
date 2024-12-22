@@ -53,17 +53,18 @@ func (inst *SelectableTable[T]) SetData(data []TableRow) {
 			log.Panicln("Table data and headings dimensions do not match")
 		}
 	}
-	inst.data = data
-	var table = inst.Table
 	var tableTitle = fmt.Sprintf("%s (%d)", inst.title, len(data))
-	table.SetTitle(tableTitle)
 
-	table.SetSelectable(true, false).SetSelectedStyle(
+	inst.data = data
+	inst.Table.Clear()
+	inst.Table.SetTitle(tableTitle)
+
+	inst.Table.SetSelectable(true, false).SetSelectedStyle(
 		tcell.Style{}.Background(MoreContrastBackgroundColor),
 	)
 
 	for col, heading := range inst.headings {
-		table.SetCell(0, col, tview.NewTableCell(heading).
+		inst.Table.SetCell(0, col, tview.NewTableCell(heading).
 			SetAlign(tview.AlignLeft).
 			SetTextColor(SecondaryTextColor).
 			SetSelectable(false).
@@ -71,14 +72,12 @@ func (inst *SelectableTable[T]) SetData(data []TableRow) {
 		)
 	}
 
-	table.Clear()
-
 	for rowIdx, rowData := range data {
 		for colIdx, cellData := range rowData {
 			// the table render process the full string making it extremly slow so
 			// we have to clamp the text length
 			var text = ClampStringLen(&cellData, 180)
-			table.SetCell(rowIdx+1, colIdx, tview.NewTableCell(text).
+			inst.Table.SetCell(rowIdx+1, colIdx, tview.NewTableCell(text).
 				SetReference(cellData).
 				SetAlign(tview.AlignLeft),
 			)
