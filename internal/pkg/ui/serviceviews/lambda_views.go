@@ -95,79 +95,78 @@ func (inst *LambdaDetailsTable) RefreshDetails(lambdaName string, force bool) {
 	})
 }
 
-type LambdasListTable struct {
-	Table          *tview.Table
+type LambdasListView struct {
+	*core.SelectableTable[any]
 	SelectedLambda string
-	Data           map[string]types.FunctionConfiguration
+	ConfigData     map[string]types.FunctionConfiguration
 
 	logger *log.Logger
 	app    *tview.Application
 	api    *awsapi.LambdaApi
 }
 
-func NewLambdasListTable(
+func NewLambdasListView(
 	app *tview.Application,
 	api *awsapi.LambdaApi,
 	logger *log.Logger,
-) *LambdasListTable {
+) *LambdasListView {
 
-	var table = &LambdasListTable{
-		Table: tview.NewTable(),
-		Data:  nil,
+	var view = &LambdasListView{
+		SelectableTable: core.NewSelectableTable[any](
+			"Lambdas",
+			core.TableRow{
+				"Name",
+				"LastModified",
+			},
+		),
+		ConfigData: nil,
 
 		logger: logger,
 		app:    app,
 		api:    api,
 	}
 
-	table.populateLambdasTable()
-	table.Table.SetSelectionChangedFunc(func(row, column int) {
+	view.populateLambdasTable()
+	view.Table.SetSelectionChangedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}
-		table.SelectedLambda = table.Table.GetCell(row, 0).Text
+		view.SelectedLambda = view.Table.GetCell(row, 0).Text
 	})
 
-	table.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	view.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			table.RefreshLambdas("", true)
+			view.RefreshLambdas("", true)
 		}
 		return event
 	})
 
-	return table
+	return view
 }
 
-func (inst *LambdasListTable) populateLambdasTable() {
+func (inst *LambdasListView) populateLambdasTable() {
 	var tableData []core.TableRow
-	for _, row := range inst.Data {
+	for _, row := range inst.ConfigData {
 		tableData = append(tableData, core.TableRow{
 			*row.FunctionName,
 			*row.LastModified,
 		})
 	}
 
-	core.InitSelectableTable(inst.Table, "Lambdas",
-		core.TableRow{
-			"Name",
-			"LastModified",
-		},
-		tableData,
-		[]int{0, 1},
-	)
+	inst.SetData(tableData)
 	inst.Table.GetCell(0, 0).SetExpansion(1)
 	inst.Table.Select(1, 0)
 }
 
-func (inst *LambdasListTable) RefreshLambdas(search string, force bool) {
+func (inst *LambdasListView) RefreshLambdas(search string, force bool) {
 	var resultChannel = make(chan struct{})
 
 	go func() {
 		if len(search) > 0 {
-			inst.Data = inst.api.FilterByName(search)
+			inst.ConfigData = inst.api.FilterByName(search)
 		} else {
-			inst.Data = inst.api.ListLambdas(force)
+			inst.ConfigData = inst.api.ListLambdas(force)
 		}
 
 		resultChannel <- struct{}{}
@@ -181,7 +180,7 @@ func (inst *LambdasListTable) RefreshLambdas(search string, force bool) {
 type LambdasDetailsView struct {
 	RootView       *tview.Flex
 	SelectedLambda string
-	LambdasTable   *LambdasListTable
+	LambdasTable   *LambdasListView
 	DetailsTable   *LambdaDetailsTable
 
 	searchableView *core.SearchableView
@@ -191,7 +190,7 @@ type LambdasDetailsView struct {
 
 func NewLambdasDetailsView(
 	lambdaDetails *LambdaDetailsTable,
-	lambdasList *LambdasListTable,
+	lambdasList *LambdasListView,
 	app *tview.Application,
 	api *awsapi.LambdaApi,
 	logger *log.Logger,
@@ -397,7 +396,7 @@ func CreateLambdaHomeView(
 		cwl_api            = awsapi.NewCloudWatchLogsApi(config, logger)
 		lambdasDetailsView = NewLambdasDetailsView(
 			NewLambdaDetailsTable(app, api, logger),
-			NewLambdasListTable(app, api, logger),
+			NewLambdasListView(app, api, logger),
 			app, api, logger,
 		)
 		lambdaInvokeView = NewLambdaInvokeView(
