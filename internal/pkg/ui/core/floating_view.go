@@ -1,8 +1,12 @@
 package core
 
-import "github.com/rivo/tview"
+import (
+	"fmt"
 
-func FloatingView(title string, p tview.Primitive, width int, height int) tview.Primitive {
+	"github.com/rivo/tview"
+)
+
+func FloatingView(title string, p tview.Primitive, width int, height int) *tview.Flex {
 	var wrapper = tview.NewFlex().
 		AddItem(p, 0, 1, true)
 	wrapper.SetBorder(true).SetTitle(title)
@@ -15,4 +19,20 @@ func FloatingView(title string, p tview.Primitive, width int, height int) tview.
 		AddItem(nil, 0, 1, false)
 
 	return window
+}
+
+type FloatingSearchView struct {
+	InputField *tview.InputField
+	RootView   *tview.Flex
+}
+
+func NewFloatingSearchView(label string, width int, height int) *FloatingSearchView {
+	var inputField = tview.NewInputField().
+		SetLabel(fmt.Sprintf("%s ", label)).
+		SetFieldWidth(0)
+
+	return &FloatingSearchView{
+		InputField: inputField,
+		RootView:   FloatingView("", inputField, width, height),
+	}
 }
