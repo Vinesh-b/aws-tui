@@ -18,13 +18,13 @@ import (
 )
 
 type StateMachinesListTable struct {
-	Table            *tview.Table
-	SelectedFunction string
-	Data             map[string]types.StateMachineListItem
-
-	logger *log.Logger
-	app    *tview.Application
-	api    *awsapi.StateMachineApi
+	*core.SelectableTable[string]
+	currentSearch    string
+	selectedFunction string
+	data             map[string]types.StateMachineListItem
+	logger           *log.Logger
+	app              *tview.Application
+	api              *awsapi.StateMachineApi
 }
 
 func NewStateMachinesListTable(
@@ -34,9 +34,15 @@ func NewStateMachinesListTable(
 ) *StateMachinesListTable {
 
 	var table = &StateMachinesListTable{
-		Table: tview.NewTable(),
-		Data:  nil,
+		SelectableTable: core.NewSelectableTable[string](
+			"State Machines",
+			core.TableRow{
+				"Name",
+				"Creation Date",
+			},
+		),
 
+		data:   nil,
 		logger: logger,
 		app:    app,
 		api:    api,
@@ -47,7 +53,7 @@ func NewStateMachinesListTable(
 		if row < 1 {
 			return
 		}
-		table.SelectedFunction = table.Table.GetCell(row, 0).Text
+		table.selectedFunction = table.Table.GetCell(row, 0).Text
 	})
 
 	table.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -63,33 +69,53 @@ func NewStateMachinesListTable(
 
 func (inst *StateMachinesListTable) populateStateMachinesTable() {
 	var tableData []core.TableRow
-	for _, row := range inst.Data {
+	for _, row := range inst.data {
 		tableData = append(tableData, core.TableRow{
-			*row.Name,
+			aws.ToString(row.Name),
 			row.CreationDate.Format(time.DateTime),
 		})
 	}
 
-	core.InitSelectableTable(inst.Table, "State Machines",
-		core.TableRow{
-			"Name",
-			"Creation Date",
-		},
-		tableData,
-		[]int{0, 1},
-	)
+	inst.SetData(tableData)
 	inst.Table.GetCell(0, 0).SetExpansion(1)
 	inst.Table.Select(1, 0)
 }
 
+func (inst *StateMachinesListTable) SetSelectionChangedFunc(handler func(row int, column int)) *tview.Table {
+	return inst.Table.SetSelectionChangedFunc(func(row, column int) {
+		if row < 1 {
+			return
+		}
+		inst.selectedFunction = inst.Table.GetCell(row, 0).Reference.(string)
+
+		handler(row, column)
+	})
+}
+
+func (inst *StateMachinesListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) *tview.Box {
+	return inst.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlR:
+			inst.RefreshStateMachines(inst.currentSearch, true)
+		}
+
+		return capture(event)
+	})
+}
+
+func (inst *StateMachinesListTable) GetSeletedFunction() string {
+	return inst.selectedFunction
+}
+
 func (inst *StateMachinesListTable) RefreshStateMachines(search string, force bool) {
+	inst.currentSearch = search
 	var resultChannel = make(chan struct{})
 
 	go func() {
 		if len(search) > 0 {
-			inst.Data = inst.api.FilterByName(search)
+			inst.data = inst.api.FilterByName(search)
 		} else {
-			inst.Data = inst.api.ListStateMachines(force)
+			inst.data = inst.api.ListStateMachines(force)
 		}
 
 		resultChannel <- struct{}{}
@@ -101,15 +127,14 @@ func (inst *StateMachinesListTable) RefreshStateMachines(search string, force bo
 }
 
 type StateMachineExecutionsTable struct {
-	nextToken *string
-
-	Table          *tview.Table
-	SelectedLambda string
-	Data           []types.ExecutionListItem
-
-	logger *log.Logger
-	app    *tview.Application
-	api    *awsapi.StateMachineApi
+	*core.SelectableTable[any]
+	nextToken        *string
+	selectedFunction string
+	currentSearch    string
+	data             []types.ExecutionListItem
+	logger           *log.Logger
+	app              *tview.Application
+	api              *awsapi.StateMachineApi
 }
 
 func NewStateMachineExecutionsTable(
@@ -119,36 +144,32 @@ func NewStateMachineExecutionsTable(
 ) *StateMachineExecutionsTable {
 
 	var table = &StateMachineExecutionsTable{
-		Table: tview.NewTable(),
-		Data:  nil,
-
-		logger: logger,
-		app:    app,
-		api:    api,
+		SelectableTable: core.NewSelectableTable[any](
+			"Executions",
+			core.TableRow{
+				"Execution Arn",
+				"Status",
+				"Start Date",
+				"Stop Date",
+			},
+		),
+		selectedFunction: "",
+		currentSearch:    "",
+		data:             nil,
+		logger:           logger,
+		app:              app,
+		api:              api,
 	}
 
+    table.SetSelectedFunc(func(row, column int) {})
 	table.populateExecutionsTable()
-	table.Table.SetSelectionChangedFunc(func(row, column int) {
-		if row < 1 {
-			return
-		}
-		table.SelectedLambda = table.Table.GetCell(row, 0).Text
-	})
-
-	table.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlR:
-			table.RefreshExecutions("", true)
-		}
-		return event
-	})
 
 	return table
 }
 
 func (inst *StateMachineExecutionsTable) populateExecutionsTable() {
 	var tableData []core.TableRow
-	for _, row := range inst.Data {
+	for _, row := range inst.data {
 		tableData = append(tableData, core.TableRow{
 			*row.ExecutionArn,
 			string(row.Status),
@@ -157,26 +178,24 @@ func (inst *StateMachineExecutionsTable) populateExecutionsTable() {
 		})
 	}
 
-	core.InitSelectableTable(inst.Table, "Executions",
-		core.TableRow{
-			"Execution Arn",
-			"Status",
-			"Start Date",
-			"Stop Date",
-		},
-		tableData,
-		[]int{0, 1, 2, 3},
-	)
+	inst.SetData(tableData)
 	inst.Table.GetCell(0, 0).SetExpansion(1)
 	inst.Table.Select(1, 0)
 }
 
+func (inst *StateMachineExecutionsTable) SetSelectedFunc(handler func(row int, column int)) *tview.Table {
+	return inst.Table.SetSelectedFunc(func(row, column int) {
+		handler(row, column)
+	})
+}
+
 func (inst *StateMachineExecutionsTable) RefreshExecutions(search string, force bool) {
+	inst.currentSearch = search
 	var resultChannel = make(chan struct{})
 
 	go func() {
 		if len(search) > 0 {
-			inst.Data, inst.nextToken = inst.api.ListExecutions(search, nil)
+			inst.data, inst.nextToken = inst.api.ListExecutions(search, nil)
 		}
 
 		resultChannel <- struct{}{}
@@ -189,9 +208,9 @@ func (inst *StateMachineExecutionsTable) RefreshExecutions(search string, force 
 
 type StateMachineExecutionSummaryView struct {
 	*core.DetailsTable
-	Data                 *sfn.DescribeExecutionOutput
-	SelectedExecutionArn string
+	selectedExecutionArn string
 
+	data                 *sfn.DescribeExecutionOutput
 	logger *log.Logger
 	app    *tview.Application
 	api    *awsapi.StateMachineApi
@@ -205,9 +224,9 @@ func NewStateMachineExecutionSummaryView(
 
 	var table = &StateMachineExecutionSummaryView{
 		DetailsTable:         core.NewDetailsTable("Execution Summary"),
-		Data:                 nil,
-		SelectedExecutionArn: "",
+		selectedExecutionArn: "",
 
+		data:                 nil,
 		logger: logger,
 		app:    app,
 		api:    api,
@@ -217,7 +236,7 @@ func NewStateMachineExecutionSummaryView(
 	table.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			table.RefreshExecutionDetails(table.SelectedExecutionArn, true)
+			table.RefreshExecutionDetails(table.selectedExecutionArn, true)
 		}
 		return event
 	})
@@ -227,14 +246,14 @@ func NewStateMachineExecutionSummaryView(
 
 func (inst *StateMachineExecutionSummaryView) populateTable() {
 	var tableData []core.TableRow
-	if inst.Data != nil {
+	if inst.data != nil {
 		tableData = []core.TableRow{
-			{"Name", *inst.Data.Name},
-			{"Execution Arn", *inst.Data.ExecutionArn},
-			{"StateMachine Arn", *inst.Data.StateMachineArn},
-			{"Status", string(inst.Data.Status)},
-			{"Start Date", inst.Data.StartDate.Format(time.DateTime)},
-			{"Stop Date", inst.Data.StopDate.Format(time.DateTime)},
+			{"Name", aws.ToString(inst.data.Name)},
+			{"Execution Arn", aws.ToString(inst.data.ExecutionArn)},
+			{"StateMachine Arn", aws.ToString(inst.data.StateMachineArn)},
+			{"Status", string(inst.data.Status)},
+			{"Start Date", inst.data.StartDate.Format(time.DateTime)},
+			{"Stop Date", inst.data.StopDate.Format(time.DateTime)},
 		}
 	}
 
@@ -244,11 +263,11 @@ func (inst *StateMachineExecutionSummaryView) populateTable() {
 }
 
 func (inst *StateMachineExecutionSummaryView) RefreshExecutionDetails(executionArn string, force bool) {
-	inst.SelectedExecutionArn = executionArn
+	inst.selectedExecutionArn = executionArn
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		inst.Data = inst.api.DescribeExecution(executionArn)
+		inst.data = inst.api.DescribeExecution(executionArn)
 		resultChannel <- struct{}{}
 	}()
 
@@ -463,24 +482,10 @@ func (inst *StateMachinesDetailsView) initInputCapture() {
 		}
 	})
 
-	var refreshSelection = func(row int) {
-		if row < 1 {
-			return
-		}
-		inst.SelectedStateMachine = inst.StateMachinesTable.Table.GetCell(row, 0).Text
-	}
-
-	inst.StateMachinesTable.Table.SetSelectionChangedFunc(func(row, column int) {
-		refreshSelection(row)
-		inst.StateMachineExecutionsTable.RefreshExecutions(inst.SelectedStateMachine, false)
-	})
-
-	inst.StateMachinesTable.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlR:
-			inst.StateMachinesTable.RefreshStateMachines("", true)
-		}
-		return event
+	inst.StateMachinesTable.SetSelectionChangedFunc(func(row, column int) {
+		inst.StateMachineExecutionsTable.RefreshExecutions(
+			inst.StateMachinesTable.GetSeletedFunction(), false,
+		)
 	})
 }
 
@@ -608,7 +613,7 @@ func CreateStepFunctionsHomeView(
 		app, string(STATE_MACHINES), pages, orderedPages).Init()
 
 	var selectedExecution = ""
-	stateMachinesDetailsView.StateMachineExecutionsTable.Table.SetSelectedFunc(func(row, column int) {
+	stateMachinesDetailsView.StateMachineExecutionsTable.SetSelectedFunc(func(row, column int) {
 		selectedExecution = stateMachinesDetailsView.
 			StateMachineExecutionsTable.
 			Table.
