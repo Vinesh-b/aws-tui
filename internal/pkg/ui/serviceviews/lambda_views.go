@@ -99,9 +99,9 @@ type LambdasListTable struct {
 	*core.SelectableTable[any]
 	selectedLambda string
 	data           map[string]types.FunctionConfiguration
-	logger *log.Logger
-	app    *tview.Application
-	api    *awsapi.LambdaApi
+	logger         *log.Logger
+	app            *tview.Application
+	api            *awsapi.LambdaApi
 }
 
 func NewLambdasListTable(
@@ -149,6 +149,7 @@ func (inst *LambdasListTable) populateLambdasTable() {
 	inst.Table.GetCell(0, 0).SetExpansion(1)
 	inst.Table.Select(1, 0)
 }
+
 func (inst *LambdasListTable) SetSelectionChangedFunc(handler func(row int, column int)) *tview.Table {
 	return inst.Table.SetSelectionChangedFunc(func(row, column int) {
 		if row < 1 {
@@ -216,10 +217,7 @@ func NewLambdasDetailsView(
 		AddItem(lambdaDetails.Table, 0, detailsViewSize, false).
 		AddItem(lambdasList.Table, 0, tableViewSize, true)
 
-	var searchabelView = core.NewSearchableView(app, logger, mainPage)
-	var serviceView = core.NewServiceView(app, logger)
-
-	serviceView.RootView = searchabelView.RootView
+	var serviceView = core.NewServiceView(app, logger, mainPage)
 
 	serviceView.SetResizableViews(
 		lambdaDetails.Table, lambdasList.Table,
@@ -238,7 +236,7 @@ func NewLambdasDetailsView(
 
 		LambdasTable:   lambdasList,
 		DetailsTable:   lambdaDetails,
-		searchableView: searchabelView,
+		searchableView: serviceView.SearchableView,
 		app:            app,
 		api:            api,
 	}
@@ -252,10 +250,6 @@ func (inst *LambdasDetailsView) initInputCapture() {
 		switch key {
 		case tcell.KeyEnter:
 			inst.LambdasTable.RefreshLambdas(inst.searchableView.GetText(), false)
-		case tcell.KeyEsc:
-			inst.searchableView.SetText("")
-		default:
-			return
 		}
 	})
 
@@ -288,12 +282,13 @@ func NewLambdaInvokeView(
 	var logResults = core.CreateTextArea("Logs")
 	var responseOutput = core.CreateTextArea("Response")
 
-	var serviceView = core.NewServiceView(app, logger)
-	serviceView.RootView.
+	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(lambdaDetails.Table, 0, 3000, false).
 		AddItem(payloadInput, 0, 4000, false).
 		AddItem(responseOutput, 0, 4000, false).
 		AddItem(logResults, 0, 5000, false)
+
+	var serviceView = core.NewServiceView(app, logger, mainPage)
 
 	serviceView.InitViewNavigation(
 		[]core.View{

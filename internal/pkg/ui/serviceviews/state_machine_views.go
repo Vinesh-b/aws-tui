@@ -161,7 +161,7 @@ func NewStateMachineExecutionsTable(
 		api:              api,
 	}
 
-    table.SetSelectedFunc(func(row, column int) {})
+	table.SetSelectedFunc(func(row, column int) {})
 	table.populateExecutionsTable()
 
 	return table
@@ -210,7 +210,7 @@ type StateMachineExecutionSummaryView struct {
 	*core.DetailsTable
 	selectedExecutionArn string
 
-	data                 *sfn.DescribeExecutionOutput
+	data   *sfn.DescribeExecutionOutput
 	logger *log.Logger
 	app    *tview.Application
 	api    *awsapi.StateMachineApi
@@ -226,7 +226,7 @@ func NewStateMachineExecutionSummaryView(
 		DetailsTable:         core.NewDetailsTable("Execution Summary"),
 		selectedExecutionArn: "",
 
-		data:                 nil,
+		data:   nil,
 		logger: logger,
 		app:    app,
 		api:    api,
@@ -419,7 +419,7 @@ type StateMachinesDetailsView struct {
 	StateMachineExecutionsTable *StateMachineExecutionsTable
 	StateMachinesTable          *StateMachinesListTable
 
-	searchabelView *core.SearchableView
+	searchableView *core.SearchableView
 	app            *tview.Application
 	api            *awsapi.StateMachineApi
 }
@@ -439,10 +439,7 @@ func NewStateMachinesDetailsView(
 		AddItem(stateMachineExecutions.Table, 0, detailsViewSize, false).
 		AddItem(stateMachinesList.Table, 0, tableViewSize, true)
 
-	var searchabelView = core.NewSearchableView(app, logger, mainPage)
-	var serviceView = core.NewServiceView(app, logger)
-
-	serviceView.RootView = searchabelView.RootView
+	var serviceView = core.NewServiceView(app, logger, mainPage)
 
 	serviceView.SetResizableViews(
 		stateMachineExecutions.Table, stateMachinesList.Table,
@@ -461,7 +458,7 @@ func NewStateMachinesDetailsView(
 		StateMachinesTable:          stateMachinesList,
 		StateMachineExecutionsTable: stateMachineExecutions,
 
-		searchabelView: searchabelView,
+		searchableView: serviceView.SearchableView,
 		app:            app,
 		api:            api,
 	}
@@ -471,12 +468,12 @@ func NewStateMachinesDetailsView(
 }
 
 func (inst *StateMachinesDetailsView) initInputCapture() {
-	inst.searchabelView.SetDoneFunc(func(key tcell.Key) {
+	inst.searchableView.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			inst.StateMachinesTable.RefreshStateMachines(inst.searchabelView.GetText(), false)
+			inst.StateMachinesTable.RefreshStateMachines(inst.searchableView.GetText(), false)
 		case tcell.KeyEsc:
-			inst.searchabelView.SetText("")
+			inst.searchableView.SetText("")
 		default:
 			return
 		}
@@ -542,11 +539,12 @@ func NewStateMachineExectionDetailsView(
 	const detailsViewSize = 10
 	const inputOutputViewSize = 10
 
-	var serviceView = core.NewServiceView(app, logger)
-	serviceView.RootView.
+	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(executionSummary.Table, 8, 0, true).
 		AddItem(executionDetails.Table, 0, detailsViewSize, false).
 		AddItem(inputOutputView, 0, inputOutputViewSize, false)
+
+	var serviceView = core.NewServiceView(app, logger, mainPage)
 
 	serviceView.SetResizableViews(
 		executionDetails.Table, inputOutputView,

@@ -118,9 +118,7 @@ func NewLogEventsView(
 		AddItem(expandedLogsView, 0, expandedLogsSize, false).
 		AddItem(logEventsTable, 0, logTableSize, true)
 
-	var searchabelView = core.NewSearchableView(app, logger, mainPage)
-	var serviceView = core.NewServiceView(app, logger)
-	serviceView.RootView = searchabelView.RootView
+	var serviceView = core.NewServiceView(app, logger, mainPage)
 
 	serviceView.SetResizableViews(
 		expandedLogsView, logEventsTable,
@@ -138,7 +136,7 @@ func NewLogEventsView(
 		LogEventsTable:       logEventsTable,
 		ExpandedLogsTextArea: expandedLogsView,
 		RootView:             serviceView.RootView,
-		searchableView:       searchabelView,
+		searchableView:       serviceView.SearchableView,
 		selectedLogGroup:     "",
 		selectedLogStream:    "",
 		app:                  app,
@@ -229,21 +227,7 @@ func NewLogStreamsView(
 	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(logStreamsTable, 0, 1, true)
 
-	var searchabelView = core.NewSearchableView(app, logger, mainPage)
-	searchabelView.SetDoneFunc(func(key tcell.Key) {
-		switch key {
-		case tcell.KeyEnter:
-			app.SetFocus(logStreamsTable)
-		case tcell.KeyEsc:
-			searchabelView.SetText("")
-		default:
-			return
-		}
-	})
-
-	var serviceView = core.NewServiceView(app, logger)
-
-	serviceView.RootView = searchabelView.RootView
+	var serviceView = core.NewServiceView(app, logger, mainPage)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
@@ -254,7 +238,7 @@ func NewLogStreamsView(
 	return &LogStreamsView{
 		LogStreamsTable:    logStreamsTable,
 		RootView:           serviceView.RootView,
-		searchableView:     searchabelView,
+		searchableView:     serviceView.SearchableView,
 		selectedLogGroup:   "",
 		streamSearchbuffer: nil,
 		app:                app,
@@ -326,10 +310,7 @@ func NewLogGroupsView(
 	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(logGroupsTable, 0, 1, true)
 
-	var searchabelView = core.NewSearchableView(app, logger, mainPage)
-	var serviceView = core.NewServiceView(app, logger)
-
-	serviceView.RootView = searchabelView.RootView
+	var serviceView = core.NewServiceView(app, logger, mainPage)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
@@ -340,7 +321,7 @@ func NewLogGroupsView(
 	return &LogGroupsView{
 		LogGroupsTable:   logGroupsTable,
 		RootView:         serviceView.RootView,
-		searchableView:   searchabelView,
+		searchableView:   serviceView.SearchableView,
 		selectedLogGroup: "",
 		app:              app,
 		api:              api,

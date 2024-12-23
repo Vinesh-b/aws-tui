@@ -7,7 +7,10 @@ import (
 	"github.com/rivo/tview"
 )
 
-const SEARCH_PAGE_NAME = "SEARCH"
+const (
+	SEARCH_PAGE_NAME = "SEARCH"
+	MAIN_PAGE_NAME   = "MAIN_PAGE"
+)
 
 type SearchableView struct {
 	RootView *tview.Flex

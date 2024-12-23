@@ -140,10 +140,7 @@ func NewAlarmsDetailsView(
 		AddItem(alarmHistory, 0, alarmHistorySize, false).
 		AddItem(alarmsTable, 0, alarmsTableSize, true)
 
-	var searchabelView = core.NewSearchableView(app, logger, mainPage)
-	var serviceView = core.NewServiceView(app, logger)
-
-	serviceView.RootView = searchabelView.RootView
+	var serviceView = core.NewServiceView(app, logger, mainPage)
 
 	serviceView.SetResizableViews(
 		alarmHistory, alarmsTable,
@@ -163,7 +160,7 @@ func NewAlarmsDetailsView(
 		DetailsGrid:    alarmDetails,
 		HistoryTable:   alarmHistory,
 		RootView:       serviceView.RootView,
-		searchableView: searchabelView,
+		searchableView: serviceView.SearchableView,
 		app:            app,
 		api:            api,
 	}

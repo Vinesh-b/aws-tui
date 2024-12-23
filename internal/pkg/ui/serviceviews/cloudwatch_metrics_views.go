@@ -191,10 +191,7 @@ func NewMetricsDetailsView(
 		AddItem(metricDetailsTable.Table, 0, metricsTableSize, false).
 		AddItem(metricsTable.Table, 0, metricsTableSize, true)
 
-	var searchabelView = core.NewSearchableView(app, logger, mainPage)
-	var serviceView = core.NewServiceView(app, logger)
-
-	serviceView.RootView = searchabelView.RootView
+	var serviceView = core.NewServiceView(app, logger, mainPage)
 
 	serviceView.SetResizableViews(
 		metricDetailsTable.Table, metricsTable.Table,
@@ -212,7 +209,7 @@ func NewMetricsDetailsView(
 		MetricsTable:       metricsTable,
 		MetricDetailsTable: metricDetailsTable,
 		RootView:           serviceView.RootView,
-		searchableView:     searchabelView,
+		searchableView:     serviceView.SearchableView,
 		app:                app,
 		api:                api,
 	}

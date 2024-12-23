@@ -62,9 +62,7 @@ func NewLogGroupsSelectionView(
 		AddItem(selectedGroupsTable, 0, 1, false).
 		AddItem(logGroupsView.LogGroupsTable, 0, 1, true)
 
-	var searchabelView = core.NewSearchableView(app, logger, mainPage)
-	var serviceView = core.NewServiceView(app, logger)
-	serviceView.RootView = searchabelView.RootView
+	var serviceView = core.NewServiceView(app, logger, mainPage)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
@@ -224,13 +222,6 @@ func NewInsightsQueryResultsView(
 		AddItem(runQueryButton, 1, 0, false)
 	queryRunView.SetBorder(true)
 
-	var serviceView = core.NewServiceView(app, logger)
-	serviceView.InitViewTabNavigation(queryRunView, []core.View{
-		startDateInput,
-		endDateInput,
-		runQueryButton,
-	})
-
 	var queryView = tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(queryInputView, 0, 1, false).
 		AddItem(queryRunView, 34, 0, false)
@@ -246,13 +237,20 @@ func NewInsightsQueryResultsView(
 		AddItem(resultsTable, 0, resultsTableSize, true).
 		AddItem(queryView, queryViewSize, 0, true)
 
-	var searchabelView = core.NewSearchableView(app, logger, mainPage)
-	serviceView.RootView = searchabelView.RootView
+	var serviceView = core.NewServiceView(app, logger, mainPage)
 
 	serviceView.SetResizableViews(
 		expandedResultView, resultsTable,
 		expandedLogsSize, resultsTableSize,
 	)
+
+	serviceView.InitViewTabNavigation(
+		queryRunView,
+		[]core.View{
+			startDateInput,
+			endDateInput,
+			runQueryButton,
+		})
 
 	serviceView.InitViewNavigation(
 		[]core.View{
@@ -271,7 +269,7 @@ func NewInsightsQueryResultsView(
 		QueryEndDateInput:   endDateInput,
 		RunQueryButton:      runQueryButton,
 		RootView:            serviceView.RootView,
-		searchableView:      searchabelView,
+		searchableView:      serviceView.SearchableView,
 		app:                 app,
 		api:                 api,
 		queryId:             "",

@@ -67,7 +67,7 @@ type CloudFormationDetailsView struct {
 	StacksTable    *tview.Table
 	DetailsTable   *tview.Table
 	RootView       *tview.Flex
-	searchabelView *core.SearchableView
+	searchableView *core.SearchableView
 	app            *tview.Application
 	api            *awsapi.CloudFormationApi
 }
@@ -90,10 +90,7 @@ func NewStacksDetailsView(
 		AddItem(stacksDetails, 0, stackDetailsSize, false).
 		AddItem(stacksTable, 0, stackTablesSize, true)
 
-	var searchabelView = core.NewSearchableView(app, logger, mainPage)
-	var serviceView = core.NewServiceView(app, logger)
-
-	serviceView.RootView = searchabelView.RootView
+	var serviceView = core.NewServiceView(app, logger, mainPage)
 
 	serviceView.SetResizableViews(
 		stacksDetails, stacksTable,
@@ -110,7 +107,7 @@ func NewStacksDetailsView(
 		StacksTable:    stacksTable,
 		DetailsTable:   stacksDetails,
 		RootView:       serviceView.RootView,
-		searchabelView: searchabelView,
+		searchableView: serviceView.SearchableView,
 		app:            app,
 		api:            api,
 	}
@@ -154,12 +151,12 @@ func (inst *CloudFormationDetailsView) RefreshDetails(stackName string, force bo
 }
 
 func (inst *CloudFormationDetailsView) InitInputCapture() {
-	inst.searchabelView.SetDoneFunc(func(key tcell.Key) {
+	inst.searchableView.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			inst.RefreshStacks(inst.searchabelView.GetText(), false)
+			inst.RefreshStacks(inst.searchableView.GetText(), false)
 		case tcell.KeyEsc:
-			inst.searchabelView.SetText("")
+			inst.searchableView.SetText("")
 		default:
 			return
 		}
@@ -234,8 +231,8 @@ func populateStackEventsTable(table *tview.Table, data []types.StackEvent, exten
 
 type CloudFormationStackEventsView struct {
 	EventsTable     *tview.Table
-	SearchInput     *tview.InputField
 	RootView        *tview.Flex
+	searchableView  *core.SearchableView
 	selectedStack   string
 	searchPositions []int
 	app             *tview.Application
@@ -265,20 +262,14 @@ func NewStackEventsView(
 		expandedMsgView.SetText(logText, false)
 	})
 
-	var inputField = core.CreateSearchInput("Events")
-
 	const expandedMsgSize = 5
 	const stackEventsSize = 15
 
-	var serviceView = core.NewServiceView(app, logger)
-	serviceView.RootView.
+	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(expandedMsgView, 0, expandedMsgSize, false).
-		AddItem(stackEventsTable, 0, stackEventsSize, false).
-		AddItem(tview.NewFlex().
-			AddItem(inputField, 0, 1, true),
-			3, 0, true,
-		)
+		AddItem(stackEventsTable, 0, stackEventsSize, false)
 
+	var serviceView = core.NewServiceView(app, logger, mainPage)
 	serviceView.SetResizableViews(
 		expandedMsgView, stackEventsTable,
 		expandedMsgSize, stackEventsSize,
@@ -286,18 +277,17 @@ func NewStackEventsView(
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			inputField,
 			stackEventsTable,
 			expandedMsgView,
 		},
 	)
 	return &CloudFormationStackEventsView{
-		EventsTable:   stackEventsTable,
-		SearchInput:   inputField,
-		RootView:      serviceView.RootView,
-		selectedStack: "",
-		app:           app,
-		api:           api,
+		EventsTable:    stackEventsTable,
+		RootView:       serviceView.RootView,
+		searchableView: serviceView.SearchableView,
+		selectedStack:  "",
+		app:            app,
+		api:            api,
 	}
 }
 
@@ -322,21 +312,15 @@ func (inst *CloudFormationStackEventsView) RefreshEvents(stackName string, force
 }
 
 func (inst *CloudFormationStackEventsView) InitInputCapture() {
-	inst.SearchInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
+	inst.searchableView.SetDoneFunc(func(key tcell.Key) {
+		switch key {
 		case tcell.KeyEnter:
 			inst.searchPositions = core.HighlightTableSearch(
 				inst.EventsTable,
-				inst.SearchInput.GetText(),
+				inst.searchableView.GetText(),
 				[]int{},
 			)
-			inst.app.SetFocus(inst.EventsTable)
-		case tcell.KeyCtrlR:
-			inst.SearchInput.SetText("")
-			core.ClearSearchHighlights(inst.EventsTable)
-			inst.searchPositions = nil
 		}
-		return event
 	})
 
 	var nextSearch = 0

@@ -162,7 +162,7 @@ type S3BucketsDetailsView struct {
 	ObjectsTable      *tview.Table
 	ObjectInput       *tview.InputField
 	RootView          *tview.Flex
-	searchabelView    *core.SearchableView
+	searchableView    *core.SearchableView
 	selctedBucketName string
 	currentPrefix     string
 	app               *tview.Application
@@ -193,10 +193,7 @@ func NewS3bucketsDetailsView(
 		).
 		AddItem(bucketsTable, 0, bucketsTableSize, true)
 
-	var searchabelView = core.NewSearchableView(app, logger, mainPage)
-	var serviceView = core.NewServiceView(app, logger)
-
-	serviceView.RootView = searchabelView.RootView
+	var serviceView = core.NewServiceView(app, logger, mainPage)
 
 	serviceView.SetResizableViews(
 		objectsTable, bucketsTable,
@@ -216,7 +213,7 @@ func NewS3bucketsDetailsView(
 		ObjectsTable:      objectsTable,
 		ObjectInput:       objectKeyInputField,
 		RootView:          serviceView.RootView,
-		searchabelView:    searchabelView,
+		searchableView:    serviceView.SearchableView,
 		selctedBucketName: "",
 		currentPrefix:     "",
 		app:               app,
@@ -269,12 +266,12 @@ func (inst *S3BucketsDetailsView) RefreshObjects(bucketName string, prefix strin
 }
 
 func (inst *S3BucketsDetailsView) InitInputCapture() {
-	inst.searchabelView.SetDoneFunc(func(key tcell.Key) {
+	inst.searchableView.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			inst.RefreshBuckets(inst.searchabelView.GetText(), false)
+			inst.RefreshBuckets(inst.searchableView.GetText(), false)
 		case tcell.KeyEsc:
-			inst.searchabelView.SetText("")
+			inst.searchableView.SetText("")
 		default:
 			return
 		}
@@ -300,7 +297,7 @@ func (inst *S3BucketsDetailsView) InitInputCapture() {
 	inst.BucketsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			inst.RefreshBuckets(inst.searchabelView.GetText(), true)
+			inst.RefreshBuckets(inst.searchableView.GetText(), true)
 		}
 		return event
 	})

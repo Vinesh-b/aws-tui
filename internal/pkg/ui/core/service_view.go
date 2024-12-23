@@ -19,6 +19,7 @@ type View interface {
 
 type ServiceView struct {
 	RootView              *tview.Flex
+	SearchableView        *SearchableView
 	LastFocusedView       tview.Primitive
 	viewResizeEnabled     bool
 	topView               View
@@ -33,10 +34,12 @@ type ServiceView struct {
 func NewServiceView(
 	app *tview.Application,
 	logger *log.Logger,
+	mainPage *tview.Flex,
 ) *ServiceView {
-	var rootView = tview.NewFlex().SetDirection(tview.FlexRow)
+	var searchableView = NewSearchableView(app, logger, mainPage)
 	return &ServiceView{
-		RootView:          rootView,
+		RootView:          searchableView.RootView,
+		SearchableView:    searchableView,
 		LastFocusedView:   nil,
 		viewResizeEnabled: false,
 		app:               app,
@@ -105,24 +108,25 @@ func (inst *ServiceView) paneResizeHightHandler(
 ) *tcell.EventKey {
 	var _, _, _, topSize = inst.topView.GetRect()
 	var _, _, _, bottomSize = inst.bottomView.GetRect()
+	var mainPage = inst.SearchableView.MainPage
 	switch event.Modifiers() {
 	case tcell.ModAlt:
 		switch event.Rune() {
 		case rune('j'):
 			if bottomSize > 0 {
-				inst.RootView.ResizeItem(inst.topView, 0, topSize+1)
-				inst.RootView.ResizeItem(inst.bottomView, 0, bottomSize-1)
+				mainPage.ResizeItem(inst.topView, 0, topSize+1)
+				mainPage.ResizeItem(inst.bottomView, 0, bottomSize-1)
 			}
 			return nil
 		case rune('k'):
 			if topSize > 0 {
-				inst.RootView.ResizeItem(inst.topView, 0, topSize-1)
-				inst.RootView.ResizeItem(inst.bottomView, 0, bottomSize+1)
+				mainPage.ResizeItem(inst.topView, 0, topSize-1)
+				mainPage.ResizeItem(inst.bottomView, 0, bottomSize+1)
 			}
 			return nil
 		case rune('0'):
-			inst.RootView.ResizeItem(inst.topView, 0, inst.topViewDefaultSize)
-			inst.RootView.ResizeItem(inst.bottomView, 0, inst.bottomViewDefaultSize)
+			mainPage.ResizeItem(inst.topView, 0, inst.topViewDefaultSize)
+			mainPage.ResizeItem(inst.bottomView, 0, inst.bottomViewDefaultSize)
 			return nil
 		}
 	}
