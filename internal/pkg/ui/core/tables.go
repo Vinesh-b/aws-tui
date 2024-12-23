@@ -304,7 +304,7 @@ func SearchRefsInTable(table *tview.Table, searchCols []int, search string) []in
 			if cell.Reference == nil {
 				continue
 			}
-			var text = cell.Reference.(string)
+	        var text = fmt.Sprintf("%v", cell.Reference)
 			if strings.Contains(text, search) {
 				cell.SetTextColor(TertiaryTextColor)
 				resultPositions = append(resultPositions, r)
