@@ -14,12 +14,12 @@ import (
 )
 
 type LogGroupsTable struct {
-	*core.SelectableTable[any]
-	data              []types.LogGroup
-	selectedLogGroup  string
-	logger            *log.Logger
-	app               *tview.Application
-	api               *awsapi.CloudWatchLogsApi
+	*core.SelectableTable[string]
+	data             []types.LogGroup
+	selectedLogGroup string
+	logger           *log.Logger
+	app              *tview.Application
+	api              *awsapi.CloudWatchLogsApi
 }
 
 func NewLogGroupsTable(
@@ -29,7 +29,7 @@ func NewLogGroupsTable(
 ) *LogGroupsTable {
 
 	var view = &LogGroupsTable{
-		SelectableTable: core.NewSelectableTable[any](
+		SelectableTable: core.NewSelectableTable[string](
 			"Log Groups",
 			core.TableRow{
 				"Name",
@@ -56,13 +56,17 @@ func NewLogGroupsTable(
 
 func (inst *LogGroupsTable) populateLogGroupsTable() {
 	var tableData []core.TableRow
+	var privateData []string
+
 	for _, row := range inst.data {
 		tableData = append(tableData, core.TableRow{
 			aws.ToString(row.LogGroupName),
 		})
+		privateData = append(privateData, aws.ToString(row.LogGroupName))
 	}
 
 	inst.SetData(tableData)
+	inst.SetPrivateData(privateData, 0)
 	inst.Table.GetCell(0, 0).SetExpansion(1)
 	inst.Table.Select(0, 0)
 	inst.Table.ScrollToBeginning()
@@ -87,11 +91,12 @@ func (inst *LogGroupsTable) RefreshLogGroups(search string) {
 
 func (inst *LogGroupsTable) SetSelectedFunc(handler func(row int, column int)) {
 	inst.Table.SetSelectedFunc(func(row, column int) {
-		if row < 0 {
+        var ref = inst.Table.GetCell(row, 0).Reference
+		if row < 1 || ref == nil {
 			return
 		}
 
-		inst.selectedLogGroup = inst.Table.GetCell(row, 0).Text
+		inst.selectedLogGroup = ref.(string)
 		handler(row, column)
 	})
 }
