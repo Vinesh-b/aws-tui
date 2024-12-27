@@ -3,263 +3,83 @@ package serviceviews
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"log"
 
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
-type LambdaDetailsTable struct {
-	Table *tview.Table
-	Data  *types.FunctionConfiguration
+type LambdasDetailsPage struct {
+	RootView           *tview.Flex
+	SelectedLambda     string
+	LambdaListTable    *LambdaListTable
+	LambdaDetailsTable *LambdaDetailsTable
 
-	selectedLambda string
-	logger         *log.Logger
-	app            *tview.Application
-	api            *awsapi.LambdaApi
+	app *tview.Application
+	api *awsapi.LambdaApi
 }
 
-func NewLambdaDetailsTable(
+func NewLambdasDetailsPage(
+	lambdaDetailsTable *LambdaDetailsTable,
+	lambdaListTable *LambdaListTable,
 	app *tview.Application,
 	api *awsapi.LambdaApi,
 	logger *log.Logger,
-) *LambdaDetailsTable {
-	var table = &LambdaDetailsTable{
-		Table: tview.NewTable(),
-		Data:  nil,
-
-		selectedLambda: "",
-		logger:         logger,
-		app:            app,
-		api:            api,
-	}
-
-	table.populateLambdaDetailsTable()
-	table.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlR:
-			table.RefreshDetails(table.selectedLambda, true)
-		}
-		return event
-	})
-
-	return table
-}
-
-func (inst *LambdaDetailsTable) populateLambdaDetailsTable() {
-	var tableData []core.TableRow
-	if inst.Data != nil {
-		tableData = []core.TableRow{
-			{"Description", *inst.Data.Description},
-			{"Arn", *inst.Data.FunctionArn},
-			{"Version", *inst.Data.Version},
-			{"MemorySize", fmt.Sprintf("%d", *inst.Data.MemorySize)},
-			{"Runtime", string(inst.Data.Runtime)},
-			{"Arch", fmt.Sprintf("%v", inst.Data.Architectures)},
-			{"Timeout", fmt.Sprintf("%d", *inst.Data.Timeout)},
-			{"LoggingGroup", *inst.Data.LoggingConfig.LogGroup},
-			{"AppLogLevel", string(inst.Data.LoggingConfig.ApplicationLogLevel)},
-			{"State", string(inst.Data.State)},
-			{"LastModified", *inst.Data.LastModified},
-		}
-	}
-
-	core.InitBasicTable(inst.Table, "Lambda Details", tableData, false)
-	inst.Table.Select(0, 0)
-	inst.Table.ScrollToBeginning()
-}
-
-func (inst *LambdaDetailsTable) RefreshDetails(lambdaName string, force bool) {
-	inst.selectedLambda = lambdaName
-	var data map[string]types.FunctionConfiguration
-	var resultChannel = make(chan struct{})
-
-	go func() {
-		data = inst.api.ListLambdas(force)
-		resultChannel <- struct{}{}
-	}()
-
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
-		var val, ok = data[lambdaName]
-		if ok {
-			inst.Data = &val
-		}
-		inst.populateLambdaDetailsTable()
-	})
-}
-
-type LambdasListTable struct {
-	*core.SelectableTable[any]
-	selectedLambda string
-	data           map[string]types.FunctionConfiguration
-	logger         *log.Logger
-	app            *tview.Application
-	api            *awsapi.LambdaApi
-}
-
-func NewLambdasListTable(
-	app *tview.Application,
-	api *awsapi.LambdaApi,
-	logger *log.Logger,
-) *LambdasListTable {
-
-	var view = &LambdasListTable{
-		SelectableTable: core.NewSelectableTable[any](
-			"Lambdas",
-			core.TableRow{
-				"Name",
-				"LastModified",
-			},
-		),
-		data:   nil,
-		logger: logger,
-		app:    app,
-		api:    api,
-	}
-
-	view.populateLambdasTable()
-	view.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlR:
-			view.RefreshLambdas("", true)
-		}
-		return event
-	})
-
-	return view
-}
-
-func (inst *LambdasListTable) populateLambdasTable() {
-	var tableData []core.TableRow
-	for _, row := range inst.data {
-		tableData = append(tableData, core.TableRow{
-			*row.FunctionName,
-			*row.LastModified,
-		})
-	}
-
-	inst.SetData(tableData)
-	inst.Table.GetCell(0, 0).SetExpansion(1)
-	inst.Table.Select(1, 0)
-}
-
-func (inst *LambdasListTable) SetSelectionChangedFunc(handler func(row int, column int)) *tview.Table {
-	return inst.Table.SetSelectionChangedFunc(func(row, column int) {
-		if row < 1 {
-			return
-		}
-		inst.selectedLambda = inst.Table.GetCell(row, 0).Text
-		handler(row, column)
-	})
-}
-
-func (inst *LambdasListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) *tview.Box {
-	return inst.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlR:
-			inst.RefreshLambdas("", true)
-		}
-		return capture(event)
-	})
-}
-
-func (inst *LambdasListTable) GetSeletedLambda() string {
-	return inst.selectedLambda
-}
-
-func (inst *LambdasListTable) RefreshLambdas(search string, force bool) {
-	var resultChannel = make(chan struct{})
-
-	go func() {
-		if len(search) > 0 {
-			inst.data = inst.api.FilterByName(search)
-		} else {
-			inst.data = inst.api.ListLambdas(force)
-		}
-
-		resultChannel <- struct{}{}
-	}()
-
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
-		inst.populateLambdasTable()
-	})
-}
-
-type LambdasDetailsView struct {
-	RootView       *tview.Flex
-	SelectedLambda string
-	LambdasTable   *LambdasListTable
-	DetailsTable   *LambdaDetailsTable
-
-	searchableView *core.SearchableView
-	app            *tview.Application
-	api            *awsapi.LambdaApi
-}
-
-func NewLambdasDetailsView(
-	lambdaDetails *LambdaDetailsTable,
-	lambdasList *LambdasListTable,
-	app *tview.Application,
-	api *awsapi.LambdaApi,
-	logger *log.Logger,
-) *LambdasDetailsView {
+) *LambdasDetailsPage {
 	const detailsViewSize = 4000
 	const tableViewSize = 6000
 
 	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(lambdaDetails.Table, 0, detailsViewSize, false).
-		AddItem(lambdasList.Table, 0, tableViewSize, true)
+		AddItem(lambdaDetailsTable.RootView, 0, detailsViewSize, false).
+		AddItem(lambdaListTable.RootView, 0, tableViewSize, true)
 
 	var serviceView = core.NewServiceView(app, logger, mainPage)
 
 	serviceView.SetResizableViews(
-		lambdaDetails.Table, lambdasList.Table,
+		lambdaDetailsTable.RootView, lambdaListTable.RootView,
 		detailsViewSize, tableViewSize,
 	)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			lambdasList.Table,
-			lambdaDetails.Table,
+			lambdaListTable.RootView,
+			lambdaDetailsTable.RootView,
 		},
 	)
-	var detailsView = &LambdasDetailsView{
+	var detailsView = &LambdasDetailsPage{
 		RootView:       serviceView.RootView,
 		SelectedLambda: "",
 
-		LambdasTable:   lambdasList,
-		DetailsTable:   lambdaDetails,
-		searchableView: serviceView.SearchableView,
-		app:            app,
-		api:            api,
+		LambdaListTable:    lambdaListTable,
+		LambdaDetailsTable: lambdaDetailsTable,
+		app:                app,
+		api:                api,
 	}
 	detailsView.initInputCapture()
 
 	return detailsView
 }
 
-func (inst *LambdasDetailsView) initInputCapture() {
-	inst.searchableView.SetDoneFunc(func(key tcell.Key) {
+func (inst *LambdasDetailsPage) initInputCapture() {
+	inst.LambdaListTable.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			inst.LambdasTable.RefreshLambdas(inst.searchableView.GetText(), false)
+			inst.LambdaListTable.RefreshLambdas(false)
 		}
 	})
 
-	inst.LambdasTable.SetSelectionChangedFunc(func(row, column int) {
-		inst.DetailsTable.RefreshDetails(inst.LambdasTable.GetSeletedLambda(), false)
+	inst.LambdaListTable.SetSelectionChangedFunc(func(row, column int) {
+		inst.LambdaDetailsTable.RefreshDetails(inst.LambdaListTable.GetSeletedLambda(), false)
 	})
 }
 
 // Todo: Fix navigaion with shared components
-type LambdaInvokeView struct {
+type LambdaInvokePage struct {
 	SelectedLambda string
 	RootView       *tview.Flex
 	DetailsTable   *LambdaDetailsTable
@@ -271,12 +91,12 @@ type LambdaInvokeView struct {
 	api            *awsapi.LambdaApi
 }
 
-func NewLambdaInvokeView(
+func NewLambdaInvokePage(
 	lambdaDetails *LambdaDetailsTable,
 	app *tview.Application,
 	api *awsapi.LambdaApi,
 	logger *log.Logger,
-) *LambdaInvokeView {
+) *LambdaInvokePage {
 
 	var payloadInput = core.CreateTextArea("Event Payload")
 	var logResults = core.CreateTextArea("Logs")
@@ -298,7 +118,7 @@ func NewLambdaInvokeView(
 			responseOutput,
 		},
 	)
-	var invokeView = &LambdaInvokeView{
+	var invokeView = &LambdaInvokePage{
 		RootView:       serviceView.RootView,
 		SelectedLambda: "",
 
@@ -314,7 +134,7 @@ func NewLambdaInvokeView(
 	return invokeView
 }
 
-func (inst *LambdaInvokeView) initInputCapture() {
+func (inst *LambdaInvokePage) initInputCapture() {
 	inst.DetailsTable.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
@@ -333,18 +153,18 @@ func (inst *LambdaInvokeView) initInputCapture() {
 	})
 }
 
-func (inst *LambdaInvokeView) loadLogs(text string) {
+func (inst *LambdaInvokePage) loadLogs(text string) {
 	inst.logResults.SetTitle("Logs")
 	inst.logResults.SetText(text, false)
 }
 
-func (inst *LambdaInvokeView) loadResponse(text string) {
+func (inst *LambdaInvokePage) loadResponse(text string) {
 	inst.responseOutput.SetTitle("Response")
 	var newText, _ = core.TryFormatToJson(text)
 	inst.responseOutput.SetText(newText, false)
 }
 
-func (inst *LambdaInvokeView) Invoke() {
+func (inst *LambdaInvokePage) Invoke() {
 	var resultChannel = make(chan struct{})
 	var logResults = []byte{}
 	var responseOutput = []byte{}
@@ -376,7 +196,7 @@ func (inst *LambdaInvokeView) Invoke() {
 	})
 }
 
-func CreateLambdaHomeView(
+func NewLambdaHomeView(
 	app *tview.Application,
 	config aws.Config,
 	logger *log.Logger,
@@ -387,17 +207,23 @@ func CreateLambdaHomeView(
 	var (
 		api                = awsapi.NewLambdaApi(config, logger)
 		cwl_api            = awsapi.NewCloudWatchLogsApi(config, logger)
-		lambdasDetailsView = NewLambdasDetailsView(
+		lambdasDetailsView = NewLambdasDetailsPage(
 			NewLambdaDetailsTable(app, api, logger),
 			NewLambdasListTable(app, api, logger),
 			app, api, logger,
 		)
-		lambdaInvokeView = NewLambdaInvokeView(
+		lambdaInvokeView = NewLambdaInvokePage(
 			NewLambdaDetailsTable(app, api, logger),
 			app, api, logger,
 		)
-		logEventsView  = NewLogEventsView(app, cwl_api, logger)
-		logStreamsView = NewLogStreamsView(app, cwl_api, logger)
+		logEventsView = NewLogEventsPage(
+			NewLogEventsTable(app, cwl_api, logger),
+			app, cwl_api, logger,
+		)
+		logStreamsView = NewLogStreamsPage(
+			NewLogStreamsTable(app, cwl_api, logger),
+			app, cwl_api, logger,
+		)
 	)
 
 	var pages = tview.NewPages().
@@ -416,29 +242,32 @@ func CreateLambdaHomeView(
 	var serviceRootView = core.NewServiceRootView(
 		app, string(LAMBDA), pages, orderedPages).Init()
 
-	lambdasDetailsView.LambdasTable.Table.SetSelectedFunc(func(row, column int) {
+	lambdasDetailsView.LambdaListTable.SetSelectedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}
 		lambdaInvokeView.SelectedLambda = lambdasDetailsView.SelectedLambda
+        app.SetFocus(lambdasDetailsView.LambdaDetailsTable.RootView)
 	})
 
-	var selectedGroupName = ""
-	lambdasDetailsView.DetailsTable.Table.SetSelectedFunc(func(row, column int) {
-		selectedGroupName = lambdasDetailsView.DetailsTable.Table.GetCell(7, 1).Text
-		logStreamsView.RefreshStreams(selectedGroupName, true)
-		serviceRootView.ChangePage(2, logStreamsView.LogStreamsTable)
+	lambdasDetailsView.LambdaDetailsTable.Table.SetSelectedFunc(func(row, column int) {
+		var selectedLogGroup = lambdasDetailsView.LambdaDetailsTable.Table.GetCell(7, 1).Text
+
+		logStreamsView.LogStreamsTable.SetSeletedLogGroup(selectedLogGroup)
+		logStreamsView.LogStreamsTable.SetLogStreamSearchPrefix("")
+		logStreamsView.LogStreamsTable.RefreshStreams(true)
+		serviceRootView.ChangePage(2, logStreamsView.LogStreamsTable.Table)
 	})
 
-	var streamName = ""
 	logStreamsView.LogStreamsTable.SetSelectedFunc(func(row, column int) {
-		streamName = logStreamsView.LogStreamsTable.GetCell(row, 0).Text
-		logEventsView.RefreshEvents(selectedGroupName, streamName, true)
-		serviceRootView.ChangePage(3, logEventsView.LogEventsTable)
-	})
+		var selectedLogStream = logStreamsView.LogStreamsTable.GetSeletedLogStream()
+		var selectedLogGroup = logStreamsView.LogStreamsTable.GetSeletedLogGroup()
 
-	var searchPrefix = ""
-	logStreamsView.InitSearchInputBuffer(&searchPrefix)
+		logEventsView.LogEventsTable.SetSeletedLogGroup(selectedLogGroup)
+		logEventsView.LogEventsTable.SetSeletedLogStream(selectedLogStream)
+		logEventsView.LogEventsTable.RefreshLogEvents(true)
+		serviceRootView.ChangePage(3, logEventsView.LogEventsTable.Table)
+	})
 
 	logEventsView.InitInputCapture()
 	logStreamsView.InitInputCapture()

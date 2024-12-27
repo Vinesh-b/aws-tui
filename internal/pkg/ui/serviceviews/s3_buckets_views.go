@@ -162,7 +162,7 @@ type S3BucketsDetailsView struct {
 	ObjectsTable      *tview.Table
 	ObjectInput       *tview.InputField
 	RootView          *tview.Flex
-	searchableView    *core.SearchableView
+	searchableView    *core.SearchableView_OLD
 	selctedBucketName string
 	currentPrefix     string
 	app               *tview.Application
@@ -331,7 +331,7 @@ func (inst *S3BucketsDetailsView) InitInputCapture() {
 	})
 }
 
-func CreateS3bucketsHomeView(
+func NewS3bucketsHomeView(
 	app *tview.Application,
 	config aws.Config,
 	logger *log.Logger,

@@ -81,17 +81,18 @@ func (inst *CloudWatchLogsApi) FilterGroupByName(name string) []types.LogGroup {
 
 func (inst *CloudWatchLogsApi) ListLogStreams(
 	logGroupName string,
-	searchPrefix *string,
+	searchPrefix string,
 	reset bool,
 ) []types.LogStream {
+	var searchPrefixPtr *string = nil
 
 	if reset || inst.logStreamsPaginator == nil {
 		var order = types.OrderByLastEventTime
-		if searchPrefix != nil && len(*searchPrefix) == 0 {
-			searchPrefix = nil
-		}
-		if searchPrefix != nil {
+		if len(searchPrefix) == 0 {
+			searchPrefixPtr = nil
+		} else {
 			order = types.OrderByLogStreamName
+			searchPrefixPtr = &searchPrefix
 		}
 		inst.logStreamsPaginator = cloudwatchlogs.NewDescribeLogStreamsPaginator(
 			inst.client,
@@ -99,7 +100,7 @@ func (inst *CloudWatchLogsApi) ListLogStreams(
 				Descending:          aws.Bool(true),
 				Limit:               aws.Int32(50),
 				LogGroupName:        aws.String(logGroupName),
-				LogStreamNamePrefix: searchPrefix,
+				LogStreamNamePrefix: searchPrefixPtr,
 				OrderBy:             order,
 			},
 		)

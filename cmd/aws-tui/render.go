@@ -33,17 +33,17 @@ func RenderUI(config aws.Config, version string) {
 	config.Logger = logging.StandardLogger{Logger: inAppLogger}
 
 	var serviceViews = map[uiviews.ViewId]tview.Primitive{
-		uiviews.LAMBDA:                   uiviews.CreateLambdaHomeView(app, config, inAppLogger),
-		uiviews.CLOUDWATCH_LOGS_GROUPS:   uiviews.CreateLogsHomeView(app, config, inAppLogger),
-		uiviews.CLOUDWATCH_LOGS_INSIGHTS: uiviews.CreateLogsInsightsHomeView(app, config, inAppLogger),
-		uiviews.CLOUDWATCH_ALARMS:        uiviews.CreateAlarmsHomeView(app, config, inAppLogger),
-		uiviews.CLOUDWATCH_METRICS:       uiviews.CreateMetricsHomeView(app, config, inAppLogger),
-		uiviews.CLOUDFORMATION:           uiviews.CreateStacksHomeView(app, config, inAppLogger),
-		uiviews.DYNAMODB:                 uiviews.CreateDynamoDBHomeView(app, config, inAppLogger),
-		uiviews.S3BUCKETS:                uiviews.CreateS3bucketsHomeView(app, config, inAppLogger),
-		uiviews.STATE_MACHINES:           uiviews.CreateStepFunctionsHomeView(app, config, inAppLogger),
+		uiviews.LAMBDA:                   uiviews.NewLambdaHomeView(app, config, inAppLogger),
+		uiviews.CLOUDWATCH_LOGS_GROUPS:   uiviews.NewLogsHomeView(app, config, inAppLogger),
+		uiviews.CLOUDWATCH_LOGS_INSIGHTS: uiviews.NewLogsInsightsHomeView(app, config, inAppLogger),
+		uiviews.CLOUDWATCH_ALARMS:        uiviews.NewAlarmsHomeView(app, config, inAppLogger),
+		uiviews.CLOUDWATCH_METRICS:       uiviews.NewMetricsHomeView(app, config, inAppLogger),
+		uiviews.CLOUDFORMATION:           uiviews.NewStacksHomeView(app, config, inAppLogger),
+		uiviews.DYNAMODB:                 uiviews.NewDynamoDBHomeView(app, config, inAppLogger),
+		uiviews.S3BUCKETS:                uiviews.NewS3bucketsHomeView(app, config, inAppLogger),
+		uiviews.STATE_MACHINES:           uiviews.NewStepFunctionsHomeView(app, config, inAppLogger),
 
-		uiviews.HELP:       uiviews.CreateHelpHomeView(app, inAppLogger),
+		uiviews.HELP:       uiviews.NewHelpHomeView(app, inAppLogger),
 		uiviews.DEBUG_LOGS: errorTextArea,
 	}
 

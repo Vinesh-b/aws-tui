@@ -8,7 +8,7 @@ import (
 	"github.com/rivo/tview"
 )
 
-func CreateHelpHomeView(
+func NewHelpHomeView(
 	app *tview.Application,
 	logger *log.Logger,
 ) tview.Primitive {

@@ -419,7 +419,7 @@ type StateMachinesDetailsView struct {
 	StateMachineExecutionsTable *StateMachineExecutionsTable
 	StateMachinesTable          *StateMachinesListTable
 
-	searchableView *core.SearchableView
+	searchableView *core.SearchableView_OLD
 	app            *tview.Application
 	api            *awsapi.StateMachineApi
 }
@@ -576,7 +576,7 @@ func NewStateMachineExectionDetailsView(
 func (inst *StateMachineExectionDetailsView) initInputCapture() {
 }
 
-func CreateStepFunctionsHomeView(
+func NewStepFunctionsHomeView(
 	app *tview.Application,
 	config aws.Config,
 	logger *log.Logger,

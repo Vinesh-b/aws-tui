@@ -172,7 +172,7 @@ type MetricDetailsView struct {
 	MetricsTable       *MetricsTable
 	MetricDetailsTable *MetricDetailsTable
 	RootView           *tview.Flex
-	searchableView     *core.SearchableView
+	searchableView     *core.SearchableView_OLD
 	app                *tview.Application
 	api                *awsapi.CloudWatchMetricsApi
 }
@@ -236,7 +236,7 @@ func (inst *MetricDetailsView) InitInputCapture() {
 	})
 }
 
-func CreateMetricsHomeView(
+func NewMetricsHomeView(
 	app *tview.Application,
 	config aws.Config,
 	logger *log.Logger,

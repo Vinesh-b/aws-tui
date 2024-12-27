@@ -113,7 +113,7 @@ type AlarmsDetailsView struct {
 	HistoryTable   *tview.Table
 	DetailsGrid    *tview.Grid
 	RootView       *tview.Flex
-	searchableView *core.SearchableView
+	searchableView *core.SearchableView_OLD
 	app            *tview.Application
 	api            *awsapi.CloudWatchAlarmsApi
 }
@@ -266,7 +266,7 @@ func (inst *AlarmsDetailsView) InitInputCapture() {
 	})
 }
 
-func CreateAlarmsHomeView(
+func NewAlarmsHomeView(
 	app *tview.Application,
 	config aws.Config,
 	logger *log.Logger,

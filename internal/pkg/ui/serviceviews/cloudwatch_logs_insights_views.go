@@ -55,25 +55,27 @@ func NewLogGroupsSelectionView(
 	var selectedGroupsTable = tview.NewTable()
 	populateSelectedGroupsTable(selectedGroupsTable, map[string]struct{}{})
 
-	var logGroupsView = NewLogGroupsView(app, api, logger)
+	var logGroupsView = NewLogGroupsPage(
+		NewLogGroupsTable(app, api, logger),
+		app, api, logger)
 	logGroupsView.InitInputCapture()
 
 	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(selectedGroupsTable, 0, 1, false).
-		AddItem(logGroupsView.LogGroupsTable, 0, 1, true)
+		AddItem(logGroupsView.LogGroupsTable.RootView, 0, 1, true)
 
 	var serviceView = core.NewServiceView(app, logger, mainPage)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			logGroupsView.LogGroupsTable,
+			logGroupsView.LogGroupsTable.Table,
 			selectedGroupsTable,
 		},
 	)
 
 	return &LogGroupsSelectionView{
 		SeletedGroupsTable: selectedGroupsTable,
-		LogGroupsTable:     logGroupsView.LogGroupsTable,
+		LogGroupsTable:     logGroupsView.LogGroupsTable.Table,
 		RootView:           serviceView.RootView,
 		selectedGroups:     map[string]struct{}{},
 		app:                app,
@@ -191,7 +193,7 @@ type InsightsQueryResultsView struct {
 	api                 *awsapi.CloudWatchLogsApi
 	queryId             string
 	selectedLogGroups   *[]string
-	searchableView      *core.SearchableView
+	searchableView      *core.SearchableView_OLD
 }
 
 func NewInsightsQueryResultsView(
@@ -351,7 +353,7 @@ func (inst *InsightsQueryResultsView) InitSearchInputBuffer(selectedGroups *[]st
 	inst.selectedLogGroups = selectedGroups
 }
 
-func CreateLogsInsightsHomeView(
+func NewLogsInsightsHomeView(
 	app *tview.Application,
 	config aws.Config,
 	logger *log.Logger,
@@ -362,7 +364,10 @@ func CreateLogsInsightsHomeView(
 	var api = awsapi.NewCloudWatchLogsApi(config, logger)
 	var insightsResultsView = NewInsightsQueryResultsView(app, api, logger)
 	var groupSelectionView = NewLogGroupsSelectionView(app, api, logger)
-	var logEventsView = NewLogEventsView(app, api, logger)
+	var logEventsView = NewLogEventsPage(
+		NewLogEventsTable(app, api, logger),
+		app, api, logger,
+	)
 
 	var pages = tview.NewPages().
 		AddPage("LogEvents", logEventsView.RootView, true, true).
@@ -411,8 +416,10 @@ func CreateLogsInsightsHomeView(
 		var logStream = record["@logStream"]
 		var _, logGroup, _ = strings.Cut(record["@log"], ":")
 
-		logEventsView.RefreshEvents(logGroup, logStream, true)
-		serviceRootView.ChangePage(2, logEventsView.LogEventsTable)
+		logEventsView.LogEventsTable.SetSeletedLogGroup(logGroup)
+		logEventsView.LogEventsTable.SetSeletedLogStream(logStream)
+		logEventsView.LogEventsTable.RefreshLogEvents(true)
+		serviceRootView.ChangePage(2, logEventsView.LogEventsTable.Table)
 	})
 
 	return serviceRootView.RootView

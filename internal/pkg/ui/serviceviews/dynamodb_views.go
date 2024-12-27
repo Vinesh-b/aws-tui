@@ -152,7 +152,7 @@ type DynamoDBDetailsView struct {
 	TablesTable    *tview.Table
 	DetailsTable   *tview.Table
 	RootView       *tview.Flex
-	searchableView *core.SearchableView
+	searchableView *core.SearchableView_OLD
 	app            *tview.Application
 	api            *awsapi.DynamoDBApi
 }
@@ -272,7 +272,7 @@ type DynamoDBTableItemsView struct {
 	querySkInput     *tview.InputField
 	runQueryBtn      *tview.Button
 	lastTableOp      ddbTableOp
-	searchableView   *core.SearchableView
+	searchableView   *core.SearchableView_OLD
 }
 
 func NewDynamoDBTableItemsView(
@@ -499,7 +499,7 @@ func (inst *DynamoDBTableItemsView) SetTableName(tableName string,
 	return inst
 }
 
-func CreateDynamoDBHomeView(
+func NewDynamoDBHomeView(
 	app *tview.Application,
 	config aws.Config,
 	logger *log.Logger,

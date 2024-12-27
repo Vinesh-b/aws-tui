@@ -19,6 +19,7 @@ func ClampStringLen(input *string, maxLen int) string {
 }
 
 type SelectableTable[T any] struct {
+	*SearchableView
 	Table         *tview.Table
 	title         string
 	headings      TableRow
@@ -38,13 +39,19 @@ func NewSelectableTable[T any](title string, headings TableRow) *SelectableTable
 		SetBorderPadding(0, 0, 0, 0).
 		SetBorder(true)
 
-	return &SelectableTable[T]{
-		Table:         table,
-		title:         title,
-		headings:      headings,
-		data:          nil,
-		privateColumn: 0,
+	var selectableTable = &SelectableTable[T]{
+		Table:          table,
+		SearchableView: NewSearchableView(table),
+		title:          title,
+		headings:       headings,
+		data:           nil,
+		privateColumn:  0,
 	}
+
+	selectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
+	selectableTable.SetSearchDoneFunc(func(key tcell.Key) {})
+
+	return selectableTable
 }
 
 func (inst *SelectableTable[T]) SetData(data []TableRow) {
@@ -122,18 +129,19 @@ func (inst *SelectableTable[T]) ExtendData(data []TableRow) {
 	}
 }
 
-func (inst *SelectableTable[T]) ExtendPrivateData(privateData []TableRow) {
+func (inst *SelectableTable[T]) ExtendPrivateData(privateData []T) {
+	if len(privateData) > 0 {
+		if len(privateData) != len(inst.data) {
+			log.Panicln("Table data and private data row counts do not match")
+		}
+	}
 	var table = inst.Table
 	var rows = table.GetRowCount()
 
-	for rowIdx, rowData := range inst.data {
-		for colIdx := range len(rowData) {
-			if colIdx == inst.privateColumn {
-				table.GetCell(rowIdx+rows, colIdx).
-					SetReference(privateData[rowIdx]).
-					SetAlign(tview.AlignLeft)
-			}
-		}
+	for rowIdx := range len(inst.privateData) {
+		table.GetCell(rowIdx+rows, inst.privateColumn).
+			SetReference(privateData[rowIdx]).
+			SetAlign(tview.AlignLeft)
 	}
 }
 
@@ -167,10 +175,63 @@ func (inst *SelectableTable[T]) SearchPrivateData(searchCols []int, search strin
 	return resultPositions
 }
 
+func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
+	var nextSearch = 0
+
+	var highlight_search = func(event *tcell.EventKey) *tcell.EventKey {
+		var searchCount = len(inst.searchPositions)
+		if searchCount > 0 {
+			switch event.Rune() {
+			case rune('n'):
+				nextSearch = (nextSearch + 1) % searchCount
+				inst.Table.Select(inst.searchPositions[nextSearch], 0)
+			case rune('N'):
+				nextSearch = (nextSearch - 1 + searchCount) % searchCount
+				inst.Table.Select(inst.searchPositions[nextSearch], 0)
+			}
+		}
+
+		return event
+	}
+
+	inst.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if inst.HighlightSearch {
+			highlight_search(event)
+		}
+
+		return capture(event)
+	})
+}
+
+func (inst *SelectableTable[T]) SetSearchDoneFunc(handler func(key tcell.Key)) {
+	var highlight_search = func(key tcell.Key) {
+		switch key {
+		case tcell.KeyEnter:
+			inst.searchPositions = HighlightTableSearch(
+				inst.Table,
+				inst.GetSearchText(),
+				[]int{},
+			)
+		case tcell.KeyCtrlR:
+			ClearSearchHighlights(inst.Table)
+			inst.searchPositions = nil
+		}
+		return
+	}
+
+	inst.SearchableView.SetSearchDoneFunc(func(key tcell.Key) {
+		if inst.HighlightSearch {
+			highlight_search(key)
+		}
+		handler(key)
+	})
+}
+
 type DetailsTable struct {
-	Table *tview.Table
-	title string
-	data  []TableRow
+	Table    *tview.Table
+	RootView *tview.Flex
+	title    string
+	data     []TableRow
 }
 
 func NewDetailsTable(title string) *DetailsTable {
@@ -188,8 +249,9 @@ func NewDetailsTable(title string) *DetailsTable {
 	)
 
 	return &DetailsTable{
-		Table: table,
-		title: title,
+		Table:    table,
+		RootView: tview.NewFlex().AddItem(table, 0, 1, true),
+		title:    title,
 	}
 }
 
@@ -304,7 +366,7 @@ func SearchRefsInTable(table *tview.Table, searchCols []int, search string) []in
 			if cell.Reference == nil {
 				continue
 			}
-	        var text = fmt.Sprintf("%v", cell.Reference)
+			var text = fmt.Sprintf("%v", cell.Reference)
 			if strings.Contains(text, search) {
 				cell.SetTextColor(TertiaryTextColor)
 				resultPositions = append(resultPositions, r)

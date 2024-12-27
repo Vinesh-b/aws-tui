@@ -19,7 +19,7 @@ type View interface {
 
 type ServiceView struct {
 	RootView              *tview.Flex
-	SearchableView        *SearchableView
+	SearchableView        *SearchableView_OLD
 	LastFocusedView       tview.Primitive
 	viewResizeEnabled     bool
 	topView               View
@@ -36,7 +36,7 @@ func NewServiceView(
 	logger *log.Logger,
 	mainPage *tview.Flex,
 ) *ServiceView {
-	var searchableView = NewSearchableView(app, logger, mainPage)
+	var searchableView = NewSearchableView_OLD(app, logger, mainPage)
 	return &ServiceView{
 		RootView:          searchableView.RootView,
 		SearchableView:    searchableView,
@@ -108,7 +108,7 @@ func (inst *ServiceView) paneResizeHightHandler(
 ) *tcell.EventKey {
 	var _, _, _, topSize = inst.topView.GetRect()
 	var _, _, _, bottomSize = inst.bottomView.GetRect()
-	var mainPage = inst.SearchableView.MainPage
+	var mainPage = inst.SearchableView.RootView
 	switch event.Modifiers() {
 	case tcell.ModAlt:
 		switch event.Rune() {
