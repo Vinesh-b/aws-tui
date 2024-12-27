@@ -37,7 +37,7 @@ func (inst *DynamoDBApi) ListTables(force bool) []string {
 		return inst.allTables
 	}
 
-    inst.allTables = nil
+	inst.allTables = nil
 	var paginator = dynamodb.NewListTablesPaginator(
 		inst.client, &dynamodb.ListTablesInput{},
 	)
@@ -143,6 +143,7 @@ func (inst *DynamoDBApi) QueryTable(
 			ExpressionAttributeNames:  expr.Names(),
 			ExpressionAttributeValues: expr.Values(),
 			KeyConditionExpression:    expr.KeyCondition(),
+			IndexName:                 nil,
 		})
 	}
 
