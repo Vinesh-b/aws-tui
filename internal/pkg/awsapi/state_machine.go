@@ -72,12 +72,11 @@ func (inst *StateMachineApi) FilterByName(name string) map[string]types.StateMac
 	return foundLambdas
 }
 
-func (inst *StateMachineApi) ListExecutions(name string, nextToken *string) ([]types.ExecutionListItem, *string) {
-	var stateMachine = inst.allStateMachines[name]
+func (inst *StateMachineApi) ListExecutions(stateMachineArn string, nextToken *string) ([]types.ExecutionListItem, *string) {
 
 	var paginator = sfn.NewListExecutionsPaginator(
 		inst.client, &sfn.ListExecutionsInput{
-			StateMachineArn: stateMachine.StateMachineArn,
+			StateMachineArn: aws.String(stateMachineArn),
 			NextToken:       nextToken,
 		},
 	)
@@ -109,8 +108,8 @@ func (inst *StateMachineApi) DescribeExecution(executionArn string) *sfn.Describ
 
 func (inst *StateMachineApi) GetExecutionHistory(executionArn string) *sfn.GetExecutionHistoryOutput {
 	var response, err = inst.client.GetExecutionHistory(context.TODO(), &sfn.GetExecutionHistoryInput{
-		ExecutionArn: &executionArn,
-        IncludeExecutionData: aws.Bool(true),
+		ExecutionArn:         aws.String(executionArn),
+		IncludeExecutionData: aws.Bool(true),
 	})
 
 	if err != nil {
