@@ -107,43 +107,24 @@ func (inst *DynamoDBApi) ScanTable(
 }
 
 func (inst *DynamoDBApi) QueryTable(
-	description *types.TableDescription,
-	partitionKeyVal string, // Todo: support non-string keys
-	sortKeyVal string,
+	tableName string,
+	queryExpression expression.Expression,
+	indexName string,
 	force bool,
 ) []map[string]interface{} {
 	if inst.queryPaginator == nil || force {
-		var partitionKey = ""
-		var sortKey = ""
-
-		for _, atter := range description.KeySchema {
-			switch atter.KeyType {
-			case types.KeyTypeHash:
-				partitionKey = *atter.AttributeName
-			case types.KeyTypeRange:
-				sortKey = *atter.AttributeName
-			}
+		var index *string = nil
+		if len(indexName) > 0 {
+			index = aws.String(indexName)
 		}
-
-		var keyExpr = expression.
-			Key(partitionKey).Equal(expression.Value(partitionKeyVal))
-		if len(sortKeyVal) > 0 && len(sortKey) > 0 {
-			keyExpr = keyExpr.And(expression.Key(sortKey).
-				Equal(expression.Value(sortKeyVal)))
-		}
-
-		var expr, err = expression.NewBuilder().WithKeyCondition(keyExpr).Build()
-		if err != nil {
-			inst.logger.Printf("Failed to build expression for query: %v\n", err)
-		}
-
 		inst.queryPaginator = dynamodb.NewQueryPaginator(inst.client, &dynamodb.QueryInput{
-			TableName:                 description.TableName,
+			TableName:                 aws.String(tableName),
 			Limit:                     aws.Int32(100),
-			ExpressionAttributeNames:  expr.Names(),
-			ExpressionAttributeValues: expr.Values(),
-			KeyConditionExpression:    expr.KeyCondition(),
-			IndexName:                 nil,
+			ExpressionAttributeNames:  queryExpression.Names(),
+			ExpressionAttributeValues: queryExpression.Values(),
+			KeyConditionExpression:    queryExpression.KeyCondition(),
+			ProjectionExpression:      queryExpression.Projection(),
+			IndexName:                 index,
 		})
 	}
 

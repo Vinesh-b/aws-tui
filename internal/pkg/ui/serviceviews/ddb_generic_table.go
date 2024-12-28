@@ -8,6 +8,7 @@ import (
 	"aws-tui/internal/pkg/ui/core"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
 	"github.com/gdamore/tcell/v2"
@@ -22,7 +23,8 @@ const (
 )
 
 type DynamoDBGenericTable struct {
-	*core.SelectableTable[any]
+	*DynamoDBTableSearchView
+	Table            *tview.Table
 	data             []map[string]interface{}
 	tableDescription *types.TableDescription
 	selectedTable    string
@@ -33,6 +35,10 @@ type DynamoDBGenericTable struct {
 	app              *tview.Application
 	api              *awsapi.DynamoDBApi
 	attributeIdxMap  map[string]int
+
+	queryExpr expression.Expression
+	pkName    string
+	skName    string
 }
 
 func NewDynamoDBGenericTable(
@@ -40,20 +46,21 @@ func NewDynamoDBGenericTable(
 	api *awsapi.DynamoDBApi,
 	logger *log.Logger,
 ) *DynamoDBGenericTable {
+	var t = tview.NewTable()
 
 	var table = &DynamoDBGenericTable{
-		SelectableTable: core.NewSelectableTable[any]("", core.TableRow{}),
-		data:            nil,
-		selectedTable:   "",
-		pkQueryString:   "",
-		skQueryString:   "",
-		searchIndexName: "",
-		logger:          logger,
-		app:             app,
-		api:             api,
+		DynamoDBTableSearchView: NewDynamoDBTableSearchView(t, app, logger),
+		Table:                   t,
+		data:                    nil,
+		selectedTable:           "",
+		pkQueryString:           "",
+		skQueryString:           "",
+		searchIndexName:         "",
+		logger:                  logger,
+		app:                     app,
+		api:                     api,
 	}
 
-	table.HighlightSearch = true
 	table.populateDynamoDBTable(false)
 
 	return table
@@ -81,9 +88,11 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 	for _, atter := range inst.tableDescription.KeySchema {
 		switch atter.KeyType {
 		case types.KeyTypeHash:
+			inst.pkName = *atter.AttributeName
 			inst.attributeIdxMap[*atter.AttributeName] = 0
 			headingIdx++
 		case types.KeyTypeRange:
+			inst.skName = *atter.AttributeName
 			inst.attributeIdxMap[*atter.AttributeName] = 1
 			headingIdx++
 		}
@@ -159,12 +168,13 @@ func (inst *DynamoDBGenericTable) RefreshScan(reset bool) {
 	})
 }
 
-func (inst *DynamoDBGenericTable) RefreshQuery(reset bool) {
+func (inst *DynamoDBGenericTable) RefreshQuery(expr expression.Expression, reset bool) {
 	var resultChannel = make(chan struct{})
 
 	go func() {
 		if len(inst.selectedTable) <= 0 {
 			inst.data = make([]map[string]interface{}, 0)
+			resultChannel <- struct{}{}
 			return
 		}
 
@@ -173,9 +183,9 @@ func (inst *DynamoDBGenericTable) RefreshQuery(reset bool) {
 		}
 
 		inst.data = inst.api.QueryTable(
-			inst.tableDescription,
-			inst.pkQueryString,
-			inst.skQueryString,
+			inst.selectedTable,
+			expr,
+			"",
 			reset,
 		)
 
@@ -188,6 +198,7 @@ func (inst *DynamoDBGenericTable) RefreshQuery(reset bool) {
 }
 
 func (inst *DynamoDBGenericTable) SetSelectedTable(tableName string) {
+	inst.DynamoDBQueryInputView.SetSelectedTable(tableName)
 	inst.selectedTable = tableName
 }
 

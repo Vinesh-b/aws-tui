@@ -65,11 +65,9 @@ type DynamoDBTableItemsPage struct {
 	RootView         *tview.Flex
 	app              *tview.Application
 	api              *awsapi.DynamoDBApi
+	logger           *log.Logger
 	tableName        string
 	tableDescription *types.TableDescription
-	queryPkInput     *tview.InputField
-	querySkInput     *tview.InputField
-	runQueryBtn      *tview.Button
 	lastTableOp      DDBTableOp
 }
 
@@ -80,23 +78,6 @@ func NewDynamoDBTableItemsPage(
 	logger *log.Logger,
 ) *DynamoDBTableItemsPage {
 	var expandItemView = core.CreateExpandedLogView(app, itemsTable.Table, 0, core.DATA_TYPE_MAP_STRING_ANY)
-
-	var pkQueryValInput = tview.NewInputField().
-		SetFieldWidth(0).
-		SetLabel(" Partition Key ")
-	var skQueryValInput = tview.NewInputField().
-		SetFieldWidth(0).
-		SetLabel(" Sort Key      ")
-	var runQueryBtn = tview.NewButton("Run")
-
-	var queryView = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(pkQueryValInput, 1, 0, false).
-		AddItem(skQueryValInput, 1, 0, false).
-		AddItem(runQueryBtn, 1, 0, false)
-	queryView.
-		SetBorder(true).
-		SetTitle("Query").
-		SetTitleAlign(tview.AlignLeft)
 
 	var atterNameInput = tview.NewInputField().
 		SetFieldWidth(0).
@@ -121,7 +102,6 @@ func NewDynamoDBTableItemsPage(
 		AddItem(expandItemView, 0, expandItemViewSize, false).
 		AddItem(itemsTable.RootView, 0, itemsTableSize, true).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
-			AddItem(queryView, 0, 1, false).
 			AddItem(scanView, 0, 1, false),
 			5, 0, false,
 		)
@@ -142,18 +122,8 @@ func NewDynamoDBTableItemsPage(
 		},
 	)
 
-	serviceView.InitViewTabNavigation(
-		queryView,
-		[]core.View{
-			pkQueryValInput,
-			skQueryValInput,
-			runQueryBtn,
-		},
-	)
-
 	serviceView.InitViewNavigation(
 		[]core.View{
-			queryView,
 			scanView,
 			itemsTable.RootView,
 			expandItemView,
@@ -165,56 +135,18 @@ func NewDynamoDBTableItemsPage(
 		RootView:         serviceView.RootView,
 		app:              app,
 		api:              api,
+		logger:           logger,
 		tableDescription: nil,
-		queryPkInput:     pkQueryValInput,
-		querySkInput:     skQueryValInput,
-		runQueryBtn:      runQueryBtn,
 	}
 }
 
 func (inst *DynamoDBTableItemsPage) InitInputCapture() *DynamoDBTableItemsPage {
-	inst.runQueryBtn.SetSelectedFunc(func() {
-		inst.ItemsTable.SetSelectedTable(inst.tableName)
-		inst.ItemsTable.SetQuery(
-			inst.queryPkInput.GetText(),
-			inst.querySkInput.GetText(),
-			"",
-		)
-		inst.ItemsTable.RefreshQuery(true)
-	})
+	inst.ItemsTable.DoneButton.SetSelectedFunc(func() {
+		inst.ItemsTable.SetPartitionKeyName(inst.ItemsTable.pkName)
+		inst.ItemsTable.SetSortKeyName(inst.ItemsTable.skName)
 
-	inst.ItemsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlR:
-			const forceRefresh = true
-			inst.ItemsTable.SetSelectedTable(inst.tableName)
-			switch inst.lastTableOp {
-			case DDB_TABLE_QUERY:
-				inst.ItemsTable.SetQuery(
-					inst.queryPkInput.GetText(),
-					inst.querySkInput.GetText(),
-					"",
-				)
-				inst.ItemsTable.RefreshQuery(forceRefresh)
-			case DDB_TABLE_SCAN:
-				inst.ItemsTable.RefreshScan(forceRefresh)
-			}
-		case tcell.KeyCtrlN:
-			const forceRefresh = false
-			switch inst.lastTableOp {
-			case DDB_TABLE_QUERY:
-				inst.ItemsTable.SetQuery(
-					inst.queryPkInput.GetText(),
-					inst.querySkInput.GetText(),
-					"",
-				)
-				inst.ItemsTable.RefreshQuery(forceRefresh)
-			case DDB_TABLE_SCAN:
-				inst.ItemsTable.RefreshScan(forceRefresh)
-			}
-		}
-
-		return event
+		var expr = inst.ItemsTable.GenerateQueryExpression()
+		inst.ItemsTable.RefreshQuery(expr, true)
 	})
 
 	return inst
@@ -273,9 +205,11 @@ func NewDynamoDBHomeView(
 
 	ddbDetailsView.TablesTable.SetSelectedFunc(func(row, column int) {
 		selectedTableName = ddbDetailsView.TablesTable.GetSelectedTable()
-		ddbItemsView.ItemsTable.SetSelectedTable(selectedTableName)
-		ddbItemsView.ItemsTable.RefreshScan(true)
-		serviceRootView.ChangePage(1, ddbItemsView.ItemsTable.Table)
+		if len(selectedTableName) > 0 {
+			ddbItemsView.ItemsTable.SetSelectedTable(selectedTableName)
+			ddbItemsView.ItemsTable.RefreshScan(true)
+			serviceRootView.ChangePage(1, ddbItemsView.ItemsTable.Table)
+		}
 	})
 
 	ddbDetailsView.InitInputCapture()
