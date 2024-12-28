@@ -120,6 +120,11 @@ func (inst *DynamoDBTableItemsPage) InitInputCapture() *DynamoDBTableItemsPage {
 		inst.ItemsTable.RefreshQuery(expr, true)
 	})
 
+	inst.ItemsTable.ScanDoneButton.SetSelectedFunc(func() {
+		var expr = inst.ItemsTable.GenerateScanExpression()
+		inst.ItemsTable.RefreshScan(expr, true)
+	})
+
 	return inst
 }
 

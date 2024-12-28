@@ -335,25 +335,114 @@ func (inst *FilterInputView) GenerateFilterCondition() (expression.ConditionBuil
 			inst.logger.Printf("Value2 convertion failed %v\n", val2Err)
 			return filterCond, FilterConditionError{}
 		}
+    default:
+        return filterCond, FilterConditionError{}
 	}
 
 	return filterCond, nil
 }
 
+type DynamoDBScanInputView struct {
+	ScanDoneButton   *tview.Button
+	ScanCancelButton *tview.Button
+	RootView         *tview.Flex
+
+	logger                   *log.Logger
+	filterInputViews         [3]*FilterInputView
+	projectedAttributesInput *tview.InputField
+	projectedAttributes      []string
+	tableName                string
+	indexes                  []string
+	selectedIndex            string
+}
+
+func NewDynamoDBScanInputView(app *tview.Application, logger *log.Logger) *DynamoDBScanInputView {
+	var filterInputViews = [3]*FilterInputView{
+		NewFilterInputView(app, logger),
+		NewFilterInputView(app, logger),
+		NewFilterInputView(app, logger),
+	}
+
+	var separater = tview.NewBox()
+	var doneButton = tview.NewButton("Done")
+	var cancelButton = tview.NewButton("Cancel")
+	var projAttrInput = tview.NewInputField().
+		SetLabel("Attribute Projection ").
+		SetPlaceholder("id,timestamp,name")
+
+	var wrapper = tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(projAttrInput, 0, 1, false).
+		AddItem(separater, 1, 0, true)
+
+	for _, view := range filterInputViews {
+		wrapper.AddItem(view.RootView, 3, 0, true)
+	}
+
+	wrapper.AddItem(
+		tview.NewFlex().SetDirection(tview.FlexColumn).
+			AddItem(doneButton, 0, 1, true).
+			AddItem(separater, 1, 0, true).
+			AddItem(cancelButton, 0, 1, true),
+		1, 0, true,
+	)
+
+	return &DynamoDBScanInputView{
+		RootView:         wrapper,
+		ScanDoneButton:   doneButton,
+		ScanCancelButton: cancelButton,
+
+		logger:              logger,
+		filterInputViews:    filterInputViews,
+		projectedAttributes: nil,
+		tableName:           "",
+		indexes:             nil,
+		selectedIndex:       "",
+	}
+}
+
+func (inst *DynamoDBScanInputView) GenerateScanExpression() expression.Expression {
+	//	var filterCond expression.ConditionBuilder
+	//	for _, filterView := range inst.filterInputViews {
+	//		var cond, err = filterView.GenerateFilterCondition()
+	//		if err == nil {
+	//			filterCond.And(cond)
+	//		}
+	//	}
+	var filterCond, _ = inst.filterInputViews[0].GenerateFilterCondition()
+
+	var expr, err = expression.NewBuilder().WithFilter(filterCond).Build()
+	if err != nil {
+		inst.logger.Printf("Failed to build expression for scan: %v\n", err)
+	}
+
+	return expr
+}
+
+func (inst *DynamoDBScanInputView) SetSelectedTable(tableName string) {
+	inst.tableName = tableName
+}
+
+func (inst *DynamoDBScanInputView) SetTableIndexes(indexes []string) {
+	inst.indexes = indexes
+}
+
 const (
 	QUERY_PAGE_NAME = "QUERY"
+	SCAN_PAGE_NAME  = "SCAN"
 	MAIN_PAGE_NAME  = "MAIN_PAGE"
 )
 
 type DynamoDBTableSearchView struct {
 	*DynamoDBQueryInputView
+	*DynamoDBScanInputView
 	RootView *tview.Flex
 	MainPage tview.Primitive
 
-	showSearch bool
-	pages      *tview.Pages
-	app        *tview.Application
-	Logger     *log.Logger
+	queryViewHidden bool
+	scanViewHidden  bool
+	pages           *tview.Pages
+	app             *tview.Application
+	Logger          *log.Logger
 }
 
 func NewDynamoDBTableSearchView(
@@ -362,35 +451,52 @@ func NewDynamoDBTableSearchView(
 	logger *log.Logger,
 ) *DynamoDBTableSearchView {
 	var queryView = NewDynamoDBQueryInputView(app, logger)
-	var floatingSearch = core.FloatingView("Query", queryView.RootView, 70, 7)
+	var floatingQuery = core.FloatingView("Query", queryView.RootView, 70, 7)
+	var scanView = NewDynamoDBScanInputView(app, logger)
+	var floatingScan = core.FloatingView("Scan", scanView.RootView, 70, 14)
 
 	var pages = tview.NewPages().
 		AddPage("MAIN_PAGE", mainPage, true, true).
-		AddPage(QUERY_PAGE_NAME, floatingSearch, true, false)
+		AddPage(QUERY_PAGE_NAME, floatingQuery, true, false).
+		AddPage(SCAN_PAGE_NAME, floatingScan, true, false)
 
 	var view = &DynamoDBTableSearchView{
 		DynamoDBQueryInputView: queryView,
+		DynamoDBScanInputView:  scanView,
 		RootView:               tview.NewFlex().AddItem(pages, 0, 1, true),
 		MainPage:               mainPage,
 
-		showSearch: true,
-		pages:      pages,
+		queryViewHidden: true,
+		scanViewHidden:  true,
+		pages:           pages,
 	}
 
-	view.CancelButton.SetSelectedFunc(func() {
+	view.QueryCancelButton.SetSelectedFunc(func() {
 		pages.HidePage(QUERY_PAGE_NAME)
-		view.showSearch = true
+		view.queryViewHidden = true
 	})
 
 	view.pages.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlF:
-			if view.showSearch {
+		case tcell.KeyCtrlQ:
+			if view.queryViewHidden {
 				pages.ShowPage(QUERY_PAGE_NAME)
+				pages.HidePage(SCAN_PAGE_NAME)
+				view.scanViewHidden = true
 			} else {
 				pages.HidePage(QUERY_PAGE_NAME)
 			}
-			view.showSearch = !view.showSearch
+			view.queryViewHidden = !view.queryViewHidden
+			return nil
+		case tcell.KeyCtrlS:
+			if view.scanViewHidden {
+				pages.HidePage(QUERY_PAGE_NAME)
+				pages.ShowPage(SCAN_PAGE_NAME)
+				view.queryViewHidden = true
+			} else {
+				pages.HidePage(SCAN_PAGE_NAME)
+			}
+			view.scanViewHidden = !view.scanViewHidden
 			return nil
 		}
 		return event

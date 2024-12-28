@@ -199,5 +199,6 @@ func (inst *DynamoDBGenericTable) RefreshQuery(expr expression.Expression, reset
 
 func (inst *DynamoDBGenericTable) SetSelectedTable(tableName string) {
 	inst.DynamoDBQueryInputView.SetSelectedTable(tableName)
+	inst.DynamoDBScanInputView.SetSelectedTable(tableName)
 	inst.selectedTable = tableName
 }
