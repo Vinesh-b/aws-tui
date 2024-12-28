@@ -99,6 +99,7 @@ func (inst *DynamoDBApi) ScanTable(
 		inst.scanPaginator = dynamodb.NewScanPaginator(inst.client, &dynamodb.ScanInput{
 			TableName:                 aws.String(tableName),
 			Limit:                     aws.Int32(20),
+			FilterExpression:          scanExpression.Filter(),
 			ExpressionAttributeNames:  scanExpression.Names(),
 			ExpressionAttributeValues: scanExpression.Values(),
 			ProjectionExpression:      scanExpression.Projection(),
@@ -131,6 +132,7 @@ func (inst *DynamoDBApi) QueryTable(
 		inst.queryPaginator = dynamodb.NewQueryPaginator(inst.client, &dynamodb.QueryInput{
 			TableName:                 aws.String(tableName),
 			Limit:                     aws.Int32(100),
+			FilterExpression:          queryExpression.Filter(),
 			ExpressionAttributeNames:  queryExpression.Names(),
 			ExpressionAttributeValues: queryExpression.Values(),
 			KeyConditionExpression:    queryExpression.KeyCondition(),

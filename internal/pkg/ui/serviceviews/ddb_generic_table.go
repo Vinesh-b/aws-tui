@@ -147,7 +147,7 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 	inst.Table.Select(1, 0)
 }
 
-func (inst *DynamoDBGenericTable) RefreshScan(reset bool) {
+func (inst *DynamoDBGenericTable) RefreshScan(expr expression.Expression, reset bool) {
 	var resultChannel = make(chan struct{})
 
 	go func() {
@@ -158,7 +158,7 @@ func (inst *DynamoDBGenericTable) RefreshScan(reset bool) {
 		if reset || inst.tableDescription == nil {
 			inst.tableDescription = inst.api.DescribeTable(inst.selectedTable)
 		}
-		inst.data = inst.api.ScanTable(inst.selectedTable, expression.Expression{}, "", reset)
+		inst.data = inst.api.ScanTable(inst.selectedTable, expr, "", reset)
 
 		resultChannel <- struct{}{}
 	}()
@@ -200,10 +200,4 @@ func (inst *DynamoDBGenericTable) RefreshQuery(expr expression.Expression, reset
 func (inst *DynamoDBGenericTable) SetSelectedTable(tableName string) {
 	inst.DynamoDBQueryInputView.SetSelectedTable(tableName)
 	inst.selectedTable = tableName
-}
-
-func (inst *DynamoDBGenericTable) SetQuery(partitionKey string, sortKey string, indexName string) {
-	inst.pkQueryString = partitionKey
-	inst.skQueryString = sortKey
-	inst.searchIndexName = indexName
 }

@@ -10,20 +10,20 @@ import (
 )
 
 type DynamoDBQueryInputView struct {
-	PkInput             *tview.InputField
-	SkInput             *tview.InputField
-	SkComparatorInput   *tview.InputField
-	DoneButton          *tview.Button
-	CancelButton        *tview.Button
-	ProjectedAttributes []string
-	SelectedIndex       string
-	RootView            *tview.Flex
+	QueryDoneButton   *tview.Button
+	QueryCancelButton *tview.Button
+	RootView          *tview.Flex
 
-	logger    *log.Logger
-	tableName string
-	indexes   []string
-	pkName    string
-	skName    string
+	logger              *log.Logger
+	pkInput             *tview.InputField
+	skInput             *tview.InputField
+	skComparatorInput   *tview.InputField
+	projectedAttributes []string
+	selectedIndex       string
+	tableName           string
+	indexes             []string
+	pkName              string
+	skName              string
 }
 
 func NewDynamoDBQueryInputView(app *tview.Application, logger *log.Logger) *DynamoDBQueryInputView {
@@ -64,11 +64,11 @@ func NewDynamoDBQueryInputView(app *tview.Application, logger *log.Logger) *Dyna
 	)
 
 	return &DynamoDBQueryInputView{
-		PkInput:           pkInput,
-		SkInput:           skInput,
-		SkComparatorInput: skComparitorInput,
-		DoneButton:        doneButton,
-		CancelButton:      cancelButton,
+		pkInput:           pkInput,
+		skInput:           skInput,
+		skComparatorInput: skComparitorInput,
+		QueryDoneButton:   doneButton,
+		QueryCancelButton: cancelButton,
 		RootView:          wrapper,
 
 		logger: logger,
@@ -76,9 +76,9 @@ func NewDynamoDBQueryInputView(app *tview.Application, logger *log.Logger) *Dyna
 }
 
 func (inst *DynamoDBQueryInputView) GenerateQueryExpression() expression.Expression {
-	var pk = inst.PkInput.GetText()
-	var sk = inst.SkInput.GetText()
-	var comp = inst.SkComparatorInput.GetText()
+	var pk = inst.pkInput.GetText()
+	var sk = inst.skInput.GetText()
+	var comp = inst.skComparatorInput.GetText()
 
 	var keyCond = expression.
 		Key(inst.pkName).Equal(expression.Value(pk))

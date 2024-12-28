@@ -7,6 +7,7 @@ import (
 	"aws-tui/internal/pkg/ui/core"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
 	"github.com/gdamore/tcell/v2"
@@ -111,7 +112,7 @@ func NewDynamoDBTableItemsPage(
 }
 
 func (inst *DynamoDBTableItemsPage) InitInputCapture() *DynamoDBTableItemsPage {
-	inst.ItemsTable.DoneButton.SetSelectedFunc(func() {
+	inst.ItemsTable.QueryDoneButton.SetSelectedFunc(func() {
 		inst.ItemsTable.SetPartitionKeyName(inst.ItemsTable.pkName)
 		inst.ItemsTable.SetSortKeyName(inst.ItemsTable.skName)
 
@@ -177,7 +178,7 @@ func NewDynamoDBHomeView(
 		selectedTableName = ddbDetailsView.TablesTable.GetSelectedTable()
 		if len(selectedTableName) > 0 {
 			ddbItemsView.ItemsTable.SetSelectedTable(selectedTableName)
-			ddbItemsView.ItemsTable.RefreshScan(true)
+			ddbItemsView.ItemsTable.RefreshScan(expression.Expression{}, true)
 			serviceRootView.ChangePage(1, ddbItemsView.ItemsTable.Table)
 		}
 	})
