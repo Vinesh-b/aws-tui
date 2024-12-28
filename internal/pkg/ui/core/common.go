@@ -190,3 +190,47 @@ func InitViewTabNavigation(rootView RootView, orderedViews []View, app *tview.Ap
 	})
 }
 
+type ViewTabNavigation struct {
+	rootView     RootView
+	orderedViews []View
+	app          *tview.Application
+	viewIdx      int
+	numViews     int
+}
+
+func NewViewTabNavigation(rootView RootView, orderedViews []View, app *tview.Application) *ViewTabNavigation {
+	var view = &ViewTabNavigation{
+		rootView:     rootView,
+		orderedViews: orderedViews,
+		app:          app,
+		viewIdx:      len(orderedViews),
+		numViews:     len(orderedViews),
+	}
+
+	view.InitViewTabNavigation()
+
+	return view
+}
+
+func (inst *ViewTabNavigation) UpdateOrderedViews(orderedViews []View, intitalIxd int) {
+	inst.orderedViews = orderedViews
+	inst.numViews = len(inst.orderedViews)
+	inst.viewIdx = intitalIxd
+}
+
+func (inst *ViewTabNavigation) InitViewTabNavigation() {
+	inst.rootView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyBacktab:
+			inst.viewIdx = (inst.viewIdx - 1 + inst.numViews) % inst.numViews
+			inst.app.SetFocus(inst.orderedViews[inst.viewIdx])
+			return nil
+		case tcell.KeyTab:
+			inst.viewIdx = (inst.viewIdx + 1) % inst.numViews
+			inst.app.SetFocus(inst.orderedViews[inst.viewIdx])
+			return nil
+		}
+
+		return event
+	})
+}
