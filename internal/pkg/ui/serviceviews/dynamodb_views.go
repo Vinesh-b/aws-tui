@@ -79,32 +79,12 @@ func NewDynamoDBTableItemsPage(
 ) *DynamoDBTableItemsPage {
 	var expandItemView = core.CreateExpandedLogView(app, itemsTable.Table, 0, core.DATA_TYPE_MAP_STRING_ANY)
 
-	var atterNameInput = tview.NewInputField().
-		SetFieldWidth(0).
-		SetLabel(" Attribute Name  ")
-	var atterValueInput = tview.NewInputField().
-		SetFieldWidth(0).
-		SetLabel(" Attribute Value ")
-	var runScanBtn = tview.NewButton("Run")
-	var scanView = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(atterNameInput, 1, 0, false).
-		AddItem(atterValueInput, 1, 0, false).
-		AddItem(runScanBtn, 1, 0, false)
-	scanView.
-		SetBorder(true).
-		SetTitle("Scan").
-		SetTitleAlign(tview.AlignLeft)
-
 	const expandItemViewSize = 3
 	const itemsTableSize = 7
 
 	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(expandItemView, 0, expandItemViewSize, false).
-		AddItem(itemsTable.RootView, 0, itemsTableSize, true).
-		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
-			AddItem(scanView, 0, 1, false),
-			5, 0, false,
-		)
+		AddItem(itemsTable.RootView, 0, itemsTableSize, true)
 
 	var serviceView = core.NewServiceView(app, logger, mainPage)
 
@@ -113,18 +93,8 @@ func NewDynamoDBTableItemsPage(
 		expandItemViewSize, itemsTableSize,
 	)
 
-	serviceView.InitViewTabNavigation(
-		scanView,
-		[]core.View{
-			atterNameInput,
-			atterValueInput,
-			runScanBtn,
-		},
-	)
-
 	serviceView.InitViewNavigation(
 		[]core.View{
-			scanView,
 			itemsTable.RootView,
 			expandItemView,
 		},

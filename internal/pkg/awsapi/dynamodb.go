@@ -83,15 +83,26 @@ func (inst *DynamoDBApi) DescribeTable(tableName string) *types.TableDescription
 }
 
 func (inst *DynamoDBApi) ScanTable(
-	description *types.TableDescription,
+	tableName string,
+	scanExpression expression.Expression,
+	indexName string,
 	force bool,
 ) []map[string]interface{} {
 	var items []map[string]interface{}
 
+	var index *string = nil
+	if len(indexName) > 0 {
+		index = aws.String(indexName)
+	}
+
 	if force || inst.scanPaginator == nil {
 		inst.scanPaginator = dynamodb.NewScanPaginator(inst.client, &dynamodb.ScanInput{
-			TableName: description.TableName,
-			Limit:     aws.Int32(20),
+			TableName:                 aws.String(tableName),
+			Limit:                     aws.Int32(20),
+			ExpressionAttributeNames:  scanExpression.Names(),
+			ExpressionAttributeValues: scanExpression.Values(),
+			ProjectionExpression:      scanExpression.Projection(),
+			IndexName:                 index,
 		})
 	}
 

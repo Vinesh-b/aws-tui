@@ -158,7 +158,7 @@ func (inst *DynamoDBGenericTable) RefreshScan(reset bool) {
 		if reset || inst.tableDescription == nil {
 			inst.tableDescription = inst.api.DescribeTable(inst.selectedTable)
 		}
-		inst.data = inst.api.ScanTable(inst.tableDescription, reset)
+		inst.data = inst.api.ScanTable(inst.selectedTable, expression.Expression{}, "", reset)
 
 		resultChannel <- struct{}{}
 	}()
