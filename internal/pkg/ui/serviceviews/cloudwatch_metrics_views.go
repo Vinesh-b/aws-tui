@@ -13,9 +13,9 @@ import (
 )
 
 type MetricDetailsView struct {
+	*core.ServicePageView
 	MetricListTable    *MetricListTable
 	MetricDetailsTable *MetricDetailsTable
-	RootView           *tview.Flex
 	app                *tview.Application
 	api                *awsapi.CloudWatchMetricsApi
 }
@@ -30,16 +30,14 @@ func NewMetricsDetailsView(
 	const metricsTableSize = 3500
 	const detailsTableSize = 3500
 
-	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(metricDetailsTable.RootView, 0, metricsTableSize, false).
-		AddItem(metricListTable.RootView, 0, metricsTableSize, true)
-
-	var serviceView = core.NewServiceView(app, logger, mainPage)
-
-	serviceView.SetResizableViews(
-		metricDetailsTable.RootView, metricListTable.RootView,
-		detailsTableSize, metricsTableSize,
+	var mainPage = core.NewResizableView(
+		metricDetailsTable.RootView, metricsTableSize,
+		metricListTable.RootView, metricsTableSize,
+		tview.FlexRow,
 	)
+
+	var serviceView = core.NewServicePageView(app, logger)
+	serviceView.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
@@ -49,9 +47,9 @@ func NewMetricsDetailsView(
 	)
 
 	return &MetricDetailsView{
+		ServicePageView:    serviceView,
 		MetricListTable:    metricListTable,
 		MetricDetailsTable: metricDetailsTable,
-		RootView:           serviceView.RootView,
 		app:                app,
 		api:                api,
 	}
@@ -87,7 +85,7 @@ func NewMetricsHomeView(
 	metricsDetailsView.InitInputCapture()
 
 	var pages = tview.NewPages().
-		AddAndSwitchToPage("Metrics", metricsDetailsView.RootView, true)
+		AddAndSwitchToPage("Metrics", metricsDetailsView, true)
 
 	var orderedPages = []string{
 		"Metrics",
