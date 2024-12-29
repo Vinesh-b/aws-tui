@@ -12,34 +12,32 @@ import (
 	"github.com/rivo/tview"
 )
 
-type CloudFormationDetailsPage struct {
-	StackListTable    *StackListTable
-	StackDetailsTable *StackDetailsTable
-	RootView          *tview.Flex
+type CloudFormationDetailsPageView struct {
+	*core.ServicePageView
+	stackListTable    *StackListTable
+	stackDetailsTable *StackDetailsTable
 	app               *tview.Application
 	api               *awsapi.CloudFormationApi
 }
 
-func NewStacksDetailsPage(
+func NewStacksDetailsPageView(
 	stackListTable *StackListTable,
 	stackDetailsTable *StackDetailsTable,
 	app *tview.Application,
 	api *awsapi.CloudFormationApi,
 	logger *log.Logger,
-) *CloudFormationDetailsPage {
+) *CloudFormationDetailsPageView {
 	const stackDetailsSize = 5000
 	const stackTablesSize = 3000
 
-	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(stackDetailsTable.Table, 0, stackDetailsSize, false).
-		AddItem(stackListTable.RootView, 0, stackTablesSize, true)
-
-	var serviceView = core.NewServiceView(app, logger, mainPage)
-
-	serviceView.SetResizableViews(
-		stackDetailsTable.Table, stackListTable.RootView,
-		stackDetailsSize, stackTablesSize,
+	var mainPage = core.NewResizableView(
+		stackDetailsTable.Table, stackDetailsSize,
+		stackListTable.RootView, stackTablesSize,
+		tview.FlexRow,
 	)
+
+	var serviceView = core.NewServicePageView(app, logger)
+	serviceView.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
@@ -47,20 +45,21 @@ func NewStacksDetailsPage(
 			stackDetailsTable.Table,
 		},
 	)
-	return &CloudFormationDetailsPage{
-		StackListTable:    stackListTable,
-		StackDetailsTable: stackDetailsTable,
-		RootView:          serviceView.RootView,
+
+	return &CloudFormationDetailsPageView{
+		ServicePageView:   serviceView,
+		stackListTable:    stackListTable,
+		stackDetailsTable: stackDetailsTable,
 		app:               app,
 		api:               api,
 	}
 }
 
-func (inst *CloudFormationDetailsPage) InitInputCapture() {
-	inst.StackListTable.SetSearchDoneFunc(func(key tcell.Key) {
+func (inst *CloudFormationDetailsPageView) InitInputCapture() {
+	inst.stackListTable.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			inst.StackListTable.RefreshStacks(false)
+			inst.stackListTable.RefreshStacks(false)
 		}
 	})
 
@@ -68,35 +67,35 @@ func (inst *CloudFormationDetailsPage) InitInputCapture() {
 		if row < 1 {
 			return
 		}
-		inst.StackDetailsTable.SetStackName(inst.StackListTable.GetSelectedStackName())
-		inst.StackDetailsTable.RefreshDetails(force)
+		inst.stackDetailsTable.SetStackName(inst.stackListTable.GetSelectedStackName())
+		inst.stackDetailsTable.RefreshDetails(force)
 	}
 
-	inst.StackListTable.SetSelectionChangedFunc(func(row, column int) {
+	inst.stackListTable.SetSelectionChangedFunc(func(row, column int) {
 		refreshDetails(row, false)
 	})
 
-	inst.StackListTable.Table.SetSelectedFunc(func(row, column int) {
+	inst.stackListTable.Table.SetSelectedFunc(func(row, column int) {
 		refreshDetails(row, false)
-		inst.app.SetFocus(inst.StackDetailsTable.Table)
+		inst.app.SetFocus(inst.stackDetailsTable.Table)
 	})
 }
 
-type CloudFormationStackEventsPage struct {
-	StackEventsTable *StackEventsTable
-	RootView         *tview.Flex
+type CloudFormationStackEventsPageView struct {
+	*core.ServicePageView
+	stackEventsTable *StackEventsTable
 	selectedStack    string
 	searchPositions  []int
 	app              *tview.Application
 	api              *awsapi.CloudFormationApi
 }
 
-func NewStackEventsPage(
+func NewStackEventsPageView(
 	stackEventsTable *StackEventsTable,
 	app *tview.Application,
 	api *awsapi.CloudFormationApi,
 	logger *log.Logger,
-) *CloudFormationStackEventsPage {
+) *CloudFormationStackEventsPageView {
 	var expandedMsgView = tview.NewTextArea()
 	expandedMsgView.
 		SetBorder(true).
@@ -111,15 +110,14 @@ func NewStackEventsPage(
 	const expandedMsgSize = 5
 	const stackEventsSize = 15
 
-	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(expandedMsgView, 0, expandedMsgSize, false).
-		AddItem(stackEventsTable.RootView, 0, stackEventsSize, true)
-
-	var serviceView = core.NewServiceView(app, logger, mainPage)
-	serviceView.SetResizableViews(
-		expandedMsgView, stackEventsTable.RootView,
-		expandedMsgSize, stackEventsSize,
+	var mainPage = core.NewResizableView(
+		expandedMsgView, expandedMsgSize,
+		stackEventsTable.RootView, stackEventsSize,
+		tview.FlexRow,
 	)
+
+	var serviceView = core.NewServicePageView(app, logger)
+	serviceView.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
@@ -127,22 +125,22 @@ func NewStackEventsPage(
 			expandedMsgView,
 		},
 	)
-	return &CloudFormationStackEventsPage{
-		StackEventsTable: stackEventsTable,
-		RootView:         serviceView.RootView,
+	return &CloudFormationStackEventsPageView{
+		ServicePageView:  serviceView,
+		stackEventsTable: stackEventsTable,
 		selectedStack:    "",
 		app:              app,
 		api:              api,
 	}
 }
 
-func (inst *CloudFormationStackEventsPage) InitInputCapture() {
-	inst.StackEventsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+func (inst *CloudFormationStackEventsPageView) InitInputCapture() {
+	inst.stackEventsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			inst.StackEventsTable.RefreshEvents(true)
+			inst.stackEventsTable.RefreshEvents(true)
 		case tcell.KeyCtrlN:
-			inst.StackEventsTable.RefreshEvents(false)
+			inst.stackEventsTable.RefreshEvents(false)
 		}
 		return event
 	})
@@ -158,20 +156,20 @@ func NewStacksHomeView(
 
 	var (
 		api               = awsapi.NewCloudFormationApi(config, logger)
-		stacksDetailsView = NewStacksDetailsPage(
+		stacksDetailsView = NewStacksDetailsPageView(
 			NewStackListTable(app, api, logger),
 			NewStackDetailsTable(app, api, logger),
 			app, api, logger,
 		)
-		stackEventsView = NewStackEventsPage(
+		stackEventsView = NewStackEventsPageView(
 			NewStackEventsTable(app, api, logger),
 			app, api, logger,
 		)
 	)
 
 	var pages = tview.NewPages().
-		AddPage("Events", stackEventsView.RootView, true, true).
-		AddAndSwitchToPage("Stacks", stacksDetailsView.RootView, true)
+		AddPage("Events", stackEventsView, true, true).
+		AddAndSwitchToPage("Stacks", stacksDetailsView, true)
 
 	var orderedPages = []string{
 		"Stacks",
@@ -181,11 +179,11 @@ func NewStacksHomeView(
 	var serviceRootView = core.NewServiceRootView(
 		app, string(CLOUDFORMATION), pages, orderedPages).Init()
 
-	stacksDetailsView.StackDetailsTable.Table.SetSelectedFunc(func(row, column int) {
-		var selectedStackName = stacksDetailsView.StackListTable.GetSelectedStackName()
-		stackEventsView.StackEventsTable.SetSelectedStackName(selectedStackName)
-		stackEventsView.StackEventsTable.RefreshEvents(true)
-		serviceRootView.ChangePage(1, stackEventsView.StackEventsTable.Table)
+	stacksDetailsView.stackDetailsTable.Table.SetSelectedFunc(func(row, column int) {
+		var selectedStackName = stacksDetailsView.stackListTable.GetSelectedStackName()
+		stackEventsView.stackEventsTable.SetSelectedStackName(selectedStackName)
+		stackEventsView.stackEventsTable.RefreshEvents(true)
+		serviceRootView.ChangePage(1, stackEventsView.stackEventsTable.Table)
 	})
 
 	stackEventsView.InitInputCapture()
