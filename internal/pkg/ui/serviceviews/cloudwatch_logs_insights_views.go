@@ -14,33 +14,32 @@ import (
 	"github.com/rivo/tview"
 )
 
-type LogGroupsSelectionPage struct {
+type LogGroupsSelectionPageView struct {
+	*core.ServicePageView
 	LogGroupsTable     *LogGroupsTable
 	SeletedGroupsTable *SelectedGroupsTable
 	SearchInput        *tview.InputField
-	RootView           *tview.Flex
 	selectedGroups     StringSet
 	app                *tview.Application
 	api                *awsapi.CloudWatchLogsApi
 }
 
-func NewLogGroupsSelectionPage(
+func NewLogGroupsSelectionPageView(
 	selectedGroupsTable *SelectedGroupsTable,
 	app *tview.Application,
 	api *awsapi.CloudWatchLogsApi,
 	logger *log.Logger,
-) *LogGroupsSelectionPage {
+) *LogGroupsSelectionPageView {
 
 	var logGroupsView = NewLogGroupsPageView(
 		NewLogGroupsTable(app, api, logger),
 		app, api, logger)
 	logGroupsView.InitInputCapture()
 
-	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
+	var serviceView = core.NewServicePageView(app, logger)
+	serviceView.
 		AddItem(selectedGroupsTable.RootView, 0, 1, false).
 		AddItem(logGroupsView.LogGroupsTable.RootView, 0, 1, true)
-
-	var serviceView = core.NewServiceView(app, logger, mainPage)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
@@ -49,17 +48,17 @@ func NewLogGroupsSelectionPage(
 		},
 	)
 
-	return &LogGroupsSelectionPage{
+	return &LogGroupsSelectionPageView{
+		ServicePageView:    serviceView,
 		SeletedGroupsTable: selectedGroupsTable,
 		LogGroupsTable:     logGroupsView.LogGroupsTable,
-		RootView:           serviceView.RootView,
 		selectedGroups:     StringSet{},
 		app:                app,
 		api:                api,
 	}
 }
 
-func (inst *LogGroupsSelectionPage) InitInputCapture() {
+func (inst *LogGroupsSelectionPageView) InitInputCapture() {
 	inst.LogGroupsTable.SetSelectedFunc(func(row, column int) {
 		if row < 1 {
 			return
@@ -71,25 +70,25 @@ func (inst *LogGroupsSelectionPage) InitInputCapture() {
 
 }
 
-type InsightsQueryResultsPage struct {
+type InsightsQueryResultsPageView struct {
+	*core.ServicePageView
 	QueryResultsTable   *InsightsQueryResultsTable
 	ExpandedResult      *tview.TextArea
 	QueryInput          *tview.TextArea
 	QueryStartDateInput *tview.InputField
 	QueryEndDateInput   *tview.InputField
 	RunQueryButton      *tview.Button
-	RootView            *tview.Flex
 	app                 *tview.Application
 	api                 *awsapi.CloudWatchLogsApi
 	selectedLogGroups   *[]string
 }
 
-func NewInsightsQueryResultsPage(
+func NewInsightsQueryResultsPageView(
 	insightsQueryResultsTable *InsightsQueryResultsTable,
 	app *tview.Application,
 	api *awsapi.CloudWatchLogsApi,
 	logger *log.Logger,
-) *InsightsQueryResultsPage {
+) *InsightsQueryResultsPageView {
 
 	var queryInputView = core.CreateTextArea("Query")
 	queryInputView.SetText(
@@ -125,25 +124,18 @@ func NewInsightsQueryResultsPage(
 	const resultsTableSize = 10
 	const queryViewSize = 9
 
-	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(expandedResultView, 0, expandedLogsSize, false).
-		AddItem(insightsQueryResultsTable.RootView, 0, resultsTableSize, true).
-		AddItem(queryView, queryViewSize, 0, true)
-
-	var serviceView = core.NewServiceView(app, logger, mainPage)
-
-	serviceView.SetResizableViews(
-		expandedResultView, insightsQueryResultsTable.RootView,
-		expandedLogsSize, resultsTableSize,
+	var resizableView = core.NewResizableView(
+		expandedResultView, expandedLogsSize,
+		insightsQueryResultsTable.RootView, resultsTableSize,
+		tview.FlexRow,
 	)
 
-	serviceView.InitViewTabNavigation(
-		queryRunView,
-		[]core.View{
-			startDateInput,
-			endDateInput,
-			runQueryButton,
-		})
+	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(resizableView, 0, 1, false).
+		AddItem(queryView, queryViewSize, 0, true)
+
+	var serviceView = core.NewServicePageView(app, logger)
+	serviceView.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
@@ -154,20 +146,20 @@ func NewInsightsQueryResultsPage(
 		},
 	)
 
-	return &InsightsQueryResultsPage{
+	return &InsightsQueryResultsPageView{
+		ServicePageView:     serviceView,
 		QueryResultsTable:   insightsQueryResultsTable,
 		QueryInput:          queryInputView,
 		ExpandedResult:      expandedResultView,
 		QueryStartDateInput: startDateInput,
 		QueryEndDateInput:   endDateInput,
 		RunQueryButton:      runQueryButton,
-		RootView:            serviceView.RootView,
 		app:                 app,
 		api:                 api,
 	}
 }
 
-func (inst *InsightsQueryResultsPage) InitInputCapture() {
+func (inst *InsightsQueryResultsPageView) InitInputCapture() {
 	inst.QueryResultsTable.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyCtrlR:
@@ -210,7 +202,7 @@ func (inst *InsightsQueryResultsPage) InitInputCapture() {
 	})
 }
 
-func (inst *InsightsQueryResultsPage) InitSearchInputBuffer(selectedGroups *[]string) {
+func (inst *InsightsQueryResultsPageView) InitSearchInputBuffer(selectedGroups *[]string) {
 	inst.selectedLogGroups = selectedGroups
 }
 
@@ -223,11 +215,11 @@ func NewLogsInsightsHomeView(
 	defer core.ResetGlobalStyle()
 
 	var api = awsapi.NewCloudWatchLogsApi(config, logger)
-	var insightsResultsView = NewInsightsQueryResultsPage(
+	var insightsResultsView = NewInsightsQueryResultsPageView(
 		NewInsightsQueryResultsTable(app, api, logger),
 		app, api, logger,
 	)
-	var groupSelectionView = NewLogGroupsSelectionPage(
+	var groupSelectionView = NewLogGroupsSelectionPageView(
 		NewSelectedGroupsTable(app, api, logger),
 		app, api, logger,
 	)
@@ -238,8 +230,8 @@ func NewLogsInsightsHomeView(
 
 	var pages = tview.NewPages().
 		AddPage("LogEvents", logEventsView, true, true).
-		AddPage("Query", insightsResultsView.RootView, true, true).
-		AddAndSwitchToPage("GroupsSelection", groupSelectionView.RootView, true)
+		AddPage("Query", insightsResultsView, true, true).
+		AddAndSwitchToPage("GroupsSelection", groupSelectionView, true)
 
 	var orderedPages = []string{
 		"GroupsSelection",
