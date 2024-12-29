@@ -15,9 +15,9 @@ import (
 )
 
 type DynamoDBDetailsPage struct {
+	*core.ServicePageView
 	TablesTable  *DynamoDBTablesTable
 	DetailsTable *DynamoDBDetailsTable
-	RootView     *tview.Flex
 	app          *tview.Application
 	api          *awsapi.DynamoDBApi
 }
@@ -32,16 +32,14 @@ func NewDynamoDBDetailsPage(
 	const detailsSize = 3000
 	const tablesSize = 5000
 
-	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(detailsTable.RootView, 0, detailsSize, false).
-		AddItem(tablesTable.RootView, 0, tablesSize, true)
-
-	var serviceView = core.NewServiceView(app, logger, mainPage)
-
-	serviceView.SetResizableViews(
-		detailsTable.RootView, tablesTable.RootView,
-		detailsSize, tablesSize,
+	var mainPage = core.NewResizableView(
+		detailsTable.RootView, detailsSize,
+		tablesTable.RootView, tablesSize,
+		tview.FlexRow,
 	)
+
+	var serviceView = core.NewServicePageView(app, logger)
+	serviceView.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
@@ -51,19 +49,19 @@ func NewDynamoDBDetailsPage(
 	)
 
 	return &DynamoDBDetailsPage{
-		TablesTable:  tablesTable,
-		DetailsTable: detailsTable,
-		RootView:     serviceView.RootView,
-		app:          app,
-		api:          api,
+		ServicePageView: serviceView,
+		TablesTable:     tablesTable,
+		DetailsTable:    detailsTable,
+		app:             app,
+		api:             api,
 	}
 }
 
 func (inst *DynamoDBDetailsPage) InitInputCapture() {}
 
 type DynamoDBTableItemsPage struct {
+	*core.ServicePageView
 	ItemsTable       *DynamoDBGenericTable
-	RootView         *tview.Flex
 	app              *tview.Application
 	api              *awsapi.DynamoDBApi
 	logger           *log.Logger
@@ -83,16 +81,14 @@ func NewDynamoDBTableItemsPage(
 	const expandItemViewSize = 3
 	const itemsTableSize = 7
 
-	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(expandItemView, 0, expandItemViewSize, false).
-		AddItem(itemsTable.RootView, 0, itemsTableSize, true)
-
-	var serviceView = core.NewServiceView(app, logger, mainPage)
-
-	serviceView.SetResizableViews(
-		expandItemView, itemsTable.RootView,
-		expandItemViewSize, itemsTableSize,
+	var mainPage = core.NewResizableView(
+		expandItemView, expandItemViewSize,
+		itemsTable.RootView, itemsTableSize,
+		tview.FlexRow,
 	)
+
+	var serviceView = core.NewServicePageView(app, logger)
+	serviceView.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
@@ -102,8 +98,8 @@ func NewDynamoDBTableItemsPage(
 	)
 
 	return &DynamoDBTableItemsPage{
+		ServicePageView:  serviceView,
 		ItemsTable:       itemsTable,
-		RootView:         serviceView.RootView,
 		app:              app,
 		api:              api,
 		logger:           logger,
@@ -136,8 +132,7 @@ func (inst *DynamoDBTableItemsPage) InitInputCapture() *DynamoDBTableItemsPage {
 	return inst
 }
 
-func (inst *DynamoDBTableItemsPage) SetTableName(tableName string,
-) *DynamoDBTableItemsPage {
+func (inst *DynamoDBTableItemsPage) SetTableName(tableName string) *DynamoDBTableItemsPage {
 	inst.tableName = tableName
 	return inst
 }
@@ -166,8 +161,8 @@ func NewDynamoDBHomeView(
 
 	var pages = tview.NewPages()
 	pages.
-		AddPage("Items", ddbItemsView.RootView, true, true).
-		AddPage("Tables", ddbDetailsView.RootView, true, true)
+		AddPage("Items", ddbItemsView, true, true).
+		AddPage("Tables", ddbDetailsView, true, true)
 
 	var orderedPages = []string{
 		"Tables",
