@@ -12,7 +12,7 @@ import (
 	"github.com/rivo/tview"
 )
 
-type LogEventsPage struct {
+type LogEventsPageView struct {
 	LogEventsTable       *LogEventsTable
 	ExpandedLogsTextArea *tview.TextArea
 	selectedLogGroup     string
@@ -22,12 +22,12 @@ type LogEventsPage struct {
 	api                  *awsapi.CloudWatchLogsApi
 }
 
-func NewLogEventsPage(
+func NewLogEventsPageView(
 	logEventsTable *LogEventsTable,
 	app *tview.Application,
 	api *awsapi.CloudWatchLogsApi,
 	logger *log.Logger,
-) *LogEventsPage {
+) *LogEventsPageView {
 
 	var expandedLogsView = core.CreateExpandedLogView(
 		app, logEventsTable.Table, 1, core.DATA_TYPE_STRING,
@@ -54,7 +54,7 @@ func NewLogEventsPage(
 		},
 	)
 
-	return &LogEventsPage{
+	return &LogEventsPageView{
 		LogEventsTable:       logEventsTable,
 		ExpandedLogsTextArea: expandedLogsView,
 		RootView:             serviceView.RootView,
@@ -65,7 +65,7 @@ func NewLogEventsPage(
 	}
 }
 
-func (inst *LogEventsPage) InitInputCapture() {
+func (inst *LogEventsPageView) InitInputCapture() {
 	inst.LogEventsTable.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
@@ -78,19 +78,19 @@ func (inst *LogEventsPage) InitInputCapture() {
 	})
 }
 
-type LogStreamsPage struct {
+type LogStreamsPageView struct {
 	LogStreamsTable *LogStreamsTable
 	RootView        *tview.Flex
 	app             *tview.Application
 	api             *awsapi.CloudWatchLogsApi
 }
 
-func NewLogStreamsPage(
+func NewLogStreamsPageView(
 	logStreamsTable *LogStreamsTable,
 	app *tview.Application,
 	api *awsapi.CloudWatchLogsApi,
 	logger *log.Logger,
-) *LogStreamsPage {
+) *LogStreamsPageView {
 
 	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(logStreamsTable.RootView, 0, 1, true)
@@ -103,7 +103,7 @@ func NewLogStreamsPage(
 		},
 	)
 
-	return &LogStreamsPage{
+	return &LogStreamsPageView{
 		LogStreamsTable: logStreamsTable,
 		RootView:        serviceView.RootView,
 		app:             app,
@@ -111,7 +111,7 @@ func NewLogStreamsPage(
 	}
 }
 
-func (inst *LogStreamsPage) InitInputCapture() {
+func (inst *LogStreamsPageView) InitInputCapture() {
 	inst.LogStreamsTable.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
@@ -132,7 +132,7 @@ func (inst *LogStreamsPage) InitInputCapture() {
 	})
 }
 
-type LogGroupsPage struct {
+type LogGroupsPageView struct {
 	LogGroupsTable   *LogGroupsTable
 	RootView         *tview.Flex
 	selectedLogGroup string
@@ -140,12 +140,12 @@ type LogGroupsPage struct {
 	api              *awsapi.CloudWatchLogsApi
 }
 
-func NewLogGroupsPage(
+func NewLogGroupsPageView(
 	logGroupsTable *LogGroupsTable,
 	app *tview.Application,
 	api *awsapi.CloudWatchLogsApi,
 	logger *log.Logger,
-) *LogGroupsPage {
+) *LogGroupsPageView {
 
 	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(logGroupsTable.RootView, 0, 1, true)
@@ -158,7 +158,7 @@ func NewLogGroupsPage(
 		},
 	)
 
-	return &LogGroupsPage{
+	return &LogGroupsPageView{
 		LogGroupsTable:   logGroupsTable,
 		RootView:         serviceView.RootView,
 		selectedLogGroup: "",
@@ -167,7 +167,7 @@ func NewLogGroupsPage(
 	}
 }
 
-func (inst *LogGroupsPage) InitInputCapture() {
+func (inst *LogGroupsPageView) InitInputCapture() {
 	inst.LogGroupsTable.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
@@ -195,15 +195,15 @@ func NewLogsHomeView(
 	defer core.ResetGlobalStyle()
 
 	var api = awsapi.NewCloudWatchLogsApi(config, logger)
-	var logEventsView = NewLogEventsPage(
+	var logEventsView = NewLogEventsPageView(
 		NewLogEventsTable(app, api, logger),
 		app, api, logger,
 	)
-	var logStreamsView = NewLogStreamsPage(
+	var logStreamsView = NewLogStreamsPageView(
 		NewLogStreamsTable(app, api, logger),
 		app, api, logger,
 	)
-	var logGroupsView = NewLogGroupsPage(
+	var logGroupsView = NewLogGroupsPageView(
 		NewLogGroupsTable(app, api, logger),
 		app, api, logger,
 	)

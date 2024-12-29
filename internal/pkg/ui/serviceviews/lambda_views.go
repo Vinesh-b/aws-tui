@@ -214,11 +214,11 @@ func NewLambdaHomeView(
 			NewLambdaDetailsTable(app, api, logger),
 			app, api, logger,
 		)
-		logEventsView = NewLogEventsPage(
+		logEventsView = NewLogEventsPageView(
 			NewLogEventsTable(app, cwl_api, logger),
 			app, cwl_api, logger,
 		)
-		logStreamsView = NewLogStreamsPage(
+		logStreamsView = NewLogStreamsPageView(
 			NewLogStreamsTable(app, cwl_api, logger),
 			app, cwl_api, logger,
 		)

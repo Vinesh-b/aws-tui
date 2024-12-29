@@ -31,7 +31,7 @@ func NewLogGroupsSelectionPage(
 	logger *log.Logger,
 ) *LogGroupsSelectionPage {
 
-	var logGroupsView = NewLogGroupsPage(
+	var logGroupsView = NewLogGroupsPageView(
 		NewLogGroupsTable(app, api, logger),
 		app, api, logger)
 	logGroupsView.InitInputCapture()
@@ -231,7 +231,7 @@ func NewLogsInsightsHomeView(
 		NewSelectedGroupsTable(app, api, logger),
 		app, api, logger,
 	)
-	var logEventsView = NewLogEventsPage(
+	var logEventsView = NewLogEventsPageView(
 		NewLogEventsTable(app, api, logger),
 		app, api, logger,
 	)
