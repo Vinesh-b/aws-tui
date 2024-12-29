@@ -438,12 +438,13 @@ func NewDynamoDBScanInputView(app *tview.Application, logger *log.Logger) *Dynam
 		ScanDoneButton:   doneButton,
 		ScanCancelButton: cancelButton,
 
-		logger:              logger,
-		filterInputViews:    filterInputViews,
-		projectedAttributes: nil,
-		tableName:           "",
-		indexes:             nil,
-		selectedIndex:       "",
+		logger:                   logger,
+		filterInputViews:         filterInputViews,
+		projectedAttributesInput: projAttrInput,
+		projectedAttributes:      nil,
+		tableName:                "",
+		indexes:                  nil,
+		selectedIndex:            "",
 	}
 }
 
@@ -455,12 +456,31 @@ func (inst *DynamoDBScanInputView) GenerateScanExpression() (expression.Expressi
 	//			filterCond.And(cond)
 	//		}
 	//	}
+	var exprBuilder = expression.NewBuilder()
 	var filterCond, filtErr = inst.filterInputViews[0].GenerateFilterCondition()
 	if filtErr != nil {
 		return expression.Expression{}, filtErr
 	}
 
-	var expr, err = expression.NewBuilder().WithFilter(filterCond).Build()
+	if filterCond.IsSet() {
+		exprBuilder.WithFilter(filterCond)
+	}
+
+	var projectionText = strings.TrimSpace(inst.projectedAttributesInput.GetText())
+	var atterStrings = strings.Split(projectionText, ",")
+
+	var names = []expression.NameBuilder{}
+	for _, attr := range atterStrings {
+		inst.logger.Printf("Adding name: %v\n", attr)
+		names = append(names, expression.Name(attr))
+	}
+	if len(names) > 0 {
+        // FAILING: Build error: unset parameter: Builder
+		var projection = expression.NamesList(names[0], names[1:]...)
+		exprBuilder.WithProjection(projection)
+	}
+
+	var expr, err = exprBuilder.Build()
 	if err != nil {
 		return expression.Expression{}, errors.WrapDynamoDBSearchError(
 			err, errors.FailedToBuildExpression, "Failed to build Scan expression",

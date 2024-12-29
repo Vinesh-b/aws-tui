@@ -30,8 +30,10 @@ func (e *DDBViewError) Error() string {
 }
 
 func WrapDynamoDBSearchError(err error, code ErrorCode, msg string) error {
+    var message = err.Error()
 	return &DDBViewError{
 		error: fmt.Errorf("%s: [%w]", msg, err),
 		Code:  code,
+        Message: message,
 	}
 }
