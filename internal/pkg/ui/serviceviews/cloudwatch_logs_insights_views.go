@@ -38,13 +38,13 @@ func NewLogGroupsSelectionPageView(
 
 	var serviceView = core.NewServicePageView(app, logger)
 	serviceView.
-		AddItem(selectedGroupsTable.RootView, 0, 1, false).
-		AddItem(logGroupsView.LogGroupsTable.RootView, 0, 1, true)
+		AddItem(selectedGroupsTable, 0, 1, false).
+		AddItem(logGroupsView.LogGroupsTable, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			logGroupsView.LogGroupsTable.RootView,
-			selectedGroupsTable.RootView,
+			logGroupsView.LogGroupsTable,
+			selectedGroupsTable,
 		},
 	)
 
@@ -126,7 +126,7 @@ func NewInsightsQueryResultsPageView(
 
 	var resizableView = core.NewResizableView(
 		expandedResultView, expandedLogsSize,
-		insightsQueryResultsTable.RootView, resultsTableSize,
+		insightsQueryResultsTable, resultsTableSize,
 		tview.FlexRow,
 	)
 
@@ -141,7 +141,7 @@ func NewInsightsQueryResultsPageView(
 		[]core.View{
 			queryRunView,
 			queryInputView,
-			insightsQueryResultsTable.RootView,
+			insightsQueryResultsTable,
 			expandedResultView,
 		},
 	)

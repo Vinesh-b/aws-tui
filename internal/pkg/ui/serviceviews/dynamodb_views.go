@@ -33,8 +33,8 @@ func NewDynamoDBDetailsPage(
 	const tablesSize = 5000
 
 	var mainPage = core.NewResizableView(
-		detailsTable.RootView, detailsSize,
-		tablesTable.RootView, tablesSize,
+		detailsTable, detailsSize,
+		tablesTable, tablesSize,
 		tview.FlexRow,
 	)
 
@@ -43,8 +43,8 @@ func NewDynamoDBDetailsPage(
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			tablesTable.RootView,
-			detailsTable.RootView,
+			tablesTable,
+			detailsTable,
 		},
 	)
 

@@ -38,7 +38,7 @@ func NewLogEventsPageView(
 
 	var mainPage = core.NewResizableView(
 		expandedLogsView, expandedLogsSize,
-		logEventsTable.RootView, logTableSize,
+		logEventsTable, logTableSize,
 		tview.FlexRow,
 	)
 
@@ -47,7 +47,7 @@ func NewLogEventsPageView(
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			logEventsTable.RootView,
+			logEventsTable,
 			expandedLogsView,
 		},
 	)
@@ -91,11 +91,11 @@ func NewLogStreamsPageView(
 ) *LogStreamsPageView {
 
 	var serviceView = core.NewServicePageView(app, logger)
-	serviceView.AddItem(logStreamsTable.RootView, 0, 1, true)
+	serviceView.AddItem(logStreamsTable, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			logStreamsTable.RootView,
+			logStreamsTable,
 		},
 	)
 
@@ -144,7 +144,7 @@ func NewLogGroupsPageView(
 ) *LogGroupsPageView {
 
 	var serviceView = core.NewServicePageView(app, logger)
-	serviceView.AddItem(logGroupsTable.RootView, 0, 1, true)
+	serviceView.AddItem(logGroupsTable, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{

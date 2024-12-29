@@ -32,7 +32,7 @@ func NewStacksDetailsPageView(
 
 	var mainPage = core.NewResizableView(
 		stackDetailsTable.Table, stackDetailsSize,
-		stackListTable.RootView, stackTablesSize,
+		stackListTable, stackTablesSize,
 		tview.FlexRow,
 	)
 
@@ -112,7 +112,7 @@ func NewStackEventsPageView(
 
 	var mainPage = core.NewResizableView(
 		expandedMsgView, expandedMsgSize,
-		stackEventsTable.RootView, stackEventsSize,
+		stackEventsTable, stackEventsSize,
 		tview.FlexRow,
 	)
 

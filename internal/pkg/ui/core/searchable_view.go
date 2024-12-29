@@ -13,7 +13,7 @@ const (
 )
 
 type SearchableView struct {
-	RootView        *tview.Flex
+	*tview.Pages
 	MainPage        tview.Primitive
 	HighlightSearch bool
 
@@ -34,23 +34,22 @@ func NewSearchableView(
 		AddPage(SEARCH_PAGE_NAME, floatingSearch.RootView, true, false)
 
 	var view = &SearchableView{
-		RootView:        tview.NewFlex().AddItem(pages, 0, 1, true),
+		Pages:           pages,
 		MainPage:        mainPage,
 		HighlightSearch: false,
 
 		searchInput:     floatingSearch.InputField,
 		showSearch:      true,
 		searchPositions: nil,
-		pages:           pages,
 	}
 
-	view.pages.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlF:
 			if view.showSearch {
-				pages.ShowPage(SEARCH_PAGE_NAME)
+				view.ShowPage(SEARCH_PAGE_NAME)
 			} else {
-				pages.HidePage(SEARCH_PAGE_NAME)
+				view.HidePage(SEARCH_PAGE_NAME)
 			}
 			view.showSearch = !view.showSearch
 			return nil

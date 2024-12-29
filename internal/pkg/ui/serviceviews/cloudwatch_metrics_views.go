@@ -31,8 +31,8 @@ func NewMetricsDetailsView(
 	const detailsTableSize = 3500
 
 	var mainPage = core.NewResizableView(
-		metricDetailsTable.RootView, metricsTableSize,
-		metricListTable.RootView, metricsTableSize,
+		metricDetailsTable, metricsTableSize,
+		metricListTable, metricsTableSize,
 		tview.FlexRow,
 	)
 
@@ -41,8 +41,8 @@ func NewMetricsDetailsView(
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			metricListTable.RootView,
-			metricDetailsTable.RootView,
+			metricListTable,
+			metricDetailsTable,
 		},
 	)
 

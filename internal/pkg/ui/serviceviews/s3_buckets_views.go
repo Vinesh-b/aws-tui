@@ -31,8 +31,8 @@ func NewS3bucketsDetailsView(
 	const bucketsTableSize = 3000
 
 	var mainPage = core.NewResizableView(
-		bucketObjectsTable.RootView, objectsTableSize,
-		bucketListTable.RootView, bucketsTableSize,
+		bucketObjectsTable, objectsTableSize,
+		bucketListTable, bucketsTableSize,
 		tview.FlexRow,
 	)
 
@@ -41,8 +41,8 @@ func NewS3bucketsDetailsView(
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			bucketListTable.RootView,
-			bucketObjectsTable.RootView,
+			bucketListTable,
+			bucketObjectsTable,
 		},
 	)
 

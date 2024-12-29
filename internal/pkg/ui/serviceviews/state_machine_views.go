@@ -33,8 +33,8 @@ func NewStateMachinesDetailsPageView(
 	const tableViewSize = 6000
 
 	var mainPage = core.NewResizableView(
-		stateMachineExecutions.RootView, detailsViewSize,
-		stateMachinesList.RootView, tableViewSize,
+		stateMachineExecutions, detailsViewSize,
+		stateMachinesList, tableViewSize,
 		tview.FlexRow,
 	)
 
@@ -43,8 +43,8 @@ func NewStateMachinesDetailsPageView(
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			stateMachinesList.RootView,
-			stateMachineExecutions.RootView,
+			stateMachinesList,
+			stateMachineExecutions,
 		},
 	)
 
@@ -123,7 +123,7 @@ func NewStateMachineExectionDetailsPage(
 	const inputOutputViewSize = 10
 
 	var resizableView = core.NewResizableView(
-		executionDetails.RootView, detailsViewSize,
+		executionDetails, detailsViewSize,
 		inputOutputView, inputOutputViewSize,
 		tview.FlexRow,
 	)

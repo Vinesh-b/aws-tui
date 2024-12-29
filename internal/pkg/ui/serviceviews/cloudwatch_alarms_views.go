@@ -33,8 +33,8 @@ func NewAlarmsDetailsPageView(
 	const alarmHistorySize = 3000
 
 	var resizableView = core.NewResizableView(
-		alarmHistoryTable.RootView, alarmHistorySize,
-		alarmListTable.RootView, alarmsTableSize,
+		alarmHistoryTable, alarmHistorySize,
+		alarmListTable, alarmsTableSize,
 		tview.FlexRow,
 	)
 
@@ -47,8 +47,8 @@ func NewAlarmsDetailsPageView(
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			alarmListTable.RootView,
-			alarmHistoryTable.RootView,
+			alarmListTable,
+			alarmHistoryTable,
 			alarmDetailsTable,
 		},
 	)

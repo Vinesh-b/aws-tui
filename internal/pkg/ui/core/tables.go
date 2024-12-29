@@ -228,10 +228,9 @@ func (inst *SelectableTable[T]) SetSearchDoneFunc(handler func(key tcell.Key)) {
 }
 
 type DetailsTable struct {
-	Table    *tview.Table
-	RootView *tview.Flex
-	title    string
-	data     []TableRow
+	*tview.Table
+	title string
+	data  []TableRow
 }
 
 func NewDetailsTable(title string) *DetailsTable {
@@ -249,9 +248,8 @@ func NewDetailsTable(title string) *DetailsTable {
 	)
 
 	return &DetailsTable{
-		Table:    table,
-		RootView: tview.NewFlex().AddItem(table, 0, 1, true),
-		title:    title,
+		Table: table,
+		title: title,
 	}
 }
 

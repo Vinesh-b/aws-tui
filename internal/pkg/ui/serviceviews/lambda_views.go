@@ -35,8 +35,8 @@ func NewLambdaDetailsPageView(
 	const tableViewSize = 6000
 
 	var mainPage = core.NewResizableView(
-		lambdaDetailsTable.RootView, detailsViewSize,
-		lambdaListTable.RootView, tableViewSize,
+		lambdaDetailsTable, detailsViewSize,
+		lambdaListTable, tableViewSize,
 		tview.FlexRow,
 	)
 	var serviceView = core.NewServicePageView(app, logger)
@@ -54,8 +54,8 @@ func NewLambdaDetailsPageView(
 
 	view.InitViewNavigation(
 		[]core.View{
-			lambdaListTable.RootView,
-			lambdaDetailsTable.RootView,
+			lambdaListTable,
+			lambdaDetailsTable,
 		},
 	)
 	view.initInputCapture()
@@ -245,7 +245,7 @@ func NewLambdaHomeView(
 			return
 		}
 		lambdaInvokeView.SelectedLambda = lambdasDetailsView.SelectedLambda
-		app.SetFocus(lambdasDetailsView.LambdaDetailsTable.RootView)
+		app.SetFocus(lambdasDetailsView.LambdaDetailsTable)
 	})
 
 	lambdasDetailsView.LambdaDetailsTable.Table.SetSelectedFunc(func(row, column int) {
