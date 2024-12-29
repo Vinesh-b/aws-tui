@@ -1,7 +1,9 @@
 package serviceviews
 
 import (
+	"aws-tui/internal/pkg/errors"
 	"aws-tui/internal/pkg/ui/core"
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -17,6 +19,7 @@ type DynamoDBQueryInputView struct {
 	RootView          *tview.Flex
 
 	logger              *log.Logger
+	filterView          *FilterInputView
 	pkInput             *tview.InputField
 	skInput             *tview.InputField
 	skComparatorInput   *tview.InputField
@@ -26,12 +29,14 @@ type DynamoDBQueryInputView struct {
 	indexes             []string
 	pkName              string
 	skName              string
+	tabNavigator        *core.ViewTabNavigation
 }
 
 func NewDynamoDBQueryInputView(app *tview.Application, logger *log.Logger) *DynamoDBQueryInputView {
 	var pkInput = tview.NewInputField().SetLabel("PK ").SetFieldWidth(0)
 	var skInput = tview.NewInputField().SetLabel("SK ").SetFieldWidth(0)
 	var skComparitorInput = tview.NewInputField().SetLabel("Comparator ").SetFieldWidth(8)
+	var filterInputView = NewFilterInputView(app, logger)
 	var doneButton = tview.NewButton("Done")
 	var cancelButton = tview.NewButton("Cancel")
 
@@ -45,7 +50,7 @@ func NewDynamoDBQueryInputView(app *tview.Application, logger *log.Logger) *Dyna
 				AddItem(skInput, 0, 1, true),
 			0, 1, true,
 		).
-		AddItem(tview.NewBox(), 1, 0, true).
+		AddItem(filterInputView.RootView, 2, 0, true).
 		AddItem(
 			tview.NewFlex().SetDirection(tview.FlexColumn).
 				AddItem(doneButton, 0, 1, true).
@@ -54,11 +59,14 @@ func NewDynamoDBQueryInputView(app *tview.Application, logger *log.Logger) *Dyna
 			1, 0, true,
 		)
 
-	core.InitViewTabNavigation(wrapper,
+	var tabNavigator = core.NewViewTabNavigation(wrapper,
 		[]core.View{
 			pkInput,
 			skComparitorInput,
 			skInput,
+			filterInputView.AttributeNameInput,
+			filterInputView.AttributeTypeInput,
+			filterInputView.Condition,
 			doneButton,
 			cancelButton,
 		},
@@ -66,21 +74,30 @@ func NewDynamoDBQueryInputView(app *tview.Application, logger *log.Logger) *Dyna
 	)
 
 	return &DynamoDBQueryInputView{
-		pkInput:           pkInput,
-		skInput:           skInput,
-		skComparatorInput: skComparitorInput,
 		QueryDoneButton:   doneButton,
 		QueryCancelButton: cancelButton,
 		RootView:          wrapper,
 
-		logger: logger,
+		logger:            logger,
+		pkInput:           pkInput,
+		skInput:           skInput,
+		skComparatorInput: skComparitorInput,
+		filterView:        filterInputView,
+		tabNavigator:      tabNavigator,
 	}
 }
 
-func (inst *DynamoDBQueryInputView) GenerateQueryExpression() expression.Expression {
-	var pk = inst.pkInput.GetText()
-	var sk = inst.skInput.GetText()
-	var comp = inst.skComparatorInput.GetText()
+func (inst *DynamoDBQueryInputView) GenerateQueryExpression() (expression.Expression, error) {
+	var pk = strings.TrimSpace(inst.pkInput.GetText())
+	var sk = strings.TrimSpace(inst.skInput.GetText())
+	var comp = strings.TrimSpace(strings.ToLower(inst.skComparatorInput.GetText()))
+
+	if len(pk) == 0 {
+		return expression.Expression{}, errors.NewDDBViewError(
+			errors.MissingRequiredInput,
+			"Partition Key value not provided",
+		)
+	}
 
 	var keyCond = expression.
 		Key(inst.pkName).Equal(expression.Value(pk))
@@ -118,16 +135,32 @@ func (inst *DynamoDBQueryInputView) GenerateQueryExpression() expression.Express
 				BeginsWith(sk),
 			)
 		default:
-			inst.logger.Println("Invalid operator")
+			return expression.Expression{}, errors.NewDDBViewError(
+				errors.InvalidOption,
+				"Invalid condition",
+			)
 		}
 	}
 
-	var expr, err = expression.NewBuilder().WithKeyCondition(keyCond).Build()
+	var exprBuilder = expression.NewBuilder()
+
+	var filterCond, filtErr = inst.filterView.GenerateFilterCondition()
+	if filtErr != nil {
+		return expression.Expression{}, filtErr
+	}
+
+	if filterCond.IsSet() {
+		exprBuilder.WithFilter(filterCond)
+	}
+
+	var expr, err = exprBuilder.
+		WithKeyCondition(keyCond).
+		Build()
 	if err != nil {
 		inst.logger.Printf("Failed to build expression for query: %v\n", err)
 	}
 
-	return expr
+	return expr, err
 }
 
 func (inst *DynamoDBQueryInputView) SetSelectedTable(tableName string) {
@@ -144,10 +177,6 @@ func (inst *DynamoDBQueryInputView) SetSortKeyName(sk string) {
 
 func (inst *DynamoDBQueryInputView) SetTableIndexes(indexes []string) {
 	inst.indexes = indexes
-}
-
-type FilterConditionError struct {
-	error
 }
 
 type FilterInputView struct {
@@ -291,17 +320,32 @@ func (inst *FilterInputView) GenerateFilterCondition() (expression.ConditionBuil
 
 	var filterCond = expression.ConditionBuilder{}
 
+	if len(attrName) == 0 || len(attrType) == 0 || len(cond) == 0 {
+		return filterCond, nil
+	}
+
 	if !inst.isConditionAllowed(attrType, cond) {
-		inst.logger.Println("The attribute type does not support the given condition")
-		return filterCond, FilterConditionError{}
+		return filterCond, errors.NewDDBViewError(
+			errors.InvalidOption,
+			fmt.Sprintf("`%v` does not support condition `%v`", attrType, cond),
+		)
+	}
+
+	switch cond {
+	case "exists":
+		filterCond = expression.Name(attrName).AttributeExists()
+		return filterCond, nil
+	case "nexists":
+		filterCond = expression.Name(attrName).AttributeNotExists()
+		return filterCond, nil
 	}
 
 	var parsedValue1, val1Err = inst.parseValue(attrValue1, attrType)
-	var parsedValue2, val2Err = inst.parseValue(attrValue2, attrType)
-
 	if val1Err != nil {
-		inst.logger.Printf("Value1 convertion failed %v\n", val1Err)
-		return filterCond, FilterConditionError{}
+		return filterCond, errors.NewDDBViewError(
+			errors.InvalidOption,
+			fmt.Sprintf("Value 1 conversion failed %v", val1Err),
+		)
 	}
 
 	switch cond {
@@ -317,26 +361,29 @@ func (inst *FilterInputView) GenerateFilterCondition() (expression.ConditionBuil
 		filterCond = expression.Name(attrName).GreaterThan(expression.Value(parsedValue1))
 	case "gte":
 		filterCond = expression.Name(attrName).GreaterThanEqual(expression.Value(parsedValue1))
-	case "exists":
-		filterCond = expression.Name(attrName).AttributeExists()
-	case "nexists":
-		filterCond = expression.Name(attrName).AttributeNotExists()
 	case "contains":
 		filterCond = expression.Name(attrName).Contains(parsedValue1)
 	case "begins":
 		filterCond = expression.Name(attrName).BeginsWith(parsedValue1.(string))
 	case "between":
-		if val2Err == nil {
-			filterCond = expression.Name(attrName).Between(
-				expression.Value(parsedValue1),
-				expression.Value(parsedValue2),
+		var parsedValue2, val2Err = inst.parseValue(attrValue2, attrType)
+		if val2Err != nil {
+			return filterCond, errors.NewDDBViewError(
+				errors.InvalidOption,
+				fmt.Sprintf("Value 2 conversion failed %v", val2Err),
 			)
-		} else {
-			inst.logger.Printf("Value2 convertion failed %v\n", val2Err)
-			return filterCond, FilterConditionError{}
 		}
-    default:
-        return filterCond, FilterConditionError{}
+
+		filterCond = expression.Name(attrName).Between(
+			expression.Value(parsedValue1),
+			expression.Value(parsedValue2),
+		)
+
+	default:
+		return filterCond, errors.NewDDBViewError(
+			errors.InvalidOption,
+			"Unsupported condition given",
+		)
 	}
 
 	return filterCond, nil
@@ -400,7 +447,7 @@ func NewDynamoDBScanInputView(app *tview.Application, logger *log.Logger) *Dynam
 	}
 }
 
-func (inst *DynamoDBScanInputView) GenerateScanExpression() expression.Expression {
+func (inst *DynamoDBScanInputView) GenerateScanExpression() (expression.Expression, error) {
 	//	var filterCond expression.ConditionBuilder
 	//	for _, filterView := range inst.filterInputViews {
 	//		var cond, err = filterView.GenerateFilterCondition()
@@ -408,14 +455,19 @@ func (inst *DynamoDBScanInputView) GenerateScanExpression() expression.Expressio
 	//			filterCond.And(cond)
 	//		}
 	//	}
-	var filterCond, _ = inst.filterInputViews[0].GenerateFilterCondition()
+	var filterCond, filtErr = inst.filterInputViews[0].GenerateFilterCondition()
+	if filtErr != nil {
+		return expression.Expression{}, filtErr
+	}
 
 	var expr, err = expression.NewBuilder().WithFilter(filterCond).Build()
 	if err != nil {
-		inst.logger.Printf("Failed to build expression for scan: %v\n", err)
+		return expression.Expression{}, errors.WrapDynamoDBSearchError(
+			err, errors.FailedToBuildExpression, "Failed to build Scan expression",
+		)
 	}
 
-	return expr
+	return expr, nil
 }
 
 func (inst *DynamoDBScanInputView) SetSelectedTable(tableName string) {
@@ -451,7 +503,7 @@ func NewDynamoDBTableSearchView(
 	logger *log.Logger,
 ) *DynamoDBTableSearchView {
 	var queryView = NewDynamoDBQueryInputView(app, logger)
-	var floatingQuery = core.FloatingView("Query", queryView.RootView, 70, 7)
+	var floatingQuery = core.FloatingView("Query", queryView.RootView, 70, 10)
 	var scanView = NewDynamoDBScanInputView(app, logger)
 	var floatingScan = core.FloatingView("Scan", scanView.RootView, 70, 14)
 

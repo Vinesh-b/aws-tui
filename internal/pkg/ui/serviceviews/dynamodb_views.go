@@ -116,12 +116,20 @@ func (inst *DynamoDBTableItemsPage) InitInputCapture() *DynamoDBTableItemsPage {
 		inst.ItemsTable.SetPartitionKeyName(inst.ItemsTable.pkName)
 		inst.ItemsTable.SetSortKeyName(inst.ItemsTable.skName)
 
-		var expr = inst.ItemsTable.GenerateQueryExpression()
+		var expr, err = inst.ItemsTable.GenerateQueryExpression()
+		if err != nil {
+			inst.logger.Println(err.Error())
+			return
+		}
 		inst.ItemsTable.RefreshQuery(expr, true)
 	})
 
 	inst.ItemsTable.ScanDoneButton.SetSelectedFunc(func() {
-		var expr = inst.ItemsTable.GenerateScanExpression()
+		var expr, err = inst.ItemsTable.GenerateScanExpression()
+		if err != nil {
+			inst.logger.Println(err.Error())
+			return
+		}
 		inst.ItemsTable.RefreshScan(expr, true)
 	})
 
