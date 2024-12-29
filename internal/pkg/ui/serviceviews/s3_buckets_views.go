@@ -13,13 +13,11 @@ import (
 )
 
 type S3BucketsDetailsView struct {
-	BucketsTable   *BucketListTable
-	ObjectsTable   *BucketObjectsTable
-	ObjectInput    *tview.InputField
-	RootView       *tview.Flex
-	searchableView *core.SearchableView_OLD
-	app            *tview.Application
-	api            *awsapi.S3BucketsApi
+	*core.ServicePageView
+	bucketsTable *BucketListTable
+	objectsTable *BucketObjectsTable
+	app          *tview.Application
+	api          *awsapi.S3BucketsApi
 }
 
 func NewS3bucketsDetailsView(
@@ -29,65 +27,50 @@ func NewS3bucketsDetailsView(
 	api *awsapi.S3BucketsApi,
 	logger *log.Logger,
 ) *S3BucketsDetailsView {
-	var objectKeyInputField = core.CreateSearchInput("Object Path")
-
 	const objectsTableSize = 4000
 	const bucketsTableSize = 3000
 
-	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(bucketObjectsTable.RootView, 0, objectsTableSize, false).
-		AddItem(tview.NewFlex().
-			AddItem(objectKeyInputField, 0, 1, false),
-			3, 0, false,
-		).
-		AddItem(bucketListTable.RootView, 0, bucketsTableSize, true)
-
-	var serviceView = core.NewServiceView(app, logger, mainPage)
-
-	serviceView.SetResizableViews(
-		bucketObjectsTable.RootView, bucketListTable.RootView,
-		objectsTableSize, bucketsTableSize,
+	var mainPage = core.NewResizableView(
+		bucketObjectsTable.RootView, objectsTableSize,
+		bucketListTable.RootView, bucketsTableSize,
+		tview.FlexRow,
 	)
+
+	var serviceView = core.NewServicePageView(app, logger)
+	serviceView.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
 			bucketListTable.RootView,
-			objectKeyInputField,
 			bucketObjectsTable.RootView,
 		},
 	)
 
 	return &S3BucketsDetailsView{
-		BucketsTable:   bucketListTable,
-		ObjectsTable:   bucketObjectsTable,
-		ObjectInput:    objectKeyInputField,
-		RootView:       serviceView.RootView,
-		searchableView: serviceView.SearchableView,
-		app:            app,
-		api:            api,
+		ServicePageView: serviceView,
+		bucketsTable:    bucketListTable,
+		objectsTable:    bucketObjectsTable,
+		app:             app,
+		api:             api,
 	}
 }
 
 func (inst *S3BucketsDetailsView) InitInputCapture() {
-	inst.searchableView.SetDoneFunc(func(key tcell.Key) {
+	inst.bucketsTable.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			inst.BucketsTable.RefreshBuckets(false)
-		case tcell.KeyEsc:
-			inst.searchableView.SetText("")
-		default:
-			return
+			inst.bucketsTable.RefreshBuckets(false)
 		}
 	})
 
-	inst.BucketsTable.SetSelectedFunc(func(row, column int) {
+	inst.bucketsTable.SetSelectedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}
-		var name = inst.BucketsTable.GetSeletedBucket()
-		inst.ObjectsTable.SetSelectedBucket(name)
-		inst.ObjectsTable.RefreshObjects(true)
-		inst.app.SetFocus(inst.ObjectsTable.Table)
+		var name = inst.bucketsTable.GetSeletedBucket()
+		inst.objectsTable.SetSelectedBucket(name)
+		inst.objectsTable.RefreshObjects(true)
+		inst.app.SetFocus(inst.objectsTable.Table)
 	})
 }
 
@@ -109,7 +92,7 @@ func NewS3bucketsHomeView(
 	)
 
 	var pages = tview.NewPages().
-		AddAndSwitchToPage("S3Buckets", s3DetailsView.RootView, true)
+		AddAndSwitchToPage("S3Buckets", s3DetailsView, true)
 
 	var orderedPages = []string{
 		"S3Buckets",
