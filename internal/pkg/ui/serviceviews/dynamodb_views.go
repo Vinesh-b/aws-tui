@@ -121,7 +121,7 @@ func (inst *DynamoDBTableItemsPage) InitInputCapture() *DynamoDBTableItemsPage {
 			inst.logger.Println(err.Error())
 			return
 		}
-		inst.ItemsTable.RefreshQuery(expr, true)
+		inst.ItemsTable.ExecuteSearch(DDBTableQuery, expr, true)
 	})
 
 	inst.ItemsTable.ScanDoneButton.SetSelectedFunc(func() {
@@ -130,7 +130,7 @@ func (inst *DynamoDBTableItemsPage) InitInputCapture() *DynamoDBTableItemsPage {
 			inst.logger.Println(err.Error())
 			return
 		}
-		inst.ItemsTable.RefreshScan(expr, true)
+		inst.ItemsTable.ExecuteSearch(DDBTableScan, expr, true)
 	})
 
 	return inst
@@ -191,7 +191,7 @@ func NewDynamoDBHomeView(
 		selectedTableName = ddbDetailsView.TablesTable.GetSelectedTable()
 		if len(selectedTableName) > 0 {
 			ddbItemsView.ItemsTable.SetSelectedTable(selectedTableName)
-			ddbItemsView.ItemsTable.RefreshScan(expression.Expression{}, true)
+			ddbItemsView.ItemsTable.ExecuteSearch(DDBTableScan, expression.Expression{}, true)
 			serviceRootView.ChangePage(1, ddbItemsView.ItemsTable.Table)
 		}
 	})

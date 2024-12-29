@@ -18,8 +18,8 @@ import (
 type DDBTableOp int
 
 const (
-	DDB_TABLE_SCAN DDBTableOp = iota
-	DDB_TABLE_QUERY
+	DDBTableScan DDBTableOp = iota
+	DDBTableQuery
 )
 
 type DynamoDBGenericTable struct {
@@ -147,28 +147,7 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 	inst.Table.Select(1, 0)
 }
 
-func (inst *DynamoDBGenericTable) RefreshScan(expr expression.Expression, reset bool) {
-	var resultChannel = make(chan struct{})
-
-	go func() {
-		if len(inst.selectedTable) <= 0 {
-			inst.data = make([]map[string]interface{}, 0)
-			return
-		}
-		if reset || inst.tableDescription == nil {
-			inst.tableDescription = inst.api.DescribeTable(inst.selectedTable)
-		}
-		inst.data = inst.api.ScanTable(inst.selectedTable, expr, "", reset)
-
-		resultChannel <- struct{}{}
-	}()
-
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
-		inst.populateDynamoDBTable(!reset)
-	})
-}
-
-func (inst *DynamoDBGenericTable) RefreshQuery(expr expression.Expression, reset bool) {
+func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expression.Expression, reset bool) {
 	var resultChannel = make(chan struct{})
 
 	go func() {
@@ -182,12 +161,12 @@ func (inst *DynamoDBGenericTable) RefreshQuery(expr expression.Expression, reset
 			inst.tableDescription = inst.api.DescribeTable(inst.selectedTable)
 		}
 
-		inst.data = inst.api.QueryTable(
-			inst.selectedTable,
-			expr,
-			"",
-			reset,
-		)
+		switch operation {
+		case DDBTableScan:
+			inst.data = inst.api.ScanTable(inst.selectedTable, expr, "", reset)
+		case DDBTableQuery:
+			inst.data = inst.api.QueryTable(inst.selectedTable, expr, "", reset)
+		}
 
 		resultChannel <- struct{}{}
 	}()
