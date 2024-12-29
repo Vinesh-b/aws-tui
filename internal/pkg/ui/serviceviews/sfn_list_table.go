@@ -18,7 +18,6 @@ const sfnFunctionNameCol = 0
 
 type StateMachinesListTable struct {
 	*core.SelectableTable[string]
-	currentSearch       string
 	selectedFunctionArn string
 	data                map[string]types.StateMachineListItem
 	logger              *log.Logger
@@ -58,9 +57,16 @@ func NewStateMachinesListTable(
 	table.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			table.RefreshStateMachines("", true)
+			table.RefreshStateMachines(true)
 		}
 		return event
+	})
+
+	table.SetSearchDoneFunc(func(key tcell.Key) {
+		switch key {
+		case tcell.KeyEnter:
+			table.RefreshStateMachines(false)
+		}
 	})
 
 	return table
@@ -83,9 +89,9 @@ func (inst *StateMachinesListTable) populateStateMachinesTable() {
 	inst.Table.Select(1, 0)
 }
 
-func (inst *StateMachinesListTable) RefreshStateMachines(search string, force bool) {
-	inst.currentSearch = search
+func (inst *StateMachinesListTable) RefreshStateMachines(force bool) {
 	var resultChannel = make(chan struct{})
+	var search = inst.GetSearchText()
 
 	go func() {
 		if len(search) > 0 {
@@ -118,7 +124,7 @@ func (inst *StateMachinesListTable) SetInputCapture(capture func(event *tcell.Ev
 	inst.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			inst.RefreshStateMachines(inst.currentSearch, true)
+			inst.RefreshStateMachines(true)
 		}
 
 		return capture(event)

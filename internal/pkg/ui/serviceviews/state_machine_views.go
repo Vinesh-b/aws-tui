@@ -13,14 +13,12 @@ import (
 )
 
 type StateMachinesDetailsPageView struct {
-	RootView                    *tview.Flex
-	SelectedStateMachine        string
-	StateMachineExecutionsTable *StateMachineExecutionsTable
-	StateMachinesTable          *StateMachinesListTable
-
-	searchableView *core.SearchableView_OLD
-	app            *tview.Application
-	api            *awsapi.StateMachineApi
+	*core.ServicePageView
+	selectedStateMachine        string
+	stateMachineExecutionsTable *StateMachineExecutionsTable
+	stateMachinesTable          *StateMachinesListTable
+	app                         *tview.Application
+	api                         *awsapi.StateMachineApi
 }
 
 func NewStateMachinesDetailsPageView(
@@ -34,16 +32,14 @@ func NewStateMachinesDetailsPageView(
 	const detailsViewSize = 4000
 	const tableViewSize = 6000
 
-	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(stateMachineExecutions.RootView, 0, detailsViewSize, false).
-		AddItem(stateMachinesList.RootView, 0, tableViewSize, true)
-
-	var serviceView = core.NewServiceView(app, logger, mainPage)
-
-	serviceView.SetResizableViews(
-		stateMachineExecutions.RootView, stateMachinesList.RootView,
-		detailsViewSize, tableViewSize,
+	var mainPage = core.NewResizableView(
+		stateMachineExecutions.RootView, detailsViewSize,
+		stateMachinesList.RootView, tableViewSize,
+		tview.FlexRow,
 	)
+
+	var serviceView = core.NewServicePageView(app, logger)
+	serviceView.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
@@ -51,49 +47,37 @@ func NewStateMachinesDetailsPageView(
 			stateMachineExecutions.RootView,
 		},
 	)
-	var detailsView = &StateMachinesDetailsPageView{
-		RootView:                    serviceView.RootView,
-		SelectedStateMachine:        "",
-		StateMachinesTable:          stateMachinesList,
-		StateMachineExecutionsTable: stateMachineExecutions,
 
-		searchableView: serviceView.SearchableView,
-		app:            app,
-		api:            api,
+	var detailsView = &StateMachinesDetailsPageView{
+		ServicePageView:             serviceView,
+		selectedStateMachine:        "",
+		stateMachinesTable:          stateMachinesList,
+		stateMachineExecutionsTable: stateMachineExecutions,
+		app:                         app,
+		api:                         api,
 	}
+
 	detailsView.initInputCapture()
 
 	return detailsView
 }
 
 func (inst *StateMachinesDetailsPageView) initInputCapture() {
-	inst.searchableView.SetDoneFunc(func(key tcell.Key) {
-		switch key {
-		case tcell.KeyEnter:
-			inst.StateMachinesTable.RefreshStateMachines(inst.searchableView.GetText(), false)
-		case tcell.KeyEsc:
-			inst.searchableView.SetText("")
-		default:
-			return
-		}
-	})
-
-	inst.StateMachinesTable.SetSelectionChangedFunc(func(row, column int) {
-		var selectedFunc = inst.StateMachinesTable.GetSeletedFunctionArn()
-		inst.StateMachineExecutionsTable.SetSeletedFunctionArn(selectedFunc)
-		inst.StateMachineExecutionsTable.RefreshExecutions(false)
+	inst.stateMachinesTable.SetSelectionChangedFunc(func(row, column int) {
+		var selectedFunc = inst.stateMachinesTable.GetSeletedFunctionArn()
+		inst.stateMachineExecutionsTable.SetSeletedFunctionArn(selectedFunc)
+		inst.stateMachineExecutionsTable.RefreshExecutions(false)
 	})
 }
 
 type StateMachineExectionDetailsPageView struct {
-	RootView         *tview.Flex
-	SelectedExection string
-	SummaryTable     *StateMachineExecutionSummaryTable
-	DetailsTable     *StateMachineExecutionDetailsTable
-
-	searchInput *tview.InputField
-	app         *tview.Application
-	api         *awsapi.StateMachineApi
+	*core.ServicePageView
+	selectedExection string
+	summaryTable     *StateMachineExecutionSummaryTable
+	detailsTable     *StateMachineExecutionDetailsTable
+	searchInput      *tview.InputField
+	app              *tview.Application
+	api              *awsapi.StateMachineApi
 }
 
 func NewStateMachineExectionDetailsPage(
@@ -138,17 +122,16 @@ func NewStateMachineExectionDetailsPage(
 	const detailsViewSize = 10
 	const inputOutputViewSize = 10
 
-	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(executionSummary.Table, 8, 0, true).
-		AddItem(executionDetails.Table, 0, detailsViewSize, false).
-		AddItem(inputOutputView, 0, inputOutputViewSize, false)
-
-	var serviceView = core.NewServiceView(app, logger, mainPage)
-
-	serviceView.SetResizableViews(
-		executionDetails.Table, inputOutputView,
-		detailsViewSize, inputOutputViewSize,
+	var resizableView = core.NewResizableView(
+		executionDetails.RootView, detailsViewSize,
+		inputOutputView, inputOutputViewSize,
+		tview.FlexRow,
 	)
+
+	var serviceView = core.NewServicePageView(app, logger)
+	serviceView.
+		AddItem(executionSummary.Table, 8, 0, true).
+		AddItem(resizableView, 0, 1, false)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
@@ -159,13 +142,12 @@ func NewStateMachineExectionDetailsPage(
 		},
 	)
 	var detailsView = &StateMachineExectionDetailsPageView{
-		RootView:         serviceView.RootView,
-		SelectedExection: "",
-
-		SummaryTable: executionSummary,
-		DetailsTable: executionDetails,
-		app:          app,
-		api:          api,
+		ServicePageView:  serviceView,
+		selectedExection: "",
+		summaryTable:     executionSummary,
+		detailsTable:     executionDetails,
+		app:              app,
+		api:              api,
 	}
 	detailsView.initInputCapture()
 
@@ -198,8 +180,8 @@ func NewStepFunctionsHomeView(
 	)
 
 	var pages = tview.NewPages().
-		AddPage("Exection Details", executionDetailsView.RootView, true, true).
-		AddAndSwitchToPage("StateMachines", stateMachinesDetailsView.RootView, true)
+		AddPage("Exection Details", executionDetailsView, true, true).
+		AddAndSwitchToPage("StateMachines", stateMachinesDetailsView, true)
 
 	var orderedPages = []string{
 		"StateMachines",
@@ -210,12 +192,12 @@ func NewStepFunctionsHomeView(
 		app, string(STATE_MACHINES), pages, orderedPages).Init()
 
 	var selectedExecution = ""
-	stateMachinesDetailsView.StateMachineExecutionsTable.SetSelectedFunc(func(row, column int) {
+	stateMachinesDetailsView.stateMachineExecutionsTable.SetSelectedFunc(func(row, column int) {
 		selectedExecution = stateMachinesDetailsView.
-			StateMachineExecutionsTable.GetSeletedExecutionArn()
-		executionDetailsView.SummaryTable.RefreshExecutionDetails(selectedExecution, true)
-		executionDetailsView.DetailsTable.RefreshExecutionDetails(selectedExecution, true)
-		serviceRootView.ChangePage(1, executionDetailsView.SummaryTable.Table)
+			stateMachineExecutionsTable.GetSeletedExecutionArn()
+		executionDetailsView.summaryTable.RefreshExecutionDetails(selectedExecution, true)
+		executionDetailsView.detailsTable.RefreshExecutionDetails(selectedExecution, true)
+		serviceRootView.ChangePage(1, executionDetailsView.summaryTable.Table)
 	})
 
 	stateMachinesDetailsView.initInputCapture()
