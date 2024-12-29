@@ -237,7 +237,7 @@ func NewLogsInsightsHomeView(
 	)
 
 	var pages = tview.NewPages().
-		AddPage("LogEvents", logEventsView.RootView, true, true).
+		AddPage("LogEvents", logEventsView, true, true).
 		AddPage("Query", insightsResultsView.RootView, true, true).
 		AddAndSwitchToPage("GroupsSelection", groupSelectionView.RootView, true)
 

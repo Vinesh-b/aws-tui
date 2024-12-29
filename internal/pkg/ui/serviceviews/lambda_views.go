@@ -225,8 +225,8 @@ func NewLambdaHomeView(
 	)
 
 	var pages = tview.NewPages().
-		AddPage("Events", logEventsView.RootView, true, true).
-		AddPage("Streams", logStreamsView.RootView, true, true).
+		AddPage("Events", logEventsView, true, true).
+		AddPage("Streams", logStreamsView, true, true).
 		AddPage("Invoke", lambdaInvokeView, true, true).
 		AddAndSwitchToPage("Lambdas", lambdasDetailsView, true)
 

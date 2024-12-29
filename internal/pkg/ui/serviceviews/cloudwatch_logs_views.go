@@ -13,11 +13,11 @@ import (
 )
 
 type LogEventsPageView struct {
+	*core.ServicePageView
 	LogEventsTable       *LogEventsTable
 	ExpandedLogsTextArea *tview.TextArea
 	selectedLogGroup     string
 	selectedLogStream    string
-	RootView             *tview.Flex
 	app                  *tview.Application
 	api                  *awsapi.CloudWatchLogsApi
 }
@@ -36,16 +36,14 @@ func NewLogEventsPageView(
 	const expandedLogsSize = 7
 	const logTableSize = 13
 
-	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(expandedLogsView, 0, expandedLogsSize, false).
-		AddItem(logEventsTable.RootView, 0, logTableSize, true)
-
-	var serviceView = core.NewServiceView(app, logger, mainPage)
-
-	serviceView.SetResizableViews(
-		expandedLogsView, logEventsTable.RootView,
-		expandedLogsSize, logTableSize,
+	var mainPage = core.NewResizableView(
+		expandedLogsView, expandedLogsSize,
+		logEventsTable.RootView, logTableSize,
+		tview.FlexRow,
 	)
+
+	var serviceView = core.NewServicePageView(app, logger)
+	serviceView.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
@@ -55,9 +53,9 @@ func NewLogEventsPageView(
 	)
 
 	return &LogEventsPageView{
+		ServicePageView:      serviceView,
 		LogEventsTable:       logEventsTable,
 		ExpandedLogsTextArea: expandedLogsView,
-		RootView:             serviceView.RootView,
 		selectedLogGroup:     "",
 		selectedLogStream:    "",
 		app:                  app,
@@ -79,8 +77,8 @@ func (inst *LogEventsPageView) InitInputCapture() {
 }
 
 type LogStreamsPageView struct {
+	*core.ServicePageView
 	LogStreamsTable *LogStreamsTable
-	RootView        *tview.Flex
 	app             *tview.Application
 	api             *awsapi.CloudWatchLogsApi
 }
@@ -92,10 +90,8 @@ func NewLogStreamsPageView(
 	logger *log.Logger,
 ) *LogStreamsPageView {
 
-	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(logStreamsTable.RootView, 0, 1, true)
-
-	var serviceView = core.NewServiceView(app, logger, mainPage)
+	var serviceView = core.NewServicePageView(app, logger)
+	serviceView.AddItem(logStreamsTable.RootView, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
@@ -104,8 +100,8 @@ func NewLogStreamsPageView(
 	)
 
 	return &LogStreamsPageView{
+		ServicePageView: serviceView,
 		LogStreamsTable: logStreamsTable,
-		RootView:        serviceView.RootView,
 		app:             app,
 		api:             api,
 	}
@@ -133,8 +129,8 @@ func (inst *LogStreamsPageView) InitInputCapture() {
 }
 
 type LogGroupsPageView struct {
+	*core.ServicePageView
 	LogGroupsTable   *LogGroupsTable
-	RootView         *tview.Flex
 	selectedLogGroup string
 	app              *tview.Application
 	api              *awsapi.CloudWatchLogsApi
@@ -147,10 +143,8 @@ func NewLogGroupsPageView(
 	logger *log.Logger,
 ) *LogGroupsPageView {
 
-	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(logGroupsTable.RootView, 0, 1, true)
-
-	var serviceView = core.NewServiceView(app, logger, mainPage)
+	var serviceView = core.NewServicePageView(app, logger)
+	serviceView.AddItem(logGroupsTable.RootView, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
@@ -159,8 +153,8 @@ func NewLogGroupsPageView(
 	)
 
 	return &LogGroupsPageView{
+		ServicePageView:  serviceView,
 		LogGroupsTable:   logGroupsTable,
-		RootView:         serviceView.RootView,
 		selectedLogGroup: "",
 		app:              app,
 		api:              api,
@@ -183,7 +177,6 @@ func (inst *LogGroupsPageView) InitInputCapture() {
 		}
 		return event
 	})
-
 }
 
 func NewLogsHomeView(
@@ -209,9 +202,9 @@ func NewLogsHomeView(
 	)
 
 	var pages = tview.NewPages().
-		AddPage("Events", logEventsView.RootView, true, true).
-		AddPage("Streams", logStreamsView.RootView, true, true).
-		AddAndSwitchToPage("Groups", logGroupsView.RootView, true)
+		AddPage("Events", logEventsView, true, true).
+		AddPage("Streams", logStreamsView, true, true).
+		AddAndSwitchToPage("Groups", logGroupsView, true)
 
 	var orderedPages = []string{
 		"Groups",
