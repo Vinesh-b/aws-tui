@@ -1,243 +1,87 @@
 package serviceviews
 
 import (
-	"fmt"
 	"log"
-	"time"
 
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
-func populateAlarmsTable(table *tview.Table, data map[string]types.MetricAlarm) {
-	var tableData []core.TableRow
-	for _, row := range data {
-		tableData = append(tableData, core.TableRow{
-			*row.AlarmName,
-			string(row.StateValue),
-		})
-	}
-
-	core.InitSelectableTable(table, "Alarms",
-		core.TableRow{
-			"Name",
-			"State",
-		},
-		tableData,
-		[]int{0, 1},
-	)
-	table.GetCell(0, 0).SetExpansion(1)
-	table.Select(0, 0)
-	table.ScrollToBeginning()
+type AlarmsDetailsPageView struct {
+	*core.ServicePageView
+	AlarmsTable  *AlarmListTable
+	HistoryTable *AlarmHistoryTable
+	DetailsTable *AlarmDetailsTable
+	app          *tview.Application
+	api          *awsapi.CloudWatchAlarmsApi
 }
 
-func populateAlarmDetailsGrid(grid *tview.Grid, data *types.MetricAlarm) {
-	grid.
-		Clear().
-		SetRows(1, 2, 1, 3, 1, 1, 1, 1, 1, 1, 0).
-		SetColumns(18, 0)
-	grid.
-		SetTitle("Alarm Details").
-		SetTitleAlign(tview.AlignLeft).
-		SetBorder(true)
-
-	var tableData []core.TableRow
-	if data != nil {
-		tableData = []core.TableRow{
-			{"Name", aws.ToString(data.AlarmName)},
-			{"Description", aws.ToString(data.AlarmDescription)},
-			{"State", string(data.StateValue)},
-			{"StateReason", aws.ToString(data.StateReason)},
-			{"MetricName", aws.ToString(data.MetricName)},
-			{"MetricNamespace", aws.ToString(data.Namespace)},
-			{"Period", fmt.Sprintf("%d", aws.ToInt32(data.Period))},
-			{"Threshold", fmt.Sprintf("%.2f", aws.ToFloat64(data.Threshold))},
-			{"DataPoints", fmt.Sprintf("%d", aws.ToInt32(data.DatapointsToAlarm))},
-		}
-	}
-
-	for idx, row := range tableData {
-		grid.AddItem(
-			tview.NewTextView().
-				SetWrap(false).
-				SetText(row[0]).
-				SetTextColor(core.TertiaryTextColor),
-			idx, 0, 1, 1, 0, 0, false,
-		)
-		grid.AddItem(
-			tview.NewTextView().
-				SetWrap(true).
-				SetText(row[1]).
-				SetTextColor(core.TertiaryTextColor),
-			idx, 1, 1, 1, 0, 0, false,
-		)
-	}
-}
-
-func populateAlarmHistoryTable(table *tview.Table, data []types.AlarmHistoryItem, extend bool) {
-	var tableData []core.TableRow
-	for _, row := range data {
-		tableData = append(tableData, core.TableRow{
-			row.Timestamp.Format(time.DateTime),
-			*row.HistorySummary,
-		})
-	}
-
-	var title = "Alarm History"
-	if extend {
-		core.ExtendTable(table, title, tableData)
-		return
-	}
-
-	core.InitSelectableTable(table, title,
-		core.TableRow{
-			"Timestamp",
-			"History",
-		},
-		tableData,
-		[]int{0, 1},
-	)
-	table.GetCell(0, 0).SetExpansion(1)
-	table.Select(0, 0)
-	table.ScrollToBeginning()
-}
-
-type AlarmsDetailsView struct {
-	AlarmsTable    *tview.Table
-	HistoryTable   *tview.Table
-	DetailsGrid    *tview.Grid
-	RootView       *tview.Flex
-	searchableView *core.SearchableView_OLD
-	app            *tview.Application
-	api            *awsapi.CloudWatchAlarmsApi
-}
-
-func NewAlarmsDetailsView(
+func NewAlarmsDetailsPageView(
+	alarmListTable *AlarmListTable,
+	alarmHistoryTable *AlarmHistoryTable,
+	alarmDetailsTable *AlarmDetailsTable,
 	app *tview.Application,
 	api *awsapi.CloudWatchAlarmsApi,
 	logger *log.Logger,
-) *AlarmsDetailsView {
-	var alarmsTable = tview.NewTable()
-	populateAlarmsTable(alarmsTable, make(map[string]types.MetricAlarm, 0))
-
-	var alarmHistory = tview.NewTable()
-	populateAlarmHistoryTable(alarmHistory, make([]types.AlarmHistoryItem, 0), false)
-
-	var alarmDetails = tview.NewGrid()
-	populateAlarmDetailsGrid(alarmDetails, nil)
-
+) *AlarmsDetailsPageView {
 	const alarmsTableSize = 3500
 	const alarmHistorySize = 3000
 
-	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(alarmDetails, 14, 0, false).
-		AddItem(alarmHistory, 0, alarmHistorySize, false).
-		AddItem(alarmsTable, 0, alarmsTableSize, true)
-
-	var serviceView = core.NewServiceView(app, logger, mainPage)
-
-	serviceView.SetResizableViews(
-		alarmHistory, alarmsTable,
-		alarmHistorySize, alarmsTableSize,
+	var resizableView = core.NewResizableView(
+		alarmHistoryTable.RootView, alarmHistorySize,
+		alarmListTable.RootView, alarmsTableSize,
+		tview.FlexRow,
 	)
+
+	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(alarmDetailsTable, 14, 0, false).
+		AddItem(resizableView, 0, 1, true)
+
+	var serviceView = core.NewServicePageView(app, logger)
+	serviceView.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			alarmsTable,
-			alarmHistory,
-			alarmDetails,
+			alarmListTable.RootView,
+			alarmHistoryTable.RootView,
+			alarmDetailsTable,
 		},
 	)
 
-	return &AlarmsDetailsView{
-		AlarmsTable:    alarmsTable,
-		DetailsGrid:    alarmDetails,
-		HistoryTable:   alarmHistory,
-		RootView:       serviceView.RootView,
-		searchableView: serviceView.SearchableView,
-		app:            app,
-		api:            api,
+	return &AlarmsDetailsPageView{
+		ServicePageView: serviceView,
+		AlarmsTable:     alarmListTable,
+		DetailsTable:    alarmDetailsTable,
+		HistoryTable:    alarmHistoryTable,
+		app:             app,
+		api:             api,
 	}
 
 }
 
-func (inst *AlarmsDetailsView) RefreshAlarms(search string, force bool) {
-	var data map[string]types.MetricAlarm
-	var resultChannel = make(chan struct{})
-
-	go func() {
-		if len(search) > 0 {
-			data = inst.api.FilterByName(search)
-		} else {
-			data = inst.api.ListAlarms(force)
-		}
-		resultChannel <- struct{}{}
-	}()
-
-	go core.LoadData(inst.app, inst.AlarmsTable.Box, resultChannel, func() {
-		populateAlarmsTable(inst.AlarmsTable, data)
-	})
-}
-
-func (inst *AlarmsDetailsView) RefreshHistory(alarmName string, force bool) {
-	var data []types.AlarmHistoryItem
-	var resultChannel = make(chan struct{})
-
-	go func() {
-		data = inst.api.ListAlarmHistory(alarmName, force)
-		resultChannel <- struct{}{}
-	}()
-
-	go core.LoadData(inst.app, inst.HistoryTable.Box, resultChannel, func() {
-		populateAlarmHistoryTable(inst.HistoryTable, data, !force)
-	})
-}
-
-func (inst *AlarmsDetailsView) RefreshDetails(alarmName string) {
-	var data map[string]types.MetricAlarm
-	var resultChannel = make(chan struct{})
-
-	go func() {
-		data = inst.api.ListAlarms(false)
-		resultChannel <- struct{}{}
-	}()
-
-	go core.LoadData(inst.app, inst.DetailsGrid.Box, resultChannel, func() {
-		var details *types.MetricAlarm = nil
-		var val, ok = data[alarmName]
-		if ok {
-			details = &val
-		}
-		populateAlarmDetailsGrid(inst.DetailsGrid, details)
-	})
-}
-
-func (inst *AlarmsDetailsView) InitInputCapture() {
-	var refreshDetails = func(row int) {
-		if row < 1 {
-			return
-		}
-		var name = inst.AlarmsTable.GetCell(row, 0).Text
-		inst.RefreshDetails(name)
-		inst.RefreshHistory(name, true)
+func (inst *AlarmsDetailsPageView) InitInputCapture() {
+	var refreshDetails = func() {
+		var name = inst.AlarmsTable.GetSelectedAlarm()
+		inst.DetailsTable.SetSelectedAlarm(name)
+		inst.DetailsTable.RefreshDetails()
+		inst.HistoryTable.SetSelectedAlarm(name)
+		inst.HistoryTable.RefreshHistory(true)
 	}
 
 	inst.AlarmsTable.SetSelectedFunc(func(row, column int) {
-		refreshDetails(row)
+		refreshDetails()
 	})
 
 	inst.AlarmsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			inst.RefreshAlarms(inst.searchableView.GetText(), true)
-			var row, _ = inst.AlarmsTable.GetSelection()
-			refreshDetails(row)
+			inst.AlarmsTable.RefreshAlarms(true)
+			refreshDetails()
 		}
 		return event
 	})
@@ -245,24 +89,11 @@ func (inst *AlarmsDetailsView) InitInputCapture() {
 	inst.HistoryTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			var row, _ = inst.AlarmsTable.GetSelection()
-			refreshDetails(row)
+			refreshDetails()
 		case tcell.KeyCtrlN:
-			inst.RefreshHistory("", false)
+			inst.HistoryTable.RefreshHistory(false)
 		}
 		return event
-	})
-
-	inst.searchableView.SetDoneFunc(func(key tcell.Key) {
-		switch key {
-		case tcell.KeyEnter:
-			inst.RefreshAlarms(inst.searchableView.GetText(), false)
-			inst.app.SetFocus(inst.AlarmsTable)
-		case tcell.KeyEsc:
-			inst.searchableView.SetText("")
-		default:
-			return
-		}
 	})
 }
 
@@ -275,11 +106,16 @@ func NewAlarmsHomeView(
 	defer core.ResetGlobalStyle()
 
 	var api = awsapi.NewCloudWatchAlarmsApi(config, logger)
-	var alarmsDetailsView = NewAlarmsDetailsView(app, api, logger)
+	var alarmsDetailsView = NewAlarmsDetailsPageView(
+		NewAlarmListTable(app, api, logger),
+		NewAlarmHistoryTable(app, api, logger),
+		NewAlarmDetailsTable(app, api, logger),
+		app, api, logger,
+	)
 	alarmsDetailsView.InitInputCapture()
 
 	var pages = tview.NewPages().
-		AddAndSwitchToPage("Alarms", alarmsDetailsView.RootView, true)
+		AddAndSwitchToPage("Alarms", alarmsDetailsView, true)
 
 	var orderedPages = []string{
 		"Alarms",
