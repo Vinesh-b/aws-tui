@@ -72,7 +72,7 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 		SetBorderPadding(0, 0, 0, 0).
 		SetBorder(true)
 
-	if inst.tableDescription == nil || len(inst.data) == 0 {
+	if inst.tableDescription == nil {
 		return
 	}
 
