@@ -14,8 +14,8 @@ import (
 	"github.com/rivo/tview"
 )
 
-type LambdasDetailsPage struct {
-	RootView           *tview.Flex
+type LambdaDetailsPageView struct {
+	*core.ServicePageView
 	SelectedLambda     string
 	LambdaListTable    *LambdaListTable
 	LambdaDetailsTable *LambdaDetailsTable
@@ -24,48 +24,46 @@ type LambdasDetailsPage struct {
 	api *awsapi.LambdaApi
 }
 
-func NewLambdasDetailsPage(
+func NewLambdaDetailsPageView(
 	lambdaDetailsTable *LambdaDetailsTable,
 	lambdaListTable *LambdaListTable,
 	app *tview.Application,
 	api *awsapi.LambdaApi,
 	logger *log.Logger,
-) *LambdasDetailsPage {
+) *LambdaDetailsPageView {
 	const detailsViewSize = 4000
 	const tableViewSize = 6000
 
-	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(lambdaDetailsTable.RootView, 0, detailsViewSize, false).
-		AddItem(lambdaListTable.RootView, 0, tableViewSize, true)
-
-	var serviceView = core.NewServiceView(app, logger, mainPage)
-
-	serviceView.SetResizableViews(
-		lambdaDetailsTable.RootView, lambdaListTable.RootView,
-		detailsViewSize, tableViewSize,
+	var mainPage = core.NewResizableView(
+		lambdaDetailsTable.RootView, detailsViewSize,
+		lambdaListTable.RootView, tableViewSize,
+		tview.FlexRow,
 	)
+	var serviceView = core.NewServicePageView(app, logger)
+	serviceView.AddItem(mainPage, 0, 1, true)
 
-	serviceView.InitViewNavigation(
-		[]core.View{
-			lambdaListTable.RootView,
-			lambdaDetailsTable.RootView,
-		},
-	)
-	var detailsView = &LambdasDetailsPage{
-		RootView:       serviceView.RootView,
-		SelectedLambda: "",
+	var view = &LambdaDetailsPageView{
+		ServicePageView: serviceView,
+		SelectedLambda:  "",
 
 		LambdaListTable:    lambdaListTable,
 		LambdaDetailsTable: lambdaDetailsTable,
 		app:                app,
 		api:                api,
 	}
-	detailsView.initInputCapture()
 
-	return detailsView
+	view.InitViewNavigation(
+		[]core.View{
+			lambdaListTable.RootView,
+			lambdaDetailsTable.RootView,
+		},
+	)
+	view.initInputCapture()
+
+	return view
 }
 
-func (inst *LambdasDetailsPage) initInputCapture() {
+func (inst *LambdaDetailsPageView) initInputCapture() {
 	inst.LambdaListTable.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
@@ -79,9 +77,9 @@ func (inst *LambdasDetailsPage) initInputCapture() {
 }
 
 // Todo: Fix navigaion with shared components
-type LambdaInvokePage struct {
+type LambdaInvokePageView struct {
+	*core.ServicePageView
 	SelectedLambda string
-	RootView       *tview.Flex
 	DetailsTable   *LambdaDetailsTable
 
 	logResults     *tview.TextArea
@@ -91,24 +89,23 @@ type LambdaInvokePage struct {
 	api            *awsapi.LambdaApi
 }
 
-func NewLambdaInvokePage(
+func NewLambdaInvokePageView(
 	lambdaDetails *LambdaDetailsTable,
 	app *tview.Application,
 	api *awsapi.LambdaApi,
 	logger *log.Logger,
-) *LambdaInvokePage {
+) *LambdaInvokePageView {
 
 	var payloadInput = core.CreateTextArea("Event Payload")
 	var logResults = core.CreateTextArea("Logs")
 	var responseOutput = core.CreateTextArea("Response")
 
-	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
+	var serviceView = core.NewServicePageView(app, logger)
+	serviceView.
 		AddItem(lambdaDetails.Table, 0, 3000, false).
 		AddItem(payloadInput, 0, 4000, false).
 		AddItem(responseOutput, 0, 4000, false).
 		AddItem(logResults, 0, 5000, false)
-
-	var serviceView = core.NewServiceView(app, logger, mainPage)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
@@ -118,9 +115,9 @@ func NewLambdaInvokePage(
 			responseOutput,
 		},
 	)
-	var invokeView = &LambdaInvokePage{
-		RootView:       serviceView.RootView,
-		SelectedLambda: "",
+	var view = &LambdaInvokePageView{
+		ServicePageView: serviceView,
+		SelectedLambda:  "",
 
 		DetailsTable:   lambdaDetails,
 		payloadInput:   payloadInput,
@@ -129,12 +126,13 @@ func NewLambdaInvokePage(
 		app:            app,
 		api:            api,
 	}
-	invokeView.initInputCapture()
 
-	return invokeView
+	view.initInputCapture()
+
+	return view
 }
 
-func (inst *LambdaInvokePage) initInputCapture() {
+func (inst *LambdaInvokePageView) initInputCapture() {
 	inst.DetailsTable.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
@@ -153,18 +151,18 @@ func (inst *LambdaInvokePage) initInputCapture() {
 	})
 }
 
-func (inst *LambdaInvokePage) loadLogs(text string) {
+func (inst *LambdaInvokePageView) loadLogs(text string) {
 	inst.logResults.SetTitle("Logs")
 	inst.logResults.SetText(text, false)
 }
 
-func (inst *LambdaInvokePage) loadResponse(text string) {
+func (inst *LambdaInvokePageView) loadResponse(text string) {
 	inst.responseOutput.SetTitle("Response")
 	var newText, _ = core.TryFormatToJson(text)
 	inst.responseOutput.SetText(newText, false)
 }
 
-func (inst *LambdaInvokePage) Invoke() {
+func (inst *LambdaInvokePageView) Invoke() {
 	var resultChannel = make(chan struct{})
 	var logResults = []byte{}
 	var responseOutput = []byte{}
@@ -207,12 +205,12 @@ func NewLambdaHomeView(
 	var (
 		api                = awsapi.NewLambdaApi(config, logger)
 		cwl_api            = awsapi.NewCloudWatchLogsApi(config, logger)
-		lambdasDetailsView = NewLambdasDetailsPage(
+		lambdasDetailsView = NewLambdaDetailsPageView(
 			NewLambdaDetailsTable(app, api, logger),
 			NewLambdasListTable(app, api, logger),
 			app, api, logger,
 		)
-		lambdaInvokeView = NewLambdaInvokePage(
+		lambdaInvokeView = NewLambdaInvokePageView(
 			NewLambdaDetailsTable(app, api, logger),
 			app, api, logger,
 		)
@@ -229,8 +227,8 @@ func NewLambdaHomeView(
 	var pages = tview.NewPages().
 		AddPage("Events", logEventsView.RootView, true, true).
 		AddPage("Streams", logStreamsView.RootView, true, true).
-		AddPage("Invoke", lambdaInvokeView.RootView, true, true).
-		AddAndSwitchToPage("Lambdas", lambdasDetailsView.RootView, true)
+		AddPage("Invoke", lambdaInvokeView, true, true).
+		AddAndSwitchToPage("Lambdas", lambdasDetailsView, true)
 
 	var orderedPages = []string{
 		"Lambdas",
@@ -247,7 +245,7 @@ func NewLambdaHomeView(
 			return
 		}
 		lambdaInvokeView.SelectedLambda = lambdasDetailsView.SelectedLambda
-        app.SetFocus(lambdasDetailsView.LambdaDetailsTable.RootView)
+		app.SetFocus(lambdasDetailsView.LambdaDetailsTable.RootView)
 	})
 
 	lambdasDetailsView.LambdaDetailsTable.Table.SetSelectedFunc(func(row, column int) {
