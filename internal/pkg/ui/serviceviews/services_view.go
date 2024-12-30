@@ -1,7 +1,7 @@
 package serviceviews
 
 import (
-    "aws-tui/internal/pkg/ui/core"
+	"aws-tui/internal/pkg/ui/core"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -28,7 +28,10 @@ func ServicesHomeView() *tview.List {
 	var servicesList = tview.NewList().
 		SetSecondaryTextColor(tcell.ColorGrey).
 		SetSelectedTextColor(core.TertiaryTextColor).
-		SetSelectedBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+		SetHighlightFullLine(true).
+		SetSelectedBackgroundColor(tcell.ColorGrey)
+
+	servicesList.SetBorderPadding(0, 0, 1, 1)
 
 	servicesList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		var currentIdx = servicesList.GetCurrentItem()
@@ -96,7 +99,6 @@ func ServicesHomeView() *tview.List {
 			"󱁊 View State Machines",
 			rune('9'), nil,
 		).
-		AddItem("----------------------------------------", "", 0, nil).
 		AddItem(
 			string(HELP),
 			"󰘥 View help docs on how to use this app",
