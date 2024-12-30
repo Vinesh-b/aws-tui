@@ -32,9 +32,9 @@ func NewS3BucketsApi(
 	}
 }
 
-func (inst *S3BucketsApi) ListBuckets(force bool) map[string]types.Bucket {
+func (inst *S3BucketsApi) ListBuckets(force bool) (map[string]types.Bucket, error) {
 	if len(inst.allbuckets) > 0 && !force {
-		return inst.allbuckets
+		return inst.allbuckets, nil
 	}
 
 	inst.allbuckets = make(map[string]types.Bucket)
@@ -45,14 +45,14 @@ func (inst *S3BucketsApi) ListBuckets(force bool) map[string]types.Bucket {
 
 	if err != nil {
 		inst.logger.Println(err)
-		return inst.allbuckets
+		return inst.allbuckets, err
 	}
 
 	for _, bucket := range output.Buckets {
 		inst.allbuckets[*bucket.Name] = bucket
 	}
 
-	return inst.allbuckets
+	return inst.allbuckets, nil
 }
 
 func (inst *S3BucketsApi) FilterByName(name string) map[string]types.Bucket {
@@ -76,7 +76,7 @@ func (inst *S3BucketsApi) ListObjects(
 	bucketName string,
 	prefix string,
 	force bool,
-) ([]types.Object, []types.CommonPrefix) {
+) ([]types.Object, []types.CommonPrefix, error) {
 	var objPrefix = &prefix
 	if len(prefix) == 0 {
 		objPrefix = nil
@@ -92,16 +92,16 @@ func (inst *S3BucketsApi) ListObjects(
 	}
 
 	if !inst.objectsPaginator.HasMorePages() {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	var output, err = inst.objectsPaginator.NextPage(context.TODO())
 	if err != nil {
 		inst.logger.Println(err)
-		return nil, nil
+		return nil, nil, err
 	}
 
-	return output.Contents, output.CommonPrefixes
+	return output.Contents, output.CommonPrefixes, nil
 }
 
 func (inst *S3BucketsApi) DownloadFile(bucketName string, objectKey string, fileName string) error {

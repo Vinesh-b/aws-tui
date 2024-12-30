@@ -29,13 +29,14 @@ func parentDir(s3ObjectPrefix string) string {
 }
 
 type BucketObjectsTable struct {
-    *tview.Table
-	selectedBucket string
-	selectedPrefix string
-	data           []types.Object
-	logger         *log.Logger
-	app            *tview.Application
-	api            *awsapi.S3BucketsApi
+	*tview.Table
+	ErrorMessageHandler func(text string)
+	selectedBucket      string
+	selectedPrefix      string
+	data                []types.Object
+	logger              *log.Logger
+	app                 *tview.Application
+	api                 *awsapi.S3BucketsApi
 }
 
 func NewBucketObjectsTable(
@@ -44,13 +45,14 @@ func NewBucketObjectsTable(
 	logger *log.Logger,
 ) *BucketObjectsTable {
 	var view = &BucketObjectsTable{
-        Table: tview.NewTable(),
-		selectedBucket:  "",
-		selectedPrefix:  "",
-		data:            nil,
-		logger:          logger,
-		app:             app,
-		api:             api,
+		Table:               tview.NewTable(),
+		ErrorMessageHandler: func(text string) {},
+		selectedBucket:      "",
+		selectedPrefix:      "",
+		data:                nil,
+		logger:              logger,
+		app:                 app,
+		api:                 api,
 	}
 	view.populateS3ObjectsTable(nil, false)
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
@@ -168,9 +170,16 @@ func (inst *BucketObjectsTable) RefreshObjects(force bool) {
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		var objects, commonPrefixes = inst.api.ListObjects(
+		var objects, commonPrefixes, err = inst.api.ListObjects(
 			inst.selectedBucket, inst.selectedPrefix, force,
 		)
+
+		if err != nil {
+			inst.ErrorMessageHandler(err.Error())
+			resultChannel <- struct{}{}
+			return
+		}
+
 		var filterObjs = objects
 		// the current dir is retured in the objects list and we don't want that
 		for idx, val := range objects {
