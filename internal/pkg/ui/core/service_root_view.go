@@ -11,7 +11,7 @@ type ServiceRootView struct {
 	*tview.Flex
 	pages         *tview.Pages
 	paginatorView PaginatorView
-	pageIndex     *int
+	pageIndex     int
 	orderedPages  []string
 	app           *tview.Application
 }
@@ -22,15 +22,13 @@ func NewServiceRootView(
 	pages *tview.Pages,
 	orderedPages []string,
 ) *ServiceRootView {
-
 	var paginatorView = CreatePaginatorView(serviceName)
-	var pageIndex = 0
 
 	var view = &ServiceRootView{
 		Flex:          tview.NewFlex().SetDirection(tview.FlexRow),
 		pages:         pages,
 		paginatorView: paginatorView,
-		pageIndex:     &pageIndex,
+		pageIndex:     0,
 		orderedPages:  orderedPages,
 		app:           app,
 	}
@@ -49,15 +47,15 @@ func (inst *ServiceRootView) Init() *ServiceRootView {
 
 func (inst *ServiceRootView) ChangePage(pageIdx int, focusView tview.Primitive) {
 	var numPages = len(inst.orderedPages)
-	*inst.pageIndex = (pageIdx + numPages) % numPages
-	var pageName = inst.orderedPages[*inst.pageIndex]
+	inst.pageIndex = (pageIdx + numPages) % numPages
+	var pageName = inst.orderedPages[inst.pageIndex]
 	inst.pages.SwitchToPage(pageName)
 	if focusView != nil {
 		inst.app.SetFocus(focusView)
 	}
 	inst.paginatorView.PageNameView.SetText(pageName)
 	inst.paginatorView.PageCounterView.SetText(
-		fmt.Sprintf("<%d/%d>", *inst.pageIndex+1, numPages),
+		fmt.Sprintf("<%d/%d>", inst.pageIndex+1, numPages),
 	)
 }
 
@@ -68,12 +66,12 @@ func (inst *ServiceRootView) initPageNavigation() {
 	inst.pages.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlH:
-			*inst.pageIndex = (*inst.pageIndex - 1 + numPages) % numPages
-			inst.ChangePage(*inst.pageIndex, nil)
+			inst.pageIndex = (inst.pageIndex - 1 + numPages) % numPages
+			inst.ChangePage(inst.pageIndex, nil)
 			return nil
 		case tcell.KeyCtrlL:
-			*inst.pageIndex = (*inst.pageIndex + 1) % numPages
-			inst.ChangePage(*inst.pageIndex, nil)
+			inst.pageIndex = (inst.pageIndex + 1) % numPages
+			inst.ChangePage(inst.pageIndex, nil)
 			return nil
 		}
 		return event

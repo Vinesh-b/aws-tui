@@ -19,21 +19,24 @@ type View interface {
 
 type ServicePageView struct {
 	*tview.Flex
-	LastFocusedView tview.Primitive
-	selectedViewIdx int
-	app             *tview.Application
-	logger          *log.Logger
+	ViewNavigation *ViewNavigation
+	app            *tview.Application
+	logger         *log.Logger
 }
 
 func NewServicePageView(
 	app *tview.Application,
 	logger *log.Logger,
 ) *ServicePageView {
+	var flex = tview.NewFlex()
+	var viewNav = NewViewNavigation(flex, nil, app)
+	viewNav.SetNavigationKeys(tcell.KeyCtrlJ, tcell.KeyCtrlK)
+
 	var view = &ServicePageView{
-		Flex:            tview.NewFlex(),
-		LastFocusedView: nil,
-		app:             app,
-		logger:          logger,
+		Flex:           flex,
+		ViewNavigation: viewNav,
+		app:            app,
+		logger:         logger,
 	}
 
 	view.SetDirection(tview.FlexRow)
@@ -42,22 +45,5 @@ func NewServicePageView(
 }
 
 func (inst *ServicePageView) InitViewNavigation(orderedViews []View) {
-	var viewIdx = 0
-	var numViews = len(orderedViews)
-	inst.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlJ:
-			viewIdx = (viewIdx - 1 + numViews) % numViews
-			inst.LastFocusedView = orderedViews[viewIdx]
-			inst.app.SetFocus(inst.LastFocusedView)
-			return nil
-		case tcell.KeyCtrlK:
-			viewIdx = (viewIdx + 1) % numViews
-			inst.LastFocusedView = orderedViews[viewIdx]
-			inst.app.SetFocus(inst.LastFocusedView)
-			return nil
-		}
-
-		return event
-	})
+	inst.ViewNavigation.UpdateOrderedViews(orderedViews, 0)
 }

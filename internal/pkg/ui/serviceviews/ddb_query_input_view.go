@@ -29,7 +29,7 @@ type DynamoDBQueryInputView struct {
 	indexes             []string
 	pkName              string
 	skName              string
-	tabNavigator        *core.ViewTabNavigation
+	tabNavigator        *core.ViewNavigation
 }
 
 func NewDynamoDBQueryInputView(app *tview.Application, logger *log.Logger) *DynamoDBQueryInputView {
@@ -59,7 +59,7 @@ func NewDynamoDBQueryInputView(app *tview.Application, logger *log.Logger) *Dyna
 			1, 0, true,
 		)
 
-	var tabNavigator = core.NewViewTabNavigation(wrapper,
+	var tabNavigator = core.NewViewNavigation(wrapper,
 		[]core.View{
 			pkInput,
 			skComparitorInput,
@@ -187,7 +187,7 @@ type FilterInputView struct {
 	Value2             *tview.InputField
 	RootView           *tview.Flex
 
-	tabNavigator *core.ViewTabNavigation
+	tabNavigator *core.ViewNavigation
 	logger       *log.Logger
 }
 
@@ -211,7 +211,7 @@ func NewFilterInputView(app *tview.Application, logger *log.Logger) *FilterInput
 		AddItem(line1View, 1, 0, true).
 		AddItem(line2View, 1, 0, true)
 
-	var tabNavigator = core.NewViewTabNavigation(wrapper,
+	var tabNavigator = core.NewViewNavigation(wrapper,
 		[]core.View{
 			attrNameInput,
 			attrTypeInput,
