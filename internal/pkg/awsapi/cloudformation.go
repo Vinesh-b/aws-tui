@@ -30,9 +30,9 @@ func NewCloudFormationApi(
 	}
 }
 
-func (inst *CloudFormationApi) ListStacks(force bool) map[string]types.StackSummary {
+func (inst *CloudFormationApi) ListStacks(force bool) (map[string]types.StackSummary, error) {
 	if !force && len(inst.allStacks) > 0 {
-		return inst.allStacks
+		return inst.allStacks, nil
 	}
 
 	inst.allStacks = make(map[string]types.StackSummary)
@@ -41,10 +41,12 @@ func (inst *CloudFormationApi) ListStacks(force bool) map[string]types.StackSumm
 		inst.client, &cloudformation.ListStacksInput{},
 	)
 
+	var apiErr error = nil
 	for paginator.HasMorePages() {
 		var output, err = paginator.NextPage(context.TODO())
 		if err != nil {
 			inst.logger.Println(err)
+			apiErr = err
 			break
 		}
 		for _, stack := range output.StackSummaries {
@@ -52,7 +54,7 @@ func (inst *CloudFormationApi) ListStacks(force bool) map[string]types.StackSumm
 		}
 	}
 
-	return inst.allStacks
+	return inst.allStacks, apiErr
 }
 
 func (inst *CloudFormationApi) FilterByName(name string) map[string]types.StackSummary {
@@ -72,7 +74,7 @@ func (inst *CloudFormationApi) FilterByName(name string) map[string]types.StackS
 	return foundStacks
 }
 
-func (inst *CloudFormationApi) DescribeStackEvents(stackName string, force bool) []types.StackEvent {
+func (inst *CloudFormationApi) DescribeStackEvents(stackName string, force bool) ([]types.StackEvent, error) {
 	if inst.stackEventsPaginator == nil || force {
 		inst.stackEventsPaginator = cloudformation.NewDescribeStackEventsPaginator(
 			inst.client, &cloudformation.DescribeStackEventsInput{
@@ -83,14 +85,14 @@ func (inst *CloudFormationApi) DescribeStackEvents(stackName string, force bool)
 
 	var empty []types.StackEvent
 	if !inst.stackEventsPaginator.HasMorePages() {
-		return empty
+		return empty, nil
 	}
 
 	var output, err = inst.stackEventsPaginator.NextPage(context.TODO())
 	if err != nil {
 		inst.logger.Println(err)
-		return empty
+		return empty, err
 	}
 
-	return output.StackEvents
+	return output.StackEvents, nil
 }

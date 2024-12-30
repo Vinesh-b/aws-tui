@@ -78,7 +78,11 @@ func (inst *StackListTable) RefreshStacks(reset bool) {
 		if len(searchText) > 0 {
 			inst.data = inst.api.FilterByName(searchText)
 		} else {
-			inst.data = inst.api.ListStacks(reset)
+			var err error = nil
+			inst.data, err = inst.api.ListStacks(reset)
+			if err != nil {
+				inst.ErrorMessageHandler(err.Error())
+			}
 		}
 		resultChannel <- struct{}{}
 	}()

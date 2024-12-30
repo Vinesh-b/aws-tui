@@ -83,7 +83,11 @@ func (inst *StackEventsTable) RefreshEvents(reset bool) {
 
 	go func() {
 		if len(inst.selectedStack) > 0 {
-			inst.data = inst.api.DescribeStackEvents(inst.selectedStack, reset)
+			var err error = nil
+			inst.data, err = inst.api.DescribeStackEvents(inst.selectedStack, reset)
+			if err != nil {
+				inst.ErrorMessageHandler(err.Error())
+			}
 		} else {
 			inst.data = make([]types.StackEvent, 0)
 		}

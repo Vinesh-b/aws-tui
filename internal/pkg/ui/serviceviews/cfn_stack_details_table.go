@@ -76,7 +76,13 @@ func (inst *StackDetailsTable) RefreshDetails(force bool) {
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		data = inst.api.ListStacks(force)
+		var err error = nil
+
+		data, err = inst.api.ListStacks(force)
+		if err != nil {
+			inst.ErrorMessageHandler(err.Error())
+		}
+
 		var val, ok = data[inst.selectedStack]
 		if ok {
 			inst.data = &val
