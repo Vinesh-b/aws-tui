@@ -270,5 +270,5 @@ func NewLambdaHomeView(
 	logEventsView.InitInputCapture()
 	logStreamsView.InitInputCapture()
 
-	return serviceRootView.RootView
+	return serviceRootView
 }

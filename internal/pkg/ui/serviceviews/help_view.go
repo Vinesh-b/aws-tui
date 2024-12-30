@@ -55,5 +55,5 @@ Text Area:
 	var serviceRootView = core.NewServiceRootView(
 		app, string(HELP), pages, orderedPages).Init()
 
-	return serviceRootView.RootView
+	return serviceRootView
 }

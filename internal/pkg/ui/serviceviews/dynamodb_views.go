@@ -197,5 +197,5 @@ func NewDynamoDBHomeView(
 		SetTableName(selectedTableName).
 		InitInputCapture()
 
-	return serviceRootView.RootView
+	return serviceRootView
 }

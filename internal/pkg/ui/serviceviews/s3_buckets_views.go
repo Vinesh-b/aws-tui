@@ -103,5 +103,5 @@ func NewS3bucketsHomeView(
 
 	s3DetailsView.InitInputCapture()
 
-	return serviceRootView.RootView
+	return serviceRootView
 }

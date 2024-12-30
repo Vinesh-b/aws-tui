@@ -269,5 +269,5 @@ func NewLogsInsightsHomeView(
 		serviceRootView.ChangePage(2, logEventsView.LogEventsTable)
 	})
 
-	return serviceRootView.RootView
+	return serviceRootView
 }

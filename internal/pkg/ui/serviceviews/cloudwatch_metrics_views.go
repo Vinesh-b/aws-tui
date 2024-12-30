@@ -94,5 +94,5 @@ func NewMetricsHomeView(
 	var serviceRootView = core.NewServiceRootView(
 		app, string(CLOUDWATCH_METRICS), pages, orderedPages).Init()
 
-	return serviceRootView.RootView
+	return serviceRootView
 }

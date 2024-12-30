@@ -124,5 +124,5 @@ func NewAlarmsHomeView(
 	var serviceRootView = core.NewServiceRootView(
 		app, string(CLOUDWATCH_ALARMS), pages, orderedPages).Init()
 
-	return serviceRootView.RootView
+	return serviceRootView
 }

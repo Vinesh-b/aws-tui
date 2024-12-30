@@ -189,5 +189,5 @@ func NewStacksHomeView(
 	stackEventsView.InitInputCapture()
 	stacksDetailsView.InitInputCapture()
 
-	return serviceRootView.RootView
+	return serviceRootView
 }

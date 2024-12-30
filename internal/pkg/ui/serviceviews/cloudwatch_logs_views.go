@@ -238,5 +238,5 @@ func NewLogsHomeView(
 	logStreamsView.InitInputCapture()
 	logGroupsView.InitInputCapture()
 
-	return serviceRootView.RootView
+	return serviceRootView
 }

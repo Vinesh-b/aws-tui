@@ -8,10 +8,10 @@ import (
 )
 
 type ServiceRootView struct {
+	*tview.Flex
 	pages         *tview.Pages
 	paginatorView PaginatorView
 	pageIndex     *int
-	RootView      *tview.Flex
 	orderedPages  []string
 	app           *tview.Application
 }
@@ -24,19 +24,22 @@ func NewServiceRootView(
 ) *ServiceRootView {
 
 	var paginatorView = CreatePaginatorView(serviceName)
-	var rootView = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(pages, 0, 1, true).
-		AddItem(paginatorView.RootView, 1, 0, false)
-
 	var pageIndex = 0
-	return &ServiceRootView{
-		RootView:      rootView,
+
+	var view = &ServiceRootView{
+		Flex:          tview.NewFlex().SetDirection(tview.FlexRow),
 		pages:         pages,
 		paginatorView: paginatorView,
 		pageIndex:     &pageIndex,
 		orderedPages:  orderedPages,
 		app:           app,
 	}
+
+	view.
+		AddItem(pages, 0, 1, true).
+		AddItem(paginatorView.RootView, 1, 0, false)
+
+	return view
 }
 
 func (inst *ServiceRootView) Init() *ServiceRootView {

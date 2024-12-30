@@ -20,9 +20,8 @@ type SearchableView struct {
 	searchInput     *tview.InputField
 	showSearch      bool
 	searchPositions []int
-	pages           *tview.Pages
 	app             *tview.Application
-	Logger          *log.Logger
+	logger          *log.Logger
 }
 
 func NewSearchableView(
@@ -73,7 +72,7 @@ func (inst *SearchableView) SetSearchDoneFunc(handler func(key tcell.Key)) {
 		switch key {
 		case tcell.KeyEnter:
 			if !inst.showSearch {
-				inst.pages.HidePage(SEARCH_PAGE_NAME)
+				inst.HidePage(SEARCH_PAGE_NAME)
 				inst.showSearch = !inst.showSearch
 			}
 		}

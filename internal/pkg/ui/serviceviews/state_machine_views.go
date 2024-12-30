@@ -203,5 +203,5 @@ func NewStepFunctionsHomeView(
 	stateMachinesDetailsView.initInputCapture()
 	executionDetailsView.initInputCapture()
 
-	return serviceRootView.RootView
+	return serviceRootView
 }
