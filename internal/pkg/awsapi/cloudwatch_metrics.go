@@ -36,9 +36,9 @@ func (inst *CloudWatchMetricsApi) ListMetrics(
 	namespace string,
 	metricName string,
 	force bool,
-) map[string]types.Metric {
+) (map[string]types.Metric, error) {
 	if len(inst.allMetrics) > 0 && !force {
-		return inst.allMetrics
+		return inst.allMetrics, nil
 	}
 
 	var queryNamespace = &namespace
@@ -61,10 +61,12 @@ func (inst *CloudWatchMetricsApi) ListMetrics(
 		},
 	)
 
+	var apiErr error = nil
 	for inst.meticsPaginator.HasMorePages() {
 		var output, err = inst.meticsPaginator.NextPage(context.TODO())
 		if err != nil {
 			inst.logger.Println(err)
+			apiErr = err
 			break
 		}
 
@@ -73,13 +75,13 @@ func (inst *CloudWatchMetricsApi) ListMetrics(
 		}
 	}
 
-	return inst.allMetrics
+	return inst.allMetrics, apiErr
 }
 
 func (inst *CloudWatchMetricsApi) FilterByName(name string) map[string]types.Metric {
 
 	if len(inst.allMetrics) < 1 {
-        return nil
+		return nil
 	}
 
 	var foundMetrics = make(map[string]types.Metric)

@@ -73,7 +73,11 @@ func (inst *MetricListTable) RefreshMetrics(search string, force bool) {
 		if len(search) > 0 {
 			inst.data = inst.api.FilterByName(search)
 		} else {
-			inst.data = inst.api.ListMetrics(nil, "", "", force)
+			var err error = nil
+			inst.data, err = inst.api.ListMetrics(nil, "", "", force)
+			if err != nil {
+				inst.ErrorMessageHandler(err.Error())
+			}
 		}
 		resultChannel <- struct{}{}
 	}()

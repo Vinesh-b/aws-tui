@@ -62,7 +62,11 @@ func (inst *MetricDetailsTable) RefreshDetails(metric string, reset bool) {
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		inst.data = inst.api.ListMetrics(nil, "", "", reset)
+		var err error = nil
+		inst.data, err = inst.api.ListMetrics(nil, "", "", reset)
+		if err != nil {
+			inst.ErrorMessageHandler(err.Error())
+		}
 		resultChannel <- struct{}{}
 	}()
 

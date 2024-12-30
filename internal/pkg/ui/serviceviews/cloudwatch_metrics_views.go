@@ -46,6 +46,13 @@ func NewMetricsDetailsView(
 		},
 	)
 
+	var errorHandler = func(text string) {
+		serviceView.SetAndDisplayError(text)
+	}
+
+	metricListTable.ErrorMessageHandler = errorHandler
+	metricDetailsTable.ErrorMessageHandler = errorHandler
+
 	return &MetricDetailsView{
 		ServicePageView:    serviceView,
 		MetricListTable:    metricListTable,
