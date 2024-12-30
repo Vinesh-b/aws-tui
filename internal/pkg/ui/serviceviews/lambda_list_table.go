@@ -43,13 +43,9 @@ func NewLambdasListTable(
 	}
 
 	view.populateLambdasTable()
-	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlR:
-			view.RefreshLambdas(true)
-		}
-		return event
-	})
+	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
+	view.SetSelectedFunc(func(row, column int) {})
+	view.SetSelectionChangedFunc(func(row, column int) {})
 
 	return view
 }

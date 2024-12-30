@@ -44,6 +44,8 @@ func NewAlarmListTable(
 	}
 
 	view.populateAlarmsTable()
+    view.SetSelectedFunc(func(row, column int) {})
+    view.SetSelectionChangedFunc(func(row, column int) {})
 	view.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:

@@ -47,6 +47,8 @@ func NewStackEventsTable(
 
 	view.HighlightSearch = true
 	view.populateStackEventsTable(true)
+	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
+	view.SetSelectionChangedFunc(func(row, column int) {})
 
 	return view
 }

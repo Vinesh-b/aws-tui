@@ -47,21 +47,8 @@ func NewStateMachinesListTable(
 	}
 
 	table.populateStateMachinesTable()
-	table.SetSelectionChangedFunc(func(row, column int) {
-		if row < 1 {
-			return
-		}
-		table.selectedFunctionArn = table.GetCell(row, 0).Text
-	})
-
-	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlR:
-			table.RefreshStateMachines(true)
-		}
-		return event
-	})
-
+	table.SetSelectionChangedFunc(func(row, column int) {})
+	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
 	table.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:

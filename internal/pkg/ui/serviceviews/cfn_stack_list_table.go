@@ -45,13 +45,8 @@ func NewStackListTable(
 	}
 
 	view.populateStacksTable()
-	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlR:
-			view.RefreshStacks(true)
-		}
-		return event
-	})
+	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
+	view.SetSelectionChangedFunc(func(row, column int) {})
 
 	return view
 }
