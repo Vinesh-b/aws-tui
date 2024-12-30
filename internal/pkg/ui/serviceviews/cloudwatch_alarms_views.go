@@ -43,7 +43,7 @@ func NewAlarmsDetailsPageView(
 		AddItem(resizableView, 0, 1, true)
 
 	var serviceView = core.NewServicePageView(app, logger)
-	serviceView.AddItem(mainPage, 0, 1, true)
+	serviceView.MainPage.AddItem(mainPage, 0, 1, false)
 
 	serviceView.InitViewNavigation(
 		[]core.View{

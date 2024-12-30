@@ -37,7 +37,7 @@ func NewLogGroupsSelectionPageView(
 	logGroupsView.InitInputCapture()
 
 	var serviceView = core.NewServicePageView(app, logger)
-	serviceView.
+	serviceView.MainPage.
 		AddItem(selectedGroupsTable, 0, 1, false).
 		AddItem(logGroupsView.LogGroupsTable, 0, 1, true)
 
@@ -135,7 +135,7 @@ func NewInsightsQueryResultsPageView(
 		AddItem(queryView, queryViewSize, 0, true)
 
 	var serviceView = core.NewServicePageView(app, logger)
-	serviceView.AddItem(mainPage, 0, 1, true)
+	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{

@@ -39,7 +39,7 @@ func NewStateMachinesDetailsPageView(
 	)
 
 	var serviceView = core.NewServicePageView(app, logger)
-	serviceView.AddItem(mainPage, 0, 1, true)
+	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
@@ -129,7 +129,7 @@ func NewStateMachineExectionDetailsPage(
 	)
 
 	var serviceView = core.NewServicePageView(app, logger)
-	serviceView.
+	serviceView.MainPage.
 		AddItem(executionSummary, 8, 0, true).
 		AddItem(resizableView, 0, 1, false)
 

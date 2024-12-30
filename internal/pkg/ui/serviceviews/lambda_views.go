@@ -40,7 +40,7 @@ func NewLambdaDetailsPageView(
 		tview.FlexRow,
 	)
 	var serviceView = core.NewServicePageView(app, logger)
-	serviceView.AddItem(mainPage, 0, 1, true)
+	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	var view = &LambdaDetailsPageView{
 		ServicePageView: serviceView,
@@ -101,7 +101,7 @@ func NewLambdaInvokePageView(
 	var responseOutput = core.CreateTextArea("Response")
 
 	var serviceView = core.NewServicePageView(app, logger)
-	serviceView.
+	serviceView.MainPage.
 		AddItem(lambdaDetails, 0, 3000, false).
 		AddItem(payloadInput, 0, 4000, false).
 		AddItem(responseOutput, 0, 4000, false).

@@ -43,7 +43,7 @@ func NewLogEventsPageView(
 	)
 
 	var serviceView = core.NewServicePageView(app, logger)
-	serviceView.AddItem(mainPage, 0, 1, true)
+	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
@@ -91,7 +91,7 @@ func NewLogStreamsPageView(
 ) *LogStreamsPageView {
 
 	var serviceView = core.NewServicePageView(app, logger)
-	serviceView.AddItem(logStreamsTable, 0, 1, true)
+	serviceView.MainPage.AddItem(logStreamsTable, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
@@ -144,7 +144,7 @@ func NewLogGroupsPageView(
 ) *LogGroupsPageView {
 
 	var serviceView = core.NewServicePageView(app, logger)
-	serviceView.AddItem(logGroupsTable, 0, 1, true)
+	serviceView.MainPage.AddItem(logGroupsTable, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{

@@ -39,7 +39,7 @@ func NewDynamoDBDetailsPage(
 	)
 
 	var serviceView = core.NewServicePageView(app, logger)
-	serviceView.AddItem(mainPage, 0, 1, true)
+	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
@@ -88,7 +88,7 @@ func NewDynamoDBTableItemsPage(
 	)
 
 	var serviceView = core.NewServicePageView(app, logger)
-	serviceView.AddItem(mainPage, 0, 1, true)
+	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
