@@ -295,9 +295,8 @@ func (inst *DetailsTable) SetData(data []TableRow) {
 			log.Panicln("Table data and headings dimensions do not match")
 		}
 	}
-	inst.table.
-		Clear().
-		SetTitle(inst.title)
+	inst.table.Clear()
+	inst.SetTitle(inst.title)
 
 	for rowIdx, rowData := range data {
 		for colIdx, cellData := range rowData {
