@@ -2,8 +2,6 @@ package errors
 
 import "fmt"
 
-type ErrorCode string
-
 const (
 	InvalidFilterCondition  ErrorCode = "INVALID_FILTER_CONDITION"
 	InvalidKeyCondition     ErrorCode = "INVALID_KEY_CONDITION"

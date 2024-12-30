@@ -1,6 +1,8 @@
 package core
 
 import (
+	"aws-tui/internal/pkg/errors"
+
 	"fmt"
 	"log"
 	"strings"
@@ -55,10 +57,14 @@ func NewSelectableTable[T any](title string, headings TableRow) *SelectableTable
 	return view
 }
 
-func (inst *SelectableTable[T]) SetData(data []TableRow) {
+func (inst *SelectableTable[T]) SetData(data []TableRow) error {
 	if len(data) > 0 {
 		if len(inst.headings) != len(data[0]) {
-			log.Panicln("Table data and headings dimensions do not match")
+			log.Println("Table data and headings dimensions do not match")
+			return errors.NewCoreTableError(
+				errors.InvalidDataDimentions,
+				"Table data and headings dimensions do not match",
+			)
 		}
 	}
 	var tableTitle = fmt.Sprintf("%s (%d)", inst.title, len(data))
@@ -91,12 +97,18 @@ func (inst *SelectableTable[T]) SetData(data []TableRow) {
 			)
 		}
 	}
+
+	return nil
 }
 
-func (inst *SelectableTable[T]) SetPrivateData(privateData []T, column int) {
+func (inst *SelectableTable[T]) SetPrivateData(privateData []T, column int) error {
 	if len(privateData) > 0 {
 		if len(privateData) != len(inst.data) {
-			log.Panicln("Table data and private data row counts do not match")
+			log.Println("Table data and private data row counts do not match")
+			return errors.NewCoreTableError(
+				errors.InvalidDataDimentions,
+				"Table data and private data row counts do not match",
+			)
 		}
 	}
 	inst.privateColumn = column
@@ -110,6 +122,8 @@ func (inst *SelectableTable[T]) SetPrivateData(privateData []T, column int) {
 
 		}
 	}
+
+	return nil
 }
 
 func (inst *SelectableTable[T]) ExtendData(data []TableRow) {
@@ -130,10 +144,14 @@ func (inst *SelectableTable[T]) ExtendData(data []TableRow) {
 	}
 }
 
-func (inst *SelectableTable[T]) ExtendPrivateData(privateData []T) {
+func (inst *SelectableTable[T]) ExtendPrivateData(privateData []T) error {
 	if len(privateData) > 0 {
 		if len(privateData) != len(inst.data) {
-			log.Panicln("Table data and private data row counts do not match")
+			log.Println("Table data and private data row counts do not match")
+			return errors.NewCoreTableError(
+				errors.InvalidDataDimentions,
+				"Table data and private data row counts do not match",
+			)
 		}
 	}
 	var table = inst.table
@@ -144,6 +162,8 @@ func (inst *SelectableTable[T]) ExtendPrivateData(privateData []T) {
 			SetReference(privateData[rowIdx]).
 			SetAlign(tview.AlignLeft)
 	}
+
+	return nil
 }
 
 func (inst *SelectableTable[T]) SearchPrivateData(searchCols []int, search string) []int {
@@ -289,10 +309,14 @@ func NewDetailsTable(title string) *DetailsTable {
 	return view
 }
 
-func (inst *DetailsTable) SetData(data []TableRow) {
+func (inst *DetailsTable) SetData(data []TableRow) error {
 	if len(data) > 0 {
 		if len(data[0]) != 2 {
-			log.Panicln("Table data and headings dimensions do not match")
+			log.Println("Table data and headings dimensions do not match")
+			return errors.NewCoreTableError(
+				errors.InvalidDataDimentions,
+				"Table data and headings dimensions do not match",
+			)
 		}
 	}
 	inst.table.Clear()
@@ -310,6 +334,8 @@ func (inst *DetailsTable) SetData(data []TableRow) {
 			)
 		}
 	}
+
+	return nil
 }
 
 func (inst *DetailsTable) SetSelectionChangedFunc(
