@@ -176,26 +176,6 @@ func (inst *JsonTextView[T]) SetText(data T) {
 	inst.TextArea.SetText(logText, false)
 }
 
-func InitViewTabNavigation(rootView RootView, orderedViews []View, app *tview.Application) {
-	// Sets current view index when selected
-	var viewIdx = len(orderedViews)
-	var numViews = len(orderedViews)
-	rootView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyBacktab:
-			viewIdx = (viewIdx - 1 + numViews) % numViews
-			app.SetFocus(orderedViews[viewIdx])
-			return nil
-		case tcell.KeyTab:
-			viewIdx = (viewIdx + 1) % numViews
-			app.SetFocus(orderedViews[viewIdx])
-			return nil
-		}
-
-		return event
-	})
-}
-
 type ViewNavigation struct {
 	app          *tview.Application
 	rootView     RootView

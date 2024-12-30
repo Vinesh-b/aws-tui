@@ -9,12 +9,13 @@ import (
 )
 
 type SearchDateTimeView struct {
-	InputField     *tview.InputField
+	*tview.Flex
+	inputField     *tview.InputField
 	startTimeInput *tview.InputField
 	endTimeInput   *tview.InputField
-	StartDateTime  time.Time
-	EndDateTime    time.Time
-	RootView       *tview.Flex
+	startDateTime  time.Time
+	endDateTime    time.Time
+	viewNavigation *ViewNavigation
 }
 
 func NewSearchDateTimeView(label string, app *tview.Application) *SearchDateTimeView {
@@ -42,19 +43,34 @@ func NewSearchDateTimeView(label string, app *tview.Application) *SearchDateTime
 		AddItem(tview.NewBox(), 1, 0, true).
 		AddItem(inputField, 1, 0, true)
 
-	var startDateTime = time.Now()
-	var endDateTime = time.Now()
+	var view = &SearchDateTimeView{
+		Flex:           wrapper,
+		inputField:     inputField,
+		startTimeInput: startTimeInput,
+		endTimeInput:   endTimeInput,
+		startDateTime:  time.Now(),
+		endDateTime:    time.Now(),
+		viewNavigation: NewViewNavigation(
+			wrapper,
+			[]View{
+				startTimeInput,
+				endTimeInput,
+				inputField,
+			},
+			app,
+		),
+	}
 
 	startTimeInput.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
 			var start, err = time.Parse(dateTimelayout, startTimeInput.GetText())
 			if err != nil {
-				startDateTime = time.Now()
+				view.startDateTime = time.Now()
 				startTimeInput.SetFieldTextColor(tcell.ColorDarkRed)
 
 			} else {
-				startDateTime = start
+				view.startDateTime = start
 				startTimeInput.SetFieldTextColor(TextColour)
 				app.SetFocus(endTimeInput)
 			}
@@ -67,10 +83,10 @@ func NewSearchDateTimeView(label string, app *tview.Application) *SearchDateTime
 		case tcell.KeyEnter:
 			var end, err = time.Parse(dateTimelayout, endTimeInput.GetText())
 			if err != nil {
-				endDateTime = time.Now()
+				view.endDateTime = time.Now()
 				endTimeInput.SetFieldTextColor(tcell.ColorDarkRed)
 			} else {
-				endDateTime = end
+				view.endDateTime = end
 				endTimeInput.SetFieldTextColor(TextColour)
 				app.SetFocus(inputField)
 			}
@@ -78,30 +94,14 @@ func NewSearchDateTimeView(label string, app *tview.Application) *SearchDateTime
 		return
 	})
 
-	InitViewTabNavigation(wrapper,
-		[]View{
-			startTimeInput,
-			endTimeInput,
-			inputField,
-		},
-		app,
-	)
-
-	return &SearchDateTimeView{
-		InputField:     inputField,
-		startTimeInput: startTimeInput,
-		endTimeInput:   endTimeInput,
-		StartDateTime:  startDateTime,
-		EndDateTime:    endDateTime,
-		RootView:       wrapper,
-	}
+	return view
 }
 
 func (inst *SearchDateTimeView) SetDoneFunc(handler func(key tcell.Key)) *tview.InputField {
-	return inst.InputField.SetDoneFunc(func(key tcell.Key) {
+	return inst.inputField.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			if inst.EndDateTime.After(inst.StartDateTime) {
+			if inst.endDateTime.After(inst.startDateTime) {
 				handler(key)
 			}
 		}
@@ -122,7 +122,7 @@ func NewFloatingSearchDateTimeView(
 
 	return &FloatingSearchDateTimeView{
 		SearchDateTimeView: searchView,
-		RootView:           FloatingView("", searchView.RootView, width, 5),
+		RootView:           FloatingView("", searchView, width, 5),
 	}
 }
 
