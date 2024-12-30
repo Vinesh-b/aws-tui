@@ -77,10 +77,14 @@ func (inst *LogGroupsTable) RefreshLogGroups(search string) {
 	var resultChannel = make(chan struct{})
 
 	go func() {
+		var err error = nil
 		if len(search) > 0 {
 			inst.data = inst.api.FilterGroupByName(search)
 		} else {
-			inst.data = inst.api.ListLogGroups(false)
+			inst.data, err = inst.api.ListLogGroups(false)
+			if err != nil {
+				inst.ErrorMessageHandler(err.Error())
+			}
 		}
 		resultChannel <- struct{}{}
 	}()

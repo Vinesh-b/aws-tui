@@ -52,6 +52,10 @@ func NewLogEventsPageView(
 		},
 	)
 
+	logEventsTable.ErrorMessageHandler = func(text string) {
+		serviceView.SetAndDisplayError(text)
+	}
+
 	return &LogEventsPageView{
 		ServicePageView:      serviceView,
 		LogEventsTable:       logEventsTable,
@@ -98,6 +102,10 @@ func NewLogStreamsPageView(
 			logStreamsTable,
 		},
 	)
+
+	logStreamsTable.ErrorMessageHandler = func(text string) {
+		serviceView.SetAndDisplayError(text)
+	}
 
 	return &LogStreamsPageView{
 		ServicePageView: serviceView,
@@ -151,6 +159,10 @@ func NewLogGroupsPageView(
 			logGroupsTable,
 		},
 	)
+
+	logGroupsTable.ErrorMessageHandler = func(text string) {
+		serviceView.SetAndDisplayError(text)
+	}
 
 	return &LogGroupsPageView{
 		ServicePageView:  serviceView,

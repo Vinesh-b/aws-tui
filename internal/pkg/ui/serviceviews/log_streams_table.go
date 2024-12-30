@@ -48,7 +48,7 @@ func NewLogStreamsTable(
 	}
 
 	view.populateLogStreamsTable(false)
-    view.SetSelectedFunc(func(row, column int) {})
+	view.SetSelectedFunc(func(row, column int) {})
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
@@ -83,11 +83,15 @@ func (inst *LogStreamsTable) populateLogStreamsTable(extend bool) {
 func (inst *LogStreamsTable) RefreshStreams(force bool) {
 	var resultChannel = make(chan struct{})
 	go func() {
-		inst.data = inst.api.ListLogStreams(
+		var err error = nil
+		inst.data, err = inst.api.ListLogStreams(
 			inst.selectedLogGroup,
 			inst.searchStreamPrefix,
 			force,
 		)
+		if err != nil {
+			inst.ErrorMessageHandler(err.Error())
+		}
 		resultChannel <- struct{}{}
 	}()
 

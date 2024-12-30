@@ -12,12 +12,13 @@ import (
 )
 
 type CloudWatchLogsApi struct {
-	logger              *log.Logger
-	config              aws.Config
-	client              *cloudwatchlogs.Client
-	allLogGroups        []types.LogGroup
-	logEventsPaginator  *cloudwatchlogs.GetLogEventsPaginator
-	logStreamsPaginator *cloudwatchlogs.DescribeLogStreamsPaginator
+	logger                     *log.Logger
+	config                     aws.Config
+	client                     *cloudwatchlogs.Client
+	allLogGroups               []types.LogGroup
+	logEventsPaginator         *cloudwatchlogs.GetLogEventsPaginator
+	logStreamsPaginator        *cloudwatchlogs.DescribeLogStreamsPaginator
+	filteredLogEventsPaginator *cloudwatchlogs.FilterLogEventsPaginator
 }
 
 func NewCloudWatchLogsApi(
@@ -31,13 +32,14 @@ func NewCloudWatchLogsApi(
 	}
 }
 
-func (inst *CloudWatchLogsApi) ListLogGroups(force bool) []types.LogGroup {
+func (inst *CloudWatchLogsApi) ListLogGroups(force bool) ([]types.LogGroup, error) {
 	if len(inst.allLogGroups) > 0 && !force {
-		return inst.allLogGroups
+		return inst.allLogGroups, nil
 	}
 
 	inst.allLogGroups = nil
 	var nextToken *string = nil
+	var apiErr error = nil
 
 	for {
 		output, err := inst.client.DescribeLogGroups(
@@ -49,6 +51,7 @@ func (inst *CloudWatchLogsApi) ListLogGroups(force bool) []types.LogGroup {
 
 		if err != nil {
 			inst.logger.Println(err)
+			apiErr = err
 			break
 		}
 
@@ -59,7 +62,7 @@ func (inst *CloudWatchLogsApi) ListLogGroups(force bool) []types.LogGroup {
 		}
 	}
 
-	return inst.allLogGroups
+	return inst.allLogGroups, apiErr
 }
 
 func (inst *CloudWatchLogsApi) FilterGroupByName(name string) []types.LogGroup {
@@ -83,7 +86,7 @@ func (inst *CloudWatchLogsApi) ListLogStreams(
 	logGroupName string,
 	searchPrefix string,
 	reset bool,
-) []types.LogStream {
+) ([]types.LogStream, error) {
 	var searchPrefixPtr *string = nil
 
 	if reset || inst.logStreamsPaginator == nil {
@@ -108,24 +111,24 @@ func (inst *CloudWatchLogsApi) ListLogStreams(
 
 	var empty = make([]types.LogStream, 0)
 	if !inst.logStreamsPaginator.HasMorePages() {
-		return empty
+		return empty, nil
 	}
 
 	var output, err = inst.logStreamsPaginator.NextPage(context.TODO())
 
 	if err != nil {
 		inst.logger.Println(err)
-		return empty
+		return empty, err
 	}
 
-	return output.LogStreams
+	return output.LogStreams, nil
 }
 
 func (inst *CloudWatchLogsApi) ListLogEvents(
 	logGroupName string,
 	logStreamName string,
 	reset bool,
-) []types.OutputLogEvent {
+) ([]types.OutputLogEvent, error) {
 
 	if reset || inst.logEventsPaginator == nil {
 		inst.logEventsPaginator = cloudwatchlogs.NewGetLogEventsPaginator(
@@ -141,42 +144,47 @@ func (inst *CloudWatchLogsApi) ListLogEvents(
 
 	var empty = make([]types.OutputLogEvent, 0)
 	if !inst.logEventsPaginator.HasMorePages() {
-		return empty
+		return empty, nil
 	}
 
 	var output, err = inst.logEventsPaginator.NextPage(context.TODO())
 	if err != nil {
 		inst.logger.Println(err)
-		return empty
+		return empty, err
 	}
 
-	return output.Events
+	return output.Events, nil
 }
 
 func (inst *CloudWatchLogsApi) ListFilteredLogEvents(
 	logGroupName string,
 	startDateTime time.Time,
 	endDateTime time.Time,
-	nextToken *string,
-) ([]types.FilteredLogEvent, *string) {
-	output, err := inst.client.FilterLogEvents(
-		context.TODO(),
-		&cloudwatchlogs.FilterLogEventsInput{
-			Limit:        aws.Int32(500),
-			LogGroupName: aws.String(logGroupName),
-			StartTime:    aws.Int64(startDateTime.UnixMilli()),
-			EndTime:      aws.Int64(endDateTime.UnixMilli()),
-			NextToken:    nextToken,
-		},
-	)
-
-	if err != nil {
-		inst.logger.Println(err)
-		var empty = make([]types.FilteredLogEvent, 0)
+	reset bool,
+) ([]types.FilteredLogEvent, error) {
+	if reset || inst.filteredLogEventsPaginator == nil {
+		inst.filteredLogEventsPaginator = cloudwatchlogs.NewFilterLogEventsPaginator(
+			inst.client,
+			&cloudwatchlogs.FilterLogEventsInput{
+				Limit:        aws.Int32(500),
+				LogGroupName: aws.String(logGroupName),
+				StartTime:    aws.Int64(startDateTime.UnixMilli()),
+				EndTime:      aws.Int64(endDateTime.UnixMilli()),
+			},
+		)
+	}
+	var empty = make([]types.FilteredLogEvent, 0)
+	if !inst.filteredLogEventsPaginator.HasMorePages() {
 		return empty, nil
 	}
 
-	return output.Events, output.NextToken
+	var output, err = inst.filteredLogEventsPaginator.NextPage(context.TODO())
+	if err != nil {
+		inst.logger.Println(err)
+		return empty, err
+	}
+
+	return output.Events, nil
 }
 
 func (inst *CloudWatchLogsApi) StartInightsQuery(

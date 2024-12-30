@@ -13,6 +13,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
+
 const logMsgCol = 1
 
 type LogEventsTable struct {
@@ -47,7 +48,7 @@ func NewLogEventsTable(
 		api:               api,
 	}
 
-    view.HighlightSearch = true
+	view.HighlightSearch = true
 	view.populateLogEventsTable(false)
 	view.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
@@ -62,23 +63,23 @@ func NewLogEventsTable(
 
 func (inst *LogEventsTable) populateLogEventsTable(reset bool) {
 	var tableData []core.TableRow
-    var privateData []string
+	var privateData []string
 	for _, row := range inst.data {
 		tableData = append(tableData, core.TableRow{
 			time.UnixMilli(aws.ToInt64(row.Timestamp)).Format("2006-01-02 15:04:05.000"),
 			aws.ToString(row.Message),
 		})
-        privateData = append(privateData, aws.ToString(row.Message))
+		privateData = append(privateData, aws.ToString(row.Message))
 	}
 
 	if !reset {
 		inst.ExtendData(tableData)
-        inst.ExtendPrivateData(privateData)
+		inst.ExtendPrivateData(privateData)
 		return
 	}
 
 	inst.SetData(tableData)
-    inst.SetPrivateData(privateData, logMsgCol)
+	inst.SetPrivateData(privateData, logMsgCol)
 	inst.GetCell(0, 0).SetExpansion(1)
 	inst.Select(1, 0)
 }
@@ -87,11 +88,15 @@ func (inst *LogEventsTable) RefreshLogEvents(reset bool) {
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		inst.data = inst.api.ListLogEvents(
+		var err error = nil
+		inst.data, err = inst.api.ListLogEvents(
 			inst.selectedLogGroup,
 			inst.selectedLogStream,
 			reset,
 		)
+		if err != nil {
+			inst.ErrorMessageHandler(err.Error())
+		}
 		resultChannel <- struct{}{}
 	}()
 
