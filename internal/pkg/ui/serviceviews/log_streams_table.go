@@ -57,6 +57,24 @@ func NewLogStreamsTable(
 		return event
 	})
 
+	view.SetSearchDoneFunc(func(key tcell.Key) {
+		switch key {
+		case tcell.KeyEnter:
+			view.SetLogStreamSearchPrefix(view.GetSearchText())
+			view.RefreshStreams(true)
+			view.app.SetFocus(view)
+		}
+	})
+
+	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlR:
+			view.RefreshStreams(true)
+		case tcell.KeyCtrlN:
+			view.RefreshStreams(false)
+		}
+		return event
+	})
 	return view
 }
 

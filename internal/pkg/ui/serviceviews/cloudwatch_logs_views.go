@@ -67,18 +67,7 @@ func NewLogEventsPageView(
 	}
 }
 
-func (inst *LogEventsPageView) InitInputCapture() {
-	inst.LogEventsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlR:
-			inst.LogEventsTable.RefreshLogEvents(true)
-		case tcell.KeyCtrlN:
-			inst.LogEventsTable.RefreshLogEvents(false)
-		}
-
-		return event
-	})
-}
+func (inst *LogEventsPageView) InitInputCapture() {}
 
 type LogStreamsPageView struct {
 	*core.ServicePageView
@@ -115,26 +104,7 @@ func NewLogStreamsPageView(
 	}
 }
 
-func (inst *LogStreamsPageView) InitInputCapture() {
-	inst.LogStreamsTable.SetSearchDoneFunc(func(key tcell.Key) {
-		switch key {
-		case tcell.KeyEnter:
-			inst.LogStreamsTable.SetLogStreamSearchPrefix(inst.LogStreamsTable.GetSearchText())
-			inst.LogStreamsTable.RefreshStreams(true)
-			inst.app.SetFocus(inst.LogStreamsTable)
-		}
-	})
-
-	inst.LogStreamsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlR:
-			inst.LogStreamsTable.RefreshStreams(true)
-		case tcell.KeyCtrlN:
-			inst.LogStreamsTable.RefreshStreams(false)
-		}
-		return event
-	})
-}
+func (inst *LogStreamsPageView) InitInputCapture() {}
 
 type LogGroupsPageView struct {
 	*core.ServicePageView
@@ -173,23 +143,7 @@ func NewLogGroupsPageView(
 	}
 }
 
-func (inst *LogGroupsPageView) InitInputCapture() {
-	inst.LogGroupsTable.SetSearchDoneFunc(func(key tcell.Key) {
-		switch key {
-		case tcell.KeyEnter:
-			inst.LogGroupsTable.RefreshLogGroups(inst.LogGroupsTable.GetSearchText())
-			inst.app.SetFocus(inst.LogGroupsTable)
-		}
-	})
-
-	inst.LogGroupsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlR:
-			inst.LogGroupsTable.RefreshLogGroups(inst.LogGroupsTable.GetSearchText())
-		}
-		return event
-	})
-}
+func (inst *LogGroupsPageView) InitInputCapture() {}
 
 func NewLogsHomeView(
 	app *tview.Application,

@@ -52,6 +52,14 @@ func NewLogGroupsTable(
 		return event
 	})
 
+	view.SetSearchDoneFunc(func(key tcell.Key) {
+		switch key {
+		case tcell.KeyEnter:
+			view.RefreshLogGroups(view.GetSearchText())
+			view.app.SetFocus(view)
+		}
+	})
+
 	return view
 }
 

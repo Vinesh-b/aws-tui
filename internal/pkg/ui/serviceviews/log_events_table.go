@@ -54,6 +54,8 @@ func NewLogEventsTable(
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			view.RefreshLogEvents(true)
+		case tcell.KeyCtrlN:
+			view.RefreshLogEvents(false)
 		}
 		return event
 	})
