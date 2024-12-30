@@ -35,9 +35,9 @@ func NewCloudWatchAlarmsApi(
 	}
 }
 
-func (inst *CloudWatchAlarmsApi) ListAlarms(force bool) map[string]types.MetricAlarm {
+func (inst *CloudWatchAlarmsApi) ListAlarms(force bool) (map[string]types.MetricAlarm, error) {
 	if len(inst.allMetricAlarms) > 0 && !force {
-		return inst.allMetricAlarms
+		return inst.allMetricAlarms, nil
 	}
 
 	inst.allMetricAlarms = make(map[string]types.MetricAlarm)
@@ -48,8 +48,10 @@ func (inst *CloudWatchAlarmsApi) ListAlarms(force bool) map[string]types.MetricA
 		},
 	)
 
+	var err error = nil
+	var output *cloudwatch.DescribeAlarmsOutput
 	for inst.alarmsPaginator.HasMorePages() {
-		var output, err = inst.alarmsPaginator.NextPage(context.TODO())
+		output, err = inst.alarmsPaginator.NextPage(context.TODO())
 		if err != nil {
 			inst.logger.Println(err)
 			break
@@ -60,7 +62,7 @@ func (inst *CloudWatchAlarmsApi) ListAlarms(force bool) map[string]types.MetricA
 		}
 	}
 
-	return inst.allMetricAlarms
+	return inst.allMetricAlarms, err
 }
 
 func (inst *CloudWatchAlarmsApi) FilterByName(name string) map[string]types.MetricAlarm {
@@ -80,7 +82,7 @@ func (inst *CloudWatchAlarmsApi) FilterByName(name string) map[string]types.Metr
 	return foundAlarms
 }
 
-func (inst *CloudWatchAlarmsApi) ListAlarmHistory(name string, force bool) []types.AlarmHistoryItem {
+func (inst *CloudWatchAlarmsApi) ListAlarmHistory(name string, force bool) ([]types.AlarmHistoryItem, error) {
 	if force || inst.historyPaginator == nil {
 		inst.historyPaginator = cloudwatch.NewDescribeAlarmHistoryPaginator(
 			inst.client,
@@ -93,16 +95,16 @@ func (inst *CloudWatchAlarmsApi) ListAlarmHistory(name string, force bool) []typ
 
 	var foundHistory []types.AlarmHistoryItem
 	if !inst.historyPaginator.HasMorePages() {
-		return foundHistory
+		return foundHistory, nil
 	}
 
 	var output, err = inst.historyPaginator.NextPage(context.TODO())
 	if err != nil {
 		inst.logger.Println(err)
-		return foundHistory
+		return foundHistory, err
 	}
 
 	foundHistory = append(foundHistory, output.AlarmHistoryItems...)
 
-	return foundHistory
+	return foundHistory, nil
 }

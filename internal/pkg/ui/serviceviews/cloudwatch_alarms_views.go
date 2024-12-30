@@ -53,6 +53,14 @@ func NewAlarmsDetailsPageView(
 		},
 	)
 
+	var errorHandler = func(text string) {
+		serviceView.SetAndDisplayError(text)
+	}
+
+	alarmListTable.ErrorMessageHandler = errorHandler
+	alarmHistoryTable.ErrorMessageHandler = errorHandler
+	alarmDetailsTable.ErrorMessageHandler = errorHandler
+
 	return &AlarmsDetailsPageView{
 		ServicePageView: serviceView,
 		AlarmsTable:     alarmListTable,

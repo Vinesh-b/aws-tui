@@ -79,7 +79,11 @@ func (inst *AlarmHistoryTable) RefreshHistory(force bool) {
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		inst.data = inst.api.ListAlarmHistory(inst.selectedAlarm, force)
+		var err error = nil
+		inst.data, err = inst.api.ListAlarmHistory(inst.selectedAlarm, force)
+		if err != nil {
+			inst.ErrorMessageHandler(err.Error())
+		}
 		resultChannel <- struct{}{}
 	}()
 

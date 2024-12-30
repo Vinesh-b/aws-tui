@@ -15,11 +15,12 @@ import (
 
 type AlarmDetailsTable struct {
 	*tview.Grid
-	selectedAlarm string
-	data          *types.MetricAlarm
-	logger        *log.Logger
-	app           *tview.Application
-	api           *awsapi.CloudWatchAlarmsApi
+	ErrorMessageHandler func(text string)
+	selectedAlarm       string
+	data                *types.MetricAlarm
+	logger              *log.Logger
+	app                 *tview.Application
+	api                 *awsapi.CloudWatchAlarmsApi
 }
 
 func NewAlarmDetailsTable(
@@ -28,12 +29,13 @@ func NewAlarmDetailsTable(
 	logger *log.Logger,
 ) *AlarmDetailsTable {
 	var view = &AlarmDetailsTable{
-		Grid:          tview.NewGrid(),
-		data:          nil,
-		selectedAlarm: "",
-		logger:        logger,
-		app:           app,
-		api:           api,
+		Grid:                tview.NewGrid(),
+		ErrorMessageHandler: func(text string) {},
+		data:                nil,
+		selectedAlarm:       "",
+		logger:              logger,
+		app:                 app,
+		api:                 api,
 	}
 	view.
 		Clear().
@@ -91,7 +93,11 @@ func (inst *AlarmDetailsTable) RefreshDetails() {
 
 	go func() {
 		if len(inst.selectedAlarm) > 0 {
-			data = inst.api.ListAlarms(false)
+			var err error = nil
+			data, err = inst.api.ListAlarms(false)
+			if err != nil {
+				inst.ErrorMessageHandler(err.Error())
+			}
 			inst.data = &types.MetricAlarm{}
 			var val, ok = data[inst.selectedAlarm]
 			if ok {

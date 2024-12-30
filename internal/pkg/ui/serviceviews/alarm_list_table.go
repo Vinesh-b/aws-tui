@@ -44,8 +44,8 @@ func NewAlarmListTable(
 	}
 
 	view.populateAlarmsTable()
-    view.SetSelectedFunc(func(row, column int) {})
-    view.SetSelectionChangedFunc(func(row, column int) {})
+	view.SetSelectedFunc(func(row, column int) {})
+	view.SetSelectionChangedFunc(func(row, column int) {})
 	view.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
@@ -79,7 +79,11 @@ func (inst *AlarmListTable) RefreshAlarms(force bool) {
 		if len(search) > 0 {
 			inst.data = inst.api.FilterByName(search)
 		} else {
-			inst.data = inst.api.ListAlarms(force)
+			var err error = nil
+			inst.data, err = inst.api.ListAlarms(force)
+			if err != nil {
+				inst.ErrorMessageHandler(err.Error())
+			}
 		}
 		resultChannel <- struct{}{}
 	}()
