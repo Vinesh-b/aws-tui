@@ -59,8 +59,8 @@ func (inst *DynamoDBTablesTable) populateTablesTable() {
 	}
 
 	inst.SetData(tableData)
-	inst.Table.GetCell(0, 0).SetExpansion(1)
-	inst.Table.Select(1, 0)
+	inst.GetCell(0, 0).SetExpansion(1)
+	inst.Select(1, 0)
 }
 
 func (inst *DynamoDBTablesTable) RefreshTables(force bool) {
@@ -76,17 +76,17 @@ func (inst *DynamoDBTablesTable) RefreshTables(force bool) {
 		resultChannel <- struct{}{}
 	}()
 
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
 		inst.populateTablesTable()
 	})
 }
 
 func (inst *DynamoDBTablesTable) SetSelectionChangedFunc(handler func(row int, column int)) {
-	inst.Table.SetSelectionChangedFunc(func(row, column int) {
+	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}
-		inst.selectedTable = inst.Table.GetCell(row, 0).Text
+		inst.selectedTable = inst.GetCell(row, 0).Text
 		handler(row, column)
 	})
 }
@@ -103,7 +103,7 @@ func (inst *DynamoDBTablesTable) SetInputCapture(capture func(event *tcell.Event
 }
 
 func (inst *DynamoDBTablesTable) SetSelectedFunc(handler func(row int, column int)) {
-	inst.Table.SetSelectedFunc(func(row, column int) {
+	inst.SelectableTable.SetSelectedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}

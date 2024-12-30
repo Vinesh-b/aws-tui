@@ -60,8 +60,8 @@ func (inst *BucketListTable) populateS3BucketsTable() {
 	}
 
 	inst.SetData(tableData)
-	inst.Table.GetCell(0, 0).SetExpansion(1)
-	inst.Table.Select(0, 0)
+	inst.GetCell(0, 0).SetExpansion(1)
+	inst.Select(0, 0)
 }
 
 func (inst *BucketListTable) RefreshBuckets(force bool) {
@@ -77,33 +77,33 @@ func (inst *BucketListTable) RefreshBuckets(force bool) {
 		resultChannel <- struct{}{}
 	}()
 
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
 		inst.populateS3BucketsTable()
 	})
 }
 
 func (inst *BucketListTable) SetSelectedFunc(handler func(row int, column int)) {
-	inst.Table.SetSelectedFunc(func(row, column int) {
+	inst.SelectableTable.SetSelectedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}
-		inst.selectedBucket = inst.Table.GetCell(row, 0).Text
+		inst.selectedBucket = inst.GetCell(row, 0).Text
 		handler(row, column)
 	})
 }
 
 func (inst *BucketListTable) SetSelectionChangedFunc(handler func(row int, column int)) {
-	inst.Table.SetSelectionChangedFunc(func(row, column int) {
+	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}
-		inst.selectedBucket = inst.Table.GetCell(row, 0).Text
+		inst.selectedBucket = inst.GetCell(row, 0).Text
 		handler(row, column)
 	})
 }
 
 func (inst *BucketListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
-	inst.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			inst.RefreshBuckets(true)

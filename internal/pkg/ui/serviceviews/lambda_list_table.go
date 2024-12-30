@@ -43,7 +43,7 @@ func NewLambdasListTable(
 	}
 
 	view.populateLambdasTable()
-	view.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			view.RefreshLambdas(true)
@@ -64,8 +64,8 @@ func (inst *LambdaListTable) populateLambdasTable() {
 	}
 
 	inst.SetData(tableData)
-	inst.Table.GetCell(0, 0).SetExpansion(1)
-	inst.Table.Select(1, 0)
+	inst.GetCell(0, 0).SetExpansion(1)
+	inst.Select(1, 0)
 }
 
 func (inst *LambdaListTable) RefreshLambdas(force bool) {
@@ -82,33 +82,33 @@ func (inst *LambdaListTable) RefreshLambdas(force bool) {
 		resultChannel <- struct{}{}
 	}()
 
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
 		inst.populateLambdasTable()
 	})
 }
 
 func (inst *LambdaListTable) SetSelectedFunc(handler func(row int, column int)) {
-	inst.Table.SetSelectedFunc(func(row, column int) {
+	inst.SelectableTable.SetSelectedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}
-		inst.selectedLambda = inst.Table.GetCell(row, 0).Text
+		inst.selectedLambda = inst.GetCell(row, 0).Text
 		handler(row, column)
 	})
 }
 
 func (inst *LambdaListTable) SetSelectionChangedFunc(handler func(row int, column int)) {
-	inst.Table.SetSelectionChangedFunc(func(row, column int) {
+	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}
-		inst.selectedLambda = inst.Table.GetCell(row, 0).Text
+		inst.selectedLambda = inst.GetCell(row, 0).Text
 		handler(row, column)
 	})
 }
 
 func (inst *LambdaListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
-	inst.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			inst.RefreshLambdas(true)

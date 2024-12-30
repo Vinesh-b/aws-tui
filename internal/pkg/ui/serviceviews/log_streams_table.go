@@ -48,7 +48,7 @@ func NewLogStreamsTable(
 	}
 
 	view.populateLogStreamsTable(false)
-	view.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			view.RefreshStreams(true)
@@ -74,9 +74,9 @@ func (inst *LogStreamsTable) populateLogStreamsTable(extend bool) {
 	}
 
 	inst.SetData(tableData)
-	inst.Table.GetCell(0, 0).SetExpansion(1)
-	inst.Table.Select(0, 0)
-	inst.Table.ScrollToBeginning()
+	inst.GetCell(0, 0).SetExpansion(1)
+	inst.Select(0, 0)
+	inst.ScrollToBeginning()
 }
 
 func (inst *LogStreamsTable) RefreshStreams(force bool) {
@@ -90,18 +90,18 @@ func (inst *LogStreamsTable) RefreshStreams(force bool) {
 		resultChannel <- struct{}{}
 	}()
 
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
 		inst.populateLogStreamsTable(!force)
 	})
 }
 
 func (inst *LogStreamsTable) SetSelectedFunc(handler func(row int, column int)) {
-	inst.Table.SetSelectedFunc(func(row, column int) {
+	inst.SelectableTable.SetSelectedFunc(func(row, column int) {
 		if row < 0 {
 			return
 		}
 
-		inst.selectedLogStream = inst.Table.GetCell(row, 0).Text
+		inst.selectedLogStream = inst.GetCell(row, 0).Text
 		handler(row, column)
 	})
 }

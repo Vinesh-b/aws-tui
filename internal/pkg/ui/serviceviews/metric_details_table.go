@@ -53,8 +53,8 @@ func (inst *MetricDetailsTable) populateMetricDetailsTable() {
 	}
 
 	inst.SetData(tableData)
-	inst.Table.Select(0, 0)
-	inst.Table.ScrollToBeginning()
+	inst.Select(0, 0)
+	inst.ScrollToBeginning()
 }
 
 func (inst *MetricDetailsTable) RefreshDetails(metric string, reset bool) {
@@ -66,7 +66,7 @@ func (inst *MetricDetailsTable) RefreshDetails(metric string, reset bool) {
 		resultChannel <- struct{}{}
 	}()
 
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
 		inst.populateMetricDetailsTable()
 	})
 }

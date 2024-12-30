@@ -43,7 +43,7 @@ func NewLogGroupsTable(
 	}
 
 	view.populateLogGroupsTable()
-	view.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			view.RefreshLogGroups(view.selectedLogGroup)
@@ -67,9 +67,9 @@ func (inst *LogGroupsTable) populateLogGroupsTable() {
 
 	inst.SetData(tableData)
 	inst.SetPrivateData(privateData, 0)
-	inst.Table.GetCell(0, 0).SetExpansion(1)
-	inst.Table.Select(0, 0)
-	inst.Table.ScrollToBeginning()
+	inst.GetCell(0, 0).SetExpansion(1)
+	inst.Select(0, 0)
+	inst.ScrollToBeginning()
 }
 
 func (inst *LogGroupsTable) RefreshLogGroups(search string) {
@@ -84,14 +84,14 @@ func (inst *LogGroupsTable) RefreshLogGroups(search string) {
 		resultChannel <- struct{}{}
 	}()
 
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
 		inst.populateLogGroupsTable()
 	})
 }
 
 func (inst *LogGroupsTable) SetSelectedFunc(handler func(row int, column int)) {
-	inst.Table.SetSelectedFunc(func(row, column int) {
-        var ref = inst.Table.GetCell(row, 0).Reference
+	inst.SelectableTable.SetSelectedFunc(func(row, column int) {
+        var ref = inst.GetCell(row, 0).Reference
 		if row < 1 || ref == nil {
 			return
 		}

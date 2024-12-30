@@ -52,7 +52,7 @@ func NewStateMachineExecutionDetailsTable(
 	}
 
 	view.populateTable()
-	view.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			view.RefreshExecutionDetails(view.SelectedExecutionArn, true)
@@ -137,7 +137,7 @@ func (inst *StateMachineExecutionDetailsTable) populateTable() {
 
 	inst.SetData(tableData)
 	inst.SetPrivateData(results, 0)
-	inst.Table.Select(1, 0)
+	inst.Select(1, 0)
 }
 
 func (inst *StateMachineExecutionDetailsTable) RefreshExecutionDetails(executionArn string, force bool) {
@@ -149,7 +149,7 @@ func (inst *StateMachineExecutionDetailsTable) RefreshExecutionDetails(execution
 		resultChannel <- struct{}{}
 	}()
 
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
 		inst.populateTable()
 	})
 }

@@ -49,7 +49,7 @@ func NewAlarmHistoryTable(
 		switch key {
 		case tcell.KeyEnter:
 			view.RefreshHistory(false)
-			view.app.SetFocus(view.Table)
+			view.app.SetFocus(view)
 		}
 	})
 	return view
@@ -70,9 +70,9 @@ func (inst *AlarmHistoryTable) populateAlarmHistoryTable(reset bool) {
 	}
 
 	inst.SetData(tableData)
-	inst.Table.GetCell(0, 0).SetExpansion(1)
-	inst.Table.Select(0, 0)
-	inst.Table.ScrollToBeginning()
+	inst.GetCell(0, 0).SetExpansion(1)
+	inst.Select(0, 0)
+	inst.ScrollToBeginning()
 }
 
 func (inst *AlarmHistoryTable) RefreshHistory(force bool) {
@@ -83,7 +83,7 @@ func (inst *AlarmHistoryTable) RefreshHistory(force bool) {
 		resultChannel <- struct{}{}
 	}()
 
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
 		inst.populateAlarmHistoryTable(force)
 	})
 }

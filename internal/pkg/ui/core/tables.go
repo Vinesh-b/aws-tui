@@ -20,7 +20,7 @@ func ClampStringLen(input *string, maxLen int) string {
 
 type SelectableTable[T any] struct {
 	*SearchableView
-	Table         *tview.Table
+	table         *tview.Table
 	title         string
 	headings      TableRow
 	data          []TableRow
@@ -30,17 +30,11 @@ type SelectableTable[T any] struct {
 
 func NewSelectableTable[T any](title string, headings TableRow) *SelectableTable[T] {
 	var table = tview.NewTable().
-		Clear().
 		SetBorders(false).
 		SetFixed(1, len(headings)-1)
-	table.
-		SetTitle(title).
-		SetTitleAlign(tview.AlignLeft).
-		SetBorderPadding(0, 0, 0, 0).
-		SetBorder(true)
 
-	var selectableTable = &SelectableTable[T]{
-		Table:          table,
+	var view = &SelectableTable[T]{
+		table:          table,
 		SearchableView: NewSearchableView(table),
 		title:          title,
 		headings:       headings,
@@ -48,10 +42,15 @@ func NewSelectableTable[T any](title string, headings TableRow) *SelectableTable
 		privateColumn:  0,
 	}
 
-	selectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
-	selectableTable.SetSearchDoneFunc(func(key tcell.Key) {})
+	view.SetTitle(title).
+		SetTitleAlign(tview.AlignLeft).
+		SetBorderPadding(0, 0, 0, 0).
+		SetBorder(true)
 
-	return selectableTable
+	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
+	view.SetSearchDoneFunc(func(key tcell.Key) {})
+
+	return view
 }
 
 func (inst *SelectableTable[T]) SetData(data []TableRow) {
@@ -63,15 +62,15 @@ func (inst *SelectableTable[T]) SetData(data []TableRow) {
 	var tableTitle = fmt.Sprintf("%s (%d)", inst.title, len(data))
 
 	inst.data = data
-	inst.Table.Clear()
-	inst.Table.SetTitle(tableTitle)
+	inst.table.Clear()
+	inst.SetTitle(tableTitle)
 
-	inst.Table.SetSelectable(true, false).SetSelectedStyle(
+	inst.table.SetSelectable(true, false).SetSelectedStyle(
 		tcell.Style{}.Background(MoreContrastBackgroundColor),
 	)
 
 	for col, heading := range inst.headings {
-		inst.Table.SetCell(0, col, tview.NewTableCell(heading).
+		inst.table.SetCell(0, col, tview.NewTableCell(heading).
 			SetAlign(tview.AlignLeft).
 			SetTextColor(SecondaryTextColor).
 			SetSelectable(false).
@@ -84,7 +83,7 @@ func (inst *SelectableTable[T]) SetData(data []TableRow) {
 			// the table render process the full string making it extremly slow so
 			// we have to clamp the text length
 			var text = ClampStringLen(&cellData, 180)
-			inst.Table.SetCell(rowIdx+1, colIdx, tview.NewTableCell(text).
+			inst.table.SetCell(rowIdx+1, colIdx, tview.NewTableCell(text).
 				SetReference(cellData).
 				SetAlign(tview.AlignLeft),
 			)
@@ -103,7 +102,7 @@ func (inst *SelectableTable[T]) SetPrivateData(privateData []T, column int) {
 	for rowIdx, rowData := range inst.data {
 		for colIdx := range len(rowData) {
 			if colIdx == inst.privateColumn {
-				inst.Table.GetCell(rowIdx+1, colIdx).
+				inst.table.GetCell(rowIdx+1, colIdx).
 					SetReference(privateData[rowIdx])
 			}
 
@@ -112,7 +111,7 @@ func (inst *SelectableTable[T]) SetPrivateData(privateData []T, column int) {
 }
 
 func (inst *SelectableTable[T]) ExtendData(data []TableRow) {
-	var table = inst.Table
+	var table = inst.table
 	var rows = table.GetRowCount()
 	// Don't count the headings row in the title
 	var tableTitle = fmt.Sprintf("%s (%d)", inst.title, len(data)+rows-1)
@@ -135,7 +134,7 @@ func (inst *SelectableTable[T]) ExtendPrivateData(privateData []T) {
 			log.Panicln("Table data and private data row counts do not match")
 		}
 	}
-	var table = inst.Table
+	var table = inst.table
 	var rows = table.GetRowCount()
 
 	for rowIdx := range len(inst.privateData) {
@@ -150,7 +149,7 @@ func (inst *SelectableTable[T]) SearchPrivateData(searchCols []int, search strin
 	if len(search) <= 0 {
 		return resultPositions
 	}
-	var table = inst.Table
+	var table = inst.table
 
 	if len(searchCols) <= 0 {
 		for c := range table.GetColumnCount() {
@@ -184,17 +183,17 @@ func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventK
 			switch event.Rune() {
 			case rune('n'):
 				nextSearch = (nextSearch + 1) % searchCount
-				inst.Table.Select(inst.searchPositions[nextSearch], 0)
+				inst.table.Select(inst.searchPositions[nextSearch], 0)
 			case rune('N'):
 				nextSearch = (nextSearch - 1 + searchCount) % searchCount
-				inst.Table.Select(inst.searchPositions[nextSearch], 0)
+				inst.table.Select(inst.searchPositions[nextSearch], 0)
 			}
 		}
 
 		return event
 	}
 
-	inst.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	inst.table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if inst.HighlightSearch {
 			highlight_search(event)
 		}
@@ -208,12 +207,12 @@ func (inst *SelectableTable[T]) SetSearchDoneFunc(handler func(key tcell.Key)) {
 		switch key {
 		case tcell.KeyEnter:
 			inst.searchPositions = highlightTableSearch(
-				inst.Table,
+				inst.table,
 				inst.GetSearchText(),
 				[]int{},
 			)
 		case tcell.KeyCtrlR:
-			clearSearchHighlights(inst.Table)
+			clearSearchHighlights(inst.table)
 			inst.searchPositions = nil
 		}
 		return
@@ -227,30 +226,63 @@ func (inst *SelectableTable[T]) SetSearchDoneFunc(handler func(key tcell.Key)) {
 	})
 }
 
+func (inst *SelectableTable[T]) SetSelectionChangedFunc(
+	handler func(row int, column int),
+) *SelectableTable[T] {
+	inst.table.SetSelectionChangedFunc(handler)
+	return inst
+}
+
+func (inst *SelectableTable[T]) SetSelectedFunc(
+	handler func(row int, column int),
+) *SelectableTable[T] {
+	inst.table.SetSelectedFunc(handler)
+	return inst
+}
+
+func (inst *SelectableTable[T]) Select(row int, column int) *SelectableTable[T] {
+	inst.table.Select(row, column)
+	return inst
+}
+
+func (inst *SelectableTable[T]) GetCell(row int, column int) *tview.TableCell {
+	return inst.table.GetCell(row, column)
+}
+
+func (inst *SelectableTable[T]) ScrollToBeginning() *SelectableTable[T] {
+	inst.table.ScrollToBeginning()
+	return inst
+}
+
 type DetailsTable struct {
-	*tview.Table
+	*tview.Flex
+	table *tview.Table
 	title string
 	data  []TableRow
 }
 
 func NewDetailsTable(title string) *DetailsTable {
 	var table = tview.NewTable().
-		Clear().
-		SetBorders(false)
-	table.
-		SetTitle(title).
+		SetBorders(false).
+		SetSelectable(true, true).
+		SetSelectedStyle(
+			tcell.Style{}.Background(MoreContrastBackgroundColor),
+		)
+
+	var view = &DetailsTable{
+		Flex:  tview.NewFlex(),
+		table: table,
+		title: title,
+	}
+
+	view.SetTitle(title).
 		SetTitleAlign(tview.AlignLeft).
 		SetBorderPadding(0, 0, 1, 1).
 		SetBorder(true)
 
-	table.SetSelectable(true, true).SetSelectedStyle(
-		tcell.Style{}.Background(MoreContrastBackgroundColor),
-	)
+	view.AddItem(table, 0, 1, true)
 
-	return &DetailsTable{
-		Table: table,
-		title: title,
-	}
+	return view
 }
 
 func (inst *DetailsTable) SetData(data []TableRow) {
@@ -259,7 +291,7 @@ func (inst *DetailsTable) SetData(data []TableRow) {
 			log.Panicln("Table data and headings dimensions do not match")
 		}
 	}
-	inst.Table.
+	inst.table.
 		Clear().
 		SetTitle(inst.title)
 
@@ -269,12 +301,40 @@ func (inst *DetailsTable) SetData(data []TableRow) {
 			if colIdx > 0 {
 				textColor = TertiaryTextColor
 			}
-			inst.Table.SetCell(rowIdx, colIdx, tview.NewTableCell(cellData).
+			inst.table.SetCell(rowIdx, colIdx, tview.NewTableCell(cellData).
 				SetAlign(tview.AlignLeft).
 				SetTextColor(textColor),
 			)
 		}
 	}
+}
+
+func (inst *DetailsTable) SetSelectionChangedFunc(
+	handler func(row int, column int),
+) *DetailsTable {
+	inst.table.SetSelectionChangedFunc(handler)
+	return inst
+}
+
+func (inst *DetailsTable) SetSelectedFunc(
+	handler func(row int, column int),
+) *DetailsTable {
+	inst.table.SetSelectedFunc(handler)
+	return inst
+}
+
+func (inst *DetailsTable) Select(row int, column int) *DetailsTable {
+	inst.table.Select(row, column)
+	return inst
+}
+
+func (inst *DetailsTable) GetCell(row int, column int) *tview.TableCell {
+	return inst.table.GetCell(row, column)
+}
+
+func (inst *DetailsTable) ScrollToBeginning() *DetailsTable {
+	inst.table.ScrollToBeginning()
+	return inst
 }
 
 func searchRefsInTable(table *tview.Table, searchCols []int, search string) []int {

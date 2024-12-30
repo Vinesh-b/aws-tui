@@ -48,7 +48,7 @@ func NewAlarmListTable(
 		switch key {
 		case tcell.KeyEnter:
 			view.RefreshAlarms(false)
-			view.app.SetFocus(view.Table)
+			view.app.SetFocus(view)
 		}
 	})
 	return view
@@ -64,9 +64,9 @@ func (inst *AlarmListTable) populateAlarmsTable() {
 	}
 
 	inst.SetData(tableData)
-	inst.Table.GetCell(0, 0).SetExpansion(1)
-	inst.Table.Select(0, 0)
-	inst.Table.ScrollToBeginning()
+	inst.GetCell(0, 0).SetExpansion(1)
+	inst.Select(0, 0)
+	inst.ScrollToBeginning()
 }
 
 func (inst *AlarmListTable) RefreshAlarms(force bool) {
@@ -82,27 +82,27 @@ func (inst *AlarmListTable) RefreshAlarms(force bool) {
 		resultChannel <- struct{}{}
 	}()
 
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
 		inst.populateAlarmsTable()
 	})
 }
 
 func (inst *AlarmListTable) SetSelectedFunc(handler func(row int, column int)) {
-	inst.Table.SetSelectedFunc(func(row, column int) {
+	inst.SelectableTable.SetSelectedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}
-		inst.selectedAlarm = inst.Table.GetCell(row, 0).Text
+		inst.selectedAlarm = inst.GetCell(row, 0).Text
 		handler(row, column)
 	})
 }
 
 func (inst *AlarmListTable) SetSelectionChangedFunc(handler func(row int, column int)) {
-	inst.Table.SetSelectionChangedFunc(func(row, column int) {
+	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}
-		inst.selectedAlarm = inst.Table.GetCell(row, 0).Text
+		inst.selectedAlarm = inst.GetCell(row, 0).Text
 		handler(row, column)
 	})
 }

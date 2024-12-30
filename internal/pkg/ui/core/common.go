@@ -105,9 +105,15 @@ func TryFormatToJson(text string) (string, bool) {
 	return string(jsonBytes), true
 }
 
-func CreateExpandedLogView(
+type PrivateDataTable[T any] interface {
+	SetSelectionChangedFunc(handler func(row int, column int)) T
+	SetSelectedFunc(handler func(row int, column int)) T
+	GetCell(row int, column int) *tview.TableCell
+}
+
+func CreateExpandedLogView[T any](
 	app *tview.Application,
-	table *tview.Table,
+	table PrivateDataTable[T],
 	fixedColIdx int,
 	dataType MessageDataType,
 ) *tview.TextArea {

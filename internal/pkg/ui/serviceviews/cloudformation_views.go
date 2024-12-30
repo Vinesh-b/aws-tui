@@ -31,7 +31,7 @@ func NewStacksDetailsPageView(
 	const stackTablesSize = 3000
 
 	var mainPage = core.NewResizableView(
-		stackDetailsTable.Table, stackDetailsSize,
+		stackDetailsTable, stackDetailsSize,
 		stackListTable, stackTablesSize,
 		tview.FlexRow,
 	)
@@ -41,8 +41,8 @@ func NewStacksDetailsPageView(
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			stackListTable.Table,
-			stackDetailsTable.Table,
+			stackListTable,
+			stackDetailsTable,
 		},
 	)
 
@@ -75,9 +75,9 @@ func (inst *CloudFormationDetailsPageView) InitInputCapture() {
 		refreshDetails(row, false)
 	})
 
-	inst.stackListTable.Table.SetSelectedFunc(func(row, column int) {
+	inst.stackListTable.SetSelectedFunc(func(row, column int) {
 		refreshDetails(row, false)
-		inst.app.SetFocus(inst.stackDetailsTable.Table)
+		inst.app.SetFocus(inst.stackDetailsTable)
 	})
 }
 
@@ -121,7 +121,7 @@ func NewStackEventsPageView(
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			stackEventsTable.Table,
+			stackEventsTable,
 			expandedMsgView,
 		},
 	)
@@ -179,11 +179,11 @@ func NewStacksHomeView(
 	var serviceRootView = core.NewServiceRootView(
 		app, string(CLOUDFORMATION), pages, orderedPages).Init()
 
-	stacksDetailsView.stackDetailsTable.Table.SetSelectedFunc(func(row, column int) {
+	stacksDetailsView.stackDetailsTable.SetSelectedFunc(func(row, column int) {
 		var selectedStackName = stacksDetailsView.stackListTable.GetSelectedStackName()
 		stackEventsView.stackEventsTable.SetSelectedStackName(selectedStackName)
 		stackEventsView.stackEventsTable.RefreshEvents(true)
-		serviceRootView.ChangePage(1, stackEventsView.stackEventsTable.Table)
+		serviceRootView.ChangePage(1, stackEventsView.stackEventsTable)
 	})
 
 	stackEventsView.InitInputCapture()

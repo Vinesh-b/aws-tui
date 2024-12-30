@@ -243,7 +243,7 @@ func NewLogsInsightsHomeView(
 		app, string(CLOUDWATCH_LOGS_INSIGHTS), pages, orderedPages).Init()
 
 	var logGroups []string
-	groupSelectionView.SeletedGroupsTable.Table.SetSelectedFunc(func(row, column int) {
+	groupSelectionView.SeletedGroupsTable.SetSelectedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}
@@ -266,7 +266,7 @@ func NewLogsInsightsHomeView(
 		logEventsView.LogEventsTable.SetSeletedLogGroup(logGroup)
 		logEventsView.LogEventsTable.SetSeletedLogStream(logStream)
 		logEventsView.LogEventsTable.RefreshLogEvents(true)
-		serviceRootView.ChangePage(2, logEventsView.LogEventsTable.Table)
+		serviceRootView.ChangePage(2, logEventsView.LogEventsTable)
 	})
 
 	return serviceRootView.RootView

@@ -79,8 +79,8 @@ func (inst *LogEventsTable) populateLogEventsTable(reset bool) {
 
 	inst.SetData(tableData)
     inst.SetPrivateData(privateData, logMsgCol)
-	inst.Table.GetCell(0, 0).SetExpansion(1)
-	inst.Table.Select(1, 0)
+	inst.GetCell(0, 0).SetExpansion(1)
+	inst.Select(1, 0)
 }
 
 func (inst *LogEventsTable) RefreshLogEvents(reset bool) {
@@ -95,7 +95,7 @@ func (inst *LogEventsTable) RefreshLogEvents(reset bool) {
 		resultChannel <- struct{}{}
 	}()
 
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
 		inst.populateLogEventsTable(reset)
 	})
 }
@@ -109,7 +109,7 @@ func (inst *LogEventsTable) SetSeletedLogStream(logStream string) {
 }
 
 func (inst *LogEventsTable) GetFullLogMessage(row int) string {
-	var msg = inst.Table.GetCell(row, logMsgCol).Reference
+	var msg = inst.GetCell(row, logMsgCol).Reference
 	if row < 1 || msg == nil {
 		return ""
 	}

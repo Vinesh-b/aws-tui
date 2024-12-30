@@ -29,7 +29,7 @@ func parentDir(s3ObjectPrefix string) string {
 }
 
 type BucketObjectsTable struct {
-	*core.SelectableTable[any]
+    *tview.Table
 	selectedBucket string
 	selectedPrefix string
 	data           []types.Object
@@ -44,7 +44,7 @@ func NewBucketObjectsTable(
 	logger *log.Logger,
 ) *BucketObjectsTable {
 	var view = &BucketObjectsTable{
-		SelectableTable: core.NewSelectableTable[any]("Objects", core.TableRow{}),
+        Table: tview.NewTable(),
 		selectedBucket:  "",
 		selectedPrefix:  "",
 		data:            nil,

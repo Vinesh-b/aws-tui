@@ -38,7 +38,7 @@ func NewStackDetailsTable(
 	}
 
 	view.populateStackDetailsTable()
-	view.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			view.RefreshDetails(true)
@@ -68,7 +68,7 @@ func (inst *StackDetailsTable) populateStackDetailsTable() {
 	}
 
 	inst.SetData(tableData)
-	inst.Table.Select(0, 0)
+	inst.Select(0, 0)
 }
 
 func (inst *StackDetailsTable) RefreshDetails(force bool) {
@@ -84,7 +84,7 @@ func (inst *StackDetailsTable) RefreshDetails(force bool) {
 		resultChannel <- struct{}{}
 	}()
 
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
 		inst.populateStackDetailsTable()
 	})
 }

@@ -15,7 +15,8 @@ import (
 )
 
 type InsightsQueryResultsTable struct {
-	*core.SelectableTable[string]
+	*core.SearchableView
+	Table          *tview.Table
 	selectedLambda string
 	data           [][]types.ResultField
 	queryId        string
@@ -29,17 +30,16 @@ func NewInsightsQueryResultsTable(
 	api *awsapi.CloudWatchLogsApi,
 	logger *log.Logger,
 ) *InsightsQueryResultsTable {
+	var table = tview.NewTable()
 
 	var view = &InsightsQueryResultsTable{
-		SelectableTable: core.NewSelectableTable[string](
-			"Query Results",
-			core.TableRow{},
-		),
-		data:    nil,
-		queryId: "",
-		logger:  logger,
-		app:     app,
-		api:     api,
+		SearchableView: core.NewSearchableView(table),
+		Table:          table,
+		data:           nil,
+		queryId:        "",
+		logger:         logger,
+		app:            app,
+		api:            api,
 	}
 
 	view.HighlightSearch = true

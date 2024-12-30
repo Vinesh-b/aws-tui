@@ -77,13 +77,13 @@ func (inst *SelectedGroupsTable) populateSelectedGroupsTable() {
 
 	inst.SetData(tableData)
 	inst.SetPrivateData(privateData, logNameCol)
-	inst.Table.GetCell(0, 0).SetExpansion(1)
-	inst.Table.Select(1, 0)
+	inst.GetCell(0, 0).SetExpansion(1)
+	inst.Select(1, 0)
 }
 
 func (inst *SelectedGroupsTable) RefreshSelectedGroups() {
 	var resultChannel = make(chan struct{})
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
 		inst.populateSelectedGroupsTable()
 	})
 
@@ -94,8 +94,8 @@ func (inst *SelectedGroupsTable) RefreshSelectedGroups() {
 }
 
 func (inst *SelectedGroupsTable) SetSelectionChangedFunc(handler func(row int, column int)) {
-	inst.Table.SetSelectionChangedFunc(func(row, column int) {
-		var ref = inst.Table.GetCell(row, logNameCol).Reference
+	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
+		var ref = inst.GetCell(row, logNameCol).Reference
 		if row < 1 || ref == nil {
 			return
 		}

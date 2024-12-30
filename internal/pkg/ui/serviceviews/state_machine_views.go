@@ -101,13 +101,13 @@ func NewStateMachineExectionDetailsPage(
 		},
 	}
 
-	executionDetails.Table.SetSelectionChangedFunc(func(row, column int) {
+	executionDetails.SetSelectionChangedFunc(func(row, column int) {
 		var privateDataColIdx = 0
 		var col = column
 		if privateDataColIdx >= 0 {
 			col = privateDataColIdx
 		}
-		var privateData = executionDetails.Table.GetCell(row, col).Reference
+		var privateData = executionDetails.GetCell(row, col).Reference
 		if row < 1 || privateData == nil {
 			return
 		}
@@ -130,15 +130,15 @@ func NewStateMachineExectionDetailsPage(
 
 	var serviceView = core.NewServicePageView(app, logger)
 	serviceView.
-		AddItem(executionSummary.Table, 8, 0, true).
+		AddItem(executionSummary, 8, 0, true).
 		AddItem(resizableView, 0, 1, false)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
 			outputsExpandedView.TextArea,
 			inputsExpandedView.TextArea,
-			executionDetails.Table,
-			executionSummary.Table,
+			executionDetails,
+			executionSummary,
 		},
 	)
 	var detailsView = &StateMachineExectionDetailsPageView{
@@ -197,7 +197,7 @@ func NewStepFunctionsHomeView(
 			stateMachineExecutionsTable.GetSeletedExecutionArn()
 		executionDetailsView.summaryTable.RefreshExecutionDetails(selectedExecution, true)
 		executionDetailsView.detailsTable.RefreshExecutionDetails(selectedExecution, true)
-		serviceRootView.ChangePage(1, executionDetailsView.summaryTable.Table)
+		serviceRootView.ChangePage(1, executionDetailsView.summaryTable)
 	})
 
 	stateMachinesDetailsView.initInputCapture()

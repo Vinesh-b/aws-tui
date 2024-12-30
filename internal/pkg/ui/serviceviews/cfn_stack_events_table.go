@@ -72,8 +72,8 @@ func (inst *StackEventsTable) populateStackEventsTable(reset bool) {
 
 	inst.SetData(tableData)
 	inst.SetPrivateData(privateData, 4)
-	inst.Table.GetCell(0, 0).SetExpansion(1)
-	inst.Table.Select(1, 0)
+	inst.GetCell(0, 0).SetExpansion(1)
+	inst.Select(1, 0)
 }
 
 func (inst *StackEventsTable) RefreshEvents(reset bool) {
@@ -88,13 +88,13 @@ func (inst *StackEventsTable) RefreshEvents(reset bool) {
 		resultChannel <- struct{}{}
 	}()
 
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
 		inst.populateStackEventsTable(reset)
 	})
 }
 
 func (inst *StackEventsTable) SetSelectionChangedFunc(handler func(row int, column int)) {
-	inst.Table.SetSelectionChangedFunc(func(row, column int) {
+	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}
@@ -117,7 +117,7 @@ func (inst *StackEventsTable) SetSelectedStackName(name string) {
 }
 
 func (inst *StackEventsTable) GetResourceStatusReason(row int) string {
-	var reason = inst.Table.GetCell(row, 4).Reference
+	var reason = inst.GetCell(row, 4).Reference
 	if row < 1 || reason == nil {
 		return ""
 	}

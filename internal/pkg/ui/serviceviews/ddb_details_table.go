@@ -40,7 +40,7 @@ func NewDynamoDBDetailsTable(
 	}
 
 	table.populateDetailsTable()
-	table.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			table.RefreshDetails()
@@ -78,8 +78,8 @@ func (inst *DynamoDBDetailsTable) populateDetailsTable() {
 	}
 
 	inst.SetData(tableData)
-	inst.Table.Select(0, 0)
-	inst.Table.ScrollToBeginning()
+	inst.Select(0, 0)
+	inst.ScrollToBeginning()
 }
 
 func (inst *DynamoDBDetailsTable) RefreshDetails() {
@@ -90,7 +90,7 @@ func (inst *DynamoDBDetailsTable) RefreshDetails() {
 		resultChannel <- struct{}{}
 	}()
 
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
 		inst.populateDetailsTable()
 	})
 }

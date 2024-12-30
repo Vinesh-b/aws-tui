@@ -47,14 +47,14 @@ func NewStateMachinesListTable(
 	}
 
 	table.populateStateMachinesTable()
-	table.Table.SetSelectionChangedFunc(func(row, column int) {
+	table.SetSelectionChangedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}
-		table.selectedFunctionArn = table.Table.GetCell(row, 0).Text
+		table.selectedFunctionArn = table.GetCell(row, 0).Text
 	})
 
-	table.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			table.RefreshStateMachines(true)
@@ -85,8 +85,8 @@ func (inst *StateMachinesListTable) populateStateMachinesTable() {
 
 	inst.SetData(tableData)
 	inst.SetPrivateData(privateData, sfnFunctionNameCol)
-	inst.Table.GetCell(0, 0).SetExpansion(1)
-	inst.Table.Select(1, 0)
+	inst.GetCell(0, 0).SetExpansion(1)
+	inst.Select(1, 0)
 }
 
 func (inst *StateMachinesListTable) RefreshStateMachines(force bool) {
@@ -103,14 +103,14 @@ func (inst *StateMachinesListTable) RefreshStateMachines(force bool) {
 		resultChannel <- struct{}{}
 	}()
 
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
 		inst.populateStateMachinesTable()
 	})
 }
 
 func (inst *StateMachinesListTable) SetSelectionChangedFunc(handler func(row int, column int)) {
-	inst.Table.SetSelectionChangedFunc(func(row, column int) {
-		var ref = inst.Table.GetCell(row, 0).Reference
+	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
+		var ref = inst.GetCell(row, 0).Reference
 		if row < 1 || ref == nil {
 			return
 		}
@@ -121,7 +121,7 @@ func (inst *StateMachinesListTable) SetSelectionChangedFunc(handler func(row int
 }
 
 func (inst *StateMachinesListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
-	inst.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			inst.RefreshStateMachines(true)

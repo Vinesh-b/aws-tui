@@ -15,8 +15,8 @@ import (
 )
 
 type LambdaDetailsTable struct {
-    *core.DetailsTable
-	data  *types.FunctionConfiguration
+	*core.DetailsTable
+	data *types.FunctionConfiguration
 
 	selectedLambda string
 	logger         *log.Logger
@@ -30,8 +30,8 @@ func NewLambdaDetailsTable(
 	logger *log.Logger,
 ) *LambdaDetailsTable {
 	var table = &LambdaDetailsTable{
-        DetailsTable: core.NewDetailsTable("Lambda Details"),
-		data:  nil,
+		DetailsTable:   core.NewDetailsTable("Lambda Details"),
+		data:           nil,
 		selectedLambda: "",
 		logger:         logger,
 		app:            app,
@@ -39,7 +39,7 @@ func NewLambdaDetailsTable(
 	}
 
 	table.populateLambdaDetailsTable()
-	table.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			table.RefreshDetails(table.selectedLambda, true)
@@ -68,9 +68,9 @@ func (inst *LambdaDetailsTable) populateLambdaDetailsTable() {
 		}
 	}
 
-    inst.SetData(tableData)
-	inst.Table.Select(0, 0)
-	inst.Table.ScrollToBeginning()
+	inst.SetData(tableData)
+	inst.Select(0, 0)
+	inst.ScrollToBeginning()
 }
 
 func (inst *LambdaDetailsTable) RefreshDetails(lambdaName string, force bool) {
@@ -83,7 +83,7 @@ func (inst *LambdaDetailsTable) RefreshDetails(lambdaName string, force bool) {
 		resultChannel <- struct{}{}
 	}()
 
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
 		var val, ok = data[lambdaName]
 		if ok {
 			inst.data = &val

@@ -61,8 +61,8 @@ func (inst *MetricListTable) populateMetricsTable() {
 	}
 
 	inst.SetData(tableData)
-	inst.Table.GetCell(0, 0).SetExpansion(1)
-	inst.Table.Select(1, 0)
+	inst.GetCell(0, 0).SetExpansion(1)
+	inst.Select(1, 0)
 }
 
 func (inst *MetricListTable) RefreshMetrics(search string, force bool) {
@@ -78,13 +78,13 @@ func (inst *MetricListTable) RefreshMetrics(search string, force bool) {
 		resultChannel <- struct{}{}
 	}()
 
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
 		inst.populateMetricsTable()
 	})
 }
 
-func (inst *MetricListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) *tview.Box {
-	return inst.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+func (inst *MetricListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
+	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			inst.RefreshMetrics(inst.currentSearch, true)
@@ -94,12 +94,12 @@ func (inst *MetricListTable) SetInputCapture(capture func(event *tcell.EventKey)
 	})
 }
 
-func (inst *MetricListTable) SetSelectionChangedFunc(handler func(row int, column int)) *tview.Table {
-	return inst.Table.SetSelectionChangedFunc(func(row, column int) {
+func (inst *MetricListTable) SetSelectionChangedFunc(handler func(row int, column int)) {
+	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}
-		inst.selectedMetric = inst.Table.GetCell(row, 1).Text
+		inst.selectedMetric = inst.GetCell(row, 1).Text
 
 		handler(row, column)
 	})

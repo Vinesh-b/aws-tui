@@ -102,7 +102,7 @@ func NewLambdaInvokePageView(
 
 	var serviceView = core.NewServicePageView(app, logger)
 	serviceView.
-		AddItem(lambdaDetails.Table, 0, 3000, false).
+		AddItem(lambdaDetails, 0, 3000, false).
 		AddItem(payloadInput, 0, 4000, false).
 		AddItem(responseOutput, 0, 4000, false).
 		AddItem(logResults, 0, 5000, false)
@@ -110,7 +110,7 @@ func NewLambdaInvokePageView(
 	serviceView.InitViewNavigation(
 		[]core.View{
 			payloadInput,
-			lambdaDetails.Table,
+			lambdaDetails,
 			logResults,
 			responseOutput,
 		},
@@ -133,7 +133,7 @@ func NewLambdaInvokePageView(
 }
 
 func (inst *LambdaInvokePageView) initInputCapture() {
-	inst.DetailsTable.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	inst.DetailsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			inst.DetailsTable.RefreshDetails(inst.SelectedLambda, true)
@@ -248,13 +248,13 @@ func NewLambdaHomeView(
 		app.SetFocus(lambdasDetailsView.LambdaDetailsTable)
 	})
 
-	lambdasDetailsView.LambdaDetailsTable.Table.SetSelectedFunc(func(row, column int) {
-		var selectedLogGroup = lambdasDetailsView.LambdaDetailsTable.Table.GetCell(7, 1).Text
+	lambdasDetailsView.LambdaDetailsTable.SetSelectedFunc(func(row, column int) {
+		var selectedLogGroup = lambdasDetailsView.LambdaDetailsTable.GetCell(7, 1).Text
 
 		logStreamsView.LogStreamsTable.SetSeletedLogGroup(selectedLogGroup)
 		logStreamsView.LogStreamsTable.SetLogStreamSearchPrefix("")
 		logStreamsView.LogStreamsTable.RefreshStreams(true)
-		serviceRootView.ChangePage(2, logStreamsView.LogStreamsTable.Table)
+		serviceRootView.ChangePage(2, logStreamsView.LogStreamsTable)
 	})
 
 	logStreamsView.LogStreamsTable.SetSelectedFunc(func(row, column int) {
@@ -264,7 +264,7 @@ func NewLambdaHomeView(
 		logEventsView.LogEventsTable.SetSeletedLogGroup(selectedLogGroup)
 		logEventsView.LogEventsTable.SetSeletedLogStream(selectedLogStream)
 		logEventsView.LogEventsTable.RefreshLogEvents(true)
-		serviceRootView.ChangePage(3, logEventsView.LogEventsTable.Table)
+		serviceRootView.ChangePage(3, logEventsView.LogEventsTable)
 	})
 
 	logEventsView.InitInputCapture()

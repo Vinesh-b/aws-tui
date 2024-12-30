@@ -41,7 +41,7 @@ func NewStateMachineExecutionSummaryTable(
 	}
 
 	table.populateTable()
-	table.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			table.RefreshExecutionDetails(table.selectedExecutionArn, true)
@@ -66,8 +66,8 @@ func (inst *StateMachineExecutionSummaryTable) populateTable() {
 	}
 
 	inst.SetData(tableData)
-	inst.Table.Select(0, 0)
-	inst.Table.ScrollToBeginning()
+	inst.Select(0, 0)
+	inst.ScrollToBeginning()
 }
 
 func (inst *StateMachineExecutionSummaryTable) RefreshExecutionDetails(executionArn string, force bool) {
@@ -79,7 +79,7 @@ func (inst *StateMachineExecutionSummaryTable) RefreshExecutionDetails(execution
 		resultChannel <- struct{}{}
 	}()
 
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
 		inst.populateTable()
 	})
 }

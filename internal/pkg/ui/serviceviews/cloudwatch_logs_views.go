@@ -30,7 +30,7 @@ func NewLogEventsPageView(
 ) *LogEventsPageView {
 
 	var expandedLogsView = core.CreateExpandedLogView(
-		app, logEventsTable.Table, 1, core.DATA_TYPE_STRING,
+		app, logEventsTable, 1, core.DATA_TYPE_STRING,
 	)
 
 	const expandedLogsSize = 7
@@ -64,7 +64,7 @@ func NewLogEventsPageView(
 }
 
 func (inst *LogEventsPageView) InitInputCapture() {
-	inst.LogEventsTable.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	inst.LogEventsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			inst.LogEventsTable.RefreshLogEvents(true)
@@ -113,11 +113,11 @@ func (inst *LogStreamsPageView) InitInputCapture() {
 		case tcell.KeyEnter:
 			inst.LogStreamsTable.SetLogStreamSearchPrefix(inst.LogStreamsTable.GetSearchText())
 			inst.LogStreamsTable.RefreshStreams(true)
-			inst.app.SetFocus(inst.LogStreamsTable.Table)
+			inst.app.SetFocus(inst.LogStreamsTable)
 		}
 	})
 
-	inst.LogStreamsTable.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	inst.LogStreamsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			inst.LogStreamsTable.RefreshStreams(true)
@@ -148,7 +148,7 @@ func NewLogGroupsPageView(
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			logGroupsTable.Table,
+			logGroupsTable,
 		},
 	)
 
@@ -166,11 +166,11 @@ func (inst *LogGroupsPageView) InitInputCapture() {
 		switch key {
 		case tcell.KeyEnter:
 			inst.LogGroupsTable.RefreshLogGroups(inst.LogGroupsTable.GetSearchText())
-			inst.app.SetFocus(inst.LogGroupsTable.Table)
+			inst.app.SetFocus(inst.LogGroupsTable)
 		}
 	})
 
-	inst.LogGroupsTable.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	inst.LogGroupsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			inst.LogGroupsTable.RefreshLogGroups(inst.LogGroupsTable.GetSearchText())
@@ -221,7 +221,7 @@ func NewLogsHomeView(
 		logStreamsView.LogStreamsTable.SetSeletedLogGroup(logGroup)
 		logStreamsView.LogStreamsTable.SetLogStreamSearchPrefix("")
 		logStreamsView.LogStreamsTable.RefreshStreams(true)
-		serviceRootView.ChangePage(1, logStreamsView.LogStreamsTable.Table)
+		serviceRootView.ChangePage(1, logStreamsView.LogStreamsTable)
 	})
 
 	logStreamsView.LogStreamsTable.SetSelectedFunc(func(row, column int) {
@@ -231,7 +231,7 @@ func NewLogsHomeView(
 		logEventsView.LogEventsTable.SetSeletedLogGroup(logGroup)
 		logEventsView.LogEventsTable.SetSeletedLogStream(logStream)
 		logEventsView.LogEventsTable.RefreshLogEvents(true)
-		serviceRootView.ChangePage(2, logEventsView.LogEventsTable.Table)
+		serviceRootView.ChangePage(2, logEventsView.LogEventsTable)
 	})
 
 	logEventsView.InitInputCapture()

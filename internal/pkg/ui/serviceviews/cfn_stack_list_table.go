@@ -45,7 +45,7 @@ func NewStackListTable(
 	}
 
 	view.populateStacksTable()
-	view.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			view.RefreshStacks(true)
@@ -71,8 +71,8 @@ func (inst *StackListTable) populateStacksTable() {
 	}
 
 	inst.SetData(tableData)
-	inst.Table.GetCell(0, 0).SetExpansion(1)
-	inst.Table.Select(1, 0)
+	inst.GetCell(0, 0).SetExpansion(1)
+	inst.Select(1, 0)
 }
 
 func (inst *StackListTable) RefreshStacks(reset bool) {
@@ -88,23 +88,23 @@ func (inst *StackListTable) RefreshStacks(reset bool) {
 		resultChannel <- struct{}{}
 	}()
 
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
 		inst.populateStacksTable()
 	})
 }
 
 func (inst *StackListTable) SetSelectionChangedFunc(handler func(row int, column int)) {
-	inst.Table.SetSelectionChangedFunc(func(row, column int) {
+	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}
-		inst.selectedStack = inst.Table.GetCell(row, 0).Text
+		inst.selectedStack = inst.GetCell(row, 0).Text
 		handler(row, column)
 	})
 }
 
 func (inst *StackListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
-	inst.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
 			inst.RefreshStacks(true)

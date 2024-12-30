@@ -75,12 +75,12 @@ func (inst *StateMachineExecutionsTable) populateExecutionsTable() {
 
 	inst.SetData(tableData)
 	inst.SetPrivateData(privateData, sfnExecutionArnCol)
-	inst.Table.GetCell(0, 0).SetExpansion(1)
-	inst.Table.Select(1, 0)
+	inst.GetCell(0, 0).SetExpansion(1)
+	inst.Select(1, 0)
 }
 
 func (inst *StateMachineExecutionsTable) SetSelectedFunc(handler func(row int, column int)) {
-	inst.Table.SetSelectedFunc(func(row, column int) {
+	inst.SelectableTable.SetSelectedFunc(func(row, column int) {
 		handler(row, column)
 	})
 }
@@ -96,14 +96,14 @@ func (inst *StateMachineExecutionsTable) RefreshExecutions(force bool) {
 		resultChannel <- struct{}{}
 	}()
 
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
 		inst.populateExecutionsTable()
 	})
 }
 
 func (inst *StateMachineExecutionsTable) SetSelectionChangedFunc(handler func(row int, column int)) {
-	inst.Table.SetSelectionChangedFunc(func(row, column int) {
-		var ref = inst.Table.GetCell(row, sfnExecutionArnCol).Reference
+	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
+		var ref = inst.GetCell(row, sfnExecutionArnCol).Reference
 		if row < 1 || ref == nil {
 			return
 		}
