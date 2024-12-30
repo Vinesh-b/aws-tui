@@ -24,21 +24,21 @@ const (
 
 type DynamoDBGenericTable struct {
 	*DynamoDBTableSearchView
-	Table            *tview.Table
-	data             []map[string]interface{}
-	tableDescription *types.TableDescription
-	selectedTable    string
-	pkQueryString    string
-	skQueryString    string
-	searchIndexName  string
-	logger           *log.Logger
-	app              *tview.Application
-	api              *awsapi.DynamoDBApi
-	attributeIdxMap  map[string]int
-
-	queryExpr expression.Expression
-	pkName    string
-	skName    string
+	Table               *tview.Table
+	ErrorMessageHandler func(text string)
+	data                []map[string]interface{}
+	tableDescription    *types.TableDescription
+	selectedTable       string
+	pkQueryString       string
+	skQueryString       string
+	searchIndexName     string
+	logger              *log.Logger
+	app                 *tview.Application
+	api                 *awsapi.DynamoDBApi
+	attributeIdxMap     map[string]int
+	queryExpr           expression.Expression
+	pkName              string
+	skName              string
 }
 
 func NewDynamoDBGenericTable(
@@ -51,6 +51,7 @@ func NewDynamoDBGenericTable(
 	var table = &DynamoDBGenericTable{
 		DynamoDBTableSearchView: NewDynamoDBTableSearchView(t, app, logger),
 		Table:                   t,
+		ErrorMessageHandler:     func(text string) {},
 		data:                    nil,
 		selectedTable:           "",
 		pkQueryString:           "",
@@ -62,6 +63,28 @@ func NewDynamoDBGenericTable(
 	}
 
 	table.populateDynamoDBTable(false)
+	table.QueryDoneButton.SetSelectedFunc(func() {
+		table.SetPartitionKeyName(table.pkName)
+		table.SetSortKeyName(table.skName)
+
+		var expr, err = table.GenerateQueryExpression()
+		if err != nil {
+			table.logger.Println(err.Error())
+            table.ErrorMessageHandler(err.Error())
+			return
+		}
+		table.ExecuteSearch(DDBTableQuery, expr, true)
+	})
+
+	table.ScanDoneButton.SetSelectedFunc(func() {
+		var expr, err = table.GenerateScanExpression()
+		if err != nil {
+			table.logger.Println(err.Error())
+            table.ErrorMessageHandler(err.Error())
+			return
+		}
+		table.ExecuteSearch(DDBTableScan, expr, true)
+	})
 
 	return table
 }
@@ -157,15 +180,25 @@ func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expre
 			return
 		}
 
+		var err error = nil
 		if reset || inst.tableDescription == nil {
-			inst.tableDescription = inst.api.DescribeTable(inst.selectedTable)
+			inst.tableDescription, err = inst.api.DescribeTable(inst.selectedTable)
+			if err != nil {
+				inst.ErrorMessageHandler(err.Error())
+				resultChannel <- struct{}{}
+				return
+			}
 		}
 
 		switch operation {
 		case DDBTableScan:
-			inst.data = inst.api.ScanTable(inst.selectedTable, expr, "", reset)
+			inst.data, err = inst.api.ScanTable(inst.selectedTable, expr, "", reset)
 		case DDBTableQuery:
-			inst.data = inst.api.QueryTable(inst.selectedTable, expr, "", reset)
+			inst.data, err = inst.api.QueryTable(inst.selectedTable, expr, "", reset)
+		}
+
+		if err != nil {
+			inst.ErrorMessageHandler(err.Error())
 		}
 
 		resultChannel <- struct{}{}

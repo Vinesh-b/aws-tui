@@ -71,7 +71,11 @@ func (inst *DynamoDBTablesTable) RefreshTables(force bool) {
 		if len(search) > 0 {
 			inst.data = inst.api.FilterByName(search)
 		} else {
-			inst.data = inst.api.ListTables(force)
+			var err error = nil
+			inst.data, err = inst.api.ListTables(force)
+			if err != nil {
+				inst.ErrorMessageHandler(err.Error())
+			}
 		}
 		resultChannel <- struct{}{}
 	}()

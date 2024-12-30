@@ -32,9 +32,9 @@ func NewDynamoDBApi(
 	}
 }
 
-func (inst *DynamoDBApi) ListTables(force bool) []string {
+func (inst *DynamoDBApi) ListTables(force bool) ([]string, error) {
 	if len(inst.allTables) > 0 && !force {
-		return inst.allTables
+		return inst.allTables, nil
 	}
 
 	inst.allTables = nil
@@ -42,16 +42,18 @@ func (inst *DynamoDBApi) ListTables(force bool) []string {
 		inst.client, &dynamodb.ListTablesInput{},
 	)
 
+	var apiErr error = nil
 	for paginator.HasMorePages() {
 		var output, err = paginator.NextPage(context.TODO())
 		if err != nil {
 			inst.logger.Printf("Couldn't list tables: %v\n", err)
+			apiErr = err
 			break
 		}
 
 		inst.allTables = append(inst.allTables, output.TableNames...)
 	}
-	return inst.allTables
+	return inst.allTables, apiErr
 }
 
 func (inst *DynamoDBApi) FilterByName(name string) []string {
@@ -70,16 +72,16 @@ func (inst *DynamoDBApi) FilterByName(name string) []string {
 	}
 	return foundTables
 }
-func (inst *DynamoDBApi) DescribeTable(tableName string) *types.TableDescription {
+func (inst *DynamoDBApi) DescribeTable(tableName string) (*types.TableDescription, error) {
 
 	var output, err = inst.client.DescribeTable(context.TODO(),
 		&dynamodb.DescribeTableInput{TableName: &tableName},
 	)
 	if err != nil {
 		inst.logger.Printf("Failed to describe table: %v\n", err)
-		return nil
+		return nil, err
 	}
-	return output.Table
+	return output.Table, nil
 }
 
 func (inst *DynamoDBApi) ScanTable(
@@ -87,7 +89,7 @@ func (inst *DynamoDBApi) ScanTable(
 	scanExpression expression.Expression,
 	indexName string,
 	force bool,
-) []map[string]interface{} {
+) ([]map[string]interface{}, error) {
 	var items []map[string]interface{}
 
 	var index *string = nil
@@ -115,7 +117,7 @@ func (inst *DynamoDBApi) ScanTable(
 		attributevalue.UnmarshalListOfMaps(output.Items, &temp)
 		items = append(items, temp...)
 	}
-	return items
+	return items, err
 }
 
 func (inst *DynamoDBApi) QueryTable(
@@ -123,7 +125,7 @@ func (inst *DynamoDBApi) QueryTable(
 	queryExpression expression.Expression,
 	indexName string,
 	force bool,
-) []map[string]interface{} {
+) ([]map[string]interface{}, error) {
 	if inst.queryPaginator == nil || force {
 		var index *string = nil
 		if len(indexName) > 0 {
@@ -144,22 +146,22 @@ func (inst *DynamoDBApi) QueryTable(
 	var items = make([]map[string]interface{}, 0)
 
 	if !inst.queryPaginator.HasMorePages() {
-		return items
+		return items, nil
 	}
 
 	var output, err = inst.queryPaginator.NextPage(context.TODO())
 	if err != nil {
 		inst.logger.Println(err)
-		return items
+		return items, err
 	}
 
 	var temp []map[string]interface{}
 	err = attributevalue.UnmarshalListOfMaps(output.Items, &temp)
 	if err != nil {
 		inst.logger.Println(err)
-		return items
+		return items, err
 	}
 
 	items = append(items, temp...)
-	return items
+	return items, nil
 }

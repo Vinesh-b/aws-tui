@@ -97,6 +97,10 @@ func NewDynamoDBTableItemsPage(
 		},
 	)
 
+	itemsTable.ErrorMessageHandler = func(text string) {
+		serviceView.SetAndDisplayError(text)
+	}
+
 	return &DynamoDBTableItemsPage{
 		ServicePageView:  serviceView,
 		ItemsTable:       itemsTable,
@@ -107,30 +111,7 @@ func NewDynamoDBTableItemsPage(
 	}
 }
 
-func (inst *DynamoDBTableItemsPage) InitInputCapture() *DynamoDBTableItemsPage {
-	inst.ItemsTable.QueryDoneButton.SetSelectedFunc(func() {
-		inst.ItemsTable.SetPartitionKeyName(inst.ItemsTable.pkName)
-		inst.ItemsTable.SetSortKeyName(inst.ItemsTable.skName)
-
-		var expr, err = inst.ItemsTable.GenerateQueryExpression()
-		if err != nil {
-			inst.logger.Println(err.Error())
-			return
-		}
-		inst.ItemsTable.ExecuteSearch(DDBTableQuery, expr, true)
-	})
-
-	inst.ItemsTable.ScanDoneButton.SetSelectedFunc(func() {
-		var expr, err = inst.ItemsTable.GenerateScanExpression()
-		if err != nil {
-			inst.logger.Println(err.Error())
-			return
-		}
-		inst.ItemsTable.ExecuteSearch(DDBTableScan, expr, true)
-	})
-
-	return inst
-}
+func (inst *DynamoDBTableItemsPage) InitInputCapture() {}
 
 func (inst *DynamoDBTableItemsPage) SetTableName(tableName string) *DynamoDBTableItemsPage {
 	inst.tableName = tableName

@@ -86,7 +86,11 @@ func (inst *DynamoDBDetailsTable) RefreshDetails() {
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		inst.data = inst.api.DescribeTable(inst.selectedTable)
+		var err error = nil
+		inst.data, err = inst.api.DescribeTable(inst.selectedTable)
+		if err != nil {
+			inst.ErrorMessageHandler(err.Error())
+		}
 		resultChannel <- struct{}{}
 	}()
 
