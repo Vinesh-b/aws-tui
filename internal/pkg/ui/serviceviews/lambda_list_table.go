@@ -69,10 +69,14 @@ func (inst *LambdaListTable) RefreshLambdas(force bool) {
 	var searchText = inst.GetSearchText()
 
 	go func() {
+		var err error
 		if len(searchText) > 0 {
 			inst.data = inst.api.FilterByName(searchText)
 		} else {
-			inst.data = inst.api.ListLambdas(force)
+			inst.data, err = inst.api.ListLambdas(force)
+			if err != nil {
+				inst.ErrorMessageHandler(err.Error())
+			}
 		}
 
 		resultChannel <- struct{}{}

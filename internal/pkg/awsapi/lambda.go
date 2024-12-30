@@ -30,9 +30,9 @@ func NewLambdaApi(
 	}
 }
 
-func (inst *LambdaApi) ListLambdas(force bool) map[string]types.FunctionConfiguration {
+func (inst *LambdaApi) ListLambdas(force bool) (map[string]types.FunctionConfiguration, error) {
 	if len(inst.allLambdas) > 0 && !force {
-		return inst.allLambdas
+		return inst.allLambdas, nil
 	}
 
 	inst.allLambdas = make(map[string]types.FunctionConfiguration)
@@ -41,10 +41,11 @@ func (inst *LambdaApi) ListLambdas(force bool) map[string]types.FunctionConfigur
 		inst.client, &lambda.ListFunctionsInput{},
 	)
 
+	var apiError error = nil
 	for paginator.HasMorePages() {
 		var output, err = paginator.NextPage(context.TODO())
 		if err != nil {
-			inst.logger.Println(err)
+			apiError = err
 			break
 		}
 
@@ -52,7 +53,7 @@ func (inst *LambdaApi) ListLambdas(force bool) map[string]types.FunctionConfigur
 			inst.allLambdas[*val.FunctionName] = val
 		}
 	}
-	return inst.allLambdas
+	return inst.allLambdas, apiError
 }
 
 func (inst *LambdaApi) FilterByName(name string) map[string]types.FunctionConfiguration {
@@ -75,14 +76,14 @@ func (inst *LambdaApi) FilterByName(name string) map[string]types.FunctionConfig
 func (inst *LambdaApi) InvokeLambda(
 	name string,
 	payload map[string]any,
-) *lambda.InvokeOutput {
+) (*lambda.InvokeOutput, error) {
 	var err error = nil
 	var jsonPayload []byte
 
 	jsonPayload, err = json.Marshal(payload)
 	if err != nil {
 		inst.logger.Println(err)
-		return nil
+		return nil, err
 	}
 
 	var output *lambda.InvokeOutput = nil
@@ -100,5 +101,5 @@ func (inst *LambdaApi) InvokeLambda(
 		inst.logger.Println(err)
 	}
 
-	return output
+	return output, err
 }

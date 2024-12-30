@@ -9,6 +9,7 @@ import (
 	"aws-tui/internal/pkg/ui/core"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/lambda"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -51,6 +52,13 @@ func NewLambdaDetailsPageView(
 		app:                app,
 		api:                api,
 	}
+
+	var errorHandler = func(text string) {
+		serviceView.SetAndDisplayError(text)
+	}
+
+	lambdaDetailsTable.ErrorMessageHandler = errorHandler
+	lambdaListTable.ErrorMessageHandler = errorHandler
 
 	view.InitViewNavigation(
 		[]core.View{
@@ -168,23 +176,27 @@ func (inst *LambdaInvokePageView) Invoke() {
 	var responseOutput = []byte{}
 
 	go func() {
+		var err error
 		var payload = make(map[string]any)
-		var err = json.Unmarshal([]byte(inst.payloadInput.GetText()), &payload)
+		err = json.Unmarshal([]byte(inst.payloadInput.GetText()), &payload)
 		if err != nil {
 			// log something to the console
 			resultChannel <- struct{}{}
 			return
 		}
 
-		var data = inst.api.InvokeLambda(inst.SelectedLambda, payload)
-		if data != nil {
-			logResults, err = base64.StdEncoding.DecodeString(aws.ToString(data.LogResult))
-			if err != nil {
-				// log something to the console
-			}
-
-			responseOutput = data.Payload
+		var data *lambda.InvokeOutput = nil
+		data, err = inst.api.InvokeLambda(inst.SelectedLambda, payload)
+		if err != nil {
+			// log something to the console
 		}
+
+		logResults, err = base64.StdEncoding.DecodeString(aws.ToString(data.LogResult))
+		if err != nil {
+			// log something to the console
+		}
+
+		responseOutput = data.Payload
 		resultChannel <- struct{}{}
 	}()
 

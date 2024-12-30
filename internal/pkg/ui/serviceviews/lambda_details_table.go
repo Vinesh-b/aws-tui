@@ -79,7 +79,12 @@ func (inst *LambdaDetailsTable) RefreshDetails(lambdaName string, force bool) {
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		data = inst.api.ListLambdas(force)
+		var err error
+		data, err = inst.api.ListLambdas(force)
+
+		if err != nil {
+			inst.ErrorMessageHandler(err.Error())
+		}
 		resultChannel <- struct{}{}
 	}()
 
