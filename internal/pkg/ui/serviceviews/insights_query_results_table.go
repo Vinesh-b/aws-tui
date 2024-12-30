@@ -112,8 +112,13 @@ func (inst *InsightsQueryResultsTable) RefreshResults() {
 	go func() {
 		var results [][]types.ResultField
 		var status types.QueryStatus
+		var err error = nil
 		for range 10 {
-			results, status = inst.api.GetInightsQueryResults(inst.queryId)
+			results, status, err = inst.api.GetInightsQueryResults(inst.queryId)
+			if err != nil {
+				// Send message to UI
+                break
+			}
 			if status == types.QueryStatusRunning || status == types.QueryStatusScheduled {
 				time.Sleep(2 * time.Second)
 			} else {

@@ -187,12 +187,16 @@ func (inst *InsightsQueryResultsPageView) InitInputCapture() {
 
 		var queryIdChan = make(chan string, 1)
 		go func() {
-			queryIdChan <- inst.api.StartInightsQuery(
+			var res, err = inst.api.StartInightsQuery(
 				*inst.selectedLogGroups,
 				startTime,
 				endTime,
 				inst.QueryInput.GetText(),
 			)
+			if err != nil {
+				inst.SetAndDisplayError(err.Error())
+			}
+			queryIdChan <- res
 		}()
 
 		go func() {
@@ -258,7 +262,10 @@ func NewLogsInsightsHomeView(
 	var recordPtr = ""
 	insightsResultsView.QueryResultsTable.SetSelectedFunc(func(row, column int) {
 		recordPtr = insightsResultsView.QueryResultsTable.GetRecordPtr(row)
-		var record = api.GetInsightsLogRecord(recordPtr)
+		var record, err = api.GetInsightsLogRecord(recordPtr)
+		if err != nil {
+			logEventsView.LogEventsTable.ErrorMessageHandler(err.Error())
+		}
 
 		var logStream = record["@logStream"]
 		var _, logGroup, _ = strings.Cut(record["@log"], ":")

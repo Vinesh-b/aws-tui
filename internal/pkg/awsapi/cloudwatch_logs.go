@@ -192,7 +192,7 @@ func (inst *CloudWatchLogsApi) StartInightsQuery(
 	startTime time.Time,
 	endTime time.Time,
 	query string,
-) string {
+) (string, error) {
 	var output, err = inst.client.StartQuery(
 		context.TODO(), &cloudwatchlogs.StartQueryInput{
 			StartTime:     aws.Int64(startTime.Unix()),
@@ -204,15 +204,15 @@ func (inst *CloudWatchLogsApi) StartInightsQuery(
 
 	if err != nil {
 		inst.logger.Println(err)
-		return ""
+		return "", err
 	}
 
-	return aws.ToString(output.QueryId)
+	return aws.ToString(output.QueryId), nil
 }
 
 func (inst *CloudWatchLogsApi) GetInightsQueryResults(
 	queryId string,
-) ([][]types.ResultField, types.QueryStatus) {
+) ([][]types.ResultField, types.QueryStatus, error) {
 	var output, err = inst.client.GetQueryResults(
 		context.TODO(), &cloudwatchlogs.GetQueryResultsInput{
 			QueryId: aws.String(queryId),
@@ -221,15 +221,15 @@ func (inst *CloudWatchLogsApi) GetInightsQueryResults(
 	var empty [][]types.ResultField
 	if err != nil {
 		inst.logger.Println(err)
-		return empty, types.QueryStatusUnknown
+		return empty, types.QueryStatusUnknown, err
 	}
 
-	return output.Results, output.Status
+	return output.Results, output.Status, nil
 }
 
 func (inst *CloudWatchLogsApi) GetInsightsLogRecord(
 	recordPtr string,
-) map[string]string {
+) (map[string]string, error) {
 	var output, err = inst.client.GetLogRecord(
 		context.TODO(), &cloudwatchlogs.GetLogRecordInput{
 			LogRecordPointer: aws.String(recordPtr),
@@ -238,8 +238,8 @@ func (inst *CloudWatchLogsApi) GetInsightsLogRecord(
 	var empty = make(map[string]string, 0)
 	if err != nil {
 		inst.logger.Println(err)
-		return empty
+		return empty, err
 	}
 
-	return output.LogRecord
+	return output.LogRecord, nil
 }
