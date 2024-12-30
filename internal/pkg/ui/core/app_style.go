@@ -10,6 +10,7 @@ var (
 	TextColour           tcell.Color = tcell.NewHexColor(0xBFBFBF)
 	SecondaryTextColor   tcell.Color = tcell.NewHexColor(0xFFFFFF)
 	TertiaryTextColor    tcell.Color = tcell.NewHexColor(0xCC8B00)
+	InverseTextColor     tcell.Color = tcell.NewHexColor(0x404040)
 	TitleColour          tcell.Color = tcell.NewHexColor(0x43B143)
 	BackgroundColor      tcell.Color = tcell.NewHexColor(0x212129)
 	PlaceHolderTextColor tcell.Color = tcell.NewHexColor(0x717171)
@@ -30,6 +31,7 @@ func ResetGlobalStyle() {
 	tview.Styles.PrimaryTextColor = TextColour
 	tview.Styles.SecondaryTextColor = SecondaryTextColor
 	tview.Styles.TertiaryTextColor = TertiaryTextColor
+	tview.Styles.InverseTextColor = InverseTextColor
 	tview.Styles.PrimitiveBackgroundColor = tcell.ColorDefault
 	tview.Styles.ContrastBackgroundColor = ContrastBackgroundColor
 	tview.Styles.MoreContrastBackgroundColor = MoreContrastBackgroundColor
