@@ -48,6 +48,13 @@ func NewStateMachinesDetailsPageView(
 		},
 	)
 
+	var errorHandler = func(text string) {
+		serviceView.SetAndDisplayError(text)
+	}
+
+	stateMachinesList.ErrorMessageHandler = errorHandler
+	stateMachineExecutions.ErrorMessageHandler = errorHandler
+
 	var detailsView = &StateMachinesDetailsPageView{
 		ServicePageView:             serviceView,
 		selectedStateMachine:        "",
@@ -141,6 +148,14 @@ func NewStateMachineExectionDetailsPage(
 			executionSummary,
 		},
 	)
+
+	var errorHandler = func(text string) {
+		serviceView.SetAndDisplayError(text)
+	}
+
+	executionSummary.ErrorMessageHandler = errorHandler
+	executionDetails.ErrorMessageHandler = errorHandler
+
 	var detailsView = &StateMachineExectionDetailsPageView{
 		ServicePageView:  serviceView,
 		selectedExection: "",

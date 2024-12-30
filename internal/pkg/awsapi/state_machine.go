@@ -11,11 +11,12 @@ import (
 )
 
 type StateMachineApi struct {
-	logger             *log.Logger
-	config             aws.Config
-	client             *sfn.Client
-	allStateMachines   map[string]types.StateMachineListItem
-	nextExectionsToken *string
+	logger                  *log.Logger
+	config                  aws.Config
+	client                  *sfn.Client
+	allStateMachines        map[string]types.StateMachineListItem
+	nextExectionsToken      *string
+	listExecutionsPaginator *sfn.ListExecutionsPaginator
 }
 
 func NewStateMachineApi(
@@ -30,9 +31,9 @@ func NewStateMachineApi(
 	}
 }
 
-func (inst *StateMachineApi) ListStateMachines(force bool) map[string]types.StateMachineListItem {
+func (inst *StateMachineApi) ListStateMachines(force bool) (map[string]types.StateMachineListItem, error) {
 	if len(inst.allStateMachines) > 0 && !force {
-		return inst.allStateMachines
+		return inst.allStateMachines, nil
 	}
 
 	inst.allStateMachines = make(map[string]types.StateMachineListItem)
@@ -41,10 +42,12 @@ func (inst *StateMachineApi) ListStateMachines(force bool) map[string]types.Stat
 		inst.client, &sfn.ListStateMachinesInput{},
 	)
 
+	var apiErr error = nil
 	for paginator.HasMorePages() {
 		var output, err = paginator.NextPage(context.TODO())
 		if err != nil {
 			inst.logger.Println(err)
+			apiErr = err
 			break
 		}
 
@@ -52,7 +55,7 @@ func (inst *StateMachineApi) ListStateMachines(force bool) map[string]types.Stat
 			inst.allStateMachines[*val.Name] = val
 		}
 	}
-	return inst.allStateMachines
+	return inst.allStateMachines, apiErr
 }
 
 func (inst *StateMachineApi) FilterByName(name string) map[string]types.StateMachineListItem {
@@ -72,41 +75,45 @@ func (inst *StateMachineApi) FilterByName(name string) map[string]types.StateMac
 	return foundLambdas
 }
 
-func (inst *StateMachineApi) ListExecutions(stateMachineArn string, nextToken *string) ([]types.ExecutionListItem, *string) {
+func (inst *StateMachineApi) ListExecutions(stateMachineArn string, reset bool) ([]types.ExecutionListItem, error) {
+	if inst.listExecutionsPaginator == nil || reset == true {
+		inst.listExecutionsPaginator = sfn.NewListExecutionsPaginator(
+			inst.client, &sfn.ListExecutionsInput{
+				StateMachineArn: aws.String(stateMachineArn),
+				MaxResults:      100,
+			},
+		)
 
-	var paginator = sfn.NewListExecutionsPaginator(
-		inst.client, &sfn.ListExecutionsInput{
-			StateMachineArn: aws.String(stateMachineArn),
-			NextToken:       nextToken,
-		},
-	)
-
-	for paginator.HasMorePages() {
-		var output, err = paginator.NextPage(context.TODO())
-		if err != nil {
-			inst.logger.Println(err)
-			break
-		}
-
-		return output.Executions, output.NextToken
 	}
-	return nil, nil
+
+	var empty = make([]types.ExecutionListItem, 0)
+	if !inst.listExecutionsPaginator.HasMorePages() {
+		return empty, nil
+	}
+
+	var output, err = inst.listExecutionsPaginator.NextPage(context.TODO())
+	if err != nil {
+		inst.logger.Println(err)
+		return empty, err
+	}
+
+	return output.Executions, nil
 }
 
-func (inst *StateMachineApi) DescribeExecution(executionArn string) *sfn.DescribeExecutionOutput {
+func (inst *StateMachineApi) DescribeExecution(executionArn string) (*sfn.DescribeExecutionOutput, error) {
 	var response, err = inst.client.DescribeExecution(context.TODO(), &sfn.DescribeExecutionInput{
 		ExecutionArn: &executionArn,
 	})
 
 	if err != nil {
 		inst.logger.Println(err)
-		return nil
+		return nil, err
 	}
 
-	return response
+	return response, nil
 }
 
-func (inst *StateMachineApi) GetExecutionHistory(executionArn string) *sfn.GetExecutionHistoryOutput {
+func (inst *StateMachineApi) GetExecutionHistory(executionArn string) (*sfn.GetExecutionHistoryOutput, error) {
 	var response, err = inst.client.GetExecutionHistory(context.TODO(), &sfn.GetExecutionHistoryInput{
 		ExecutionArn:         aws.String(executionArn),
 		IncludeExecutionData: aws.Bool(true),
@@ -114,8 +121,8 @@ func (inst *StateMachineApi) GetExecutionHistory(executionArn string) *sfn.GetEx
 
 	if err != nil {
 		inst.logger.Println(err)
-		return nil
+		return nil, err
 	}
 
-	return response
+	return response, nil
 }

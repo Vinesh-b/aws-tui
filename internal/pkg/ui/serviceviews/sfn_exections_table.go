@@ -90,7 +90,11 @@ func (inst *StateMachineExecutionsTable) RefreshExecutions(force bool) {
 
 	go func() {
 		if len(inst.selectedFunctionArn) > 0 {
-			inst.data, inst.nextToken = inst.api.ListExecutions(inst.selectedFunctionArn, nil)
+			var err error = nil
+			inst.data, err = inst.api.ListExecutions(inst.selectedFunctionArn, false)
+			if err != nil {
+				inst.ErrorMessageHandler(err.Error())
+			}
 		}
 
 		resultChannel <- struct{}{}

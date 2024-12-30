@@ -84,7 +84,11 @@ func (inst *StateMachinesListTable) RefreshStateMachines(force bool) {
 		if len(search) > 0 {
 			inst.data = inst.api.FilterByName(search)
 		} else {
-			inst.data = inst.api.ListStateMachines(force)
+			var err error = nil
+			inst.data, err = inst.api.ListStateMachines(force)
+			if err != nil {
+				inst.ErrorMessageHandler(err.Error())
+			}
 		}
 
 		resultChannel <- struct{}{}

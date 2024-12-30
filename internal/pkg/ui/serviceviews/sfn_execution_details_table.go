@@ -145,7 +145,11 @@ func (inst *StateMachineExecutionDetailsTable) RefreshExecutionDetails(execution
 	var resultChannel = make(chan struct{})
 
 	go func() {
-		inst.ExecutionHistory = inst.api.GetExecutionHistory(executionArn)
+		var err error = nil
+		inst.ExecutionHistory, err = inst.api.GetExecutionHistory(executionArn)
+		if err != nil {
+			inst.ErrorMessageHandler(err.Error())
+		}
 		resultChannel <- struct{}{}
 	}()
 
