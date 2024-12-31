@@ -93,7 +93,7 @@ func (inst *StateMachineExecutionsTable) RefreshExecutions(force bool) {
 			var err error = nil
 			inst.data, err = inst.api.ListExecutions(inst.selectedFunctionArn, false)
 			if err != nil {
-				inst.ErrorMessageHandler(err.Error())
+				inst.ErrorMessageCallback(err.Error())
 			}
 		}
 

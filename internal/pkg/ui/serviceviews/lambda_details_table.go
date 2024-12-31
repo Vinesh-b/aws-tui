@@ -83,7 +83,7 @@ func (inst *LambdaDetailsTable) RefreshDetails(lambdaName string, force bool) {
 		data, err = inst.api.ListLambdas(force)
 
 		if err != nil {
-			inst.ErrorMessageHandler(err.Error())
+			inst.ErrorMessageCallback(err.Error())
 		}
 		resultChannel <- struct{}{}
 	}()

@@ -87,7 +87,7 @@ func (inst *StateMachinesListTable) RefreshStateMachines(force bool) {
 			var err error = nil
 			inst.data, err = inst.api.ListStateMachines(force)
 			if err != nil {
-				inst.ErrorMessageHandler(err.Error())
+				inst.ErrorMessageCallback(err.Error())
 			}
 		}
 

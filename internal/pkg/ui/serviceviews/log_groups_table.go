@@ -91,7 +91,7 @@ func (inst *LogGroupsTable) RefreshLogGroups(search string) {
 		} else {
 			inst.data, err = inst.api.ListLogGroups(false)
 			if err != nil {
-				inst.ErrorMessageHandler(err.Error())
+				inst.ErrorMessageCallback(err.Error())
 			}
 		}
 		resultChannel <- struct{}{}

@@ -97,7 +97,7 @@ func NewDynamoDBTableItemsPage(
 		},
 	)
 
-	itemsTable.ErrorMessageHandler = func(text string) {
+	itemsTable.ErrorMessageCallback = func(text string) {
 		serviceView.SetAndDisplayError(text)
 	}
 

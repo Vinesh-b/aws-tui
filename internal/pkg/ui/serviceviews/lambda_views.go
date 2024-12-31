@@ -57,8 +57,8 @@ func NewLambdaDetailsPageView(
 		serviceView.SetAndDisplayError(text)
 	}
 
-	lambdaDetailsTable.ErrorMessageHandler = errorHandler
-	lambdaListTable.ErrorMessageHandler = errorHandler
+	lambdaDetailsTable.ErrorMessageCallback = errorHandler
+	lambdaListTable.ErrorMessageCallback = errorHandler
 
 	view.InitViewNavigation(
 		[]core.View{

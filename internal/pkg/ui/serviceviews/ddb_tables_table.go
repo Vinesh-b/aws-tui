@@ -74,7 +74,7 @@ func (inst *DynamoDBTablesTable) RefreshTables(force bool) {
 			var err error = nil
 			inst.data, err = inst.api.ListTables(force)
 			if err != nil {
-				inst.ErrorMessageHandler(err.Error())
+				inst.ErrorMessageCallback(err.Error())
 			}
 		}
 		resultChannel <- struct{}{}

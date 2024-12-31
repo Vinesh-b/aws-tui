@@ -16,14 +16,14 @@ import (
 
 type InsightsQueryResultsTable struct {
 	*InsightsQuerySearchView
-	Table               *tview.Table
-	data                [][]types.ResultField
-	queryId             string
-	selectedLogGroups   []string
-	logger              *log.Logger
-	app                 *tview.Application
-	api                 *awsapi.CloudWatchLogsApi
-	ErrorMessageHandler func(text string)
+	Table                *tview.Table
+	data                 [][]types.ResultField
+	queryId              string
+	selectedLogGroups    []string
+	logger               *log.Logger
+	app                  *tview.Application
+	api                  *awsapi.CloudWatchLogsApi
+	ErrorMessageCallback func(text string)
 }
 
 func NewInsightsQueryResultsTable(
@@ -41,7 +41,7 @@ func NewInsightsQueryResultsTable(
 		logger:                  logger,
 		app:                     app,
 		api:                     api,
-		ErrorMessageHandler:     func(text string) {},
+		ErrorMessageCallback:    func(text string) {},
 	}
 
 	view.populateQueryResultsTable()
@@ -139,9 +139,9 @@ func (inst *InsightsQueryResultsTable) RefreshResults() {
 				inst.SetQueryId("")
 
 				if err != nil {
-					inst.ErrorMessageHandler(err.Error())
+					inst.ErrorMessageCallback(err.Error())
 				} else {
-					inst.ErrorMessageHandler(fmt.Sprintf("Query failed with status %s", status))
+					inst.ErrorMessageCallback(fmt.Sprintf("Query failed with status %s", status))
 				}
 				break
 			}
@@ -159,12 +159,12 @@ func (inst *InsightsQueryResultsTable) RefreshResults() {
 func (inst *InsightsQueryResultsTable) ExecuteQuery() {
 	var query, err = inst.queryView.GenerateQuery()
 	if err != nil {
-		inst.ErrorMessageHandler(err.Error())
+		inst.ErrorMessageCallback(err.Error())
 		return
 	}
 
 	if len(inst.selectedLogGroups) == 0 {
-		inst.ErrorMessageHandler("No log groups selected")
+		inst.ErrorMessageCallback("No log groups selected")
 		return
 	}
 
@@ -173,7 +173,7 @@ func (inst *InsightsQueryResultsTable) ExecuteQuery() {
 		if len(inst.queryId) > 0 {
 			var _, err = inst.api.StopInightsQuery(inst.queryId)
 			if err != nil {
-				inst.ErrorMessageHandler(err.Error())
+				inst.ErrorMessageCallback(err.Error())
 			}
 			inst.SetQueryId("")
 		}
@@ -185,7 +185,7 @@ func (inst *InsightsQueryResultsTable) ExecuteQuery() {
 			query.query,
 		)
 		if err != nil {
-			inst.ErrorMessageHandler(err.Error())
+			inst.ErrorMessageCallback(err.Error())
 		}
 		queryIdChan <- res
 	}()
@@ -205,7 +205,7 @@ func (inst *InsightsQueryResultsTable) StopQuery() {
 		}
 		var res, err = inst.api.StopInightsQuery(inst.queryId)
 		if err != nil {
-			inst.ErrorMessageHandler(err.Error())
+			inst.ErrorMessageCallback(err.Error())
 		}
 		stopSuccess <- res
 	}()

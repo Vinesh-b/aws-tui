@@ -50,8 +50,8 @@ func NewMetricsDetailsView(
 		serviceView.SetAndDisplayError(text)
 	}
 
-	metricListTable.ErrorMessageHandler = errorHandler
-	metricDetailsTable.ErrorMessageHandler = errorHandler
+	metricListTable.ErrorMessageCallback = errorHandler
+	metricDetailsTable.ErrorMessageCallback = errorHandler
 
 	return &MetricDetailsView{
 		ServicePageView:    serviceView,

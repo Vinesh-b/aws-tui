@@ -97,7 +97,7 @@ func (inst *LogEventsTable) RefreshLogEvents(reset bool) {
 			reset,
 		)
 		if err != nil {
-			inst.ErrorMessageHandler(err.Error())
+			inst.ErrorMessageCallback(err.Error())
 		}
 		resultChannel <- struct{}{}
 	}()

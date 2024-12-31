@@ -75,7 +75,7 @@ func (inst *LambdaListTable) RefreshLambdas(force bool) {
 		} else {
 			inst.data, err = inst.api.ListLambdas(force)
 			if err != nil {
-				inst.ErrorMessageHandler(err.Error())
+				inst.ErrorMessageCallback(err.Error())
 			}
 		}
 

@@ -52,8 +52,8 @@ func NewStateMachinesDetailsPageView(
 		serviceView.SetAndDisplayError(text)
 	}
 
-	stateMachinesList.ErrorMessageHandler = errorHandler
-	stateMachineExecutions.ErrorMessageHandler = errorHandler
+	stateMachinesList.ErrorMessageCallback = errorHandler
+	stateMachineExecutions.ErrorMessageCallback = errorHandler
 
 	var detailsView = &StateMachinesDetailsPageView{
 		ServicePageView:             serviceView,
@@ -70,7 +70,7 @@ func NewStateMachinesDetailsPageView(
 }
 
 func (inst *StateMachinesDetailsPageView) initInputCapture() {
-	inst.stateMachinesTable.SetSelectionChangedFunc(func(row, column int) {
+	inst.stateMachinesTable.SetSelectedFunc(func(row, column int) {
 		var selectedFunc = inst.stateMachinesTable.GetSeletedFunctionArn()
 		inst.stateMachineExecutionsTable.SetSeletedFunctionArn(selectedFunc)
 		inst.stateMachineExecutionsTable.RefreshExecutions(false)
@@ -153,8 +153,8 @@ func NewStateMachineExectionDetailsPage(
 		serviceView.SetAndDisplayError(text)
 	}
 
-	executionSummary.ErrorMessageHandler = errorHandler
-	executionDetails.ErrorMessageHandler = errorHandler
+	executionSummary.ErrorMessageCallback = errorHandler
+	executionDetails.ErrorMessageCallback = errorHandler
 
 	var detailsView = &StateMachineExectionDetailsPageView{
 		ServicePageView:  serviceView,

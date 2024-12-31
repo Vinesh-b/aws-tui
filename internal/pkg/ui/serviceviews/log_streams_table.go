@@ -108,7 +108,7 @@ func (inst *LogStreamsTable) RefreshStreams(force bool) {
 			force,
 		)
 		if err != nil {
-			inst.ErrorMessageHandler(err.Error())
+			inst.ErrorMessageCallback(err.Error())
 		}
 		resultChannel <- struct{}{}
 	}()

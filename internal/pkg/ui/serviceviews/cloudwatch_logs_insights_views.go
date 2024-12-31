@@ -111,7 +111,7 @@ func NewInsightsQueryResultsPageView(
 		},
 	)
 
-	insightsQueryResultsTable.ErrorMessageHandler = func(text string) {
+	insightsQueryResultsTable.ErrorMessageCallback = func(text string) {
 		serviceView.SetAndDisplayError(text)
 	}
 
@@ -174,7 +174,7 @@ func NewLogsInsightsHomeView(
 		recordPtr = insightsResultsView.QueryResultsTable.GetRecordPtr(row)
 		var record, err = api.GetInsightsLogRecord(recordPtr)
 		if err != nil {
-			logEventsView.LogEventsTable.ErrorMessageHandler(err.Error())
+			logEventsView.LogEventsTable.ErrorMessageCallback(err.Error())
 		}
 
 		var logStream = record["@logStream"]

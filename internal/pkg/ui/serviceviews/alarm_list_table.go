@@ -82,7 +82,7 @@ func (inst *AlarmListTable) RefreshAlarms(force bool) {
 			var err error = nil
 			inst.data, err = inst.api.ListAlarms(force)
 			if err != nil {
-				inst.ErrorMessageHandler(err.Error())
+				inst.ErrorMessageCallback(err.Error())
 			}
 		}
 		resultChannel <- struct{}{}

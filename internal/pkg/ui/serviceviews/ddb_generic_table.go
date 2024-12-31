@@ -24,21 +24,21 @@ const (
 
 type DynamoDBGenericTable struct {
 	*DynamoDBTableSearchView
-	Table               *tview.Table
-	ErrorMessageHandler func(text string)
-	data                []map[string]interface{}
-	tableDescription    *types.TableDescription
-	selectedTable       string
-	pkQueryString       string
-	skQueryString       string
-	searchIndexName     string
-	logger              *log.Logger
-	app                 *tview.Application
-	api                 *awsapi.DynamoDBApi
-	attributeIdxMap     map[string]int
-	queryExpr           expression.Expression
-	pkName              string
-	skName              string
+	Table                *tview.Table
+	ErrorMessageCallback func(text string)
+	data                 []map[string]interface{}
+	tableDescription     *types.TableDescription
+	selectedTable        string
+	pkQueryString        string
+	skQueryString        string
+	searchIndexName      string
+	logger               *log.Logger
+	app                  *tview.Application
+	api                  *awsapi.DynamoDBApi
+	attributeIdxMap      map[string]int
+	queryExpr            expression.Expression
+	pkName               string
+	skName               string
 }
 
 func NewDynamoDBGenericTable(
@@ -51,7 +51,7 @@ func NewDynamoDBGenericTable(
 	var table = &DynamoDBGenericTable{
 		DynamoDBTableSearchView: NewDynamoDBTableSearchView(t, app, logger),
 		Table:                   t,
-		ErrorMessageHandler:     func(text string) {},
+		ErrorMessageCallback:    func(text string) {},
 		data:                    nil,
 		selectedTable:           "",
 		pkQueryString:           "",
@@ -70,7 +70,7 @@ func NewDynamoDBGenericTable(
 		var expr, err = table.GenerateQueryExpression()
 		if err != nil {
 			table.logger.Println(err.Error())
-            table.ErrorMessageHandler(err.Error())
+			table.ErrorMessageCallback(err.Error())
 			return
 		}
 		table.ExecuteSearch(DDBTableQuery, expr, true)
@@ -80,7 +80,7 @@ func NewDynamoDBGenericTable(
 		var expr, err = table.GenerateScanExpression()
 		if err != nil {
 			table.logger.Println(err.Error())
-            table.ErrorMessageHandler(err.Error())
+			table.ErrorMessageCallback(err.Error())
 			return
 		}
 		table.ExecuteSearch(DDBTableScan, expr, true)
@@ -184,7 +184,7 @@ func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expre
 		if reset || inst.tableDescription == nil {
 			inst.tableDescription, err = inst.api.DescribeTable(inst.selectedTable)
 			if err != nil {
-				inst.ErrorMessageHandler(err.Error())
+				inst.ErrorMessageCallback(err.Error())
 				resultChannel <- struct{}{}
 				return
 			}
@@ -198,7 +198,7 @@ func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expre
 		}
 
 		if err != nil {
-			inst.ErrorMessageHandler(err.Error())
+			inst.ErrorMessageCallback(err.Error())
 		}
 
 		resultChannel <- struct{}{}

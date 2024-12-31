@@ -50,7 +50,7 @@ func NewS3bucketsDetailsView(
 		serviceView.SetAndDisplayError(text)
 	}
 
-	bucketListTable.ErrorMessageHandler = errorHandler
+	bucketListTable.ErrorMessageCallback = errorHandler
 	bucketObjectsTable.ErrorMessageHandler = errorHandler
 
 	return &S3BucketsDetailsView{

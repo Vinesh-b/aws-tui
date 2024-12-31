@@ -50,8 +50,8 @@ func NewStacksDetailsPageView(
 		serviceView.SetAndDisplayError(text)
 	}
 
-	stackListTable.ErrorMessageHandler = errorHandler
-	stackDetailsTable.ErrorMessageHandler = errorHandler
+	stackListTable.ErrorMessageCallback = errorHandler
+	stackDetailsTable.ErrorMessageCallback = errorHandler
 
 	return &CloudFormationDetailsPageView{
 		ServicePageView:   serviceView,
@@ -133,7 +133,7 @@ func NewStackEventsPageView(
 		},
 	)
 
-	stackEventsTable.ErrorMessageHandler = func(text string) {
+	stackEventsTable.ErrorMessageCallback = func(text string) {
 		serviceView.SetAndDisplayError(text)
 	}
 

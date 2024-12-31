@@ -80,7 +80,7 @@ func (inst *StackDetailsTable) RefreshDetails(force bool) {
 
 		data, err = inst.api.ListStacks(force)
 		if err != nil {
-			inst.ErrorMessageHandler(err.Error())
+			inst.ErrorMessageCallback(err.Error())
 		}
 
 		var val, ok = data[inst.selectedStack]

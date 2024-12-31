@@ -81,7 +81,7 @@ func (inst *StackListTable) RefreshStacks(reset bool) {
 			var err error = nil
 			inst.data, err = inst.api.ListStacks(reset)
 			if err != nil {
-				inst.ErrorMessageHandler(err.Error())
+				inst.ErrorMessageCallback(err.Error())
 			}
 		}
 		resultChannel <- struct{}{}

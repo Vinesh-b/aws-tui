@@ -65,7 +65,7 @@ func (inst *MetricDetailsTable) RefreshDetails(metric string, reset bool) {
 		var err error = nil
 		inst.data, err = inst.api.ListMetrics(nil, "", "", reset)
 		if err != nil {
-			inst.ErrorMessageHandler(err.Error())
+			inst.ErrorMessageCallback(err.Error())
 		}
 		resultChannel <- struct{}{}
 	}()

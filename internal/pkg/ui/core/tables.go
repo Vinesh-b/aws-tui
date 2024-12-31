@@ -22,13 +22,13 @@ func ClampStringLen(input *string, maxLen int) string {
 
 type SelectableTable[T any] struct {
 	*SearchableView
-	table               *tview.Table
-	title               string
-	headings            TableRow
-	data                []TableRow
-	privateData         []T
-	privateColumn       int
-	ErrorMessageHandler func(text string)
+	table                *tview.Table
+	title                string
+	headings             TableRow
+	data                 []TableRow
+	privateData          []T
+	privateColumn        int
+	ErrorMessageCallback func(text string)
 }
 
 func NewSelectableTable[T any](title string, headings TableRow) *SelectableTable[T] {
@@ -37,13 +37,13 @@ func NewSelectableTable[T any](title string, headings TableRow) *SelectableTable
 		SetFixed(1, len(headings)-1)
 
 	var view = &SelectableTable[T]{
-		table:               table,
-		SearchableView:      NewSearchableView(table),
-		title:               title,
-		headings:            headings,
-		data:                nil,
-		privateColumn:       0,
-		ErrorMessageHandler: func(text string) {},
+		table:                table,
+		SearchableView:       NewSearchableView(table),
+		title:                title,
+		headings:             headings,
+		data:                 nil,
+		privateColumn:        0,
+		ErrorMessageCallback: func(text string) {},
 	}
 
 	view.SetTitle(title).
@@ -278,10 +278,10 @@ func (inst *SelectableTable[T]) ScrollToBeginning() *SelectableTable[T] {
 
 type DetailsTable struct {
 	*tview.Flex
-	table               *tview.Table
-	title               string
-	data                []TableRow
-	ErrorMessageHandler func(text string)
+	table                *tview.Table
+	title                string
+	data                 []TableRow
+	ErrorMessageCallback func(text string)
 }
 
 func NewDetailsTable(title string) *DetailsTable {
@@ -293,10 +293,10 @@ func NewDetailsTable(title string) *DetailsTable {
 		)
 
 	var view = &DetailsTable{
-		Flex:                tview.NewFlex(),
-		table:               table,
-		title:               title,
-		ErrorMessageHandler: func(text string) {},
+		Flex:                 tview.NewFlex(),
+		table:                table,
+		title:                title,
+		ErrorMessageCallback: func(text string) {},
 	}
 
 	view.SetTitle(title).

@@ -57,8 +57,8 @@ func NewAlarmsDetailsPageView(
 		serviceView.SetAndDisplayError(text)
 	}
 
-	alarmListTable.ErrorMessageHandler = errorHandler
-	alarmHistoryTable.ErrorMessageHandler = errorHandler
+	alarmListTable.ErrorMessageCallback = errorHandler
+	alarmHistoryTable.ErrorMessageCallback = errorHandler
 	alarmDetailsTable.ErrorMessageHandler = errorHandler
 
 	return &AlarmsDetailsPageView{

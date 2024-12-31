@@ -148,7 +148,7 @@ func (inst *StateMachineExecutionDetailsTable) RefreshExecutionDetails(execution
 		var err error = nil
 		inst.ExecutionHistory, err = inst.api.GetExecutionHistory(executionArn)
 		if err != nil {
-			inst.ErrorMessageHandler(err.Error())
+			inst.ErrorMessageCallback(err.Error())
 		}
 		resultChannel <- struct{}{}
 	}()

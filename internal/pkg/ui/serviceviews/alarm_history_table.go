@@ -82,7 +82,7 @@ func (inst *AlarmHistoryTable) RefreshHistory(force bool) {
 		var err error = nil
 		inst.data, err = inst.api.ListAlarmHistory(inst.selectedAlarm, force)
 		if err != nil {
-			inst.ErrorMessageHandler(err.Error())
+			inst.ErrorMessageCallback(err.Error())
 		}
 		resultChannel <- struct{}{}
 	}()

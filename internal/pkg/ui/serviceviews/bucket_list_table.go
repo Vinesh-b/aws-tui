@@ -75,7 +75,7 @@ func (inst *BucketListTable) RefreshBuckets(force bool) {
 			var err error = nil
 			inst.data, err = inst.api.ListBuckets(force)
 			if err != nil {
-				inst.ErrorMessageHandler(err.Error())
+				inst.ErrorMessageCallback(err.Error())
 			}
 		}
 		resultChannel <- struct{}{}
