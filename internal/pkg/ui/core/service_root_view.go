@@ -35,7 +35,7 @@ func NewServiceRootView(
 
 	view.
 		AddItem(pages, 0, 1, true).
-		AddItem(paginatorView.RootView, 1, 0, false)
+		AddItem(paginatorView, 1, 0, false)
 
 	return view
 }

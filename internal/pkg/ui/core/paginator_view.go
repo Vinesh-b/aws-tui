@@ -3,9 +3,9 @@ package core
 import "github.com/rivo/tview"
 
 type PaginatorView struct {
+	*tview.Flex
 	PageCounterView *tview.TextView
 	PageNameView    *tview.TextView
-	RootView        *tview.Flex
 }
 
 func CreatePaginatorView(service string) PaginatorView {
@@ -29,8 +29,8 @@ func CreatePaginatorView(service string) PaginatorView {
 	rootView.SetBorderPadding(0, 0, 1, 1)
 
 	return PaginatorView{
+		Flex:            rootView,
 		PageCounterView: pageCount,
 		PageNameView:    pageName,
-		RootView:        rootView,
 	}
 }
