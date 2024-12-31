@@ -45,7 +45,7 @@ func NewServicePageView(
 
 	view.MainPage.SetDirection(tview.FlexRow)
 
-	var floatingErrorView = FloatingView("Error", view.errorView, 80, 10)
+	var floatingErrorView = FloatingView("Error", view.errorView, 80, 15)
 	view.Pages.
 		AddPage("MAIN_PAGE", view.MainPage, true, true).
 		AddPage("ERROR", floatingErrorView, true, false)
