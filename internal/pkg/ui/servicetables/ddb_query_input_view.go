@@ -50,7 +50,7 @@ func NewDynamoDBQueryInputView(app *tview.Application, logger *log.Logger) *Dyna
 				AddItem(skInput, 0, 1, true),
 			0, 1, true,
 		).
-		AddItem(filterInputView.RootView, 2, 0, true).
+		AddItem(filterInputView, 2, 0, true).
 		AddItem(
 			tview.NewFlex().SetDirection(tview.FlexColumn).
 				AddItem(doneButton, 0, 1, true).
@@ -180,12 +180,12 @@ func (inst *DynamoDBQueryInputView) SetTableIndexes(indexes []string) {
 }
 
 type FilterInputView struct {
+	*tview.Flex
 	AttributeNameInput *tview.InputField
 	AttributeTypeInput *tview.InputField
 	Condition          *tview.InputField
 	Value1             *tview.InputField
 	Value2             *tview.InputField
-	RootView           *tview.Flex
 
 	tabNavigator *core.ViewNavigation
 	logger       *log.Logger
@@ -255,12 +255,12 @@ func NewFilterInputView(app *tview.Application, logger *log.Logger) *FilterInput
 	})
 
 	return &FilterInputView{
+		Flex:               wrapper,
 		AttributeNameInput: attrNameInput,
 		AttributeTypeInput: attrTypeInput,
 		Condition:          conditionInput,
 		Value1:             value1Input,
 		Value2:             value2Input,
-		RootView:           wrapper,
 
 		logger:       logger,
 		tabNavigator: tabNavigator,
@@ -422,7 +422,7 @@ func NewDynamoDBScanInputView(app *tview.Application, logger *log.Logger) *Dynam
 		AddItem(separater, 1, 0, true)
 
 	for _, view := range filterInputViews {
-		wrapper.AddItem(view.RootView, 3, 0, true)
+		wrapper.AddItem(view, 3, 0, true)
 	}
 
 	wrapper.AddItem(
@@ -475,7 +475,7 @@ func (inst *DynamoDBScanInputView) GenerateScanExpression() (expression.Expressi
 		names = append(names, expression.Name(attr))
 	}
 	if len(names) > 0 {
-        // FAILING: Build error: unset parameter: Builder
+		// FAILING: Build error: unset parameter: Builder
 		var projection = expression.NamesList(names[0], names[1:]...)
 		exprBuilder.WithProjection(projection)
 	}
