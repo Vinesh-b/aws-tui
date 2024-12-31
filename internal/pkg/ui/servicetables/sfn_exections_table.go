@@ -91,7 +91,7 @@ func (inst *StateMachineExecutionsTable) RefreshExecutions(force bool) {
 	go func() {
 		if len(inst.selectedFunctionArn) > 0 {
 			var err error = nil
-			inst.data, err = inst.api.ListExecutions(inst.selectedFunctionArn, false)
+			inst.data, err = inst.api.ListExecutions(inst.selectedFunctionArn, force)
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
 			}

@@ -74,7 +74,7 @@ func (inst *StateMachinesDetailsPageView) initInputCapture() {
 	inst.stateMachinesTable.SetSelectedFunc(func(row, column int) {
 		var selectedFunc = inst.stateMachinesTable.GetSeletedFunctionArn()
 		inst.stateMachineExecutionsTable.SetSeletedFunctionArn(selectedFunc)
-		inst.stateMachineExecutionsTable.RefreshExecutions(false)
+		inst.stateMachineExecutionsTable.RefreshExecutions(true)
 	})
 }
 
