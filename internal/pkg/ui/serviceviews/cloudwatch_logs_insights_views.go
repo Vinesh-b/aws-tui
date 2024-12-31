@@ -3,7 +3,6 @@ package serviceviews
 import (
 	"log"
 	"strings"
-	"time"
 
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
@@ -72,15 +71,11 @@ func (inst *LogGroupsSelectionPageView) InitInputCapture() {
 
 type InsightsQueryResultsPageView struct {
 	*core.ServicePageView
-	QueryResultsTable   *InsightsQueryResultsTable
-	ExpandedResult      *tview.TextArea
-	QueryInput          *tview.TextArea
-	QueryStartDateInput *tview.InputField
-	QueryEndDateInput   *tview.InputField
-	RunQueryButton      *tview.Button
-	app                 *tview.Application
-	api                 *awsapi.CloudWatchLogsApi
-	selectedLogGroups   *[]string
+	QueryResultsTable *InsightsQueryResultsTable
+	ExpandedResult    *tview.TextArea
+	app               *tview.Application
+	api               *awsapi.CloudWatchLogsApi
+	selectedLogGroups *[]string
 }
 
 func NewInsightsQueryResultsPageView(
@@ -89,35 +84,8 @@ func NewInsightsQueryResultsPageView(
 	api *awsapi.CloudWatchLogsApi,
 	logger *log.Logger,
 ) *InsightsQueryResultsPageView {
-
-	var queryInputView = core.CreateTextArea("Query")
-	queryInputView.SetText(
-		"fields @timestamp, @message, @log\n"+
-			"| sort @timestamp desc\n"+
-			"| limit 1000\n",
-		false,
-	)
-
-	var runQueryButton = tview.NewButton("Run Query")
-	var startDateInput = tview.NewInputField().SetFieldWidth(20).SetLabel("Start Date ")
-	var endDateInput = tview.NewInputField().SetFieldWidth(20).SetLabel("End Date   ")
-	var timeNow = time.Now()
-	startDateInput.SetText(timeNow.Add(time.Duration(-time.Hour)).Format(time.DateTime))
-	endDateInput.SetText(timeNow.Format(time.DateTime))
-
-	var queryRunView = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(startDateInput, 1, 0, false).
-		AddItem(endDateInput, 1, 0, false).
-		AddItem(tview.NewBox(), 1, 0, false).
-		AddItem(runQueryButton, 1, 0, false)
-	queryRunView.SetBorder(true)
-
-	var queryView = tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(queryInputView, 0, 1, false).
-		AddItem(queryRunView, 34, 0, false)
-
 	var expandedResultView = core.CreateExpandedLogView(
-		app, insightsQueryResultsTable.Table, -1, core.DATA_TYPE_STRING,
+		app, insightsQueryResultsTable, -1, core.DATA_TYPE_STRING,
 	)
 
 	const expandedLogsSize = 5
@@ -131,84 +99,32 @@ func NewInsightsQueryResultsPageView(
 	)
 
 	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(resizableView, 0, 1, false).
-		AddItem(queryView, queryViewSize, 0, true)
+		AddItem(resizableView, 0, 1, true)
 
 	var serviceView = core.NewServicePageView(app, logger)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			queryRunView,
-			queryInputView,
 			insightsQueryResultsTable,
 			expandedResultView,
 		},
 	)
 
+	insightsQueryResultsTable.ErrorMessageHandler = func(text string) {
+		serviceView.SetAndDisplayError(text)
+	}
+
 	return &InsightsQueryResultsPageView{
-		ServicePageView:     serviceView,
-		QueryResultsTable:   insightsQueryResultsTable,
-		QueryInput:          queryInputView,
-		ExpandedResult:      expandedResultView,
-		QueryStartDateInput: startDateInput,
-		QueryEndDateInput:   endDateInput,
-		RunQueryButton:      runQueryButton,
-		app:                 app,
-		api:                 api,
+		ServicePageView:   serviceView,
+		QueryResultsTable: insightsQueryResultsTable,
+		ExpandedResult:    expandedResultView,
+		app:               app,
+		api:               api,
 	}
 }
 
-func (inst *InsightsQueryResultsPageView) InitInputCapture() {
-	inst.QueryResultsTable.SetSearchDoneFunc(func(key tcell.Key) {
-		switch key {
-		case tcell.KeyCtrlR:
-			inst.QueryResultsTable.RefreshResults()
-		}
-	})
-
-	inst.QueryResultsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlR:
-			inst.QueryResultsTable.RefreshResults()
-		}
-
-		return event
-	})
-
-	inst.RunQueryButton.SetSelectedFunc(func() {
-		var layout = "2006-01-02 15:04:05"
-		var startTime, err_1 = time.Parse(layout, inst.QueryStartDateInput.GetText())
-		var endTime, err_2 = time.Parse(layout, inst.QueryEndDateInput.GetText())
-
-		if err_1 != nil || err_2 != nil {
-			return
-		}
-
-		var queryIdChan = make(chan string, 1)
-		go func() {
-			var res, err = inst.api.StartInightsQuery(
-				*inst.selectedLogGroups,
-				startTime,
-				endTime,
-				inst.QueryInput.GetText(),
-			)
-			if err != nil {
-				inst.SetAndDisplayError(err.Error())
-			}
-			queryIdChan <- res
-		}()
-
-		go func() {
-			inst.QueryResultsTable.SetQueryId(<-queryIdChan)
-			inst.QueryResultsTable.RefreshResults()
-		}()
-	})
-}
-
-func (inst *InsightsQueryResultsPageView) InitSearchInputBuffer(selectedGroups *[]string) {
-	inst.selectedLogGroups = selectedGroups
-}
+func (inst *InsightsQueryResultsPageView) InitInputCapture() {}
 
 func NewLogsInsightsHomeView(
 	app *tview.Application,
@@ -246,18 +162,17 @@ func NewLogsInsightsHomeView(
 	var serviceRootView = core.NewServiceRootView(
 		app, string(CLOUDWATCH_LOGS_INSIGHTS), pages, orderedPages).Init()
 
-	var logGroups []string
 	groupSelectionView.SeletedGroupsTable.SetSelectedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}
-		logGroups = groupSelectionView.SeletedGroupsTable.GetAllLogGroups()
-		serviceRootView.ChangePage(1, insightsResultsView.QueryInput)
+		var logGroups = groupSelectionView.SeletedGroupsTable.GetAllLogGroups()
+		insightsResultsView.QueryResultsTable.SetSelectedLogGroups(logGroups)
+		serviceRootView.ChangePage(1, insightsResultsView.QueryResultsTable)
 	})
 
 	groupSelectionView.InitInputCapture()
 	insightsResultsView.InitInputCapture()
-	insightsResultsView.InitSearchInputBuffer(&logGroups)
 
 	var recordPtr = ""
 	insightsResultsView.QueryResultsTable.SetSelectedFunc(func(row, column int) {

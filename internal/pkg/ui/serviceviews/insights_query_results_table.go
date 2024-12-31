@@ -15,14 +15,15 @@ import (
 )
 
 type InsightsQueryResultsTable struct {
-	*core.SearchableView
-	Table          *tview.Table
-	selectedLambda string
-	data           [][]types.ResultField
-	queryId        string
-	logger         *log.Logger
-	app            *tview.Application
-	api            *awsapi.CloudWatchLogsApi
+	*InsightsQuerySearchView
+	Table               *tview.Table
+	data                [][]types.ResultField
+	queryId             string
+	selectedLogGroups   []string
+	logger              *log.Logger
+	app                 *tview.Application
+	api                 *awsapi.CloudWatchLogsApi
+	ErrorMessageHandler func(text string)
 }
 
 func NewInsightsQueryResultsTable(
@@ -33,16 +34,16 @@ func NewInsightsQueryResultsTable(
 	var table = tview.NewTable()
 
 	var view = &InsightsQueryResultsTable{
-		SearchableView: core.NewSearchableView(table),
-		Table:          table,
-		data:           nil,
-		queryId:        "",
-		logger:         logger,
-		app:            app,
-		api:            api,
+		InsightsQuerySearchView: NewInsightsQuerySearchView(table, app, logger),
+		Table:                   table,
+		data:                    nil,
+		queryId:                 "",
+		logger:                  logger,
+		app:                     app,
+		api:                     api,
+		ErrorMessageHandler:     func(text string) {},
 	}
 
-	view.HighlightSearch = true
 	view.populateQueryResultsTable()
 	view.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
@@ -50,6 +51,10 @@ func NewInsightsQueryResultsTable(
 			view.RefreshResults()
 		}
 		return event
+	})
+
+	view.queryView.DoneButton.SetSelectedFunc(func() {
+		view.ExecuteQuery()
 	})
 
 	return view
@@ -117,7 +122,7 @@ func (inst *InsightsQueryResultsTable) RefreshResults() {
 			results, status, err = inst.api.GetInightsQueryResults(inst.queryId)
 			if err != nil {
 				// Send message to UI
-                break
+				break
 			}
 			if status == types.QueryStatusRunning || status == types.QueryStatusScheduled {
 				time.Sleep(2 * time.Second)
@@ -135,13 +140,50 @@ func (inst *InsightsQueryResultsTable) RefreshResults() {
 	})
 }
 
-func (inst *InsightsQueryResultsTable) SetSelectedFunc(handler func(row int, column int)) {
+func (inst *InsightsQueryResultsTable) ExecuteQuery() {
+	var query, err = inst.queryView.GenerateQuery()
+	if err != nil {
+		inst.ErrorMessageHandler(err.Error())
+		return
+	}
+
+	var queryIdChan = make(chan string, 1)
+	go func() {
+		var res, err = inst.api.StartInightsQuery(
+			inst.selectedLogGroups,
+			query.startTime,
+			query.endTime,
+			query.query,
+		)
+		if err != nil {
+			inst.ErrorMessageHandler(err.Error())
+		}
+		queryIdChan <- res
+	}()
+
+	go func() {
+		inst.SetQueryId(<-queryIdChan)
+		inst.RefreshResults()
+	}()
+}
+
+func (inst *InsightsQueryResultsTable) SetSelectedFunc(
+	handler func(row int, column int),
+) *InsightsQueryResultsTable {
 	inst.Table.SetSelectedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}
 		handler(row, column)
 	})
+	return inst
+}
+
+func (inst *InsightsQueryResultsTable) SetSelectionChangedFunc(
+	handler func(row int, column int),
+) *InsightsQueryResultsTable {
+	inst.Table.SetSelectionChangedFunc(handler)
+	return inst
 }
 
 func (inst *InsightsQueryResultsTable) SetQueryId(id string) {
@@ -159,4 +201,12 @@ func (inst *InsightsQueryResultsTable) GetRecordPtr(row int) string {
 		return ""
 	}
 	return msg.(string)
+}
+
+func (inst *InsightsQueryResultsTable) GetCell(row int, column int) *tview.TableCell {
+	return inst.Table.GetCell(row, column)
+}
+
+func (inst *InsightsQueryResultsTable) SetSelectedLogGroups(groups []string) {
+	inst.selectedLogGroups = groups
 }
