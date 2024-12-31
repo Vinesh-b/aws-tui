@@ -20,7 +20,7 @@ type View interface {
 type ServicePageView struct {
 	*tview.Pages
 	MainPage       *tview.Flex
-	ViewNavigation *ViewNavigation
+	viewNavigation *ViewNavigation
 	errorView      *ErrorMessageView
 	app            *tview.Application
 	logger         *log.Logger
@@ -38,7 +38,7 @@ func NewServicePageView(
 		MainPage:       flex,
 		Pages:          tview.NewPages(),
 		errorView:      NewErrorMessageView(app),
-		ViewNavigation: viewNav,
+		viewNavigation: viewNav,
 		app:            app,
 		logger:         logger,
 	}
@@ -58,7 +58,7 @@ func NewServicePageView(
 }
 
 func (inst *ServicePageView) InitViewNavigation(orderedViews []View) {
-	inst.ViewNavigation.UpdateOrderedViews(orderedViews, 0)
+	inst.viewNavigation.UpdateOrderedViews(orderedViews, 0)
 }
 
 func (inst *ServicePageView) SetAndDisplayError(text string) {
