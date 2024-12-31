@@ -3,6 +3,7 @@ package serviceviews
 import (
 	"aws-tui/internal/pkg/ui/core"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -98,26 +99,27 @@ func NewInsightsQueryInputView(app *tview.Application, logger *log.Logger) *Insi
 }
 
 func (inst *InsightsQueryInputView) validateInput() error {
-	var layout = "2006-01-02 15:04:05"
-	var err error = nil
-	if inst.query.startTime, err = time.Parse(layout, inst.startDateInput.GetText()); err != nil {
-		return err
-	}
-	if inst.query.endTime, err = time.Parse(layout, inst.endDateInput.GetText()); err != nil {
-		return err
-	}
 
 	return nil
 }
 
 func (inst *InsightsQueryInputView) GenerateQuery() (InsightsQuery, error) {
 	var err error = nil
+	var empty = InsightsQuery{}
 
-	if err = inst.validateInput(); err != nil {
-		return InsightsQuery{}, err
+	var layout = "2006-01-02 15:04:05"
+	if inst.query.startTime, err = time.Parse(layout, inst.startDateInput.GetText()); err != nil {
+		return empty, err
+	}
+	if inst.query.endTime, err = time.Parse(layout, inst.endDateInput.GetText()); err != nil {
+		return empty, err
 	}
 
-	inst.query.query = inst.queryTextArea.GetText()
+	var queryText = strings.TrimSpace(inst.queryTextArea.GetText())
+	if inst.query.query = queryText; len(queryText) > 0 {
+
+		// Todo return error
+	}
 
 	return inst.query, err
 }

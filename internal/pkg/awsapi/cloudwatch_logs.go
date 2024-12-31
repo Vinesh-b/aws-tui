@@ -210,6 +210,23 @@ func (inst *CloudWatchLogsApi) StartInightsQuery(
 	return aws.ToString(output.QueryId), nil
 }
 
+func (inst *CloudWatchLogsApi) StopInightsQuery(
+	queryId string,
+) (bool, error) {
+	var output, err = inst.client.StopQuery(
+		context.TODO(), &cloudwatchlogs.StopQueryInput{
+			QueryId: aws.String(queryId),
+		},
+	)
+
+	if err != nil {
+		inst.logger.Println(err)
+		return false, err
+	}
+
+	return *aws.Bool(output.Success), nil
+}
+
 func (inst *CloudWatchLogsApi) GetInightsQueryResults(
 	queryId string,
 ) ([][]types.ResultField, types.QueryStatus, error) {

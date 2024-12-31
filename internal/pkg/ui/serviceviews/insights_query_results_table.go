@@ -57,6 +57,10 @@ func NewInsightsQueryResultsTable(
 		view.ExecuteQuery()
 	})
 
+	view.queryView.CancelButton.SetSelectedFunc(func() {
+		view.StopQuery()
+	})
+
 	return view
 }
 
@@ -119,14 +123,26 @@ func (inst *InsightsQueryResultsTable) RefreshResults() {
 		var status types.QueryStatus
 		var err error = nil
 		for range 10 {
-			results, status, err = inst.api.GetInightsQueryResults(inst.queryId)
-			if err != nil {
-				// Send message to UI
+			if len(inst.queryId) == 0 {
 				break
 			}
-			if status == types.QueryStatusRunning || status == types.QueryStatusScheduled {
+
+			results, status, err = inst.api.GetInightsQueryResults(inst.queryId)
+
+			switch status {
+			case types.QueryStatusRunning, types.QueryStatusScheduled:
 				time.Sleep(2 * time.Second)
-			} else {
+			case types.QueryStatusComplete, types.QueryStatusCancelled:
+				inst.SetQueryId("")
+				break
+			default:
+				inst.SetQueryId("")
+
+				if err != nil {
+					inst.ErrorMessageHandler(err.Error())
+				} else {
+					inst.ErrorMessageHandler(fmt.Sprintf("Query failed with status %s", status))
+				}
 				break
 			}
 		}
@@ -147,8 +163,21 @@ func (inst *InsightsQueryResultsTable) ExecuteQuery() {
 		return
 	}
 
+	if len(inst.selectedLogGroups) == 0 {
+		inst.ErrorMessageHandler("No log groups selected")
+		return
+	}
+
 	var queryIdChan = make(chan string, 1)
 	go func() {
+		if len(inst.queryId) > 0 {
+			var _, err = inst.api.StopInightsQuery(inst.queryId)
+			if err != nil {
+				inst.ErrorMessageHandler(err.Error())
+			}
+			inst.SetQueryId("")
+		}
+
 		var res, err = inst.api.StartInightsQuery(
 			inst.selectedLogGroups,
 			query.startTime,
@@ -164,6 +193,26 @@ func (inst *InsightsQueryResultsTable) ExecuteQuery() {
 	go func() {
 		inst.SetQueryId(<-queryIdChan)
 		inst.RefreshResults()
+	}()
+}
+
+func (inst *InsightsQueryResultsTable) StopQuery() {
+	var stopSuccess = make(chan bool, 1)
+	go func() {
+		if len(inst.queryId) == 0 {
+			stopSuccess <- true
+			return
+		}
+		var res, err = inst.api.StopInightsQuery(inst.queryId)
+		if err != nil {
+			inst.ErrorMessageHandler(err.Error())
+		}
+		stopSuccess <- res
+	}()
+
+	go func() {
+		var _ = <-stopSuccess
+		inst.SetQueryId("")
 	}()
 }
 
