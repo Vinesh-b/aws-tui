@@ -85,7 +85,7 @@ func NewS3bucketsHomeView(
 	app *tview.Application,
 	config aws.Config,
 	logger *log.Logger,
-) tview.Primitive {
+) core.ServicePage {
 	core.ChangeColourScheme(tcell.NewHexColor(0x005500))
 	defer core.ResetGlobalStyle()
 
@@ -98,15 +98,11 @@ func NewS3bucketsHomeView(
 		)
 	)
 
-	var pages = tview.NewPages().
-		AddAndSwitchToPage("S3Buckets", s3DetailsView, true)
+	var serviceRootView = core.NewServiceRootView(app, string(S3BUCKETS))
 
-	var orderedPages = []string{
-		"S3Buckets",
-	}
+	serviceRootView.AddAndSwitchToPage("S3Buckets", s3DetailsView, true)
 
-	var serviceRootView = core.NewServiceRootView(
-		app, string(S3BUCKETS), pages, orderedPages).Init()
+	serviceRootView.InitPageNavigation()
 
 	s3DetailsView.InitInputCapture()
 

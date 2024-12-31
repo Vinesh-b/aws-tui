@@ -122,7 +122,7 @@ func NewDynamoDBHomeView(
 	app *tview.Application,
 	config aws.Config,
 	logger *log.Logger,
-) tview.Primitive {
+) core.ServicePage {
 	core.ChangeColourScheme(tcell.NewHexColor(0x003388))
 	defer core.ResetGlobalStyle()
 
@@ -140,18 +140,13 @@ func NewDynamoDBHomeView(
 		)
 	)
 
-	var pages = tview.NewPages()
-	pages.
-		AddPage("Items", ddbItemsView, true, true).
-		AddPage("Tables", ddbDetailsView, true, true)
+	var serviceRootView = core.NewServiceRootView(app, string(DYNAMODB))
 
-	var orderedPages = []string{
-		"Tables",
-		"Items",
-	}
+	serviceRootView.
+		AddAndSwitchToPage("Tables", ddbDetailsView, true).
+		AddPage("Items", ddbItemsView, true, true)
 
-	var serviceRootView = core.NewServiceRootView(
-		app, string(DYNAMODB), pages, orderedPages).Init()
+	serviceRootView.InitPageNavigation()
 
 	var selectedTableName = ""
 	ddbDetailsView.TablesTable.SetSelectionChangedFunc(func(row, column int) {

@@ -162,7 +162,7 @@ func NewStacksHomeView(
 	app *tview.Application,
 	config aws.Config,
 	logger *log.Logger,
-) tview.Primitive {
+) core.ServicePage {
 	core.ChangeColourScheme(tcell.NewHexColor(0x660033))
 	defer core.ResetGlobalStyle()
 
@@ -179,17 +179,13 @@ func NewStacksHomeView(
 		)
 	)
 
-	var pages = tview.NewPages().
-		AddPage("Events", stackEventsView, true, true).
-		AddAndSwitchToPage("Stacks", stacksDetailsView, true)
+	var serviceRootView = core.NewServiceRootView(app, string(CLOUDFORMATION))
 
-	var orderedPages = []string{
-		"Stacks",
-		"Events",
-	}
+	serviceRootView.
+		AddAndSwitchToPage("Stacks", stacksDetailsView, true).
+		AddPage("Events", stackEventsView, true, true)
 
-	var serviceRootView = core.NewServiceRootView(
-		app, string(CLOUDFORMATION), pages, orderedPages).Init()
+	serviceRootView.InitPageNavigation()
 
 	stacksDetailsView.stackDetailsTable.SetSelectedFunc(func(row, column int) {
 		var selectedStackName = stacksDetailsView.stackListTable.GetSelectedStackName()

@@ -109,7 +109,7 @@ func NewAlarmsHomeView(
 	app *tview.Application,
 	config aws.Config,
 	logger *log.Logger,
-) tview.Primitive {
+) core.ServicePage {
 	core.ChangeColourScheme(tcell.NewHexColor(0x660000))
 	defer core.ResetGlobalStyle()
 
@@ -122,15 +122,11 @@ func NewAlarmsHomeView(
 	)
 	alarmsDetailsView.InitInputCapture()
 
-	var pages = tview.NewPages().
-		AddAndSwitchToPage("Alarms", alarmsDetailsView, true)
+	var serviceRootView = core.NewServiceRootView(app, string(CLOUDWATCH_ALARMS))
 
-	var orderedPages = []string{
-		"Alarms",
-	}
+	serviceRootView.AddAndSwitchToPage("Alarms", alarmsDetailsView, true)
 
-	var serviceRootView = core.NewServiceRootView(
-		app, string(CLOUDWATCH_ALARMS), pages, orderedPages).Init()
+	serviceRootView.InitPageNavigation()
 
 	return serviceRootView
 }

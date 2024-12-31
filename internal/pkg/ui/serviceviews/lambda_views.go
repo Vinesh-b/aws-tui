@@ -210,7 +210,7 @@ func NewLambdaHomeView(
 	app *tview.Application,
 	config aws.Config,
 	logger *log.Logger,
-) tview.Primitive {
+) core.ServicePage {
 	core.ChangeColourScheme(tcell.NewHexColor(0xCC6600))
 	defer core.ResetGlobalStyle()
 
@@ -236,21 +236,15 @@ func NewLambdaHomeView(
 		)
 	)
 
-	var pages = tview.NewPages().
-		AddPage("Events", logEventsView, true, true).
-		AddPage("Streams", logStreamsView, true, true).
+	var serviceRootView = core.NewServiceRootView(app, string(LAMBDA))
+
+	serviceRootView.
+		AddAndSwitchToPage("Lambdas", lambdasDetailsView, true).
 		AddPage("Invoke", lambdaInvokeView, true, true).
-		AddAndSwitchToPage("Lambdas", lambdasDetailsView, true)
+		AddPage("Streams", logStreamsView, true, true).
+		AddPage("Events", logEventsView, true, true)
 
-	var orderedPages = []string{
-		"Lambdas",
-		"Invoke",
-		"Streams",
-		"Events",
-	}
-
-	var serviceRootView = core.NewServiceRootView(
-		app, string(LAMBDA), pages, orderedPages).Init()
+	serviceRootView.InitPageNavigation()
 
 	lambdasDetailsView.LambdaListTable.SetSelectedFunc(func(row, column int) {
 		if row < 1 {

@@ -225,3 +225,8 @@ func (inst *ViewNavigation) UpdateOrderedViews(orderedViews []View, intitalIxd i
 	inst.numViews = len(inst.orderedViews)
 	inst.viewIdx = (intitalIxd + inst.numViews) % inst.numViews
 }
+
+
+func (inst *ViewNavigation) GetLastFocusedView() tview.Primitive {
+    return inst.orderedViews[inst.viewIdx]
+}

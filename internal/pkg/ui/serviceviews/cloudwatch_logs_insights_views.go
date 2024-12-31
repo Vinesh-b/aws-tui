@@ -130,7 +130,7 @@ func NewLogsInsightsHomeView(
 	app *tview.Application,
 	config aws.Config,
 	logger *log.Logger,
-) tview.Primitive {
+) core.ServicePage {
 	core.ChangeColourScheme(tcell.NewHexColor(0xBB00DD))
 	defer core.ResetGlobalStyle()
 
@@ -148,19 +148,14 @@ func NewLogsInsightsHomeView(
 		app, api, logger,
 	)
 
-	var pages = tview.NewPages().
-		AddPage("LogEvents", logEventsView, true, true).
+	var serviceRootView = core.NewServiceRootView(app, string(CLOUDWATCH_LOGS_INSIGHTS))
+
+	serviceRootView.
+		AddAndSwitchToPage("GroupsSelection", groupSelectionView, true).
 		AddPage("Query", insightsResultsView, true, true).
-		AddAndSwitchToPage("GroupsSelection", groupSelectionView, true)
+		AddPage("LogEvents", logEventsView, true, true)
 
-	var orderedPages = []string{
-		"GroupsSelection",
-		"Query",
-		"LogEvents",
-	}
-
-	var serviceRootView = core.NewServiceRootView(
-		app, string(CLOUDWATCH_LOGS_INSIGHTS), pages, orderedPages).Init()
+	serviceRootView.InitPageNavigation()
 
 	groupSelectionView.SeletedGroupsTable.SetSelectedFunc(func(row, column int) {
 		if row < 1 {

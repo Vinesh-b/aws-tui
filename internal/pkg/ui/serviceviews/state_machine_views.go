@@ -176,7 +176,7 @@ func NewStepFunctionsHomeView(
 	app *tview.Application,
 	config aws.Config,
 	logger *log.Logger,
-) tview.Primitive {
+) core.ServicePage {
 	core.ChangeColourScheme(tcell.NewHexColor(0xFF3399))
 	defer core.ResetGlobalStyle()
 
@@ -194,17 +194,13 @@ func NewStepFunctionsHomeView(
 			app, api, logger)
 	)
 
-	var pages = tview.NewPages().
-		AddPage("Exection Details", executionDetailsView, true, true).
-		AddAndSwitchToPage("StateMachines", stateMachinesDetailsView, true)
+	var serviceRootView = core.NewServiceRootView(app, string(STATE_MACHINES))
 
-	var orderedPages = []string{
-		"StateMachines",
-		"Exection Details",
-	}
+	serviceRootView.
+		AddAndSwitchToPage("StateMachines", stateMachinesDetailsView, true).
+		AddPage("Exection Details", executionDetailsView, true, true)
 
-	var serviceRootView = core.NewServiceRootView(
-		app, string(STATE_MACHINES), pages, orderedPages).Init()
+	serviceRootView.InitPageNavigation()
 
 	var selectedExecution = ""
 	stateMachinesDetailsView.stateMachineExecutionsTable.SetSelectedFunc(func(row, column int) {

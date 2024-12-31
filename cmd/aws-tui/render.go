@@ -17,12 +17,20 @@ const (
 	FLOATING_SERVICE_LIST        = "FloatingServices"
 )
 
+type DebugLogView struct {
+	*tview.TextView
+}
+
+func (inst *DebugLogView) GetLastFocusedView() tview.Primitive {
+	return inst.TextView
+}
+
 func RenderUI(config aws.Config, version string) {
 	uicore.ResetGlobalStyle()
 
 	var (
 		app           = tview.NewApplication()
-		errorTextArea = tview.NewTextView().SetWordWrap(false)
+		errorTextArea = &DebugLogView{TextView: tview.NewTextView().SetWordWrap(false)}
 		inAppLogger   = log.New(
 			errorTextArea,
 			log.Default().Prefix(),
@@ -32,7 +40,7 @@ func RenderUI(config aws.Config, version string) {
 
 	config.Logger = logging.StandardLogger{Logger: inAppLogger}
 
-	var serviceViews = map[uiviews.ViewId]tview.Primitive{
+	var serviceViews = map[uiviews.ViewId]uicore.ServicePage{
 		uiviews.LAMBDA:                   uiviews.NewLambdaHomeView(app, config, inAppLogger),
 		uiviews.CLOUDWATCH_LOGS_GROUPS:   uiviews.NewLogsHomeView(app, config, inAppLogger),
 		uiviews.CLOUDWATCH_LOGS_INSIGHTS: uiviews.NewLogsInsightsHomeView(app, config, inAppLogger),
@@ -74,20 +82,19 @@ func RenderUI(config aws.Config, version string) {
 		AddAndSwitchToPage(HOME_PAGE, flexLanding, true)
 
 	var showServicesListToggle = false
-	var lastFocus = app.GetFocus()
 	servicesList.SetSelectedFunc(func(i int, serviceName string, _ string, r rune) {
 		var view, ok = serviceViews[uiviews.ViewId(serviceName)]
 		if ok {
 			currentServiceView.Clear()
 			currentServiceView.AddItem(view, 0, 1, false)
 			pages.SwitchToPage(SELECTED_SERVICE)
-			app.SetFocus(view)
+			app.SetFocus(view.GetLastFocusedView())
 
-			lastFocus = view
 			showServicesListToggle = true
 		}
 	})
 
+	var lastFocus = app.GetFocus()
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyESC:

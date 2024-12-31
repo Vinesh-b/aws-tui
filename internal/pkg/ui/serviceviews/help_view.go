@@ -8,14 +8,24 @@ import (
 	"github.com/rivo/tview"
 )
 
+type HelpView struct {
+	*tview.TextView
+}
+
+func (inst *HelpView) GetLastFocusedView() tview.Primitive {
+	return inst.TextView
+}
+
 func NewHelpHomeView(
 	app *tview.Application,
 	logger *log.Logger,
-) tview.Primitive {
+) core.ServicePage {
 	core.ChangeColourScheme(tcell.NewHexColor(0x005555))
 	defer core.ResetGlobalStyle()
 
-	var helpNavigation = tview.NewTextView()
+	var textView = tview.NewTextView()
+	var helpNavigation = &HelpView{TextView: textView}
+
 	helpNavigation.SetText(`
 Navigation:
 The section at the bottom of a service page will display the
@@ -45,15 +55,11 @@ Text Area:
 		SetTitleAlign(tview.AlignLeft).
 		SetBorder(true)
 
-	var pages = tview.NewPages().
-		AddAndSwitchToPage("Help Home", helpNavigation, true)
+	var serviceRootView = core.NewServiceRootView(app, string(HELP))
 
-	var orderedPages = []string{
-		"Help Home",
-	}
+	serviceRootView.AddAndSwitchToPage("Help Home", helpNavigation, true)
 
-	var serviceRootView = core.NewServiceRootView(
-		app, string(HELP), pages, orderedPages).Init()
+	serviceRootView.InitPageNavigation()
 
 	return serviceRootView
 }

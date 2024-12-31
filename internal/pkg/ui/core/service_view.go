@@ -17,11 +17,17 @@ type View interface {
 	SetFocusFunc(callback func()) *tview.Box
 }
 
+type ServicePage interface {
+	tview.Primitive
+	GetLastFocusedView() tview.Primitive
+}
+
 type ServicePageView struct {
 	*tview.Pages
 	MainPage       *tview.Flex
 	viewNavigation *ViewNavigation
 	errorView      *ErrorMessageView
+	lastFocusView  tview.Primitive
 	app            *tview.Application
 	logger         *log.Logger
 }
@@ -64,4 +70,8 @@ func (inst *ServicePageView) InitViewNavigation(orderedViews []View) {
 func (inst *ServicePageView) SetAndDisplayError(text string) {
 	inst.errorView.SetText(text)
 	inst.Pages.ShowPage("ERROR")
+}
+
+func (inst *ServicePageView) GetLastFocusedView() tview.Primitive {
+	return inst.viewNavigation.GetLastFocusedView()
 }

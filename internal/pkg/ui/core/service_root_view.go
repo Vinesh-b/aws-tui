@@ -9,40 +9,37 @@ import (
 
 type ServiceRootView struct {
 	*tview.Flex
-	pages         *tview.Pages
-	paginatorView PaginatorView
-	pageIndex     int
-	orderedPages  []string
-	app           *tview.Application
+	pages           *tview.Pages
+	paginatorView   PaginatorView
+	pageIndex       int
+	orderedPages    []string
+	pageViewMap     map[string]ServicePage
+	lastFocusedView tview.Primitive
+	app             *tview.Application
 }
 
 func NewServiceRootView(
 	app *tview.Application,
 	serviceName string,
-	pages *tview.Pages,
-	orderedPages []string,
 ) *ServiceRootView {
 	var paginatorView = CreatePaginatorView(serviceName)
 
 	var view = &ServiceRootView{
-		Flex:          tview.NewFlex().SetDirection(tview.FlexRow),
-		pages:         pages,
-		paginatorView: paginatorView,
-		pageIndex:     0,
-		orderedPages:  orderedPages,
-		app:           app,
+		Flex:            tview.NewFlex().SetDirection(tview.FlexRow),
+		pages:           tview.NewPages(),
+		paginatorView:   paginatorView,
+		pageIndex:       0,
+		orderedPages:    []string{},
+		pageViewMap:     map[string]ServicePage{},
+		lastFocusedView: nil,
+		app:             app,
 	}
 
 	view.
-		AddItem(pages, 0, 1, true).
+		AddItem(view.pages, 0, 1, true).
 		AddItem(paginatorView, 1, 0, false)
 
 	return view
-}
-
-func (inst *ServiceRootView) Init() *ServiceRootView {
-	inst.initPageNavigation()
-	return inst
 }
 
 func (inst *ServiceRootView) ChangePage(pageIdx int, focusView tview.Primitive) {
@@ -52,14 +49,19 @@ func (inst *ServiceRootView) ChangePage(pageIdx int, focusView tview.Primitive) 
 	inst.pages.SwitchToPage(pageName)
 	if focusView != nil {
 		inst.app.SetFocus(focusView)
+	} else {
+		if page, ok := inst.pageViewMap[pageName]; ok {
+			inst.app.SetFocus(page.GetLastFocusedView())
+		}
 	}
+
 	inst.paginatorView.PageNameView.SetText(pageName)
 	inst.paginatorView.PageCounterView.SetText(
 		fmt.Sprintf("<%d/%d>", inst.pageIndex+1, numPages),
 	)
 }
 
-func (inst *ServiceRootView) initPageNavigation() {
+func (inst *ServiceRootView) InitPageNavigation() {
 	var numPages = len(inst.orderedPages)
 	inst.ChangePage(0, nil)
 
@@ -76,4 +78,27 @@ func (inst *ServiceRootView) initPageNavigation() {
 		}
 		return event
 	})
+}
+
+func (inst *ServiceRootView) GetLastFocusedView() tview.Primitive {
+	var pageName = inst.orderedPages[inst.pageIndex]
+	return inst.pageViewMap[pageName].GetLastFocusedView()
+}
+
+func (inst *ServiceRootView) AddPage(
+	name string, item ServicePage, resize bool, visible bool,
+) *ServiceRootView {
+	inst.pages.AddPage(name, item, resize, visible)
+	inst.orderedPages = append(inst.orderedPages, name)
+	inst.pageViewMap[name] = item
+	return inst
+}
+
+func (inst *ServiceRootView) AddAndSwitchToPage(
+	name string, item ServicePage, resize bool,
+) *ServiceRootView {
+	inst.pages.AddAndSwitchToPage(name, item, resize)
+	inst.orderedPages = append(inst.orderedPages, name)
+	inst.pageViewMap[name] = item
+	return inst
 }

@@ -79,7 +79,7 @@ func NewMetricsHomeView(
 	app *tview.Application,
 	config aws.Config,
 	logger *log.Logger,
-) tview.Primitive {
+) core.ServicePage {
 	core.ChangeColourScheme(tcell.NewHexColor(0x660000))
 	defer core.ResetGlobalStyle()
 
@@ -91,15 +91,11 @@ func NewMetricsHomeView(
 	)
 	metricsDetailsView.InitInputCapture()
 
-	var pages = tview.NewPages().
-		AddAndSwitchToPage("Metrics", metricsDetailsView, true)
+	var serviceRootView = core.NewServiceRootView(app, string(CLOUDWATCH_METRICS))
 
-	var orderedPages = []string{
-		"Metrics",
-	}
+	serviceRootView.AddAndSwitchToPage("Metrics", metricsDetailsView, true)
 
-	var serviceRootView = core.NewServiceRootView(
-		app, string(CLOUDWATCH_METRICS), pages, orderedPages).Init()
+	serviceRootView.InitPageNavigation()
 
 	return serviceRootView
 }
