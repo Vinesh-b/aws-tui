@@ -49,14 +49,6 @@ func NewLogStreamsTable(
 
 	view.populateLogStreamsTable(false)
 	view.SetSelectedFunc(func(row, column int) {})
-	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlR:
-			view.RefreshStreams(true)
-		}
-		return event
-	})
-
 	view.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
