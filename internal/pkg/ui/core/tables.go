@@ -196,6 +196,15 @@ func (inst *SelectableTable[T]) SearchPrivateData(searchCols []int, search strin
 	return resultPositions
 }
 
+func (inst *SelectableTable[T]) GetPrivateData(row int, column int) T {
+    var ref = inst.table.GetCell(row, column).Reference
+    if ref == nil {
+        return *new(T)
+    }
+
+    return ref.(T)
+}
+
 func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
 	var nextSearch = 0
 

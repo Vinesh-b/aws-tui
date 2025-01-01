@@ -85,8 +85,8 @@ func NewInsightsQueryResultsPageView(
 	api *awsapi.CloudWatchLogsApi,
 	logger *log.Logger,
 ) *InsightsQueryResultsPageView {
-	var expandedResultView = core.CreateExpandedLogView(
-		app, insightsQueryResultsTable, -1, core.DATA_TYPE_STRING,
+	var expandedResultView = core.CreateJsonTableDataView(
+		app, insightsQueryResultsTable, -1,
 	)
 
 	const expandedLogsSize = 5

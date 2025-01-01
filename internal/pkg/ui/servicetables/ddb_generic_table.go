@@ -210,3 +210,19 @@ func (inst *DynamoDBGenericTable) SetSelectedTable(tableName string) {
 	inst.DynamoDBScanInputView.SetSelectedTable(tableName)
 	inst.selectedTable = tableName
 }
+
+func (inst *DynamoDBGenericTable) GetPrivateData(row int, column int) map[string]any {
+	var ref = inst.Table.GetCell(row, column).Reference
+	if ref == nil {
+		return map[string]any{}
+	}
+
+	return ref.(map[string]any)
+}
+
+func (inst *DynamoDBGenericTable) SetSelectionChangedFunc(
+	handler func(row int, column int),
+) *DynamoDBGenericTable {
+	inst.Table.SetSelectionChangedFunc(handler)
+	return inst
+}

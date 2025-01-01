@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/atotto/clipboard"
 	"github.com/gdamore/tcell/v2"
@@ -49,53 +50,44 @@ func TryFormatToJson(text string) (string, bool) {
 	return string(jsonBytes), true
 }
 
-type PrivateDataTable[T any] interface {
-	SetSelectionChangedFunc(handler func(row int, column int)) T
-	SetSelectedFunc(handler func(row int, column int)) T
-	GetCell(row int, column int) *tview.TableCell
+type PrivateDataTable[T any, U any] interface {
+	GetPrivateData(row int, column int) T
+	SetSelectionChangedFunc(handler func(row int, column int)) U
 }
 
-func CreateExpandedLogView[T any](
+func CreateJsonTableDataView[T any, U any](
 	app *tview.Application,
-	table PrivateDataTable[T],
+	table PrivateDataTable[T, U],
 	fixedColIdx int,
-	dataType MessageDataType,
 ) *tview.TextArea {
 	var expandedView = CreateTextArea("Message")
 
 	table.SetSelectionChangedFunc(func(row, column int) {
 		var col = column
-		if fixedColIdx >= 0 {
+		if fixedColIdx > -1 {
 			col = fixedColIdx
 		}
 
-		var privateData = table.GetCell(row, col).Reference
-		if row < 1 || privateData == nil {
+		var privateData = any(table.GetPrivateData(row, col))
+		var anyJson any
+
+		switch privateData.(type) {
+		case string:
+			var text = privateData.(string)
+			if err := json.Unmarshal([]byte(text), &anyJson); err != nil {
+				expandedView.SetText(text, false)
+				return
+			}
+		case map[string]interface{}:
+			anyJson = privateData.(map[string]interface{})
+		default:
+			var text = fmt.Sprintf("%v", privateData)
+			expandedView.SetText(text, false)
 			return
 		}
 
-		var anyJson map[string]interface{}
-		var logText = ""
-
-		switch dataType {
-		case DATA_TYPE_STRING:
-			var logText = privateData.(string)
-			var err = json.Unmarshal([]byte(logText), &anyJson)
-			if err != nil {
-				expandedView.SetText(logText, false)
-				return
-			}
-		case DATA_TYPE_MAP_STRING_ANY:
-			anyJson = privateData.(map[string]interface{})
-		}
-
 		var jsonBytes, _ = json.MarshalIndent(anyJson, "", "  ")
-		logText = string(jsonBytes)
-		expandedView.SetText(logText, false)
-	})
-
-	table.SetSelectedFunc(func(row, column int) {
-		app.SetFocus(expandedView)
+		expandedView.SetText(string(jsonBytes), false)
 	})
 
 	return expandedView

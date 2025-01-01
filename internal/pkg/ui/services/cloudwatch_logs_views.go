@@ -30,9 +30,7 @@ func NewLogEventsPageView(
 	logger *log.Logger,
 ) *LogEventsPageView {
 
-	var expandedLogsView = core.CreateExpandedLogView(
-		app, logEventsTable, 1, core.DATA_TYPE_STRING,
-	)
+	var expandedLogsView = core.CreateJsonTableDataView(app, logEventsTable, 1)
 
 	const expandedLogsSize = 7
 	const logTableSize = 13

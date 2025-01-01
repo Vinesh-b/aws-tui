@@ -251,8 +251,13 @@ func (inst *InsightsQueryResultsTable) GetRecordPtr(row int) string {
 	return msg.(string)
 }
 
-func (inst *InsightsQueryResultsTable) GetCell(row int, column int) *tview.TableCell {
-	return inst.Table.GetCell(row, column)
+func (inst *InsightsQueryResultsTable) GetPrivateData(row int, column int) string {
+	var ref = inst.Table.GetCell(row, column).Reference
+	if ref == nil {
+		return ""
+	}
+
+	return ref.(string)
 }
 
 func (inst *InsightsQueryResultsTable) SetSelectedLogGroups(groups []string) {

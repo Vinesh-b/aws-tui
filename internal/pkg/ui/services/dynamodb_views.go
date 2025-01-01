@@ -77,7 +77,7 @@ func NewDynamoDBTableItemsPage(
 	api *awsapi.DynamoDBApi,
 	logger *log.Logger,
 ) *DynamoDBTableItemsPage {
-	var expandItemView = core.CreateExpandedLogView(app, itemsTable.Table, 0, core.DATA_TYPE_MAP_STRING_ANY)
+	var expandItemView = core.CreateJsonTableDataView(app, itemsTable, 0)
 
 	const expandItemViewSize = 3
 	const itemsTableSize = 7
