@@ -76,18 +76,17 @@ func (inst *AlarmHistoryTable) populateAlarmHistoryTable(reset bool) {
 }
 
 func (inst *AlarmHistoryTable) RefreshHistory(force bool) {
-	var resultChannel = make(chan struct{})
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
-	go func() {
+	dataLoader.AsyncLoadData(func() {
 		var err error = nil
 		inst.data, err = inst.api.ListAlarmHistory(inst.selectedAlarm, force)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}
-		resultChannel <- struct{}{}
-	}()
+	})
 
-	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
+	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateAlarmHistoryTable(force)
 	})
 }

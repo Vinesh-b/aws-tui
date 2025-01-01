@@ -116,9 +116,9 @@ func (inst *InsightsQueryResultsTable) populateQueryResultsTable() {
 }
 
 func (inst *InsightsQueryResultsTable) RefreshResults() {
-	var resultChannel = make(chan struct{})
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
-	go func() {
+	dataLoader.AsyncLoadData(func() {
 		var results [][]types.ResultField
 		var status types.QueryStatus
 		var err error = nil
@@ -148,10 +148,9 @@ func (inst *InsightsQueryResultsTable) RefreshResults() {
 		}
 
 		inst.data = results
-		resultChannel <- struct{}{}
-	}()
+	})
 
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateQueryResultsTable() // update according to query status
 	})
 }

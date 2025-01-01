@@ -1,11 +1,8 @@
 package core
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"log"
-	"time"
 
 	"github.com/atotto/clipboard"
 	"github.com/gdamore/tcell/v2"
@@ -13,47 +10,6 @@ import (
 )
 
 type StringSet map[string]struct{}
-
-// Todo add timeout param
-func LoadData(
-	app *tview.Application,
-	view *tview.Box,
-	resultChannel chan struct{},
-	updateViewFunc func(),
-) {
-	var (
-		idx           = 0
-		originalTitle = view.GetTitle()
-		loadingSymbol = [8]string{"⢎⡰", "⢎⡡", "⢎⡑", "⢎⠱", "⠎⡱", "⢊⡱", "⢌⡱", "⢆⡱"}
-
-		timeoutCtx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
-	)
-	defer cancel()
-
-	for {
-		select {
-		case <-resultChannel:
-			app.QueueUpdateDraw(updateViewFunc)
-			return
-		case <-timeoutCtx.Done():
-			app.QueueUpdateDraw(func() {
-				view.SetTitle("Timed out")
-			})
-			return
-		default:
-			app.QueueUpdateDraw(func() {
-				view.SetTitle(fmt.Sprintf(originalTitle+"%s", loadingSymbol[idx]))
-			})
-			idx = (idx + 1) % len(loadingSymbol)
-			time.Sleep(time.Millisecond * 100)
-		}
-	}
-}
-
-type TableCreationParams struct {
-	App    *tview.Application
-	Logger *log.Logger
-}
 
 func CreateSearchInput(label string) *tview.InputField {
 	var inputField = tview.NewInputField().

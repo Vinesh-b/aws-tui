@@ -72,18 +72,17 @@ func (inst *StateMachineExecutionSummaryTable) populateTable() {
 
 func (inst *StateMachineExecutionSummaryTable) RefreshExecutionDetails(executionArn string, force bool) {
 	inst.selectedExecutionArn = executionArn
-	var resultChannel = make(chan struct{})
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
-	go func() {
+	dataLoader.AsyncLoadData(func() {
 		var err error = nil
 		inst.data, err = inst.api.DescribeExecution(executionArn)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}
-		resultChannel <- struct{}{}
-	}()
+	})
 
-	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
+	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateTable()
 	})
 }

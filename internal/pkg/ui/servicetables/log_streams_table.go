@@ -91,8 +91,9 @@ func (inst *LogStreamsTable) populateLogStreamsTable(extend bool) {
 }
 
 func (inst *LogStreamsTable) RefreshStreams(force bool) {
-	var resultChannel = make(chan struct{})
-	go func() {
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+
+	dataLoader.AsyncLoadData(func() {
 		var err error = nil
 		inst.data, err = inst.api.ListLogStreams(
 			inst.selectedLogGroup,
@@ -102,10 +103,9 @@ func (inst *LogStreamsTable) RefreshStreams(force bool) {
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}
-		resultChannel <- struct{}{}
-	}()
+	})
 
-	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
+	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateLogStreamsTable(!force)
 	})
 }

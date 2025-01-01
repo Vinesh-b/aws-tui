@@ -167,16 +167,15 @@ func (inst *BucketObjectsTable) populateS3ObjectsTable(
 
 func (inst *BucketObjectsTable) RefreshObjects(force bool) {
 	var dirs []types.CommonPrefix
-	var resultChannel = make(chan struct{})
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
-	go func() {
+	dataLoader.AsyncLoadData(func() {
 		var objects, commonPrefixes, err = inst.api.ListObjects(
 			inst.selectedBucket, inst.selectedPrefix, force,
 		)
 
 		if err != nil {
 			inst.ErrorMessageHandler(err.Error())
-			resultChannel <- struct{}{}
 			return
 		}
 
@@ -190,11 +189,9 @@ func (inst *BucketObjectsTable) RefreshObjects(force bool) {
 		}
 		dirs = commonPrefixes
 		inst.data = filterObjs
+	})
 
-		resultChannel <- struct{}{}
-	}()
-
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateS3ObjectsTable(dirs, !force)
 	})
 }

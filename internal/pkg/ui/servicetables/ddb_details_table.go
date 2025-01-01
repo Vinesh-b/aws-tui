@@ -83,18 +83,17 @@ func (inst *DynamoDBDetailsTable) populateDetailsTable() {
 }
 
 func (inst *DynamoDBDetailsTable) RefreshDetails() {
-	var resultChannel = make(chan struct{})
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
-	go func() {
+	dataLoader.AsyncLoadData(func() {
 		var err error = nil
 		inst.data, err = inst.api.DescribeTable(inst.selectedTable)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}
-		resultChannel <- struct{}{}
-	}()
+	})
 
-	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
+	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateDetailsTable()
 	})
 }

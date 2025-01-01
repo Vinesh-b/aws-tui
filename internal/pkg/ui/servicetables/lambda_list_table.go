@@ -65,10 +65,10 @@ func (inst *LambdaListTable) populateLambdasTable() {
 }
 
 func (inst *LambdaListTable) RefreshLambdas(force bool) {
-	var resultChannel = make(chan struct{})
 	var searchText = inst.GetSearchText()
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
-	go func() {
+	dataLoader.AsyncLoadData(func() {
 		var err error
 		if len(searchText) > 0 {
 			inst.data = inst.api.FilterByName(searchText)
@@ -78,11 +78,9 @@ func (inst *LambdaListTable) RefreshLambdas(force bool) {
 				inst.ErrorMessageCallback(err.Error())
 			}
 		}
+	})
 
-		resultChannel <- struct{}{}
-	}()
-
-	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
+	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateLambdasTable()
 	})
 }

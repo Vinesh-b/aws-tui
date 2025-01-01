@@ -73,9 +73,9 @@ func (inst *StackDetailsTable) populateStackDetailsTable() {
 
 func (inst *StackDetailsTable) RefreshDetails(force bool) {
 	var data map[string]types.StackSummary
-	var resultChannel = make(chan struct{})
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
-	go func() {
+	dataLoader.AsyncLoadData(func() {
 		var err error = nil
 
 		data, err = inst.api.ListStacks(force)
@@ -87,10 +87,9 @@ func (inst *StackDetailsTable) RefreshDetails(force bool) {
 		if ok {
 			inst.data = &val
 		}
-		resultChannel <- struct{}{}
-	}()
+	})
 
-	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
+	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateStackDetailsTable()
 	})
 }

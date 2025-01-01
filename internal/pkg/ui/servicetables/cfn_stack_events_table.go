@@ -79,9 +79,9 @@ func (inst *StackEventsTable) populateStackEventsTable(reset bool) {
 }
 
 func (inst *StackEventsTable) RefreshEvents(reset bool) {
-	var resultChannel = make(chan struct{})
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
-	go func() {
+	dataLoader.AsyncLoadData(func() {
 		if len(inst.selectedStack) > 0 {
 			var err error = nil
 			inst.data, err = inst.api.DescribeStackEvents(inst.selectedStack, reset)
@@ -91,10 +91,9 @@ func (inst *StackEventsTable) RefreshEvents(reset bool) {
 		} else {
 			inst.data = make([]types.StackEvent, 0)
 		}
-		resultChannel <- struct{}{}
-	}()
+	})
 
-	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
+	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateStackEventsTable(reset)
 	})
 }

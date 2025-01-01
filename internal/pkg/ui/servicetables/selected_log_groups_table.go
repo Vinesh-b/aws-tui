@@ -80,14 +80,13 @@ func (inst *SelectedGroupsTable) populateSelectedGroupsTable() {
 }
 
 func (inst *SelectedGroupsTable) RefreshSelectedGroups() {
-	var resultChannel = make(chan struct{})
-	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+
+	dataLoader.AsyncLoadData(func() {})
+
+	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateSelectedGroupsTable()
 	})
-
-	go func() {
-		resultChannel <- struct{}{}
-	}()
 
 }
 

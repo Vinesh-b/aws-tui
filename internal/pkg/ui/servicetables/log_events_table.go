@@ -87,9 +87,9 @@ func (inst *LogEventsTable) populateLogEventsTable(reset bool) {
 }
 
 func (inst *LogEventsTable) RefreshLogEvents(reset bool) {
-	var resultChannel = make(chan struct{})
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
-	go func() {
+	dataLoader.AsyncLoadData(func() {
 		var err error = nil
 		inst.data, err = inst.api.ListLogEvents(
 			inst.selectedLogGroup,
@@ -99,10 +99,9 @@ func (inst *LogEventsTable) RefreshLogEvents(reset bool) {
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}
-		resultChannel <- struct{}{}
-	}()
+	})
 
-	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
+	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateLogEventsTable(reset)
 	})
 }

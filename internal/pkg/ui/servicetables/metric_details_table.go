@@ -59,18 +59,17 @@ func (inst *MetricDetailsTable) populateMetricDetailsTable() {
 
 func (inst *MetricDetailsTable) RefreshDetails(metric string, reset bool) {
 	inst.currentMetric = metric
-	var resultChannel = make(chan struct{})
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
-	go func() {
+	dataLoader.AsyncLoadData(func() {
 		var err error = nil
 		inst.data, err = inst.api.ListMetrics(nil, "", "", reset)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}
-		resultChannel <- struct{}{}
-	}()
+	})
 
-	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
+	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateMetricDetailsTable()
 	})
 }

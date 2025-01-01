@@ -172,17 +172,16 @@ func (inst *LambdaInvokePageView) loadResponse(text string) {
 }
 
 func (inst *LambdaInvokePageView) Invoke() {
-	var resultChannel = make(chan struct{})
 	var logResults = []byte{}
 	var responseOutput = []byte{}
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
-	go func() {
+	dataLoader.AsyncLoadData(func() {
 		var err error
 		var payload = make(map[string]any)
 		err = json.Unmarshal([]byte(inst.payloadInput.GetText()), &payload)
 		if err != nil {
 			// log something to the console
-			resultChannel <- struct{}{}
 			return
 		}
 
@@ -198,10 +197,9 @@ func (inst *LambdaInvokePageView) Invoke() {
 		}
 
 		responseOutput = data.Payload
-		resultChannel <- struct{}{}
-	}()
+	})
 
-	go core.LoadData(inst.app, inst.responseOutput.Box, resultChannel, func() {
+	dataLoader.AsyncUpdateView(inst.responseOutput.Box, func() {
 		inst.loadResponse(string(responseOutput))
 		inst.loadLogs(string(logResults))
 	})

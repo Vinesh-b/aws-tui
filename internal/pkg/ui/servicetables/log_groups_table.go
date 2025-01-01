@@ -82,9 +82,9 @@ func (inst *LogGroupsTable) populateLogGroupsTable() {
 }
 
 func (inst *LogGroupsTable) RefreshLogGroups(search string) {
-	var resultChannel = make(chan struct{})
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
-	go func() {
+	dataLoader.AsyncLoadData(func() {
 		var err error = nil
 		if len(search) > 0 {
 			inst.data = inst.api.FilterGroupByName(search)
@@ -94,10 +94,9 @@ func (inst *LogGroupsTable) RefreshLogGroups(search string) {
 				inst.ErrorMessageCallback(err.Error())
 			}
 		}
-		resultChannel <- struct{}{}
-	}()
+	})
 
-	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
+	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateLogGroupsTable()
 	})
 }

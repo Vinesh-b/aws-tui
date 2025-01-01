@@ -76,19 +76,19 @@ func (inst *LambdaDetailsTable) populateLambdaDetailsTable() {
 func (inst *LambdaDetailsTable) RefreshDetails(lambdaName string, force bool) {
 	inst.selectedLambda = lambdaName
 	var data map[string]types.FunctionConfiguration
-	var resultChannel = make(chan struct{})
 
-	go func() {
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+
+	dataLoader.AsyncLoadData(func() {
 		var err error
 		data, err = inst.api.ListLambdas(force)
 
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}
-		resultChannel <- struct{}{}
-	}()
+	})
 
-	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
+	dataLoader.AsyncUpdateView(inst.Box, func() {
 		var val, ok = data[lambdaName]
 		if ok {
 			inst.data = &val

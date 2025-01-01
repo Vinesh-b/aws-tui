@@ -67,9 +67,9 @@ func (inst *MetricListTable) populateMetricsTable() {
 
 func (inst *MetricListTable) RefreshMetrics(search string, force bool) {
 	inst.currentSearch = search
-	var resultChannel = make(chan struct{})
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
-	go func() {
+	dataLoader.AsyncLoadData(func() {
 		if len(search) > 0 {
 			inst.data = inst.api.FilterByName(search)
 		} else {
@@ -79,10 +79,9 @@ func (inst *MetricListTable) RefreshMetrics(search string, force bool) {
 				inst.ErrorMessageCallback(err.Error())
 			}
 		}
-		resultChannel <- struct{}{}
-	}()
+	})
 
-	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
+	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateMetricsTable()
 	})
 }

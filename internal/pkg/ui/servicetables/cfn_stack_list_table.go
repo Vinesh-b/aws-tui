@@ -71,10 +71,10 @@ func (inst *StackListTable) populateStacksTable() {
 }
 
 func (inst *StackListTable) RefreshStacks(reset bool) {
-	var resultChannel = make(chan struct{})
 	var searchText = inst.GetSearchText()
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
-	go func() {
+	dataLoader.AsyncLoadData(func() {
 		if len(searchText) > 0 {
 			inst.data = inst.api.FilterByName(searchText)
 		} else {
@@ -84,10 +84,9 @@ func (inst *StackListTable) RefreshStacks(reset bool) {
 				inst.ErrorMessageCallback(err.Error())
 			}
 		}
-		resultChannel <- struct{}{}
-	}()
+	})
 
-	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
+	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateStacksTable()
 	})
 }

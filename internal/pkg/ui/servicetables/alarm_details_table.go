@@ -89,9 +89,9 @@ func (inst *AlarmDetailsTable) populateAlarmDetailsGrid() {
 
 func (inst *AlarmDetailsTable) RefreshDetails() {
 	var data map[string]types.MetricAlarm
-	var resultChannel = make(chan struct{})
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
-	go func() {
+	dataLoader.AsyncLoadData(func() {
 		if len(inst.selectedAlarm) > 0 {
 			var err error = nil
 			data, err = inst.api.ListAlarms(false)
@@ -104,10 +104,9 @@ func (inst *AlarmDetailsTable) RefreshDetails() {
 				inst.data = &val
 			}
 		}
-		resultChannel <- struct{}{}
-	}()
+	})
 
-	go core.LoadData(inst.app, inst.Grid.Box, resultChannel, func() {
+	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateAlarmDetailsGrid()
 	})
 }

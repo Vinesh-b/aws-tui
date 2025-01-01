@@ -86,9 +86,9 @@ func (inst *StateMachineExecutionsTable) SetSelectedFunc(handler func(row int, c
 }
 
 func (inst *StateMachineExecutionsTable) RefreshExecutions(force bool) {
-	var resultChannel = make(chan struct{})
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
-	go func() {
+	dataLoader.AsyncLoadData(func() {
 		if len(inst.selectedFunctionArn) > 0 {
 			var err error = nil
 			inst.data, err = inst.api.ListExecutions(inst.selectedFunctionArn, force)
@@ -96,11 +96,9 @@ func (inst *StateMachineExecutionsTable) RefreshExecutions(force bool) {
 				inst.ErrorMessageCallback(err.Error())
 			}
 		}
+	})
 
-		resultChannel <- struct{}{}
-	}()
-
-	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
+	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateExecutionsTable()
 	})
 }

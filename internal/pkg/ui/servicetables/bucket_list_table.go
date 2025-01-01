@@ -65,10 +65,10 @@ func (inst *BucketListTable) populateS3BucketsTable() {
 }
 
 func (inst *BucketListTable) RefreshBuckets(force bool) {
-	var resultChannel = make(chan struct{})
 	var search = inst.GetSearchText()
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
-	go func() {
+	dataLoader.AsyncLoadData(func() {
 		if len(search) > 0 {
 			inst.data = inst.api.FilterByName(search)
 		} else {
@@ -78,10 +78,9 @@ func (inst *BucketListTable) RefreshBuckets(force bool) {
 				inst.ErrorMessageCallback(err.Error())
 			}
 		}
-		resultChannel <- struct{}{}
-	}()
+	})
 
-	go core.LoadData(inst.app, inst.Box, resultChannel, func() {
+	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateS3BucketsTable()
 	})
 }

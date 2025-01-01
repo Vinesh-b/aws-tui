@@ -171,12 +171,11 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 }
 
 func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expression.Expression, reset bool) {
-	var resultChannel = make(chan struct{})
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
-	go func() {
+	dataLoader.AsyncLoadData(func() {
 		if len(inst.selectedTable) <= 0 {
 			inst.data = make([]map[string]interface{}, 0)
-			resultChannel <- struct{}{}
 			return
 		}
 
@@ -185,7 +184,6 @@ func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expre
 			inst.tableDescription, err = inst.api.DescribeTable(inst.selectedTable)
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
-				resultChannel <- struct{}{}
 				return
 			}
 		}
@@ -200,11 +198,9 @@ func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expre
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}
+	})
 
-		resultChannel <- struct{}{}
-	}()
-
-	go core.LoadData(inst.app, inst.Table.Box, resultChannel, func() {
+	dataLoader.AsyncUpdateView(inst.Table.Box, func() {
 		inst.populateDynamoDBTable(!reset)
 	})
 }
