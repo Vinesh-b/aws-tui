@@ -5,6 +5,7 @@ import (
 	"aws-tui/internal/pkg/ui/core"
 	"fmt"
 	"log"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -12,6 +13,103 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
+
+type DynamoDBDataType int
+
+const (
+	Number DynamoDBDataType = iota
+	String
+	Boolean
+	Binary
+	Null
+)
+
+func DynamoDBDataTypeString(val string) (DynamoDBDataType, error) {
+	var stringEnumMap = map[string]DynamoDBDataType{
+		"number": Number,
+		"string": String,
+		"bool":   Boolean,
+		"binary": Binary,
+		"null":   Null,
+	}
+
+	var cond, found = stringEnumMap[val]
+
+	if !found {
+		return -1, errors.NewDDBViewError(
+			errors.InvalidOption,
+			"Invalid data type set",
+		)
+	}
+
+	return cond, nil
+}
+
+type DynamoDBCondition int
+
+const (
+	Equals DynamoDBCondition = iota
+	NotEquals
+	LessThan
+	GreaterThan
+	LessThanOrEqual
+	GreaterThanOrEqual
+	Exists
+	NotExists
+	Between
+	Contains
+	BeginsWith
+)
+
+func DynamoDBConditionFromString(val string) (DynamoDBCondition, error) {
+	var stringEnumMap = map[string]DynamoDBCondition{
+		"eq":       Equals,
+		"neq":      NotEquals,
+		"lt":       LessThan,
+		"gt":       GreaterThan,
+		"lte":      LessThanOrEqual,
+		"gte":      GreaterThanOrEqual,
+		"exists":   Exists,
+		"nexists":  NotExists,
+		"between":  Between,
+		"contains": Contains,
+		"begins":   BeginsWith,
+	}
+
+	var cond, found = stringEnumMap[val]
+
+	if !found {
+		return -1, errors.NewDDBViewError(
+			errors.InvalidOption,
+			"Invalid condition set",
+		)
+	}
+
+	return cond, nil
+}
+
+func DynamoDBTypeOpMap() map[DynamoDBDataType][]DynamoDBCondition {
+	return map[DynamoDBDataType][]DynamoDBCondition{
+		String: {
+			Equals, NotEquals, LessThan, GreaterThan, LessThanOrEqual, GreaterThanOrEqual,
+			Exists, NotExists, Between, Contains, BeginsWith,
+		},
+		Binary: {
+			Equals, NotEquals, LessThan, GreaterThan, LessThanOrEqual, GreaterThanOrEqual,
+			Exists, NotExists, Between, Contains, BeginsWith,
+		},
+		Number: {
+			Equals, NotEquals, LessThan, GreaterThan, LessThanOrEqual, GreaterThanOrEqual,
+			Exists, NotExists, Between,
+		},
+		Boolean: {
+			Equals, NotEquals, Exists, NotExists,
+		},
+		Null: {
+			Exists, NotExists,
+		},
+	}
+}
 
 type DynamoDBQueryInputView struct {
 	QueryDoneButton   *tview.Button
@@ -179,6 +277,14 @@ func (inst *DynamoDBQueryInputView) SetTableIndexes(indexes []string) {
 	inst.indexes = indexes
 }
 
+type FilterInput struct {
+	AttributeName string
+	AttributeType DynamoDBDataType
+	Condition     DynamoDBCondition
+	Value1        any
+	Value2        any
+}
+
 type FilterInputView struct {
 	*tview.Flex
 	AttributeNameInput *tview.InputField
@@ -187,6 +293,7 @@ type FilterInputView struct {
 	Value1             *tview.InputField
 	Value2             *tview.InputField
 
+	filterInput  FilterInput
 	tabNavigator *core.ViewNavigation
 	logger       *log.Logger
 }
@@ -267,42 +374,21 @@ func NewFilterInputView(app *tview.Application, logger *log.Logger) *FilterInput
 	}
 }
 
-func (inst *FilterInputView) isConditionAllowed(attrType string, condition string) bool {
-	var allowedSet = StringSet{}
-	var allowedCond = []string{}
+func (inst *FilterInputView) isConditionAllowed(attrType DynamoDBDataType, condition DynamoDBCondition) bool {
+	var typeOpMapping = DynamoDBTypeOpMap()
+	var conditions, _ = typeOpMapping[attrType]
+	var res = slices.Index(conditions, condition)
 
-	switch attrType {
-	case "null":
-		allowedCond = []string{"exists", "nexists"}
-	case "bool":
-		allowedCond = []string{"eq", "neq", "exists", "nexists"}
-	case "number":
-		allowedCond = []string{
-			"eq", "neq", "lt", "lte", "gt", "gte",
-			"exists", "nexists", "between",
-		}
-	case "string", "binary":
-		allowedCond = []string{
-			"eq", "neq", "lt", "lte", "gt", "gte",
-			"exists", "nexists", "between", "contains", "begins",
-		}
-	}
-
-	for _, c := range allowedCond {
-		allowedSet[c] = struct{}{}
-	}
-
-	var _, found = allowedSet[condition]
-	return found
+	return res != -1
 }
 
-func (inst *FilterInputView) parseValue(value string, dataType string) (any, error) {
+func (inst *FilterInputView) parseValue(value string, dataType DynamoDBDataType) (any, error) {
 	var parsedValue any
 	var err error = nil
 	switch dataType {
-	case "bool":
+	case Boolean:
 		parsedValue, err = strconv.ParseBool(value)
-	case "number":
+	case Number:
 		parsedValue, err = strconv.ParseFloat(value, 64)
 	default:
 		parsedValue = value
@@ -311,74 +397,108 @@ func (inst *FilterInputView) parseValue(value string, dataType string) (any, err
 	return parsedValue, err
 }
 
-func (inst *FilterInputView) GenerateFilterCondition() (expression.ConditionBuilder, error) {
+func (inst *FilterInputView) parseInputFields() (FilterInput, error) {
 	var attrName = strings.TrimSpace(inst.AttributeNameInput.GetText())
 	var attrType = strings.ToLower(inst.AttributeTypeInput.GetText())
 	var attrValue1 = strings.TrimSpace(inst.Value1.GetText())
 	var attrValue2 = strings.TrimSpace(inst.Value2.GetText())
 	var cond = strings.TrimSpace(strings.ToLower(inst.Condition.GetText()))
 
-	var filterCond = expression.ConditionBuilder{}
+	var err error = nil
+	var filterInput = FilterInput{}
 
-	if len(attrName) == 0 || len(attrType) == 0 || len(cond) == 0 {
-		return filterCond, nil
-	}
-
-	if !inst.isConditionAllowed(attrType, cond) {
-		return filterCond, errors.NewDDBViewError(
-			errors.InvalidOption,
-			fmt.Sprintf("`%v` does not support condition `%v`", attrType, cond),
+	if filterInput.AttributeName = attrName; len(attrName) == 0 {
+		return filterInput, errors.NewDDBViewError(
+			errors.MissingRequiredInput,
+			"Attribute name not set",
 		)
 	}
 
-	switch cond {
-	case "exists":
-		filterCond = expression.Name(attrName).AttributeExists()
-		return filterCond, nil
-	case "nexists":
-		filterCond = expression.Name(attrName).AttributeNotExists()
-		return filterCond, nil
+	if filterInput.AttributeType, err = DynamoDBDataTypeString(attrType); err != nil {
+		return filterInput, err
 	}
 
-	var parsedValue1, val1Err = inst.parseValue(attrValue1, attrType)
-	if val1Err != nil {
-		return filterCond, errors.NewDDBViewError(
+	if filterInput.Condition, err = DynamoDBConditionFromString(cond); err != nil {
+		return filterInput, err
+	}
+
+	if !inst.isConditionAllowed(filterInput.AttributeType, filterInput.Condition) {
+		return filterInput, errors.NewDDBViewError(
 			errors.InvalidOption,
-			fmt.Sprintf("Value 1 conversion failed %v", val1Err),
+			"Attribute type does not support given condition",
 		)
 	}
 
-	switch cond {
-	case "eq":
-		filterCond = expression.Name(attrName).Equal(expression.Value(parsedValue1))
-	case "neq":
-		filterCond = expression.Name(attrName).NotEqual(expression.Value(parsedValue1))
-	case "lt":
-		filterCond = expression.Name(attrName).LessThan(expression.Value(parsedValue1))
-	case "lte":
-		filterCond = expression.Name(attrName).LessThanEqual(expression.Value(parsedValue1))
-	case "gt":
-		filterCond = expression.Name(attrName).GreaterThan(expression.Value(parsedValue1))
-	case "gte":
-		filterCond = expression.Name(attrName).GreaterThanEqual(expression.Value(parsedValue1))
-	case "contains":
-		filterCond = expression.Name(attrName).Contains(parsedValue1)
-	case "begins":
-		filterCond = expression.Name(attrName).BeginsWith(parsedValue1.(string))
-	case "between":
-		var parsedValue2, val2Err = inst.parseValue(attrValue2, attrType)
-		if val2Err != nil {
-			return filterCond, errors.NewDDBViewError(
-				errors.InvalidOption,
-				fmt.Sprintf("Value 2 conversion failed %v", val2Err),
+	if filterInput.Condition != Exists && filterInput.Condition != NotExists {
+		if len(attrValue1) == 0 {
+			return filterInput, errors.NewDDBViewError(
+				errors.MissingRequiredInput,
+				"Attribute value not set",
 			)
 		}
+		if filterInput.Value1, err = inst.parseValue(attrValue1, filterInput.AttributeType); err != nil {
+			return filterInput, errors.NewDDBViewError(
+				errors.InvalidOption,
+				fmt.Sprintf("Value 1 conversion failed %v", err),
+			)
+		}
+	}
 
-		filterCond = expression.Name(attrName).Between(
-			expression.Value(parsedValue1),
-			expression.Value(parsedValue2),
-		)
+	if filterInput.Condition == Between {
+		if len(attrValue2) == 0 {
+			return filterInput, errors.NewDDBViewError(
+				errors.MissingRequiredInput,
+				"Second attribute value not set",
+			)
+		}
+		if filterInput.Value2, err = inst.parseValue(attrValue2, filterInput.AttributeType); err != nil {
+			return filterInput, errors.NewDDBViewError(
+				errors.InvalidOption,
+				fmt.Sprintf("Value 2 conversion failed %v", err),
+			)
+		}
+	}
 
+	return filterInput, nil
+}
+
+func (inst *FilterInputView) GenerateFilterCondition() (expression.ConditionBuilder, error) {
+	var filterInput, err = inst.parseInputFields()
+	var filterCond = expression.ConditionBuilder{}
+
+	if err != nil {
+		return filterCond, err
+	}
+
+	var exprName = expression.Name(filterInput.AttributeName)
+	var exprVal1 = expression.Value(filterInput.Value1)
+	var exprVal2 = expression.Value(filterInput.Value2)
+
+	switch filterInput.Condition {
+	case Equals:
+		filterCond = exprName.Equal(exprVal1)
+	case NotEquals:
+		filterCond = exprName.NotEqual(exprVal1)
+	case LessThan:
+		filterCond = exprName.LessThan(exprVal1)
+	case LessThanOrEqual:
+		filterCond = exprName.LessThanEqual(exprVal1)
+	case GreaterThan:
+		filterCond = exprName.GreaterThan(exprVal1)
+	case GreaterThanOrEqual:
+		filterCond = exprName.GreaterThanEqual(exprVal1)
+	case Contains:
+		filterCond = exprName.Contains(filterInput.Value1)
+	case BeginsWith:
+		filterCond = exprName.BeginsWith(filterInput.Value1.(string))
+	case Exists:
+		filterCond = exprName.AttributeExists()
+		return filterCond, nil
+	case NotExists:
+		filterCond = exprName.AttributeNotExists()
+		return filterCond, nil
+	case Between:
+		filterCond = exprName.Between(exprVal1, exprVal2)
 	default:
 		return filterCond, errors.NewDDBViewError(
 			errors.InvalidOption,
@@ -463,7 +583,12 @@ func (inst *DynamoDBScanInputView) GenerateScanExpression() (expression.Expressi
 	}
 
 	if filterCond.IsSet() {
-		exprBuilder.WithFilter(filterCond)
+		exprBuilder = exprBuilder.WithFilter(filterCond)
+	} else {
+		return expression.Expression{}, errors.NewDDBViewError(
+			errors.InvalidFilterCondition,
+			"Filter Condition not set",
+		)
 	}
 
 	var projectionText = strings.TrimSpace(inst.projectedAttributesInput.GetText())
@@ -471,13 +596,12 @@ func (inst *DynamoDBScanInputView) GenerateScanExpression() (expression.Expressi
 
 	var names = []expression.NameBuilder{}
 	for _, attr := range atterStrings {
-		inst.logger.Printf("Adding name: %v\n", attr)
 		names = append(names, expression.Name(attr))
 	}
 	if len(names) > 0 {
-		// FAILING: Build error: unset parameter: Builder
-		var projection = expression.NamesList(names[0], names[1:]...)
-		exprBuilder.WithProjection(projection)
+		// FAILING: Build error: unset parameter: NameBuilder
+		//	var projection = expression.NamesList(names[0], names[1:]...)
+		//	exprBuilder = exprBuilder.WithProjection(projection)
 	}
 
 	var expr, err = exprBuilder.Build()
