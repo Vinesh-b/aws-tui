@@ -131,7 +131,7 @@ func (inst *SelectableTable[T]) ExtendData(data []TableRow) {
 	var rows = table.GetRowCount()
 	// Don't count the headings row in the title
 	var tableTitle = fmt.Sprintf("%s (%d)", inst.title, len(data)+rows-1)
-	table.SetTitle(tableTitle)
+	inst.SetTitle(tableTitle)
 
 	for rowIdx, rowData := range data {
 		for colIdx, cellData := range rowData {
