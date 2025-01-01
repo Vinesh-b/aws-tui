@@ -58,6 +58,7 @@ func NewServicePageView(
 
 	view.errorView.SetSelectedFunc(func() {
 		view.Pages.HidePage("ERROR")
+		view.app.SetFocus(view.GetLastFocusedView())
 	})
 
 	return view
@@ -70,6 +71,7 @@ func (inst *ServicePageView) InitViewNavigation(orderedViews []View) {
 func (inst *ServicePageView) SetAndDisplayError(text string) {
 	inst.errorView.SetText(text)
 	inst.Pages.ShowPage("ERROR")
+	inst.app.SetFocus(inst.errorView)
 }
 
 func (inst *ServicePageView) GetLastFocusedView() tview.Primitive {
