@@ -12,6 +12,8 @@ import (
 	"github.com/rivo/tview"
 )
 
+type StringSet map[string]struct{}
+
 // Todo add timeout param
 func LoadData(
 	app *tview.Application,
@@ -226,7 +228,6 @@ func (inst *ViewNavigation) UpdateOrderedViews(orderedViews []View, intitalIxd i
 	inst.viewIdx = (intitalIxd + inst.numViews) % inst.numViews
 }
 
-
 func (inst *ViewNavigation) GetLastFocusedView() tview.Primitive {
-    return inst.orderedViews[inst.viewIdx]
+	return inst.orderedViews[inst.viewIdx]
 }

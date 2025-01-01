@@ -1,8 +1,8 @@
 package main
 
 import (
-	uicore "aws-tui/internal/pkg/ui/core"
-	uiviews "aws-tui/internal/pkg/ui/serviceviews"
+	"aws-tui/internal/pkg/ui/core"
+	"aws-tui/internal/pkg/ui/services"
 	"log"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -26,7 +26,7 @@ func (inst *DebugLogView) GetLastFocusedView() tview.Primitive {
 }
 
 func RenderUI(config aws.Config, version string) {
-	uicore.ResetGlobalStyle()
+	core.ResetGlobalStyle()
 
 	var (
 		app           = tview.NewApplication()
@@ -40,19 +40,19 @@ func RenderUI(config aws.Config, version string) {
 
 	config.Logger = logging.StandardLogger{Logger: inAppLogger}
 
-	var serviceViews = map[uiviews.ViewId]uicore.ServicePage{
-		uiviews.LAMBDA:                   uiviews.NewLambdaHomeView(app, config, inAppLogger),
-		uiviews.CLOUDWATCH_LOGS_GROUPS:   uiviews.NewLogsHomeView(app, config, inAppLogger),
-		uiviews.CLOUDWATCH_LOGS_INSIGHTS: uiviews.NewLogsInsightsHomeView(app, config, inAppLogger),
-		uiviews.CLOUDWATCH_ALARMS:        uiviews.NewAlarmsHomeView(app, config, inAppLogger),
-		uiviews.CLOUDWATCH_METRICS:       uiviews.NewMetricsHomeView(app, config, inAppLogger),
-		uiviews.CLOUDFORMATION:           uiviews.NewStacksHomeView(app, config, inAppLogger),
-		uiviews.DYNAMODB:                 uiviews.NewDynamoDBHomeView(app, config, inAppLogger),
-		uiviews.S3BUCKETS:                uiviews.NewS3bucketsHomeView(app, config, inAppLogger),
-		uiviews.STATE_MACHINES:           uiviews.NewStepFunctionsHomeView(app, config, inAppLogger),
+	var serviceViews = map[services.ViewId]core.ServicePage{
+		services.LAMBDA:                   services.NewLambdaHomeView(app, config, inAppLogger),
+		services.CLOUDWATCH_LOGS_GROUPS:   services.NewLogsHomeView(app, config, inAppLogger),
+		services.CLOUDWATCH_LOGS_INSIGHTS: services.NewLogsInsightsHomeView(app, config, inAppLogger),
+		services.CLOUDWATCH_ALARMS:        services.NewAlarmsHomeView(app, config, inAppLogger),
+		services.CLOUDWATCH_METRICS:       services.NewMetricsHomeView(app, config, inAppLogger),
+		services.CLOUDFORMATION:           services.NewStacksHomeView(app, config, inAppLogger),
+		services.DYNAMODB:                 services.NewDynamoDBHomeView(app, config, inAppLogger),
+		services.S3BUCKETS:                services.NewS3bucketsHomeView(app, config, inAppLogger),
+		services.STATE_MACHINES:           services.NewStepFunctionsHomeView(app, config, inAppLogger),
 
-		uiviews.HELP:       uiviews.NewHelpHomeView(app, inAppLogger),
-		uiviews.DEBUG_LOGS: errorTextArea,
+		services.HELP:       services.NewHelpHomeView(app, inAppLogger),
+		services.DEBUG_LOGS: errorTextArea,
 	}
 
 	errorTextArea.
@@ -61,9 +61,9 @@ func RenderUI(config aws.Config, version string) {
 		SetTitleAlign(tview.AlignLeft)
 
 	var currentServiceView = tview.NewFlex()
-	currentServiceView.AddItem(serviceViews[uiviews.LAMBDA], 0, 1, false)
+	currentServiceView.AddItem(serviceViews[services.LAMBDA], 0, 1, false)
 
-	var servicesList = uiviews.ServicesHomeView()
+	var servicesList = services.ServicesHomeView()
 	var flexLanding = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(servicesList, 0, 1, true).
 		AddItem(tview.NewTextView().
@@ -76,14 +76,14 @@ func RenderUI(config aws.Config, version string) {
 	var pages = tview.NewPages().
 		AddPage(SELECTED_SERVICE, currentServiceView, true, true).
 		AddPage(FLOATING_SERVICE_LIST,
-			uicore.FloatingView("Quick select", servicesList, 70, 25),
+			core.FloatingView("Quick select", servicesList, 70, 25),
 			true, true,
 		).
 		AddAndSwitchToPage(HOME_PAGE, flexLanding, true)
 
 	var showServicesListToggle = false
 	servicesList.SetSelectedFunc(func(i int, serviceName string, _ string, r rune) {
-		var view, ok = serviceViews[uiviews.ViewId(serviceName)]
+		var view, ok = serviceViews[services.ViewId(serviceName)]
 		if ok {
 			currentServiceView.Clear()
 			currentServiceView.AddItem(view, 0, 1, false)
