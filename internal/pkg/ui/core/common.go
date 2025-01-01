@@ -2,7 +2,6 @@ package core
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/atotto/clipboard"
 	"github.com/gdamore/tcell/v2"
@@ -10,19 +9,6 @@ import (
 )
 
 type StringSet map[string]struct{}
-
-func CreateSearchInput(label string) *tview.InputField {
-	var inputField = tview.NewInputField().
-		SetLabel(fmt.Sprintf("%s ", label)).
-		SetFieldWidth(0)
-	inputField.
-		SetBorder(true).
-		SetBorderPadding(0, 0, 1, 1).
-		SetTitle("Search").
-		SetTitleAlign(tview.AlignLeft)
-
-	return inputField
-}
 
 func CreateTextArea(title string) *tview.TextArea {
 	var textArea = tview.NewTextArea().
