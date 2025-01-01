@@ -112,9 +112,9 @@ func DynamoDBTypeOpMap() map[DynamoDBDataType][]DynamoDBCondition {
 }
 
 type DynamoDBQueryInputView struct {
+	*tview.Flex
 	QueryDoneButton   *tview.Button
 	QueryCancelButton *tview.Button
-	RootView          *tview.Flex
 
 	logger              *log.Logger
 	filterView          *FilterInputView
@@ -172,9 +172,9 @@ func NewDynamoDBQueryInputView(app *tview.Application, logger *log.Logger) *Dyna
 	)
 
 	return &DynamoDBQueryInputView{
+		Flex:              wrapper,
 		QueryDoneButton:   doneButton,
 		QueryCancelButton: cancelButton,
-		RootView:          wrapper,
 
 		logger:            logger,
 		pkInput:           pkInput,
@@ -242,13 +242,10 @@ func (inst *DynamoDBQueryInputView) GenerateQueryExpression() (expression.Expres
 
 	var exprBuilder = expression.NewBuilder()
 
-	var filterCond, filtErr = inst.filterView.GenerateFilterCondition()
-	if filtErr != nil {
-		return expression.Expression{}, filtErr
-	}
+	var filterCond, _ = inst.filterView.GenerateFilterCondition()
 
 	if filterCond.IsSet() {
-		exprBuilder.WithFilter(filterCond)
+		exprBuilder = exprBuilder.WithFilter(filterCond)
 	}
 
 	var expr, err = exprBuilder.
@@ -510,9 +507,9 @@ func (inst *FilterInputView) GenerateFilterCondition() (expression.ConditionBuil
 }
 
 type DynamoDBScanInputView struct {
+	*tview.Flex
 	ScanDoneButton   *tview.Button
 	ScanCancelButton *tview.Button
-	RootView         *tview.Flex
 
 	logger                   *log.Logger
 	filterInputViews         [3]*FilterInputView
@@ -554,7 +551,7 @@ func NewDynamoDBScanInputView(app *tview.Application, logger *log.Logger) *Dynam
 	)
 
 	return &DynamoDBScanInputView{
-		RootView:         wrapper,
+		Flex:             wrapper,
 		ScanDoneButton:   doneButton,
 		ScanCancelButton: cancelButton,
 
@@ -629,16 +626,16 @@ const (
 )
 
 type DynamoDBTableSearchView struct {
+	*tview.Flex
 	*DynamoDBQueryInputView
 	*DynamoDBScanInputView
-	RootView *tview.Flex
 	MainPage tview.Primitive
 
 	queryViewHidden bool
 	scanViewHidden  bool
 	pages           *tview.Pages
 	app             *tview.Application
-	Logger          *log.Logger
+	logger          *log.Logger
 }
 
 func NewDynamoDBTableSearchView(
@@ -647,9 +644,9 @@ func NewDynamoDBTableSearchView(
 	logger *log.Logger,
 ) *DynamoDBTableSearchView {
 	var queryView = NewDynamoDBQueryInputView(app, logger)
-	var floatingQuery = core.FloatingView("Query", queryView.RootView, 70, 10)
+	var floatingQuery = core.FloatingView("Query", queryView, 70, 10)
 	var scanView = NewDynamoDBScanInputView(app, logger)
-	var floatingScan = core.FloatingView("Scan", scanView.RootView, 70, 14)
+	var floatingScan = core.FloatingView("Scan", scanView, 70, 14)
 
 	var pages = tview.NewPages().
 		AddPage("MAIN_PAGE", mainPage, true, true).
@@ -657,14 +654,15 @@ func NewDynamoDBTableSearchView(
 		AddPage(SCAN_PAGE_NAME, floatingScan, true, false)
 
 	var view = &DynamoDBTableSearchView{
+		Flex:                   tview.NewFlex().AddItem(pages, 0, 1, true),
 		DynamoDBQueryInputView: queryView,
 		DynamoDBScanInputView:  scanView,
-		RootView:               tview.NewFlex().AddItem(pages, 0, 1, true),
 		MainPage:               mainPage,
 
 		queryViewHidden: true,
 		scanViewHidden:  true,
 		pages:           pages,
+		app:             app,
 	}
 
 	view.QueryCancelButton.SetSelectedFunc(func() {
@@ -678,6 +676,7 @@ func NewDynamoDBTableSearchView(
 			if view.queryViewHidden {
 				pages.ShowPage(QUERY_PAGE_NAME)
 				pages.HidePage(SCAN_PAGE_NAME)
+				view.app.SetFocus(queryView)
 				view.scanViewHidden = true
 			} else {
 				pages.HidePage(QUERY_PAGE_NAME)
@@ -688,6 +687,7 @@ func NewDynamoDBTableSearchView(
 			if view.scanViewHidden {
 				pages.HidePage(QUERY_PAGE_NAME)
 				pages.ShowPage(SCAN_PAGE_NAME)
+				view.app.SetFocus(scanView)
 				view.queryViewHidden = true
 			} else {
 				pages.HidePage(SCAN_PAGE_NAME)

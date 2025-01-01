@@ -84,7 +84,7 @@ func NewDynamoDBTableItemsPage(
 
 	var mainPage = core.NewResizableView(
 		expandItemView, expandItemViewSize,
-		itemsTable.RootView, itemsTableSize,
+		itemsTable, itemsTableSize,
 		tview.FlexRow,
 	)
 
@@ -93,7 +93,7 @@ func NewDynamoDBTableItemsPage(
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			itemsTable.RootView,
+			itemsTable,
 			expandItemView,
 		},
 	)
