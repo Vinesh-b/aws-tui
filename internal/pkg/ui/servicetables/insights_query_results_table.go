@@ -69,13 +69,13 @@ func (inst *InsightsQueryResultsTable) populateQueryResultsTable() {
 		Clear().
 		SetBorders(false).
 		SetFixed(1, 0)
-	inst.Table.
+	inst.
 		SetTitleAlign(tview.AlignLeft).
 		SetBorderPadding(0, 0, 0, 0).
 		SetBorder(true)
 
 	var tableTitle = fmt.Sprintf("Query Results (%d)", len(inst.data))
-	inst.Table.SetTitle(tableTitle)
+	inst.SetTitle(tableTitle)
 
 	var headingIdx = 0
 	var headingIdxMap = make(map[string]int)
