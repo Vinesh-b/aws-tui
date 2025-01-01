@@ -2,6 +2,7 @@ package awsapi
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 
@@ -76,6 +77,12 @@ func (inst *StateMachineApi) FilterByName(name string) map[string]types.StateMac
 }
 
 func (inst *StateMachineApi) ListExecutions(stateMachineArn string, reset bool) ([]types.ExecutionListItem, error) {
+	var empty = []types.ExecutionListItem{}
+
+	if len(stateMachineArn) == 0 {
+		return empty, fmt.Errorf("State machine ARN not set")
+	}
+
 	if inst.listExecutionsPaginator == nil || reset == true {
 		inst.listExecutionsPaginator = sfn.NewListExecutionsPaginator(
 			inst.client, &sfn.ListExecutionsInput{
@@ -83,10 +90,8 @@ func (inst *StateMachineApi) ListExecutions(stateMachineArn string, reset bool) 
 				MaxResults:      100,
 			},
 		)
-
 	}
 
-	var empty = make([]types.ExecutionListItem, 0)
 	if !inst.listExecutionsPaginator.HasMorePages() {
 		return empty, nil
 	}
@@ -101,6 +106,10 @@ func (inst *StateMachineApi) ListExecutions(stateMachineArn string, reset bool) 
 }
 
 func (inst *StateMachineApi) DescribeExecution(executionArn string) (*sfn.DescribeExecutionOutput, error) {
+	if len(executionArn) == 0 {
+		return nil, fmt.Errorf("Exeuction ARN not set")
+	}
+
 	var response, err = inst.client.DescribeExecution(context.TODO(), &sfn.DescribeExecutionInput{
 		ExecutionArn: &executionArn,
 	})
@@ -114,6 +123,10 @@ func (inst *StateMachineApi) DescribeExecution(executionArn string) (*sfn.Descri
 }
 
 func (inst *StateMachineApi) GetExecutionHistory(executionArn string) (*sfn.GetExecutionHistoryOutput, error) {
+	if len(executionArn) == 0 {
+		return nil, fmt.Errorf("Exeuction ARN not set")
+	}
+
 	var response, err = inst.client.GetExecutionHistory(context.TODO(), &sfn.GetExecutionHistoryInput{
 		ExecutionArn:         aws.String(executionArn),
 		IncludeExecutionData: aws.Bool(true),

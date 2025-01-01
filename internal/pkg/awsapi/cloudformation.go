@@ -2,6 +2,7 @@ package awsapi
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 
@@ -75,6 +76,12 @@ func (inst *CloudFormationApi) FilterByName(name string) map[string]types.StackS
 }
 
 func (inst *CloudFormationApi) DescribeStackEvents(stackName string, force bool) ([]types.StackEvent, error) {
+	var empty []types.StackEvent
+
+	if len(stackName) == 0 {
+		return empty, fmt.Errorf("Stack name not set")
+	}
+
 	if inst.stackEventsPaginator == nil || force {
 		inst.stackEventsPaginator = cloudformation.NewDescribeStackEventsPaginator(
 			inst.client, &cloudformation.DescribeStackEventsInput{
@@ -83,7 +90,6 @@ func (inst *CloudFormationApi) DescribeStackEvents(stackName string, force bool)
 		)
 	}
 
-	var empty []types.StackEvent
 	if !inst.stackEventsPaginator.HasMorePages() {
 		return empty, nil
 	}

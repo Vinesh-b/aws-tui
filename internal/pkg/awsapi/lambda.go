@@ -3,6 +3,7 @@ package awsapi
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"strings"
 
@@ -77,6 +78,12 @@ func (inst *LambdaApi) InvokeLambda(
 	name string,
 	payload map[string]any,
 ) (*lambda.InvokeOutput, error) {
+	var output *lambda.InvokeOutput = nil
+
+	if len(name) == 0 {
+		return output, fmt.Errorf("lambda name not set")
+	}
+
 	var err error = nil
 	var jsonPayload []byte
 
@@ -85,8 +92,6 @@ func (inst *LambdaApi) InvokeLambda(
 		inst.logger.Println(err)
 		return nil, err
 	}
-
-	var output *lambda.InvokeOutput = nil
 
 	output, err = inst.client.Invoke(context.TODO(),
 		&lambda.InvokeInput{

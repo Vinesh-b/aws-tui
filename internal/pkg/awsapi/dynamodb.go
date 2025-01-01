@@ -2,6 +2,7 @@ package awsapi
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 
@@ -73,6 +74,9 @@ func (inst *DynamoDBApi) FilterByName(name string) []string {
 	return foundTables
 }
 func (inst *DynamoDBApi) DescribeTable(tableName string) (*types.TableDescription, error) {
+	if len(tableName) == 0 {
+		return nil, fmt.Errorf("Table name not set")
+	}
 
 	var output, err = inst.client.DescribeTable(context.TODO(),
 		&dynamodb.DescribeTableInput{TableName: &tableName},
@@ -91,6 +95,10 @@ func (inst *DynamoDBApi) ScanTable(
 	force bool,
 ) ([]map[string]interface{}, error) {
 	var items []map[string]interface{}
+
+	if len(tableName) == 0 {
+		return items, fmt.Errorf("Table name not set")
+	}
 
 	var index *string = nil
 	if len(indexName) > 0 {
@@ -126,6 +134,12 @@ func (inst *DynamoDBApi) QueryTable(
 	indexName string,
 	force bool,
 ) ([]map[string]interface{}, error) {
+	var items []map[string]interface{}
+
+	if len(tableName) == 0 {
+		return items, fmt.Errorf("Table name not set")
+	}
+
 	if inst.queryPaginator == nil || force {
 		var index *string = nil
 		if len(indexName) > 0 {
@@ -142,8 +156,6 @@ func (inst *DynamoDBApi) QueryTable(
 			IndexName:                 index,
 		})
 	}
-
-	var items = make([]map[string]interface{}, 0)
 
 	if !inst.queryPaginator.HasMorePages() {
 		return items, nil

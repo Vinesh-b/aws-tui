@@ -2,6 +2,7 @@ package awsapi
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -77,6 +78,10 @@ func (inst *S3BucketsApi) ListObjects(
 	prefix string,
 	force bool,
 ) ([]types.Object, []types.CommonPrefix, error) {
+	if len(bucketName) == 0 {
+		return nil, nil, fmt.Errorf("Bucket name not set")
+	}
+
 	var objPrefix = &prefix
 	if len(prefix) == 0 {
 		objPrefix = nil
@@ -105,6 +110,18 @@ func (inst *S3BucketsApi) ListObjects(
 }
 
 func (inst *S3BucketsApi) DownloadFile(bucketName string, objectKey string, fileName string) error {
+	if len(bucketName) == 0 {
+		return fmt.Errorf("Bucket name not set")
+	}
+
+	if len(objectKey) == 0 {
+		return fmt.Errorf("Object key not set")
+	}
+
+	if len(fileName) == 0 {
+		return fmt.Errorf("File name not set")
+	}
+
 	result, err := inst.client.GetObject(context.TODO(), &s3.GetObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(objectKey),

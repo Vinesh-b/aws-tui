@@ -2,6 +2,7 @@ package awsapi
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 
@@ -83,6 +84,10 @@ func (inst *CloudWatchAlarmsApi) FilterByName(name string) map[string]types.Metr
 }
 
 func (inst *CloudWatchAlarmsApi) ListAlarmHistory(name string, force bool) ([]types.AlarmHistoryItem, error) {
+	if len(name) == 0 {
+		return nil, fmt.Errorf("Alarm name not set")
+	}
+
 	if force || inst.historyPaginator == nil {
 		inst.historyPaginator = cloudwatch.NewDescribeAlarmHistoryPaginator(
 			inst.client,

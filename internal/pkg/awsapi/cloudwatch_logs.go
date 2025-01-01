@@ -2,6 +2,7 @@ package awsapi
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -87,6 +88,12 @@ func (inst *CloudWatchLogsApi) ListLogStreams(
 	searchPrefix string,
 	reset bool,
 ) ([]types.LogStream, error) {
+	var empty = []types.LogStream{}
+
+	if len(logGroupName) == 0 {
+		return empty, fmt.Errorf("log group not set")
+	}
+
 	var searchPrefixPtr *string = nil
 
 	if reset || inst.logStreamsPaginator == nil {
@@ -109,7 +116,6 @@ func (inst *CloudWatchLogsApi) ListLogStreams(
 		)
 	}
 
-	var empty = make([]types.LogStream, 0)
 	if !inst.logStreamsPaginator.HasMorePages() {
 		return empty, nil
 	}
@@ -129,6 +135,15 @@ func (inst *CloudWatchLogsApi) ListLogEvents(
 	logStreamName string,
 	reset bool,
 ) ([]types.OutputLogEvent, error) {
+	var empty = []types.OutputLogEvent{}
+
+	if len(logGroupName) == 0 {
+		return empty, fmt.Errorf("log group not set")
+	}
+
+	if len(logStreamName) == 0 {
+		return empty, fmt.Errorf("log stream not set")
+	}
 
 	if reset || inst.logEventsPaginator == nil {
 		inst.logEventsPaginator = cloudwatchlogs.NewGetLogEventsPaginator(
@@ -142,7 +157,6 @@ func (inst *CloudWatchLogsApi) ListLogEvents(
 		)
 	}
 
-	var empty = make([]types.OutputLogEvent, 0)
 	if !inst.logEventsPaginator.HasMorePages() {
 		return empty, nil
 	}
@@ -162,6 +176,12 @@ func (inst *CloudWatchLogsApi) ListFilteredLogEvents(
 	endDateTime time.Time,
 	reset bool,
 ) ([]types.FilteredLogEvent, error) {
+	var empty = []types.FilteredLogEvent{}
+
+	if len(logGroupName) == 0 {
+		return empty, fmt.Errorf("log group not set")
+	}
+
 	if reset || inst.filteredLogEventsPaginator == nil {
 		inst.filteredLogEventsPaginator = cloudwatchlogs.NewFilterLogEventsPaginator(
 			inst.client,
@@ -173,7 +193,6 @@ func (inst *CloudWatchLogsApi) ListFilteredLogEvents(
 			},
 		)
 	}
-	var empty = make([]types.FilteredLogEvent, 0)
 	if !inst.filteredLogEventsPaginator.HasMorePages() {
 		return empty, nil
 	}
@@ -213,6 +232,10 @@ func (inst *CloudWatchLogsApi) StartInightsQuery(
 func (inst *CloudWatchLogsApi) StopInightsQuery(
 	queryId string,
 ) (bool, error) {
+	if len(queryId) == 0 {
+		return false, fmt.Errorf("Query Id not set")
+	}
+
 	var output, err = inst.client.StopQuery(
 		context.TODO(), &cloudwatchlogs.StopQueryInput{
 			QueryId: aws.String(queryId),
@@ -230,12 +253,17 @@ func (inst *CloudWatchLogsApi) StopInightsQuery(
 func (inst *CloudWatchLogsApi) GetInightsQueryResults(
 	queryId string,
 ) ([][]types.ResultField, types.QueryStatus, error) {
+	var empty [][]types.ResultField
+
+	if len(queryId) == 0 {
+		return empty, types.QueryStatusUnknown, fmt.Errorf("Query Id not set")
+	}
+
 	var output, err = inst.client.GetQueryResults(
 		context.TODO(), &cloudwatchlogs.GetQueryResultsInput{
 			QueryId: aws.String(queryId),
 		})
 
-	var empty [][]types.ResultField
 	if err != nil {
 		inst.logger.Println(err)
 		return empty, types.QueryStatusUnknown, err
@@ -247,12 +275,17 @@ func (inst *CloudWatchLogsApi) GetInightsQueryResults(
 func (inst *CloudWatchLogsApi) GetInsightsLogRecord(
 	recordPtr string,
 ) (map[string]string, error) {
+	var empty = map[string]string{}
+
+	if len(recordPtr) == 0 {
+		return empty, fmt.Errorf("Record pointer not set")
+	}
+
 	var output, err = inst.client.GetLogRecord(
 		context.TODO(), &cloudwatchlogs.GetLogRecordInput{
 			LogRecordPointer: aws.String(recordPtr),
 		})
 
-	var empty = make(map[string]string, 0)
 	if err != nil {
 		inst.logger.Println(err)
 		return empty, err
