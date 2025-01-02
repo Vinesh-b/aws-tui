@@ -80,6 +80,10 @@ func (inst *LambdaDetailsPageView) initInputCapture() {
 		}
 	})
 
+    inst.LambdaListTable.SetSearchChangedFunc(func(text string) {
+		inst.LambdaListTable.RefreshLambdas(false)
+    })
+
 	inst.LambdaListTable.SetSelectionChangedFunc(func(row, column int) {
 		inst.LambdaDetailsTable.RefreshDetails(inst.LambdaListTable.GetSeletedLambda(), false)
 	})

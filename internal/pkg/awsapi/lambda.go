@@ -5,18 +5,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"strings"
+	"sort"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
+	"github.com/lithammer/fuzzysearch/fuzzy"
 )
 
 type LambdaApi struct {
 	logger     *log.Logger
 	config     aws.Config
 	client     *lambda.Client
-	allLambdas map[string]types.FunctionConfiguration
+	allLambdas []types.FunctionConfiguration
 }
 
 func NewLambdaApi(
@@ -27,16 +28,16 @@ func NewLambdaApi(
 		config:     config,
 		logger:     logger,
 		client:     lambda.NewFromConfig(config),
-		allLambdas: make(map[string]types.FunctionConfiguration),
+		allLambdas: []types.FunctionConfiguration{},
 	}
 }
 
-func (inst *LambdaApi) ListLambdas(force bool) (map[string]types.FunctionConfiguration, error) {
+func (inst *LambdaApi) ListLambdas(force bool) ([]types.FunctionConfiguration, error) {
 	if len(inst.allLambdas) > 0 && !force {
 		return inst.allLambdas, nil
 	}
 
-	inst.allLambdas = make(map[string]types.FunctionConfiguration)
+	inst.allLambdas = []types.FunctionConfiguration{}
 
 	var paginator = lambda.NewListFunctionsPaginator(
 		inst.client, &lambda.ListFunctionsInput{},
@@ -50,26 +51,34 @@ func (inst *LambdaApi) ListLambdas(force bool) (map[string]types.FunctionConfigu
 			break
 		}
 
-		for _, val := range output.Functions {
-			inst.allLambdas[*val.FunctionName] = val
-		}
+		inst.allLambdas = append(inst.allLambdas, output.Functions...)
 	}
+
+	sort.Slice(inst.allLambdas, func(i, j int) bool {
+		return aws.ToString(inst.allLambdas[i].FunctionName) < aws.ToString(inst.allLambdas[j].FunctionName)
+	})
+
 	return inst.allLambdas, apiError
 }
 
-func (inst *LambdaApi) FilterByName(name string) map[string]types.FunctionConfiguration {
-
-	if len(inst.allLambdas) < 1 {
-		inst.ListLambdas(true)
+func (inst *LambdaApi) FilterByName(name string) []types.FunctionConfiguration {
+	if len(inst.allLambdas) == 0 {
+		return nil
 	}
 
-	var foundLambdas = make(map[string]types.FunctionConfiguration)
+	var names = make([]string, 0, len(inst.allLambdas))
+	for _, config := range inst.allLambdas {
+		names = append(names, aws.ToString(config.FunctionName))
+	}
 
-	for _, info := range inst.allLambdas {
-		found := strings.Contains(*info.FunctionName, name)
-		if found {
-			foundLambdas[*info.FunctionName] = info
-		}
+	var matches = fuzzy.RankFind(name, names)
+	sort.Sort(matches)
+
+	var foundLambdas = []types.FunctionConfiguration{}
+
+	for _, match := range matches {
+		var config = inst.allLambdas[match.OriginalIndex]
+		foundLambdas = append(foundLambdas, config)
 	}
 	return foundLambdas
 }

@@ -3,6 +3,7 @@ package servicetables
 import (
 	"fmt"
 	"log"
+	"slices"
 
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
@@ -75,7 +76,7 @@ func (inst *LambdaDetailsTable) populateLambdaDetailsTable() {
 
 func (inst *LambdaDetailsTable) RefreshDetails(lambdaName string, force bool) {
 	inst.selectedLambda = lambdaName
-	var data map[string]types.FunctionConfiguration
+	var data []types.FunctionConfiguration
 
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
@@ -89,9 +90,12 @@ func (inst *LambdaDetailsTable) RefreshDetails(lambdaName string, force bool) {
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
-		var val, ok = data[lambdaName]
-		if ok {
-			inst.data = &val
+		var idx = slices.IndexFunc(data, func(d types.FunctionConfiguration) bool {
+			return aws.ToString(d.FunctionName) == lambdaName
+		})
+
+		if idx != -1 {
+			inst.data = &data[idx]
 		}
 		inst.populateLambdaDetailsTable()
 	})

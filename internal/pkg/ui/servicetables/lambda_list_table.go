@@ -16,7 +16,7 @@ import (
 type LambdaListTable struct {
 	*core.SelectableTable[any]
 	selectedLambda string
-	data           map[string]types.FunctionConfiguration
+	data           []types.FunctionConfiguration
 	logger         *log.Logger
 	app            *tview.Application
 	api            *awsapi.LambdaApi
