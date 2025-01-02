@@ -39,6 +39,8 @@ type DynamoDBGenericTable struct {
 	queryExpr            expression.Expression
 	pkName               string
 	skName               string
+	lastTableOp          DDBTableOp
+	lastSearchExpr       expression.Expression
 }
 
 func NewDynamoDBGenericTable(
@@ -57,12 +59,23 @@ func NewDynamoDBGenericTable(
 		pkQueryString:           "",
 		skQueryString:           "",
 		searchIndexName:         "",
+		lastTableOp:             DDBTableScan,
 		logger:                  logger,
 		app:                     app,
 		api:                     api,
 	}
 
 	table.populateDynamoDBTable(false)
+	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlR:
+			table.ExecuteSearch(table.lastTableOp, table.lastSearchExpr, true)
+		case tcell.KeyCtrlN:
+			table.ExecuteSearch(table.lastTableOp, table.lastSearchExpr, false)
+		}
+		return event
+
+	})
 	table.QueryDoneButton.SetSelectedFunc(func() {
 		table.SetPartitionKeyName(table.pkName)
 		table.SetSortKeyName(table.skName)
@@ -171,6 +184,8 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 }
 
 func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expression.Expression, reset bool) {
+	inst.lastTableOp = operation
+	inst.lastSearchExpr = expr
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
 	dataLoader.AsyncLoadData(func() {

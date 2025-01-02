@@ -117,9 +117,13 @@ func (inst *DynamoDBApi) ScanTable(
 		})
 	}
 
+	if !inst.scanPaginator.HasMorePages() {
+		return items, fmt.Errorf("No more pages found")
+	}
+
 	var output, err = inst.scanPaginator.NextPage(context.TODO())
 	if err != nil {
-		inst.logger.Printf("Scan failed: %v\n", err)
+		inst.logger.Printf("Scan failed: %s\n", err.Error())
 	} else {
 		var temp []map[string]interface{}
 		attributevalue.UnmarshalListOfMaps(output.Items, &temp)
@@ -158,12 +162,12 @@ func (inst *DynamoDBApi) QueryTable(
 	}
 
 	if !inst.queryPaginator.HasMorePages() {
-		return items, nil
+		return items, fmt.Errorf("No more pages found")
 	}
 
 	var output, err = inst.queryPaginator.NextPage(context.TODO())
 	if err != nil {
-		inst.logger.Println(err)
+		inst.logger.Printf("Query failed: %s\n", err.Error())
 		return items, err
 	}
 
