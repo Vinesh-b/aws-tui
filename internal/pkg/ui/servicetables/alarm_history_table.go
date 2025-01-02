@@ -49,7 +49,6 @@ func NewAlarmHistoryTable(
 		switch key {
 		case tcell.KeyEnter:
 			view.RefreshHistory(false)
-			view.app.SetFocus(view)
 		}
 	})
 	return view

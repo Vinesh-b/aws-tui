@@ -86,15 +86,6 @@ func (inst *AlarmsDetailsPageView) InitInputCapture() {
 		refreshDetails()
 	})
 
-	inst.AlarmsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlR:
-			inst.AlarmsTable.RefreshAlarms(true)
-			refreshDetails()
-		}
-		return event
-	})
-
 	inst.HistoryTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:

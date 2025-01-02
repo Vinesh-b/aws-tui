@@ -16,7 +16,7 @@ import (
 type BucketListTable struct {
 	*core.SelectableTable[any]
 	selectedBucket string
-	data           map[string]types.Bucket
+	data           []types.Bucket
 	logger         *log.Logger
 	app            *tview.Application
 	api            *awsapi.S3BucketsApi

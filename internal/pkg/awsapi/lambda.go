@@ -1,6 +1,7 @@
 package awsapi
 
 import (
+	"aws-tui/internal/pkg/ui/core"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
-	"github.com/lithammer/fuzzysearch/fuzzy"
 )
 
 type LambdaApi struct {
@@ -66,18 +66,14 @@ func (inst *LambdaApi) FilterByName(name string) []types.FunctionConfiguration {
 		return nil
 	}
 
-	var names = make([]string, 0, len(inst.allLambdas))
-	for _, config := range inst.allLambdas {
-		names = append(names, aws.ToString(config.FunctionName))
-	}
-
-	var matches = fuzzy.RankFind(name, names)
-	sort.Sort(matches)
+	var foundIdxs = core.FuzzySearch(name, inst.allLambdas, func(v types.FunctionConfiguration) string {
+		return aws.ToString(v.FunctionName)
+	})
 
 	var foundLambdas = []types.FunctionConfiguration{}
 
-	for _, match := range matches {
-		var config = inst.allLambdas[match.OriginalIndex]
+	for _, matchIdx := range foundIdxs {
+		var config = inst.allLambdas[matchIdx]
 		foundLambdas = append(foundLambdas, config)
 	}
 	return foundLambdas

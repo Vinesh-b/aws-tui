@@ -1,10 +1,11 @@
 package awsapi
 
 import (
+	"aws-tui/internal/pkg/ui/core"
 	"context"
 	"fmt"
 	"log"
-	"strings"
+	"sort"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -63,24 +64,29 @@ func (inst *CloudWatchLogsApi) ListLogGroups(force bool) ([]types.LogGroup, erro
 		}
 	}
 
+	sort.Slice(inst.allLogGroups, func(i, j int) bool {
+		return aws.ToString(inst.allLogGroups[i].LogGroupName) < aws.ToString(inst.allLogGroups[j].LogGroupName)
+	})
+
 	return inst.allLogGroups, apiErr
 }
 
 func (inst *CloudWatchLogsApi) FilterGroupByName(name string) []types.LogGroup {
-
-	if len(inst.allLogGroups) < 1 {
-		inst.ListLogGroups(true)
+	if len(inst.allLogGroups) == 0 {
+		return nil
 	}
 
-	var found_groups []types.LogGroup
+	var foundIdxs = core.FuzzySearch(name, inst.allLogGroups, func(v types.LogGroup) string {
+		return aws.ToString(v.LogGroupName)
+	})
 
-	for _, info := range inst.allLogGroups {
-		found := strings.Contains(*info.LogGroupName, name)
-		if found {
-			found_groups = append(found_groups, info)
-		}
+	var foundGroups []types.LogGroup
+
+	for _, matchIdx := range foundIdxs {
+		var logGroup = inst.allLogGroups[matchIdx]
+		foundGroups = append(foundGroups, logGroup)
 	}
-	return found_groups
+	return foundGroups
 }
 
 func (inst *CloudWatchLogsApi) ListLogStreams(

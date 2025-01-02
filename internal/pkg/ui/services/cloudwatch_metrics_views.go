@@ -64,13 +64,6 @@ func NewMetricsDetailsView(
 }
 
 func (inst *MetricDetailsView) InitInputCapture() {
-	inst.MetricListTable.SetSearchDoneFunc(func(key tcell.Key) {
-		switch key {
-		case tcell.KeyEnter:
-			inst.MetricListTable.RefreshMetrics(inst.MetricListTable.GetSearchText(), false)
-		}
-	})
-
 	inst.MetricListTable.SetSelectionChangedFunc(func(row, column int) {
 		inst.MetricDetailsTable.RefreshDetails(inst.MetricListTable.GetSeletedMetric(), false)
 	})

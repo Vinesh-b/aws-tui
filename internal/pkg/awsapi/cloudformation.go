@@ -1,10 +1,11 @@
 package awsapi
 
 import (
+	"aws-tui/internal/pkg/ui/core"
 	"context"
 	"fmt"
 	"log"
-	"strings"
+	"sort"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
@@ -15,7 +16,7 @@ type CloudFormationApi struct {
 	logger               *log.Logger
 	config               aws.Config
 	client               *cloudformation.Client
-	allStacks            map[string]types.StackSummary
+	allStacks            []types.StackSummary
 	stackEventsPaginator *cloudformation.DescribeStackEventsPaginator
 }
 
@@ -27,16 +28,16 @@ func NewCloudFormationApi(
 		config:    config,
 		logger:    logger,
 		client:    cloudformation.NewFromConfig(config),
-		allStacks: make(map[string]types.StackSummary),
+		allStacks: []types.StackSummary{},
 	}
 }
 
-func (inst *CloudFormationApi) ListStacks(force bool) (map[string]types.StackSummary, error) {
+func (inst *CloudFormationApi) ListStacks(force bool) ([]types.StackSummary, error) {
 	if !force && len(inst.allStacks) > 0 {
 		return inst.allStacks, nil
 	}
 
-	inst.allStacks = make(map[string]types.StackSummary)
+	inst.allStacks = []types.StackSummary{}
 
 	var paginator = cloudformation.NewListStacksPaginator(
 		inst.client, &cloudformation.ListStacksInput{},
@@ -50,27 +51,30 @@ func (inst *CloudFormationApi) ListStacks(force bool) (map[string]types.StackSum
 			apiErr = err
 			break
 		}
-		for _, stack := range output.StackSummaries {
-			inst.allStacks[*stack.StackName] = stack
-		}
+		inst.allStacks = append(inst.allStacks, output.StackSummaries...)
 	}
+
+	sort.Slice(inst.allStacks, func(i, j int) bool {
+		return aws.ToString(inst.allStacks[i].StackName) < aws.ToString(inst.allStacks[j].StackName)
+	})
 
 	return inst.allStacks, apiErr
 }
 
-func (inst *CloudFormationApi) FilterByName(name string) map[string]types.StackSummary {
-
-	if len(inst.allStacks) < 1 {
-		inst.ListStacks(true)
+func (inst *CloudFormationApi) FilterByName(name string) []types.StackSummary {
+	if len(inst.allStacks) == 0 {
+        return nil
 	}
 
-	var foundStacks = make(map[string]types.StackSummary)
+	var foundIdxs = core.FuzzySearch(name, inst.allStacks, func(v types.StackSummary) string {
+		return aws.ToString(v.StackName)
+	})
 
-	for _, info := range inst.allStacks {
-		found := strings.Contains(*info.StackName, name)
-		if found {
-			foundStacks[*info.StackName] = info
-		}
+	var foundStacks = []types.StackSummary{}
+
+	for _, matchIdx := range foundIdxs {
+		var stack = inst.allStacks[matchIdx]
+		foundStacks = append(foundStacks, stack)
 	}
 	return foundStacks
 }

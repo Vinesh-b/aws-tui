@@ -3,9 +3,11 @@ package core
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 
 	"github.com/atotto/clipboard"
 	"github.com/gdamore/tcell/v2"
+	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/rivo/tview"
 )
 
@@ -111,3 +113,21 @@ func (inst *JsonTextView[T]) SetText(data T) {
 	logText = string(jsonBytes)
 	inst.TextArea.SetText(logText, false)
 }
+
+func FuzzySearch[T any](search string, values []T, handler func(val T) string) []int {
+	var names = make([]string, 0, len(values))
+	for _, v := range values {
+		names = append(names, handler(v))
+	}
+
+	var matches = fuzzy.RankFind(search, names)
+	sort.Sort(matches)
+
+	var results = make([]int, 0, len(matches))
+	for _, m := range matches {
+		results = append(results, m.OriginalIndex)
+	}
+
+	return results
+}
+

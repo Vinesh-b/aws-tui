@@ -16,7 +16,7 @@ import (
 type AlarmListTable struct {
 	*core.SelectableTable[any]
 	selectedAlarm string
-	data          map[string]types.MetricAlarm
+	data          []types.MetricAlarm
 	logger        *log.Logger
 	app           *tview.Application
 	api           *awsapi.CloudWatchAlarmsApi
@@ -46,13 +46,28 @@ func NewAlarmListTable(
 	view.populateAlarmsTable()
 	view.SetSelectedFunc(func(row, column int) {})
 	view.SetSelectionChangedFunc(func(row, column int) {})
+
+	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlR:
+			view.RefreshAlarms(true)
+		case tcell.KeyCtrlN:
+			view.RefreshAlarms(false)
+		}
+		return event
+	})
+
 	view.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
 			view.RefreshAlarms(false)
-			view.app.SetFocus(view)
 		}
 	})
+
+	view.SetSearchChangedFunc(func(text string) {
+		view.RefreshAlarms(false)
+	})
+
 	return view
 }
 

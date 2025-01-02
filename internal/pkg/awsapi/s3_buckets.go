@@ -1,12 +1,13 @@
 package awsapi
 
 import (
+	"aws-tui/internal/pkg/ui/core"
 	"context"
 	"fmt"
 	"io"
 	"log"
 	"os"
-	"strings"
+	"sort"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -17,8 +18,9 @@ type S3BucketsApi struct {
 	logger           *log.Logger
 	config           aws.Config
 	client           *s3.Client
-	allbuckets       map[string]types.Bucket
+	allbuckets       []types.Bucket
 	objectsPaginator *s3.ListObjectsV2Paginator
+	bucketsPaginator *s3.ListBucketsPaginator
 }
 
 func NewS3BucketsApi(
@@ -29,46 +31,55 @@ func NewS3BucketsApi(
 		config:     config,
 		logger:     logger,
 		client:     s3.NewFromConfig(config),
-		allbuckets: make(map[string]types.Bucket),
+		allbuckets: []types.Bucket{},
 	}
 }
 
-func (inst *S3BucketsApi) ListBuckets(force bool) (map[string]types.Bucket, error) {
+func (inst *S3BucketsApi) ListBuckets(force bool) ([]types.Bucket, error) {
 	if len(inst.allbuckets) > 0 && !force {
 		return inst.allbuckets, nil
 	}
 
-	inst.allbuckets = make(map[string]types.Bucket)
-
-	var output, err = inst.client.ListBuckets(
-		context.TODO(), &s3.ListBucketsInput{},
-	)
-
-	if err != nil {
-		inst.logger.Println(err)
-		return inst.allbuckets, err
+	if force || inst.bucketsPaginator == nil {
+		inst.bucketsPaginator = s3.NewListBucketsPaginator(
+			inst.client,
+			&s3.ListBucketsInput{},
+		)
 	}
 
-	for _, bucket := range output.Buckets {
-		inst.allbuckets[*bucket.Name] = bucket
+	var err error = nil
+	var output *s3.ListBucketsOutput
+	for inst.bucketsPaginator.HasMorePages() {
+		output, err = inst.bucketsPaginator.NextPage(context.TODO())
+		if err != nil {
+			inst.logger.Println(err)
+			break
+		}
+
+		inst.allbuckets = append(inst.allbuckets, output.Buckets...)
 	}
+
+	sort.Slice(inst.allbuckets, func(i, j int) bool {
+		return aws.ToString(inst.allbuckets[i].Name) < aws.ToString(inst.allbuckets[j].Name)
+	})
 
 	return inst.allbuckets, nil
 }
 
-func (inst *S3BucketsApi) FilterByName(name string) map[string]types.Bucket {
-
-	if len(inst.allbuckets) < 1 {
-		inst.ListBuckets(true)
+func (inst *S3BucketsApi) FilterByName(name string) []types.Bucket {
+	if len(inst.allbuckets) == 0 {
+		return nil
 	}
 
-	var foundBuckets = make(map[string]types.Bucket)
+	var foundIdxs = core.FuzzySearch(name, inst.allbuckets, func(b types.Bucket) string {
+		return aws.ToString(b.Name)
+	})
 
-	for _, info := range inst.allbuckets {
-		found := strings.Contains(*info.Name, name)
-		if found {
-			foundBuckets[*info.Name] = info
-		}
+	var foundBuckets []types.Bucket
+
+	for _, matchIdx := range foundIdxs {
+		var bucket = inst.allbuckets[matchIdx]
+		foundBuckets = append(foundBuckets, bucket)
 	}
 	return foundBuckets
 }

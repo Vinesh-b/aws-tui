@@ -47,7 +47,7 @@ func NewLogGroupsTable(
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			view.RefreshLogGroups(view.selectedLogGroup)
+			view.RefreshLogGroups(true)
 		}
 		return event
 	})
@@ -55,9 +55,12 @@ func NewLogGroupsTable(
 	view.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			view.RefreshLogGroups(view.GetSearchText())
-			view.app.SetFocus(view)
+			view.RefreshLogGroups(false)
 		}
+	})
+
+	view.SetSearchChangedFunc(func(text string) {
+		view.RefreshLogGroups(false)
 	})
 
 	return view
@@ -81,7 +84,8 @@ func (inst *LogGroupsTable) populateLogGroupsTable() {
 	inst.ScrollToBeginning()
 }
 
-func (inst *LogGroupsTable) RefreshLogGroups(search string) {
+func (inst *LogGroupsTable) RefreshLogGroups(force bool) {
+	var search = inst.GetSearchText()
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
 	dataLoader.AsyncLoadData(func() {
@@ -89,7 +93,7 @@ func (inst *LogGroupsTable) RefreshLogGroups(search string) {
 		if len(search) > 0 {
 			inst.data = inst.api.FilterGroupByName(search)
 		} else {
-			inst.data, err = inst.api.ListLogGroups(false)
+			inst.data, err = inst.api.ListLogGroups(force)
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
 			}

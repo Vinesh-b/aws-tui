@@ -19,7 +19,7 @@ const sfnFunctionNameCol = 0
 type StateMachinesListTable struct {
 	*core.SelectableTable[string]
 	selectedFunctionArn string
-	data                map[string]types.StateMachineListItem
+	data                []types.StateMachineListItem
 	logger              *log.Logger
 	app                 *tview.Application
 	api                 *awsapi.StateMachineApi

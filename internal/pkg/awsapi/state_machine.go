@@ -1,10 +1,11 @@
 package awsapi
 
 import (
+	"aws-tui/internal/pkg/ui/core"
 	"context"
 	"fmt"
 	"log"
-	"strings"
+	"sort"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
@@ -15,7 +16,7 @@ type StateMachineApi struct {
 	logger                  *log.Logger
 	config                  aws.Config
 	client                  *sfn.Client
-	allStateMachines        map[string]types.StateMachineListItem
+	allStateMachines        []types.StateMachineListItem
 	nextExectionsToken      *string
 	listExecutionsPaginator *sfn.ListExecutionsPaginator
 }
@@ -28,16 +29,16 @@ func NewStateMachineApi(
 		config:           config,
 		logger:           logger,
 		client:           sfn.NewFromConfig(config),
-		allStateMachines: make(map[string]types.StateMachineListItem),
+		allStateMachines: []types.StateMachineListItem{},
 	}
 }
 
-func (inst *StateMachineApi) ListStateMachines(force bool) (map[string]types.StateMachineListItem, error) {
+func (inst *StateMachineApi) ListStateMachines(force bool) ([]types.StateMachineListItem, error) {
 	if len(inst.allStateMachines) > 0 && !force {
 		return inst.allStateMachines, nil
 	}
 
-	inst.allStateMachines = make(map[string]types.StateMachineListItem)
+	inst.allStateMachines = []types.StateMachineListItem{}
 
 	var paginator = sfn.NewListStateMachinesPaginator(
 		inst.client, &sfn.ListStateMachinesInput{},
@@ -52,28 +53,32 @@ func (inst *StateMachineApi) ListStateMachines(force bool) (map[string]types.Sta
 			break
 		}
 
-		for _, val := range output.StateMachines {
-			inst.allStateMachines[*val.Name] = val
-		}
+		inst.allStateMachines = append(inst.allStateMachines, output.StateMachines...)
 	}
+
+	sort.Slice(inst.allStateMachines, func(i, j int) bool {
+		return aws.ToString(inst.allStateMachines[i].Name) < aws.ToString(inst.allStateMachines[j].Name)
+	})
+
 	return inst.allStateMachines, apiErr
 }
 
-func (inst *StateMachineApi) FilterByName(name string) map[string]types.StateMachineListItem {
-
-	if len(inst.allStateMachines) < 1 {
-		inst.ListStateMachines(true)
+func (inst *StateMachineApi) FilterByName(name string) []types.StateMachineListItem {
+	if len(inst.allStateMachines) == 0 {
+		return nil
 	}
 
-	var foundLambdas = make(map[string]types.StateMachineListItem)
+	var foundIdxs = core.FuzzySearch(name, inst.allStateMachines, func(v types.StateMachineListItem) string {
+		return aws.ToString(v.Name)
+	})
 
-	for _, info := range inst.allStateMachines {
-		found := strings.Contains(*info.Name, name)
-		if found {
-			foundLambdas[*info.Name] = info
-		}
+	var foundStateMachines []types.StateMachineListItem
+
+	for _, matchIdx := range foundIdxs {
+		var stateMachine = inst.allStateMachines[matchIdx]
+		foundStateMachines = append(foundStateMachines, stateMachine)
 	}
-	return foundLambdas
+	return foundStateMachines
 }
 
 func (inst *StateMachineApi) ListExecutions(stateMachineArn string, reset bool) ([]types.ExecutionListItem, error) {

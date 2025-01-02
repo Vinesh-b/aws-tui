@@ -2,6 +2,7 @@ package servicetables
 
 import (
 	"log"
+	"slices"
 	"time"
 
 	"aws-tui/internal/pkg/awsapi"
@@ -72,7 +73,7 @@ func (inst *StackDetailsTable) populateStackDetailsTable() {
 }
 
 func (inst *StackDetailsTable) RefreshDetails(force bool) {
-	var data map[string]types.StackSummary
+	var data []types.StackSummary
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
 	dataLoader.AsyncLoadData(func() {
@@ -83,9 +84,12 @@ func (inst *StackDetailsTable) RefreshDetails(force bool) {
 			inst.ErrorMessageCallback(err.Error())
 		}
 
-		var val, ok = data[inst.selectedStack]
-		if ok {
-			inst.data = &val
+		var idx = slices.IndexFunc(data, func(s types.StackSummary) bool {
+			return aws.ToString(s.StackName) == inst.selectedStack
+		})
+
+		if idx != -1 {
+			inst.data = &data[idx]
 		}
 	})
 

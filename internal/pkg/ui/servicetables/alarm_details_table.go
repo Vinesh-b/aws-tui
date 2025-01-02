@@ -3,6 +3,7 @@ package servicetables
 import (
 	"fmt"
 	"log"
+	"slices"
 
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
@@ -88,21 +89,26 @@ func (inst *AlarmDetailsTable) populateAlarmDetailsGrid() {
 }
 
 func (inst *AlarmDetailsTable) RefreshDetails() {
-	var data map[string]types.MetricAlarm
+	var data []types.MetricAlarm
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		if len(inst.selectedAlarm) > 0 {
-			var err error = nil
-			data, err = inst.api.ListAlarms(false)
-			if err != nil {
-				inst.ErrorMessageHandler(err.Error())
-			}
-			inst.data = &types.MetricAlarm{}
-			var val, ok = data[inst.selectedAlarm]
-			if ok {
-				inst.data = &val
-			}
+		if len(inst.selectedAlarm) == 0 {
+			return
+		}
+
+		var err error = nil
+		data, err = inst.api.ListAlarms(false)
+		if err != nil {
+			inst.ErrorMessageHandler(err.Error())
+		}
+
+		var idx = slices.IndexFunc(data, func(d types.MetricAlarm) bool {
+			return aws.ToString(d.AlarmName) == inst.selectedAlarm
+		})
+
+		if idx != -1 {
+			inst.data = &data[idx]
 		}
 	})
 

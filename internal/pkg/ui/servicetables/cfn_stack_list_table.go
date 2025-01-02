@@ -17,7 +17,7 @@ import (
 type StackListTable struct {
 	*core.SelectableTable[any]
 	selectedStack string
-	data          map[string]types.StackSummary
+	data          []types.StackSummary
 	logger        *log.Logger
 	app           *tview.Application
 	api           *awsapi.CloudFormationApi
@@ -47,6 +47,10 @@ func NewStackListTable(
 	view.populateStacksTable()
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
 	view.SetSelectionChangedFunc(func(row, column int) {})
+
+    view.SetSearchChangedFunc(func(text string) {
+		view.RefreshStacks(false)
+    })
 
 	return view
 }

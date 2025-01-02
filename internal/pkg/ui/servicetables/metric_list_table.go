@@ -17,7 +17,7 @@ type MetricListTable struct {
 	*core.SelectableTable[any]
 	selectedMetric string
 	currentSearch  string
-	data           map[string]types.Metric
+	data           []types.Metric
 	logger         *log.Logger
 	app            *tview.Application
 	api            *awsapi.CloudWatchMetricsApi
@@ -44,9 +44,20 @@ func NewMetricsTable(
 		api:            api,
 	}
 
+	view.populateMetricsTable()
 	view.SetSelectionChangedFunc(func(row, column int) {})
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
-	view.populateMetricsTable()
+
+	view.SetSearchDoneFunc(func(key tcell.Key) {
+		switch key {
+		case tcell.KeyEnter:
+			view.RefreshMetrics(false)
+		}
+	})
+
+	view.SetSearchChangedFunc(func(text string) {
+		view.RefreshMetrics(false)
+	})
 
 	return view
 }
@@ -65,8 +76,8 @@ func (inst *MetricListTable) populateMetricsTable() {
 	inst.Select(1, 0)
 }
 
-func (inst *MetricListTable) RefreshMetrics(search string, force bool) {
-	inst.currentSearch = search
+func (inst *MetricListTable) RefreshMetrics(force bool) {
+	var search = inst.GetSearchText()
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
 	dataLoader.AsyncLoadData(func() {
@@ -90,7 +101,7 @@ func (inst *MetricListTable) SetInputCapture(capture func(event *tcell.EventKey)
 	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			inst.RefreshMetrics(inst.currentSearch, true)
+			inst.RefreshMetrics(true)
 		}
 
 		return capture(event)

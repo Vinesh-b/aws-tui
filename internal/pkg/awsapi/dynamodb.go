@@ -1,10 +1,11 @@
 package awsapi
 
 import (
+	"aws-tui/internal/pkg/ui/core"
 	"context"
 	"fmt"
 	"log"
-	"strings"
+	"sort"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -54,25 +55,30 @@ func (inst *DynamoDBApi) ListTables(force bool) ([]string, error) {
 
 		inst.allTables = append(inst.allTables, output.TableNames...)
 	}
+
+	sort.Strings(inst.allTables)
+
 	return inst.allTables, apiErr
 }
 
 func (inst *DynamoDBApi) FilterByName(name string) []string {
-
-	if len(inst.allTables) < 1 {
-		inst.ListTables(true)
+	if len(inst.allTables) == 0 {
+		return nil
 	}
+
+	var foundIdxs = core.FuzzySearch(name, inst.allTables, func(t string) string {
+		return t
+	})
 
 	var foundTables []string
 
-	for _, tableName := range inst.allTables {
-		found := strings.Contains(tableName, name)
-		if found {
-			foundTables = append(foundTables, tableName)
-		}
+	for _, matchIdx := range foundIdxs {
+		var table = inst.allTables[matchIdx]
+		foundTables = append(foundTables, table)
 	}
 	return foundTables
 }
+
 func (inst *DynamoDBApi) DescribeTable(tableName string) (*types.TableDescription, error) {
 	if len(tableName) == 0 {
 		return nil, fmt.Errorf("Table name not set")

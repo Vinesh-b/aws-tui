@@ -1,10 +1,11 @@
 package awsapi
 
 import (
+	"aws-tui/internal/pkg/ui/core"
 	"context"
 	"fmt"
 	"log"
-	"strings"
+	"sort"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
@@ -15,7 +16,7 @@ type CloudWatchAlarmsApi struct {
 	logger             *log.Logger
 	config             aws.Config
 	client             *cloudwatch.Client
-	allMetricAlarms    map[string]types.MetricAlarm
+	allMetricAlarms    []types.MetricAlarm
 	allCompositeAlarms map[string]types.CompositeAlarm
 	alarmsPaginator    *cloudwatch.DescribeAlarmsPaginator
 	historyPaginator   *cloudwatch.DescribeAlarmHistoryPaginator
@@ -29,19 +30,19 @@ func NewCloudWatchAlarmsApi(
 		config:             config,
 		logger:             logger,
 		client:             cloudwatch.NewFromConfig(config),
-		allMetricAlarms:    make(map[string]types.MetricAlarm),
+		allMetricAlarms:    []types.MetricAlarm{},
 		allCompositeAlarms: nil,
 		alarmsPaginator:    nil,
 		historyPaginator:   nil,
 	}
 }
 
-func (inst *CloudWatchAlarmsApi) ListAlarms(force bool) (map[string]types.MetricAlarm, error) {
+func (inst *CloudWatchAlarmsApi) ListAlarms(force bool) ([]types.MetricAlarm, error) {
 	if len(inst.allMetricAlarms) > 0 && !force {
 		return inst.allMetricAlarms, nil
 	}
 
-	inst.allMetricAlarms = make(map[string]types.MetricAlarm)
+	inst.allMetricAlarms = []types.MetricAlarm{}
 	inst.alarmsPaginator = cloudwatch.NewDescribeAlarmsPaginator(
 		inst.client,
 		&cloudwatch.DescribeAlarmsInput{
@@ -58,27 +59,30 @@ func (inst *CloudWatchAlarmsApi) ListAlarms(force bool) (map[string]types.Metric
 			break
 		}
 
-		for _, val := range output.MetricAlarms {
-			inst.allMetricAlarms[*val.AlarmName] = val
-		}
+		inst.allMetricAlarms = append(inst.allMetricAlarms, output.MetricAlarms...)
 	}
+
+	sort.Slice(inst.allMetricAlarms, func(i, j int) bool {
+		return aws.ToString(inst.allMetricAlarms[i].AlarmName) < aws.ToString(inst.allMetricAlarms[j].AlarmName)
+	})
 
 	return inst.allMetricAlarms, err
 }
 
-func (inst *CloudWatchAlarmsApi) FilterByName(name string) map[string]types.MetricAlarm {
-
-	if len(inst.allMetricAlarms) < 1 {
-		inst.ListAlarms(true)
+func (inst *CloudWatchAlarmsApi) FilterByName(name string) []types.MetricAlarm {
+	if len(inst.allMetricAlarms) == 0 {
+		return nil
 	}
 
-	var foundAlarms = make(map[string]types.MetricAlarm)
+	var foundIdxs = core.FuzzySearch(name, inst.allMetricAlarms, func(a types.MetricAlarm) string {
+		return aws.ToString(a.AlarmName)
+	})
 
-	for _, info := range inst.allMetricAlarms {
-		found := strings.Contains(*info.AlarmName, name)
-		if found {
-			foundAlarms[*info.AlarmName] = info
-		}
+	var foundAlarms []types.MetricAlarm
+
+	for _, matchIdx := range foundIdxs {
+		var alarm = inst.allMetricAlarms[matchIdx]
+		foundAlarms = append(foundAlarms, alarm)
 	}
 	return foundAlarms
 }

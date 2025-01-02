@@ -1,9 +1,10 @@
 package awsapi
 
 import (
+	"aws-tui/internal/pkg/ui/core"
 	"context"
 	"log"
-	"strings"
+	"sort"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
@@ -14,7 +15,7 @@ type CloudWatchMetricsApi struct {
 	logger          *log.Logger
 	config          aws.Config
 	client          *cloudwatch.Client
-	allMetrics      map[string]types.Metric
+	allMetrics      []types.Metric
 	meticsPaginator *cloudwatch.ListMetricsPaginator
 }
 
@@ -26,7 +27,7 @@ func NewCloudWatchMetricsApi(
 		config:          config,
 		logger:          logger,
 		client:          cloudwatch.NewFromConfig(config),
-		allMetrics:      make(map[string]types.Metric),
+		allMetrics:      []types.Metric{},
 		meticsPaginator: nil,
 	}
 }
@@ -36,7 +37,7 @@ func (inst *CloudWatchMetricsApi) ListMetrics(
 	namespace string,
 	metricName string,
 	force bool,
-) (map[string]types.Metric, error) {
+) ([]types.Metric, error) {
 	if len(inst.allMetrics) > 0 && !force {
 		return inst.allMetrics, nil
 	}
@@ -51,7 +52,7 @@ func (inst *CloudWatchMetricsApi) ListMetrics(
 		queryMetricName = nil
 	}
 
-	inst.allMetrics = make(map[string]types.Metric)
+	inst.allMetrics = []types.Metric{}
 	inst.meticsPaginator = cloudwatch.NewListMetricsPaginator(
 		inst.client,
 		&cloudwatch.ListMetricsInput{
@@ -69,28 +70,31 @@ func (inst *CloudWatchMetricsApi) ListMetrics(
 			apiErr = err
 			break
 		}
-
-		for _, val := range output.Metrics {
-			inst.allMetrics[*val.MetricName] = val
-		}
+		inst.allMetrics = append(inst.allMetrics, output.Metrics...)
 	}
+
+	sort.Slice(inst.allMetrics, func(i, j int) bool {
+		return aws.ToString(inst.allMetrics[i].MetricName) < aws.ToString(inst.allMetrics[j].MetricName)
+	})
 
 	return inst.allMetrics, apiErr
 }
 
-func (inst *CloudWatchMetricsApi) FilterByName(name string) map[string]types.Metric {
+func (inst *CloudWatchMetricsApi) FilterByName(name string) []types.Metric {
 
 	if len(inst.allMetrics) < 1 {
 		return nil
 	}
 
-	var foundMetrics = make(map[string]types.Metric)
+	var foundIdxs = core.FuzzySearch(name, inst.allMetrics, func(v types.Metric) string {
+		return aws.ToString(v.MetricName)
+	})
 
-	for _, val := range inst.allMetrics {
-		found := strings.Contains(*val.MetricName, name)
-		if found {
-			foundMetrics[*val.MetricName] = val
-		}
+	var foundMetrics []types.Metric
+
+	for _, matchIdx := range foundIdxs {
+		var metric = inst.allMetrics[matchIdx]
+		foundMetrics = append(foundMetrics, metric)
 	}
 	return foundMetrics
 }

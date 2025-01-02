@@ -47,6 +47,17 @@ func NewLambdasListTable(
 	view.SetSelectedFunc(func(row, column int) {})
 	view.SetSelectionChangedFunc(func(row, column int) {})
 
+	view.SetSearchDoneFunc(func(key tcell.Key) {
+		switch key {
+		case tcell.KeyEnter:
+			view.RefreshLambdas(false)
+		}
+	})
+
+    view.SetSearchChangedFunc(func(text string) {
+		view.RefreshLambdas(false)
+    })
+
 	return view
 }
 
