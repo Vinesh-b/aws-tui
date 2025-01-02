@@ -55,7 +55,7 @@ func NewLambdaDetailsPageView(
 	}
 
 	var errorHandler = func(text string) {
-		serviceView.SetAndDisplayError(text)
+		serviceView.DisplayMessage(core.ErrorPrompt, text)
 	}
 
 	lambdaDetailsTable.ErrorMessageCallback = errorHandler

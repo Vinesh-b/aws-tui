@@ -22,11 +22,21 @@ type ServicePage interface {
 	GetLastFocusedView() tview.Primitive
 }
 
+type MessagePromptType string
+
+const (
+	InfoPrompt    MessagePromptType = "INFO"
+	ErrorPrompt   MessagePromptType = "ERROR"
+	WarningPrompt MessagePromptType = "WARNING"
+	DebugPrompt   MessagePromptType = "DEBUG"
+)
+
 type ServicePageView struct {
 	*tview.Pages
 	MainPage       *tview.Flex
 	viewNavigation *ViewNavigation
-	errorView      *ErrorMessageView
+	errorView      *MessagePromptView
+	infoView       *MessagePromptView
 	lastFocusView  tview.Primitive
 	app            *tview.Application
 	logger         *log.Logger
@@ -43,7 +53,8 @@ func NewServicePageView(
 	var view = &ServicePageView{
 		MainPage:       flex,
 		Pages:          tview.NewPages(),
-		errorView:      NewErrorMessageView(app),
+		errorView:      NewMessagePromptView(app),
+		infoView:       NewMessagePromptView(app),
 		viewNavigation: viewNav,
 		app:            app,
 		logger:         logger,
@@ -52,12 +63,19 @@ func NewServicePageView(
 	view.MainPage.SetDirection(tview.FlexRow)
 
 	var floatingErrorView = FloatingView("Error", view.errorView, 80, 15)
+	var floatingInfoView = FloatingView("Info", view.infoView, 80, 15)
 	view.Pages.
 		AddPage("MAIN_PAGE", view.MainPage, true, true).
-		AddPage("ERROR", floatingErrorView, true, false)
+		AddPage(string(ErrorPrompt), floatingErrorView, true, false).
+		AddPage(string(InfoPrompt), floatingInfoView, true, false)
 
 	view.errorView.SetSelectedFunc(func() {
-		view.Pages.HidePage("ERROR")
+		view.Pages.HidePage(string(ErrorPrompt))
+		view.app.SetFocus(view.GetLastFocusedView())
+	})
+
+	view.infoView.SetSelectedFunc(func() {
+		view.Pages.HidePage(string(InfoPrompt))
 		view.app.SetFocus(view.GetLastFocusedView())
 	})
 
@@ -68,10 +86,21 @@ func (inst *ServicePageView) InitViewNavigation(orderedViews []View) {
 	inst.viewNavigation.UpdateOrderedViews(orderedViews, 0)
 }
 
-func (inst *ServicePageView) SetAndDisplayError(text string) {
-	inst.errorView.SetText(text)
-	inst.Pages.ShowPage("ERROR")
-	inst.app.SetFocus(inst.errorView)
+func (inst *ServicePageView) DisplayMessage(messageType MessagePromptType, text string) {
+	var view *MessagePromptView
+	switch messageType {
+	case InfoPrompt:
+		view = inst.infoView
+	case ErrorPrompt:
+		view = inst.errorView
+	default:
+		inst.logger.Print(text)
+		return
+	}
+
+	inst.Pages.ShowPage(string(messageType))
+	view.SetText(text)
+	inst.app.SetFocus(view)
 }
 
 func (inst *ServicePageView) GetLastFocusedView() tview.Primitive {

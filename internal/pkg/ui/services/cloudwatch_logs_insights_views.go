@@ -113,7 +113,7 @@ func NewInsightsQueryResultsPageView(
 	)
 
 	insightsQueryResultsTable.ErrorMessageCallback = func(text string) {
-		serviceView.SetAndDisplayError(text)
+		serviceView.DisplayMessage(core.ErrorPrompt, text)
 	}
 
 	return &InsightsQueryResultsPageView{

@@ -99,7 +99,7 @@ func NewDynamoDBTableItemsPage(
 	)
 
 	itemsTable.ErrorMessageCallback = func(text string) {
-		serviceView.SetAndDisplayError(text)
+		serviceView.DisplayMessage(core.ErrorPrompt, text)
 	}
 
 	return &DynamoDBTableItemsPage{

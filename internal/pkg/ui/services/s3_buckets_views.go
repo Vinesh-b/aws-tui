@@ -48,7 +48,7 @@ func NewS3bucketsDetailsView(
 	)
 
 	var errorHandler = func(text string) {
-		serviceView.SetAndDisplayError(text)
+		serviceView.DisplayMessage(core.ErrorPrompt, text)
 	}
 
 	bucketListTable.ErrorMessageCallback = errorHandler

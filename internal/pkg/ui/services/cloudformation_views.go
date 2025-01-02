@@ -48,7 +48,7 @@ func NewStacksDetailsPageView(
 	)
 
 	var errorHandler = func(text string) {
-		serviceView.SetAndDisplayError(text)
+		serviceView.DisplayMessage(core.ErrorPrompt, text)
 	}
 
 	stackListTable.ErrorMessageCallback = errorHandler
@@ -135,7 +135,7 @@ func NewStackEventsPageView(
 	)
 
 	stackEventsTable.ErrorMessageCallback = func(text string) {
-		serviceView.SetAndDisplayError(text)
+		serviceView.DisplayMessage(core.ErrorPrompt, text)
 	}
 
 	return &CloudFormationStackEventsPageView{

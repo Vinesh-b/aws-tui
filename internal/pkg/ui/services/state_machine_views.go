@@ -50,7 +50,7 @@ func NewStateMachinesDetailsPageView(
 	)
 
 	var errorHandler = func(text string) {
-		serviceView.SetAndDisplayError(text)
+		serviceView.DisplayMessage(core.ErrorPrompt, text)
 	}
 
 	stateMachinesList.ErrorMessageCallback = errorHandler
@@ -151,7 +151,7 @@ func NewStateMachineExectionDetailsPage(
 	)
 
 	var errorHandler = func(text string) {
-		serviceView.SetAndDisplayError(text)
+		serviceView.DisplayMessage(core.ErrorPrompt, text)
 	}
 
 	executionSummary.ErrorMessageCallback = errorHandler

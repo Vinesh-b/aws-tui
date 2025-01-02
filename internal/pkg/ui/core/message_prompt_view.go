@@ -4,13 +4,13 @@ import (
 	"github.com/rivo/tview"
 )
 
-type ErrorMessageView struct {
+type MessagePromptView struct {
 	*tview.Flex
 	textView *tview.TextView
 	button   *tview.Button
 }
 
-func NewErrorMessageView(app *tview.Application) *ErrorMessageView {
+func NewMessagePromptView(app *tview.Application) *MessagePromptView {
 	var flex = tview.NewFlex().SetDirection(tview.FlexRow)
 	var textView = tview.NewTextView()
 	var button = tview.NewButton("OK").
@@ -18,7 +18,7 @@ func NewErrorMessageView(app *tview.Application) *ErrorMessageView {
 
 		})
 
-	var view = &ErrorMessageView{
+	var view = &MessagePromptView{
 		Flex:     flex,
 		textView: textView,
 		button:   button,
@@ -31,10 +31,10 @@ func NewErrorMessageView(app *tview.Application) *ErrorMessageView {
 	return view
 }
 
-func (inst *ErrorMessageView) SetText(text string) {
+func (inst *MessagePromptView) SetText(text string) {
 	inst.textView.SetText(text)
 }
 
-func (inst *ErrorMessageView) SetSelectedFunc(handler func()) {
+func (inst *MessagePromptView) SetSelectedFunc(handler func()) {
 	inst.button.SetSelectedFunc(handler)
 }
