@@ -85,6 +85,10 @@ func (inst *SearchableView) SetSearchDoneFunc(handler func(key tcell.Key)) {
 	})
 }
 
+func (inst *SearchableView) SetSearchChangedFunc(handler func(text string)) {
+	inst.searchInput.SetChangedFunc(handler)
+}
+
 func (inst *SearchableView) GetSearchText() string {
 	return inst.searchInput.GetText()
 }
