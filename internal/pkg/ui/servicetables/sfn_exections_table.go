@@ -9,6 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sfn/types"
+	"github.com/gdamore/tcell/v2"
 
 	"github.com/rivo/tview"
 )
@@ -52,14 +53,24 @@ func NewStateMachineExecutionsTable(
 		api:                  api,
 	}
 
+	table.populateExecutionsTable(true)
 	table.SetSelectedFunc(func(row, column int) {})
 	table.SetSelectionChangedFunc(func(row, column int) {})
-	table.populateExecutionsTable()
+
+	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlR:
+			table.RefreshExecutions(true)
+		case tcell.KeyCtrlN:
+			table.RefreshExecutions(false)
+		}
+		return event
+	})
 
 	return table
 }
 
-func (inst *StateMachineExecutionsTable) populateExecutionsTable() {
+func (inst *StateMachineExecutionsTable) populateExecutionsTable(force bool) {
 	var tableData []core.TableRow
 	var privateData []string
 
@@ -71,6 +82,12 @@ func (inst *StateMachineExecutionsTable) populateExecutionsTable() {
 			row.StopDate.Format(time.DateTime),
 		})
 		privateData = append(privateData, aws.ToString(row.ExecutionArn))
+	}
+
+	if !force {
+		inst.ExtendData(tableData)
+		inst.ExtendPrivateData(privateData)
+		return
 	}
 
 	inst.SetData(tableData)
@@ -85,13 +102,13 @@ func (inst *StateMachineExecutionsTable) SetSelectedFunc(handler func(row int, c
 	})
 }
 
-func (inst *StateMachineExecutionsTable) RefreshExecutions(force bool) {
+func (inst *StateMachineExecutionsTable) RefreshExecutions(reset bool) {
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		if len(inst.selectedFunctionArn) > 0 {
 			var err error = nil
-			inst.data, err = inst.api.ListExecutions(inst.selectedFunctionArn, force)
+			inst.data, err = inst.api.ListExecutions(inst.selectedFunctionArn, reset)
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
 			}
@@ -99,7 +116,7 @@ func (inst *StateMachineExecutionsTable) RefreshExecutions(force bool) {
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateExecutionsTable()
+		inst.populateExecutionsTable(reset)
 	})
 }
 
