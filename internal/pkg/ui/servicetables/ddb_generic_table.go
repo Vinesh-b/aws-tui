@@ -25,7 +25,7 @@ const (
 type DynamoDBGenericTable struct {
 	*DynamoDBTableSearchView
 	Table                *tview.Table
-	ErrorMessageCallback func(text string)
+	ErrorMessageCallback func(text string, a ...any)
 	data                 []map[string]interface{}
 	tableDescription     *types.TableDescription
 	selectedTable        string
@@ -53,7 +53,7 @@ func NewDynamoDBGenericTable(
 	var table = &DynamoDBGenericTable{
 		DynamoDBTableSearchView: NewDynamoDBTableSearchView(t, app, logger),
 		Table:                   t,
-		ErrorMessageCallback:    func(text string) {},
+		ErrorMessageCallback:    func(text string, a ...any) {},
 		data:                    nil,
 		selectedTable:           "",
 		pkQueryString:           "",

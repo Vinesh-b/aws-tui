@@ -51,8 +51,8 @@ func NewLogEventsPageView(
 		},
 	)
 
-	logEventsTable.ErrorMessageCallback = func(text string) {
-		serviceView.DisplayMessage(core.ErrorPrompt, text)
+	logEventsTable.ErrorMessageCallback = func(text string, a ...any) {
+		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
 	}
 
 	return &LogEventsPageView{
@@ -91,8 +91,8 @@ func NewLogStreamsPageView(
 		},
 	)
 
-	logStreamsTable.ErrorMessageCallback = func(text string) {
-		serviceView.DisplayMessage(core.ErrorPrompt, text)
+	logStreamsTable.ErrorMessageCallback = func(text string, a ...any) {
+		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
 	}
 
 	return &LogStreamsPageView{
@@ -129,8 +129,8 @@ func NewLogGroupsPageView(
 		},
 	)
 
-	logGroupsTable.ErrorMessageCallback = func(text string) {
-		serviceView.DisplayMessage(core.ErrorPrompt, text)
+	logGroupsTable.ErrorMessageCallback = func(text string, a ...any) {
+		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
 	}
 
 	return &LogGroupsPageView{

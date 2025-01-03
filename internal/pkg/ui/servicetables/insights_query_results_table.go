@@ -23,7 +23,7 @@ type InsightsQueryResultsTable struct {
 	logger               *log.Logger
 	app                  *tview.Application
 	api                  *awsapi.CloudWatchLogsApi
-	ErrorMessageCallback func(text string)
+	ErrorMessageCallback func(text string, a ...any)
 }
 
 func NewInsightsQueryResultsTable(
@@ -41,7 +41,7 @@ func NewInsightsQueryResultsTable(
 		logger:                  logger,
 		app:                     app,
 		api:                     api,
-		ErrorMessageCallback:    func(text string) {},
+		ErrorMessageCallback:    func(text string, a ...any) {},
 	}
 
 	view.populateQueryResultsTable()

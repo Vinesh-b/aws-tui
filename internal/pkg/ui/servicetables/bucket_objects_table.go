@@ -30,7 +30,7 @@ func parentDir(s3ObjectPrefix string) string {
 
 type BucketObjectsTable struct {
 	*tview.Table
-	ErrorMessageHandler func(text string)
+	ErrorMessageCallback func(text string, a ...any)
 	selectedBucket      string
 	selectedPrefix      string
 	data                []types.Object
@@ -46,7 +46,7 @@ func NewBucketObjectsTable(
 ) *BucketObjectsTable {
 	var view = &BucketObjectsTable{
 		Table:               tview.NewTable(),
-		ErrorMessageHandler: func(text string) {},
+		ErrorMessageCallback: func(text string, a ...any) {},
 		selectedBucket:      "",
 		selectedPrefix:      "",
 		data:                nil,
@@ -175,7 +175,7 @@ func (inst *BucketObjectsTable) RefreshObjects(force bool) {
 		)
 
 		if err != nil {
-			inst.ErrorMessageHandler(err.Error())
+			inst.ErrorMessageCallback(err.Error())
 			return
 		}
 

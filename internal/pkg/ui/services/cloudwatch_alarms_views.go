@@ -54,13 +54,13 @@ func NewAlarmsDetailsPageView(
 		},
 	)
 
-	var errorHandler = func(text string) {
-		serviceView.DisplayMessage(core.ErrorPrompt, text)
+	var errorHandler = func(text string, a ...any) {
+		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
 	}
 
 	alarmListTable.ErrorMessageCallback = errorHandler
 	alarmHistoryTable.ErrorMessageCallback = errorHandler
-	alarmDetailsTable.ErrorMessageHandler = errorHandler
+	alarmDetailsTable.ErrorMessageCallback = errorHandler
 
 	return &AlarmsDetailsPageView{
 		ServicePageView: serviceView,

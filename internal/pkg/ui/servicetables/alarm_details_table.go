@@ -16,7 +16,7 @@ import (
 
 type AlarmDetailsTable struct {
 	*tview.Grid
-	ErrorMessageHandler func(text string)
+	ErrorMessageCallback func(text string, a ...any)
 	selectedAlarm       string
 	data                *types.MetricAlarm
 	logger              *log.Logger
@@ -31,7 +31,7 @@ func NewAlarmDetailsTable(
 ) *AlarmDetailsTable {
 	var view = &AlarmDetailsTable{
 		Grid:                tview.NewGrid(),
-		ErrorMessageHandler: func(text string) {},
+		ErrorMessageCallback: func(text string, a ...any) {},
 		data:                nil,
 		selectedAlarm:       "",
 		logger:              logger,
@@ -100,7 +100,7 @@ func (inst *AlarmDetailsTable) RefreshDetails() {
 		var err error = nil
 		data, err = inst.api.ListAlarms(false)
 		if err != nil {
-			inst.ErrorMessageHandler(err.Error())
+			inst.ErrorMessageCallback(err.Error())
 		}
 
 		var idx = slices.IndexFunc(data, func(d types.MetricAlarm) bool {

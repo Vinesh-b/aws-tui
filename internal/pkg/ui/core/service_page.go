@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/gdamore/tcell/v2"
@@ -86,7 +87,9 @@ func (inst *ServicePageView) InitViewNavigation(orderedViews []View) {
 	inst.viewNavigation.UpdateOrderedViews(orderedViews, 0)
 }
 
-func (inst *ServicePageView) DisplayMessage(messageType MessagePromptType, text string) {
+func (inst *ServicePageView) DisplayMessage(messageType MessagePromptType, text string, a ...any) {
+
+    var message = fmt.Sprintf(text, a...)
 	var view *MessagePromptView
 	switch messageType {
 	case InfoPrompt:
@@ -94,12 +97,12 @@ func (inst *ServicePageView) DisplayMessage(messageType MessagePromptType, text 
 	case ErrorPrompt:
 		view = inst.errorView
 	default:
-		inst.logger.Print(text)
+		inst.logger.Print(message)
 		return
 	}
 
 	inst.Pages.ShowPage(string(messageType))
-	view.SetText(text)
+	view.SetText(message)
 	inst.app.SetFocus(view)
 }
 

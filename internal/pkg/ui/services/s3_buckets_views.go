@@ -47,12 +47,12 @@ func NewS3bucketsDetailsView(
 		},
 	)
 
-	var errorHandler = func(text string) {
-		serviceView.DisplayMessage(core.ErrorPrompt, text)
+	var errorHandler = func(text string, a ...any) {
+		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
 	}
 
 	bucketListTable.ErrorMessageCallback = errorHandler
-	bucketObjectsTable.ErrorMessageHandler = errorHandler
+	bucketObjectsTable.ErrorMessageCallback = errorHandler
 
 	return &S3BucketsDetailsView{
 		ServicePageView: serviceView,

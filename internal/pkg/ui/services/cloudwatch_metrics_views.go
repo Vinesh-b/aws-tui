@@ -47,8 +47,8 @@ func NewMetricsDetailsView(
 		},
 	)
 
-	var errorHandler = func(text string) {
-		serviceView.DisplayMessage(core.ErrorPrompt, text)
+	var errorHandler = func(text string, a ...any) {
+		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
 	}
 
 	metricListTable.ErrorMessageCallback = errorHandler

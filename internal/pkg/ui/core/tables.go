@@ -28,7 +28,7 @@ type SelectableTable[T any] struct {
 	data                 []TableRow
 	privateData          []T
 	privateColumn        int
-	ErrorMessageCallback func(text string)
+	ErrorMessageCallback func(text string, a ...any)
 }
 
 func NewSelectableTable[T any](title string, headings TableRow) *SelectableTable[T] {
@@ -43,7 +43,7 @@ func NewSelectableTable[T any](title string, headings TableRow) *SelectableTable
 		headings:             headings,
 		data:                 nil,
 		privateColumn:        0,
-		ErrorMessageCallback: func(text string) {},
+		ErrorMessageCallback: func(text string, a ...any) {},
 	}
 
 	view.SetTitle(title).
@@ -290,7 +290,7 @@ type DetailsTable struct {
 	table                *tview.Table
 	title                string
 	data                 []TableRow
-	ErrorMessageCallback func(text string)
+	ErrorMessageCallback func(text string, a ...any)
 }
 
 func NewDetailsTable(title string) *DetailsTable {
@@ -305,7 +305,7 @@ func NewDetailsTable(title string) *DetailsTable {
 		Flex:                 tview.NewFlex(),
 		table:                table,
 		title:                title,
-		ErrorMessageCallback: func(text string) {},
+		ErrorMessageCallback: func(text string, a ...any) {},
 	}
 
 	view.SetTitle(title).
