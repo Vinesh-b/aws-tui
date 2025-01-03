@@ -2,6 +2,7 @@ package servicetables
 
 import (
 	"log"
+	"slices"
 
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
@@ -80,7 +81,6 @@ func (inst *LogGroupsTable) populateLogGroupsTable() {
 	inst.SetData(tableData)
 	inst.SetPrivateData(privateData, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
-	inst.Select(0, 0)
 	inst.ScrollToBeginning()
 }
 
@@ -105,6 +105,18 @@ func (inst *LogGroupsTable) RefreshLogGroups(force bool) {
 	})
 }
 
+func (inst *LogGroupsTable) SetSelectionChangedFunc(handler func(row int, column int)) {
+	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
+		var ref = inst.GetCell(row, 0).Reference
+		if row < 1 || ref == nil {
+			return
+		}
+
+		inst.selectedLogGroup = ref.(string)
+		handler(row, column)
+	})
+}
+
 func (inst *LogGroupsTable) SetSelectedFunc(handler func(row int, column int)) {
 	inst.SelectableTable.SetSelectedFunc(func(row, column int) {
 		var ref = inst.GetCell(row, 0).Reference
@@ -119,4 +131,15 @@ func (inst *LogGroupsTable) SetSelectedFunc(handler func(row int, column int)) {
 
 func (inst *LogGroupsTable) GetSeletedLogGroup() string {
 	return inst.selectedLogGroup
+}
+
+func (inst *LogGroupsTable) GetLogGroupDetail() types.LogGroup {
+	var idx = slices.IndexFunc(inst.data, func(d types.LogGroup) bool {
+		return aws.ToString(d.LogGroupName) == inst.selectedLogGroup
+	})
+	if idx == -1 {
+		return types.LogGroup{}
+	}
+
+	return inst.data[idx]
 }

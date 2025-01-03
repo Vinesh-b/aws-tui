@@ -4,6 +4,7 @@ import (
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 	"log"
+	"slices"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -86,7 +87,6 @@ func (inst *LogStreamsTable) populateLogStreamsTable(extend bool) {
 
 	inst.SetData(tableData)
 	inst.GetCell(0, 0).SetExpansion(1)
-	inst.Select(0, 0)
 	inst.ScrollToBeginning()
 }
 
@@ -110,9 +110,20 @@ func (inst *LogStreamsTable) RefreshStreams(force bool) {
 	})
 }
 
+func (inst *LogStreamsTable) SetSelectionChangedFunc(handler func(row int, column int)) {
+	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
+		if row < 1 {
+			return
+		}
+
+		inst.selectedLogStream = inst.GetCell(row, 0).Text
+		handler(row, column)
+	})
+}
+
 func (inst *LogStreamsTable) SetSelectedFunc(handler func(row int, column int)) {
 	inst.SelectableTable.SetSelectedFunc(func(row, column int) {
-		if row < 0 {
+		if row < 1 {
 			return
 		}
 
@@ -123,6 +134,17 @@ func (inst *LogStreamsTable) SetSelectedFunc(handler func(row int, column int)) 
 
 func (inst *LogStreamsTable) GetSeletedLogStream() string {
 	return inst.selectedLogStream
+}
+
+func (inst *LogStreamsTable) GetLogStreamDetail() types.LogStream {
+	var idx = slices.IndexFunc(inst.data, func(d types.LogStream) bool {
+		return aws.ToString(d.LogStreamName) == inst.selectedLogStream
+	})
+	if idx == -1 {
+		return types.LogStream{}
+	}
+
+	return inst.data[idx]
 }
 
 func (inst *LogStreamsTable) GetSeletedLogGroup() string {

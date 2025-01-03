@@ -86,7 +86,7 @@ func NewLogStreamsPageView(
 
 	var serviceView = core.NewServicePageView(app, logger)
 	serviceView.MainPage.
-		AddItem(logStreamDetailsTable, 0, 1, true).
+		AddItem(logStreamDetailsTable, 8, 0, true).
 		AddItem(logStreamsTable, 0, 1, true)
 
 	serviceView.InitViewNavigation(
@@ -101,14 +101,20 @@ func NewLogStreamsPageView(
 	}
 
 	return &LogStreamsPageView{
-		ServicePageView: serviceView,
-		LogStreamsTable: logStreamsTable,
-		app:             app,
-		api:             api,
+		ServicePageView:       serviceView,
+		LogStreamsTable:       logStreamsTable,
+		LogStreamDetailsTable: logStreamDetailsTable,
+		app:                   app,
+		api:                   api,
 	}
 }
 
-func (inst *LogStreamsPageView) InitInputCapture() {}
+func (inst *LogStreamsPageView) InitInputCapture() {
+	inst.LogStreamsTable.SetSelectionChangedFunc(func(row, column int) {
+		var logStream = inst.LogStreamsTable.GetLogStreamDetail()
+		inst.LogStreamDetailsTable.RefreshDetails(logStream)
+	})
+}
 
 type LogGroupsPageView struct {
 	*core.ServicePageView
@@ -153,7 +159,12 @@ func NewLogGroupsPageView(
 	}
 }
 
-func (inst *LogGroupsPageView) InitInputCapture() {}
+func (inst *LogGroupsPageView) InitInputCapture() {
+	inst.LogGroupsTable.SetSelectionChangedFunc(func(row, column int) {
+		var logGroup = inst.LogGroupsTable.GetLogGroupDetail()
+		inst.LogGroupDetailsTable.RefreshDetails(logGroup)
+	})
+}
 
 func NewLogsHomeView(
 	app *tview.Application,
