@@ -98,6 +98,8 @@ func (inst *SelectableTable[T]) SetData(data []TableRow) error {
 		}
 	}
 
+	inst.table.Select(1, 0)
+
 	return nil
 }
 
@@ -197,12 +199,12 @@ func (inst *SelectableTable[T]) SearchPrivateData(searchCols []int, search strin
 }
 
 func (inst *SelectableTable[T]) GetPrivateData(row int, column int) T {
-    var ref = inst.table.GetCell(row, column).Reference
-    if ref == nil {
-        return *new(T)
-    }
+	var ref = inst.table.GetCell(row, column).Reference
+	if ref == nil {
+		return *new(T)
+	}
 
-    return ref.(T)
+	return ref.(T)
 }
 
 func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
