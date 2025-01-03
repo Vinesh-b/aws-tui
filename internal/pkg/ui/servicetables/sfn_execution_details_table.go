@@ -137,7 +137,6 @@ func (inst *StateMachineExecutionDetailsTable) populateTable() {
 
 	inst.SetData(tableData)
 	inst.SetPrivateData(results, 0)
-	inst.Select(1, 0)
 }
 
 func (inst *StateMachineExecutionDetailsTable) RefreshExecutionDetails(executionArn string, force bool) {

@@ -93,7 +93,6 @@ func (inst *StateMachineExecutionsTable) populateExecutionsTable(force bool) {
 	inst.SetData(tableData)
 	inst.SetPrivateData(privateData, sfnExecutionArnCol)
 	inst.GetCell(0, 0).SetExpansion(1)
-	inst.Select(1, 0)
 }
 
 func (inst *StateMachineExecutionsTable) SetSelectedFunc(handler func(row int, column int)) {

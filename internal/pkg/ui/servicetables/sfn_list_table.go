@@ -73,7 +73,6 @@ func (inst *StateMachinesListTable) populateStateMachinesTable() {
 	inst.SetData(tableData)
 	inst.SetPrivateData(privateData, sfnFunctionNameCol)
 	inst.GetCell(0, 0).SetExpansion(1)
-	inst.Select(1, 0)
 }
 
 func (inst *StateMachinesListTable) RefreshStateMachines(force bool) {
