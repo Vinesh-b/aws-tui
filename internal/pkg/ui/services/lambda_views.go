@@ -223,6 +223,7 @@ func NewLambdaHomeView(
 			app, cwl_api, logger,
 		)
 		logStreamsView = NewLogStreamsPageView(
+			tables.NewLogStreamDetailsTable(app, cwl_api, logger),
 			tables.NewLogStreamsTable(app, cwl_api, logger),
 			app, cwl_api, logger,
 		)

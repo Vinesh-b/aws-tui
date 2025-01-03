@@ -70,12 +70,14 @@ func (inst *LogEventsPageView) InitInputCapture() {}
 
 type LogStreamsPageView struct {
 	*core.ServicePageView
-	LogStreamsTable *tables.LogStreamsTable
-	app             *tview.Application
-	api             *awsapi.CloudWatchLogsApi
+	LogStreamsTable       *tables.LogStreamsTable
+	LogStreamDetailsTable *tables.LogStreamDetailsTable
+	app                   *tview.Application
+	api                   *awsapi.CloudWatchLogsApi
 }
 
 func NewLogStreamsPageView(
+	logStreamDetailsTable *tables.LogStreamDetailsTable,
 	logStreamsTable *tables.LogStreamsTable,
 	app *tview.Application,
 	api *awsapi.CloudWatchLogsApi,
@@ -83,11 +85,14 @@ func NewLogStreamsPageView(
 ) *LogStreamsPageView {
 
 	var serviceView = core.NewServicePageView(app, logger)
-	serviceView.MainPage.AddItem(logStreamsTable, 0, 1, true)
+	serviceView.MainPage.
+		AddItem(logStreamDetailsTable, 0, 1, true).
+		AddItem(logStreamsTable, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
 			logStreamsTable,
+			logStreamDetailsTable,
 		},
 	)
 
@@ -107,13 +112,15 @@ func (inst *LogStreamsPageView) InitInputCapture() {}
 
 type LogGroupsPageView struct {
 	*core.ServicePageView
-	LogGroupsTable   *tables.LogGroupsTable
-	selectedLogGroup string
-	app              *tview.Application
-	api              *awsapi.CloudWatchLogsApi
+	LogGroupsTable       *tables.LogGroupsTable
+	LogGroupDetailsTable *tables.LogGroupDetailsTable
+	selectedLogGroup     string
+	app                  *tview.Application
+	api                  *awsapi.CloudWatchLogsApi
 }
 
 func NewLogGroupsPageView(
+	logGroupDetailsTable *tables.LogGroupDetailsTable,
 	logGroupsTable *tables.LogGroupsTable,
 	app *tview.Application,
 	api *awsapi.CloudWatchLogsApi,
@@ -121,11 +128,14 @@ func NewLogGroupsPageView(
 ) *LogGroupsPageView {
 
 	var serviceView = core.NewServicePageView(app, logger)
-	serviceView.MainPage.AddItem(logGroupsTable, 0, 1, true)
+	serviceView.MainPage.
+		AddItem(logGroupDetailsTable, 8, 0, true).
+		AddItem(logGroupsTable, 0, 1, true)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
 			logGroupsTable,
+			logGroupDetailsTable,
 		},
 	)
 
@@ -134,11 +144,12 @@ func NewLogGroupsPageView(
 	}
 
 	return &LogGroupsPageView{
-		ServicePageView:  serviceView,
-		LogGroupsTable:   logGroupsTable,
-		selectedLogGroup: "",
-		app:              app,
-		api:              api,
+		ServicePageView:      serviceView,
+		LogGroupsTable:       logGroupsTable,
+		LogGroupDetailsTable: logGroupDetailsTable,
+		selectedLogGroup:     "",
+		app:                  app,
+		api:                  api,
 	}
 }
 
@@ -158,10 +169,12 @@ func NewLogsHomeView(
 		app, api, logger,
 	)
 	var logStreamsView = NewLogStreamsPageView(
+		tables.NewLogStreamDetailsTable(app, api, logger),
 		tables.NewLogStreamsTable(app, api, logger),
 		app, api, logger,
 	)
 	var logGroupsView = NewLogGroupsPageView(
+		tables.NewLogGroupDetailsTable(app, api, logger),
 		tables.NewLogGroupsTable(app, api, logger),
 		app, api, logger,
 	)

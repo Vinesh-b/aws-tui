@@ -32,6 +32,7 @@ func NewLogGroupsSelectionPageView(
 ) *LogGroupsSelectionPageView {
 
 	var logGroupsView = NewLogGroupsPageView(
+		tables.NewLogGroupDetailsTable(app, api, logger),
 		tables.NewLogGroupsTable(app, api, logger),
 		app, api, logger)
 	logGroupsView.InitInputCapture()
