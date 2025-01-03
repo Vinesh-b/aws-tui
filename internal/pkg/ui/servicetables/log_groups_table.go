@@ -78,8 +78,7 @@ func (inst *LogGroupsTable) populateLogGroupsTable() {
 		privateData = append(privateData, aws.ToString(row.LogGroupName))
 	}
 
-	inst.SetData(tableData)
-	inst.SetPrivateData(privateData, 0)
+	inst.SetData(tableData, privateData, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
 	inst.ScrollToBeginning()
 }

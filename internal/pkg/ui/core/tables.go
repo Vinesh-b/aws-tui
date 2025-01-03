@@ -28,6 +28,8 @@ type SelectableTable[T any] struct {
 	data                 []TableRow
 	privateData          []T
 	privateColumn        int
+	rowCount             int
+	colCount             int
 	ErrorMessageCallback func(text string, a ...any)
 }
 
@@ -57,7 +59,7 @@ func NewSelectableTable[T any](title string, headings TableRow) *SelectableTable
 	return view
 }
 
-func (inst *SelectableTable[T]) SetData(data []TableRow) error {
+func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privateDataCol int) error {
 	if len(data) > 0 {
 		if len(inst.headings) != len(data[0]) {
 			log.Println("Table data and headings dimensions do not match")
@@ -98,12 +100,6 @@ func (inst *SelectableTable[T]) SetData(data []TableRow) error {
 		}
 	}
 
-	inst.table.Select(1, 0)
-
-	return nil
-}
-
-func (inst *SelectableTable[T]) SetPrivateData(privateData []T, column int) error {
 	if len(privateData) > 0 {
 		if len(privateData) != len(inst.data) {
 			log.Println("Table data and private data row counts do not match")
@@ -112,23 +108,24 @@ func (inst *SelectableTable[T]) SetPrivateData(privateData []T, column int) erro
 				"Table data and private data row counts do not match",
 			)
 		}
-	}
-	inst.privateColumn = column
+		inst.privateColumn = privateDataCol
 
-	for rowIdx, rowData := range inst.data {
-		for colIdx := range len(rowData) {
-			if colIdx == inst.privateColumn {
-				inst.table.GetCell(rowIdx+1, colIdx).
-					SetReference(privateData[rowIdx])
+		for rowIdx, rowData := range inst.data {
+			for colIdx := range len(rowData) {
+				if colIdx == inst.privateColumn {
+					inst.table.GetCell(rowIdx+1, colIdx).
+						SetReference(privateData[rowIdx])
+				}
 			}
-
 		}
 	}
+
+	inst.table.Select(1, 0)
 
 	return nil
 }
 
-func (inst *SelectableTable[T]) ExtendData(data []TableRow) {
+func (inst *SelectableTable[T]) ExtendData(data []TableRow, privateData []T) error {
 	var table = inst.table
 	var rows = table.GetRowCount()
 	// Don't count the headings row in the title
@@ -144,9 +141,7 @@ func (inst *SelectableTable[T]) ExtendData(data []TableRow) {
 			)
 		}
 	}
-}
 
-func (inst *SelectableTable[T]) ExtendPrivateData(privateData []T) error {
 	if len(privateData) > 0 {
 		if len(privateData) != len(inst.data) {
 			log.Println("Table data and private data row counts do not match")
@@ -155,14 +150,11 @@ func (inst *SelectableTable[T]) ExtendPrivateData(privateData []T) error {
 				"Table data and private data row counts do not match",
 			)
 		}
-	}
-	var table = inst.table
-	var rows = table.GetRowCount()
 
-	for rowIdx := range len(inst.privateData) {
-		table.GetCell(rowIdx+rows, inst.privateColumn).
-			SetReference(privateData[rowIdx]).
-			SetAlign(tview.AlignLeft)
+		for rowIdx := range inst.data {
+			inst.table.GetCell(rowIdx+rows, inst.privateColumn).
+				SetReference(privateData[rowIdx])
+		}
 	}
 
 	return nil
@@ -204,7 +196,14 @@ func (inst *SelectableTable[T]) GetPrivateData(row int, column int) T {
 		return *new(T)
 	}
 
-	return ref.(T)
+	switch any(ref).(type) {
+	case T:
+		return ref.(T)
+	default:
+		return *new(T)
+
+	}
+
 }
 
 func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {

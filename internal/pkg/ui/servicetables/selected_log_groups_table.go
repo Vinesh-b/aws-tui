@@ -73,10 +73,8 @@ func (inst *SelectedGroupsTable) populateSelectedGroupsTable() {
 		privateData = append(privateData, row)
 	}
 
-	inst.SetData(tableData)
-	inst.SetPrivateData(privateData, logNameCol)
+	inst.SetData(tableData, privateData, logNameCol)
 	inst.GetCell(0, 0).SetExpansion(1)
-	inst.Select(1, 0)
 }
 
 func (inst *SelectedGroupsTable) RefreshSelectedGroups() {

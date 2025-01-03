@@ -58,7 +58,7 @@ func (inst *DynamoDBTablesTable) populateTablesTable() {
 		tableData = append(tableData, core.TableRow{row})
 	}
 
-	inst.SetData(tableData)
+	inst.SetData(tableData, nil, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
 	inst.Select(1, 0)
 }

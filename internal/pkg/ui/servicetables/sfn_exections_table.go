@@ -85,18 +85,17 @@ func (inst *StateMachineExecutionsTable) populateExecutionsTable(force bool) {
 	}
 
 	if !force {
-		inst.ExtendData(tableData)
-		inst.ExtendPrivateData(privateData)
+		inst.ExtendData(tableData, privateData)
 		return
 	}
 
-	inst.SetData(tableData)
-	inst.SetPrivateData(privateData, sfnExecutionArnCol)
+	inst.SetData(tableData, privateData, sfnExecutionArnCol)
 	inst.GetCell(0, 0).SetExpansion(1)
 }
 
 func (inst *StateMachineExecutionsTable) SetSelectedFunc(handler func(row int, column int)) {
 	inst.SelectableTable.SetSelectedFunc(func(row, column int) {
+		inst.selectedExecutionArn = inst.GetPrivateData(row, sfnExecutionArnCol)
 		handler(row, column)
 	})
 }
@@ -121,11 +120,7 @@ func (inst *StateMachineExecutionsTable) RefreshExecutions(reset bool) {
 
 func (inst *StateMachineExecutionsTable) SetSelectionChangedFunc(handler func(row int, column int)) {
 	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
-		var ref = inst.GetCell(row, sfnExecutionArnCol).Reference
-		if row < 1 || ref == nil {
-			return
-		}
-		inst.selectedExecutionArn = ref.(string)
+		inst.selectedExecutionArn = inst.GetPrivateData(row, sfnExecutionArnCol)
 
 		handler(row, column)
 	})

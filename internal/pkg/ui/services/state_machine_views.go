@@ -109,7 +109,7 @@ func NewStateMachineExectionDetailsPage(
 		},
 	}
 
-	executionDetails.SetSelectedFunc(func(row, column int) {
+	var selectionFunc = func(row int) {
 		var privateData = executionDetails.GetCell(row, 0).Reference
 		if row < 1 || privateData == nil {
 			return
@@ -119,18 +119,14 @@ func NewStateMachineExectionDetailsPage(
 			inputsExpandedView.SetText(privateData.(tables.StateDetails))
 			outputsExpandedView.SetText(privateData.(tables.StateDetails))
 		}
+	}
+
+	executionDetails.SetSelectedFunc(func(row, column int) {
+		selectionFunc(row)
 	})
 
 	executionDetails.SetSelectionChangedFunc(func(row, column int) {
-		var privateData = executionDetails.GetCell(row, 0).Reference
-		if row < 1 || privateData == nil {
-			return
-		}
-		switch any(privateData).(type) {
-		case tables.StateDetails:
-			inputsExpandedView.SetText(privateData.(tables.StateDetails))
-			outputsExpandedView.SetText(privateData.(tables.StateDetails))
-		}
+		selectionFunc(row)
 	})
 
 	var inputOutputView = tview.NewFlex().SetDirection(tview.FlexColumn).

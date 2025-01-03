@@ -70,8 +70,7 @@ func (inst *StateMachinesListTable) populateStateMachinesTable() {
 		privateData = append(privateData, aws.ToString(row.StateMachineArn))
 	}
 
-	inst.SetData(tableData)
-	inst.SetPrivateData(privateData, sfnFunctionNameCol)
+	inst.SetData(tableData, privateData, sfnFunctionNameCol)
 	inst.GetCell(0, 0).SetExpansion(1)
 }
 

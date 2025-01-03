@@ -59,9 +59,8 @@ func (inst *BucketListTable) populateS3BucketsTable() {
 		})
 	}
 
-	inst.SetData(tableData)
+	inst.SetData(tableData, nil, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
-	inst.Select(0, 0)
 }
 
 func (inst *BucketListTable) RefreshBuckets(force bool) {

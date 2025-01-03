@@ -67,13 +67,11 @@ func (inst *StackEventsTable) populateStackEventsTable(reset bool) {
 		privateData = append(privateData, aws.ToString(row.ResourceStatusReason))
 	}
 	if !reset {
-		inst.ExtendData(tableData)
-		inst.ExtendPrivateData(privateData)
+		inst.ExtendData(tableData, privateData)
 		return
 	}
 
-	inst.SetData(tableData)
-	inst.SetPrivateData(privateData, 4)
+	inst.SetData(tableData, privateData, 4)
 	inst.GetCell(0, 0).SetExpansion(1)
 	inst.Select(1, 0)
 }

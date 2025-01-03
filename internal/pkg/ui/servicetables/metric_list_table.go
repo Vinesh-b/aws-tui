@@ -71,9 +71,8 @@ func (inst *MetricListTable) populateMetricsTable() {
 		})
 	}
 
-	inst.SetData(tableData)
+	inst.SetData(tableData, nil, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
-	inst.Select(1, 0)
 }
 
 func (inst *MetricListTable) RefreshMetrics(force bool) {

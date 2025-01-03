@@ -54,9 +54,9 @@ func NewLambdasListTable(
 		}
 	})
 
-    view.SetSearchChangedFunc(func(text string) {
+	view.SetSearchChangedFunc(func(text string) {
 		view.RefreshLambdas(false)
-    })
+	})
 
 	return view
 }
@@ -70,9 +70,8 @@ func (inst *LambdaListTable) populateLambdasTable() {
 		})
 	}
 
-	inst.SetData(tableData)
+	inst.SetData(tableData, nil, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
-	inst.Select(1, 0)
 }
 
 func (inst *LambdaListTable) RefreshLambdas(force bool) {

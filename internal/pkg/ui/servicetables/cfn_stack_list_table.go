@@ -69,9 +69,8 @@ func (inst *StackListTable) populateStacksTable() {
 		})
 	}
 
-	inst.SetData(tableData)
+	inst.SetData(tableData, nil, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
-	inst.Select(1, 0)
 }
 
 func (inst *StackListTable) RefreshStacks(reset bool) {

@@ -64,13 +64,12 @@ func (inst *AlarmHistoryTable) populateAlarmHistoryTable(reset bool) {
 	}
 
 	if !reset {
-		inst.ExtendData(tableData)
+		inst.ExtendData(tableData, nil)
 		return
 	}
 
-	inst.SetData(tableData)
+	inst.SetData(tableData, nil, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
-	inst.Select(0, 0)
 	inst.ScrollToBeginning()
 }
 

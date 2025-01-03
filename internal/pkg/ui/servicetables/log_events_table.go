@@ -75,15 +75,12 @@ func (inst *LogEventsTable) populateLogEventsTable(reset bool) {
 	}
 
 	if !reset {
-		inst.ExtendData(tableData)
-		inst.ExtendPrivateData(privateData)
+		inst.ExtendData(tableData, privateData)
 		return
 	}
 
-	inst.SetData(tableData)
-	inst.SetPrivateData(privateData, logMsgCol)
+	inst.SetData(tableData, privateData, logMsgCol)
 	inst.GetCell(0, 0).SetExpansion(1)
-	inst.Select(1, 0)
 }
 
 func (inst *LogEventsTable) RefreshLogEvents(reset bool) {

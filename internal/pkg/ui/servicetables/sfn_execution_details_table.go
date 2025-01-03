@@ -20,7 +20,7 @@ import (
 type StateMachineExecutionDetailsTable struct {
 	*core.SelectableTable[StateDetails]
 	ExecutionHistory     *sfn.GetExecutionHistoryOutput
-	SelectedExecutionArn string
+	selectedExecutionArn string
 
 	logger *log.Logger
 	app    *tview.Application
@@ -44,7 +44,7 @@ func NewStateMachineExecutionDetailsTable(
 			},
 		),
 		ExecutionHistory:     nil,
-		SelectedExecutionArn: "",
+		selectedExecutionArn: "",
 
 		logger: logger,
 		app:    app,
@@ -55,7 +55,7 @@ func NewStateMachineExecutionDetailsTable(
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
-			view.RefreshExecutionDetails(view.SelectedExecutionArn, true)
+			view.RefreshExecutionDetails(view.selectedExecutionArn, true)
 		}
 		return event
 	})
@@ -135,12 +135,11 @@ func (inst *StateMachineExecutionDetailsTable) populateTable() {
 		})
 	}
 
-	inst.SetData(tableData)
-	inst.SetPrivateData(results, 0)
+	inst.SetData(tableData, results, 0)
 }
 
 func (inst *StateMachineExecutionDetailsTable) RefreshExecutionDetails(executionArn string, force bool) {
-	inst.SelectedExecutionArn = executionArn
+	inst.selectedExecutionArn = executionArn
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
 	dataLoader.AsyncLoadData(func() {
