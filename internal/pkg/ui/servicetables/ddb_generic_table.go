@@ -249,6 +249,9 @@ func (inst *DynamoDBGenericTable) SetSelectionChangedFunc(
 	handler func(row int, column int),
 ) *DynamoDBGenericTable {
 	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
+		if row < 1 {
+			return
+		}
 		inst.lastSelectedRowIdx = row
 		handler(row, column)
 	})
