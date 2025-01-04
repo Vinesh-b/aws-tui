@@ -28,6 +28,7 @@ type SelectableTable[T any] struct {
 	*SearchableView
 	table                *tview.Table
 	title                string
+	titleExtra           string
 	headings             TableRow
 	data                 []TableRow
 	privateData          []T
@@ -47,6 +48,7 @@ func NewSelectableTable[T any](title string, headings TableRow) *SelectableTable
 		table:                table,
 		SearchableView:       NewSearchableView(table),
 		title:                title,
+		titleExtra:           "",
 		headings:             headings,
 		data:                 nil,
 		privateColumn:        0,
@@ -75,10 +77,16 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 			)
 		}
 	}
-	var tableTitle = fmt.Sprintf("%s (%d)", inst.title, len(data))
 
 	inst.data = data
 	inst.table.Clear()
+
+	var tableTitle = ""
+	if len(inst.titleExtra) == 0 {
+		tableTitle = fmt.Sprintf("%s (%d)", inst.title, len(data))
+	} else {
+		tableTitle = fmt.Sprintf("%s (%d) [%s]", inst.title, len(data), inst.titleExtra)
+	}
 	inst.SetTitle(tableTitle)
 
 	inst.table.SetSelectable(true, false).SetSelectedStyle(
@@ -286,6 +294,10 @@ func (inst *SelectableTable[T]) Select(row int, column int) *SelectableTable[T] 
 
 func (inst *SelectableTable[T]) GetCell(row int, column int) *tview.TableCell {
 	return inst.table.GetCell(row, column)
+}
+
+func (inst *SelectableTable[T]) SetTitleExtra(extra string) {
+	inst.titleExtra = extra
 }
 
 func (inst *SelectableTable[T]) GetTable() *tview.Table {

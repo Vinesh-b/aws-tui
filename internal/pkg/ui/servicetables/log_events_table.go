@@ -109,6 +109,7 @@ func (inst *LogEventsTable) SetSeletedLogGroup(logGroup string) {
 
 func (inst *LogEventsTable) SetSeletedLogStream(logStream string) {
 	inst.selectedLogStream = logStream
+	inst.SetTitleExtra(logStream)
 }
 
 func (inst *LogEventsTable) GetFullLogMessage(row int) string {

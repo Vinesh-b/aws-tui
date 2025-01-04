@@ -153,6 +153,7 @@ func (inst *LogStreamsTable) GetSeletedLogGroup() string {
 
 func (inst *LogStreamsTable) SetSeletedLogGroup(logGroup string) {
 	inst.selectedLogGroup = logGroup
+	inst.SetTitleExtra(logGroup)
 }
 
 func (inst *LogStreamsTable) SetLogStreamSearchPrefix(prefix string) {

@@ -50,7 +50,7 @@ func (inst *UiDataLoader) AsyncUpdateView(view *tview.Box, updateViewFunc func()
 				inst.app.QueueUpdateDraw(func() {})
 				return
 			default:
-				view.SetTitle(fmt.Sprintf(originalTitle+"%s", loadingSymbol[idx]))
+				view.SetTitle(fmt.Sprintf("%s "+originalTitle, loadingSymbol[idx]))
 				inst.app.QueueUpdateDraw(func() {})
 				idx = (idx + 1) % len(loadingSymbol)
 				time.Sleep(time.Millisecond * 100)
