@@ -18,6 +18,7 @@ type MetricListTable struct {
 	selectedMetric types.Metric
 	currentSearch  string
 	data           []types.Metric
+	filtered       []types.Metric
 	logger         *log.Logger
 	app            *tview.Application
 	api            *awsapi.CloudWatchMetricsApi
@@ -44,28 +45,29 @@ func NewMetricsTable(
 		api:            api,
 	}
 
-	view.populateMetricsTable()
+	view.populateMetricsTable(view.data)
 	view.SetSelectionChangedFunc(func(row, column int) {})
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
 
 	view.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			view.RefreshMetrics(false)
+			var search = view.GetSearchText()
+			view.FilterByName(search)
 		}
 	})
 
 	view.SetSearchChangedFunc(func(text string) {
-		view.RefreshMetrics(false)
+		view.FilterByName(text)
 	})
 
 	return view
 }
 
-func (inst *MetricListTable) populateMetricsTable() {
+func (inst *MetricListTable) populateMetricsTable(data []types.Metric) {
 	var tableData []core.TableRow
 	var privateData []types.Metric
-	for _, row := range inst.data {
+	for _, row := range data {
 		tableData = append(tableData, core.TableRow{
 			aws.ToString(row.Namespace),
 			aws.ToString(row.MetricName),
@@ -77,24 +79,42 @@ func (inst *MetricListTable) populateMetricsTable() {
 	inst.GetCell(0, 0).SetExpansion(1)
 }
 
-func (inst *MetricListTable) RefreshMetrics(force bool) {
-	var search = inst.GetSearchText()
+func (inst *MetricListTable) FilterByName(name string) {
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		if len(search) > 0 {
-			inst.data = inst.api.FilterByName(search)
+		inst.filtered = core.FuzzySearch(
+			name,
+			inst.data,
+			func(v types.Metric) string {
+				return aws.ToString(v.MetricName)
+			},
+		)
+	})
+
+	dataLoader.AsyncUpdateView(inst.Box, func() {
+		inst.populateMetricsTable(inst.filtered)
+	})
+}
+
+func (inst *MetricListTable) RefreshMetrics(reset bool) {
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+
+	dataLoader.AsyncLoadData(func() {
+		var data, err = inst.api.ListMetrics(nil, "", "", reset)
+		if err != nil {
+			inst.ErrorMessageCallback(err.Error())
+		}
+
+		if !reset {
+			inst.data = append(inst.data, data...)
 		} else {
-			var err error = nil
-			inst.data, err = inst.api.ListMetrics(nil, "", "", force)
-			if err != nil {
-				inst.ErrorMessageCallback(err.Error())
-			}
+			inst.data = data
 		}
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateMetricsTable()
+		inst.populateMetricsTable(inst.data)
 	})
 }
 

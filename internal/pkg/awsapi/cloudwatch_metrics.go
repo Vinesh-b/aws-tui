@@ -1,7 +1,6 @@
 package awsapi
 
 import (
-	"aws-tui/internal/pkg/ui/core"
 	"context"
 	"log"
 	"sort"
@@ -15,7 +14,6 @@ type CloudWatchMetricsApi struct {
 	logger          *log.Logger
 	config          aws.Config
 	client          *cloudwatch.Client
-	allMetrics      []types.Metric
 	meticsPaginator *cloudwatch.ListMetricsPaginator
 }
 
@@ -27,7 +25,6 @@ func NewCloudWatchMetricsApi(
 		config:          config,
 		logger:          logger,
 		client:          cloudwatch.NewFromConfig(config),
-		allMetrics:      []types.Metric{},
 		meticsPaginator: nil,
 	}
 }
@@ -38,10 +35,6 @@ func (inst *CloudWatchMetricsApi) ListMetrics(
 	metricName string,
 	force bool,
 ) ([]types.Metric, error) {
-	if len(inst.allMetrics) > 0 && !force {
-		return inst.allMetrics, nil
-	}
-
 	var queryNamespace = &namespace
 	if namespace == "" {
 		queryNamespace = nil
@@ -52,7 +45,7 @@ func (inst *CloudWatchMetricsApi) ListMetrics(
 		queryMetricName = nil
 	}
 
-	inst.allMetrics = []types.Metric{}
+	var result = []types.Metric{}
 	inst.meticsPaginator = cloudwatch.NewListMetricsPaginator(
 		inst.client,
 		&cloudwatch.ListMetricsInput{
@@ -70,18 +63,12 @@ func (inst *CloudWatchMetricsApi) ListMetrics(
 			apiErr = err
 			break
 		}
-		inst.allMetrics = append(inst.allMetrics, output.Metrics...)
+		result = append(result, output.Metrics...)
 	}
 
-	sort.Slice(inst.allMetrics, func(i, j int) bool {
-		return aws.ToString(inst.allMetrics[i].MetricName) < aws.ToString(inst.allMetrics[j].MetricName)
+	sort.Slice(result, func(i, j int) bool {
+		return aws.ToString(result[i].MetricName) < aws.ToString(result[j].MetricName)
 	})
 
-	return inst.allMetrics, apiErr
-}
-
-func (inst *CloudWatchMetricsApi) FilterByName(name string) []types.Metric {
-	return core.FuzzySearch(name, inst.allMetrics, func(v types.Metric) string {
-		return aws.ToString(v.MetricName)
-	})
+	return result, apiErr
 }
