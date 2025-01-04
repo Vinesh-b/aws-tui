@@ -162,7 +162,7 @@ func (inst *BucketObjectsTable) populateS3ObjectsTable(
 	inst.appendToObjectsTable(title, tableData, rowOffset)
 
 	inst.Table.GetCell(0, 0).SetExpansion(1)
-	inst.Table.Select(0, 0)
+	inst.Table.Select(1, 0)
 }
 
 func (inst *BucketObjectsTable) RefreshObjects(force bool) {
