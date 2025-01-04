@@ -20,6 +20,7 @@ type StateMachinesListTable struct {
 	*core.SelectableTable[string]
 	selectedFunctionArn string
 	data                []types.StateMachineListItem
+	filtered            []types.StateMachineListItem
 	logger              *log.Logger
 	app                 *tview.Application
 	api                 *awsapi.StateMachineApi
@@ -46,23 +47,24 @@ func NewStateMachinesListTable(
 		api:    api,
 	}
 
-	table.populateStateMachinesTable()
+	table.populateStateMachinesTable(table.data)
 	table.SetSelectionChangedFunc(func(row, column int) {})
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
 	table.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			table.RefreshStateMachines(false)
+			var search = table.GetSearchText()
+			table.FilterByName(search)
 		}
 	})
 
 	return table
 }
 
-func (inst *StateMachinesListTable) populateStateMachinesTable() {
+func (inst *StateMachinesListTable) populateStateMachinesTable(data []types.StateMachineListItem) {
 	var tableData []core.TableRow
 	var privateData []string
-	for _, row := range inst.data {
+	for _, row := range data {
 		tableData = append(tableData, core.TableRow{
 			aws.ToString(row.Name),
 			row.CreationDate.Format(time.DateTime),
@@ -74,24 +76,41 @@ func (inst *StateMachinesListTable) populateStateMachinesTable() {
 	inst.GetCell(0, 0).SetExpansion(1)
 }
 
-func (inst *StateMachinesListTable) RefreshStateMachines(force bool) {
-	var search = inst.GetSearchText()
+func (inst *StateMachinesListTable) FilterByName(name string) {
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		if len(search) > 0 {
-			inst.data = inst.api.FilterByName(search)
+		inst.filtered = core.FuzzySearch(name,
+			inst.data,
+			func(v types.StateMachineListItem) string {
+				return aws.ToString(v.Name)
+			},
+		)
+	})
+
+	dataLoader.AsyncUpdateView(inst.Box, func() {
+		inst.populateStateMachinesTable(inst.filtered)
+	})
+}
+
+func (inst *StateMachinesListTable) RefreshStateMachines(reset bool) {
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+
+	dataLoader.AsyncLoadData(func() {
+		var data, err = inst.api.ListStateMachines(reset)
+		if err != nil {
+			inst.ErrorMessageCallback(err.Error())
+		}
+
+		if !reset {
+			inst.data = append(inst.data, data...)
 		} else {
-			var err error = nil
-			inst.data, err = inst.api.ListStateMachines(force)
-			if err != nil {
-				inst.ErrorMessageCallback(err.Error())
-			}
+			inst.data = data
 		}
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateStateMachinesTable()
+		inst.populateStateMachinesTable(inst.data)
 	})
 }
 

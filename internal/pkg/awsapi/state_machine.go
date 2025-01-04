@@ -1,7 +1,6 @@
 package awsapi
 
 import (
-	"aws-tui/internal/pkg/ui/core"
 	"context"
 	"fmt"
 	"log"
@@ -16,7 +15,6 @@ type StateMachineApi struct {
 	logger                  *log.Logger
 	config                  aws.Config
 	client                  *sfn.Client
-	allStateMachines        []types.StateMachineListItem
 	nextExectionsToken      *string
 	listExecutionsPaginator *sfn.ListExecutionsPaginator
 }
@@ -26,25 +24,20 @@ func NewStateMachineApi(
 	logger *log.Logger,
 ) *StateMachineApi {
 	return &StateMachineApi{
-		config:           config,
-		logger:           logger,
-		client:           sfn.NewFromConfig(config),
-		allStateMachines: []types.StateMachineListItem{},
+		config: config,
+		logger: logger,
+		client: sfn.NewFromConfig(config),
 	}
 }
 
 func (inst *StateMachineApi) ListStateMachines(force bool) ([]types.StateMachineListItem, error) {
-	if len(inst.allStateMachines) > 0 && !force {
-		return inst.allStateMachines, nil
-	}
-
-	inst.allStateMachines = []types.StateMachineListItem{}
-
 	var paginator = sfn.NewListStateMachinesPaginator(
 		inst.client, &sfn.ListStateMachinesInput{},
 	)
 
 	var apiErr error = nil
+	var result = []types.StateMachineListItem{}
+
 	for paginator.HasMorePages() {
 		var output, err = paginator.NextPage(context.TODO())
 		if err != nil {
@@ -53,20 +46,14 @@ func (inst *StateMachineApi) ListStateMachines(force bool) ([]types.StateMachine
 			break
 		}
 
-		inst.allStateMachines = append(inst.allStateMachines, output.StateMachines...)
+		result = append(result, output.StateMachines...)
 	}
 
-	sort.Slice(inst.allStateMachines, func(i, j int) bool {
-		return aws.ToString(inst.allStateMachines[i].Name) < aws.ToString(inst.allStateMachines[j].Name)
+	sort.Slice(result, func(i, j int) bool {
+		return aws.ToString(result[i].Name) < aws.ToString(result[j].Name)
 	})
 
-	return inst.allStateMachines, apiErr
-}
-
-func (inst *StateMachineApi) FilterByName(name string) []types.StateMachineListItem {
-	return core.FuzzySearch(name, inst.allStateMachines, func(v types.StateMachineListItem) string {
-		return aws.ToString(v.Name)
-	})
+	return result, apiErr
 }
 
 func (inst *StateMachineApi) ListExecutions(stateMachineArn string, reset bool) ([]types.ExecutionListItem, error) {
