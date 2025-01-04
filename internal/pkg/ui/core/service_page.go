@@ -49,7 +49,10 @@ func NewServicePageView(
 ) *ServicePageView {
 	var flex = tview.NewFlex()
 	var viewNav = NewViewNavigation(flex, nil, app)
-	viewNav.SetNavigationKeys(tcell.KeyCtrlJ, tcell.KeyCtrlK)
+	viewNav.SetNavigationKeys(
+		APP_KEY_BINDINGS.ViewFocusDown,
+		APP_KEY_BINDINGS.ViewFocusUp,
+	)
 
 	var view = &ServicePageView{
 		MainPage:       flex,
@@ -89,7 +92,7 @@ func (inst *ServicePageView) InitViewNavigation(orderedViews []View) {
 
 func (inst *ServicePageView) DisplayMessage(messageType MessagePromptType, text string, a ...any) {
 
-    var message = fmt.Sprintf(text, a...)
+	var message = fmt.Sprintf(text, a...)
 	var view *MessagePromptView
 	switch messageType {
 	case InfoPrompt:

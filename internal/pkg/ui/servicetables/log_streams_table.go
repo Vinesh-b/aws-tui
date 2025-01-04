@@ -52,7 +52,7 @@ func NewLogStreamsTable(
 	view.SetSelectedFunc(func(row, column int) {})
 	view.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
-		case tcell.KeyEnter:
+		case core.APP_KEY_BINDINGS.Done:
 			view.SetLogStreamSearchPrefix(view.GetSearchText())
 			view.RefreshStreams(true)
 			view.app.SetFocus(view)
@@ -61,9 +61,9 @@ func NewLogStreamsTable(
 
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlR:
+		case core.APP_KEY_BINDINGS.Reset:
 			view.RefreshStreams(true)
-		case tcell.KeyCtrlN:
+		case core.APP_KEY_BINDINGS.NextPage:
 			view.RefreshStreams(false)
 		}
 		return event

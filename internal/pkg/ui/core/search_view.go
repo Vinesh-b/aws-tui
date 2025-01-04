@@ -63,7 +63,7 @@ func NewSearchDateTimeView(label string, app *tview.Application) *SearchDateTime
 
 	startTimeInput.SetDoneFunc(func(key tcell.Key) {
 		switch key {
-		case tcell.KeyEnter:
+		case APP_KEY_BINDINGS.Done:
 			var start, err = time.Parse(dateTimelayout, startTimeInput.GetText())
 			if err != nil {
 				view.startDateTime = time.Now()
@@ -80,7 +80,7 @@ func NewSearchDateTimeView(label string, app *tview.Application) *SearchDateTime
 
 	endTimeInput.SetDoneFunc(func(key tcell.Key) {
 		switch key {
-		case tcell.KeyEnter:
+		case APP_KEY_BINDINGS.Done:
 			var end, err = time.Parse(dateTimelayout, endTimeInput.GetText())
 			if err != nil {
 				view.endDateTime = time.Now()
@@ -100,7 +100,7 @@ func NewSearchDateTimeView(label string, app *tview.Application) *SearchDateTime
 func (inst *SearchDateTimeView) SetDoneFunc(handler func(key tcell.Key)) *tview.InputField {
 	return inst.inputField.SetDoneFunc(func(key tcell.Key) {
 		switch key {
-		case tcell.KeyEnter:
+		case APP_KEY_BINDINGS.Done:
 			if inst.endDateTime.After(inst.startDateTime) {
 				handler(key)
 			}

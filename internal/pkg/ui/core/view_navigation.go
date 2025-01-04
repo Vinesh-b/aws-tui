@@ -22,8 +22,8 @@ func NewViewNavigation(rootView RootView, orderedViews []View, app *tview.Applic
 		app:          app,
 		viewIdx:      len(orderedViews),
 		numViews:     len(orderedViews),
-		keyForward:   tcell.KeyTab,
-		keyBack:      tcell.KeyBacktab,
+		keyForward:   APP_KEY_BINDINGS.FormFocusNext,
+		keyBack:      APP_KEY_BINDINGS.FormFocusPrev,
 	}
 
 	view.rootView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {

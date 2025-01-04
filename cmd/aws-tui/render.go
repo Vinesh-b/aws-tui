@@ -100,7 +100,7 @@ func RenderUI(config aws.Config, version string) {
 		case tcell.KeyESC:
 			pages.SwitchToPage(HOME_PAGE)
 			app.SetFocus(servicesList)
-		case tcell.KeyCtrlSpace:
+		case core.APP_KEY_BINDINGS.ToggleServicesMenu:
 			if showServicesListToggle {
 				lastFocus = app.GetFocus()
 				pages.ShowPage(FLOATING_SERVICE_LIST)

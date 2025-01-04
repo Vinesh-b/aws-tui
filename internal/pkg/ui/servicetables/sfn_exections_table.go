@@ -59,9 +59,9 @@ func NewStateMachineExecutionsTable(
 
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlR:
+		case core.APP_KEY_BINDINGS.Reset:
 			table.RefreshExecutions(true)
-		case tcell.KeyCtrlN:
+		case core.APP_KEY_BINDINGS.NextPage:
 			table.RefreshExecutions(false)
 		}
 		return event

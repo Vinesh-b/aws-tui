@@ -44,7 +44,7 @@ func NewDynamoDBTablesTable(
 	table.SetSelectedFunc(func(row, column int) {})
 	table.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
-		case tcell.KeyEnter:
+		case core.APP_KEY_BINDINGS.Done:
 			table.RefreshTables(true)
 		}
 	})
@@ -97,7 +97,7 @@ func (inst *DynamoDBTablesTable) SetSelectionChangedFunc(handler func(row int, c
 func (inst *DynamoDBTablesTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
 	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlR:
+		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshTables(true)
 		}
 		return capture(event)

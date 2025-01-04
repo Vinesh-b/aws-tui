@@ -108,7 +108,7 @@ func (inst *StackEventsTable) SetSelectionChangedFunc(handler func(row int, colu
 func (inst *StackEventsTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
 	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlR:
+		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshEvents(true)
 		}
 		return capture(event)

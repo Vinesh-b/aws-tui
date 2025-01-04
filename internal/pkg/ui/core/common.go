@@ -32,10 +32,45 @@ func CreateReadOnlyTextArea(title string) *tview.TextArea {
 		SetBorder(true)
 
 	textArea.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-        if unicode.IsControl(event.Rune()) {
-            return event
-        }
-        return nil
+		switch event.Key() {
+		case // Disable text area default edititing key events
+			tcell.KeyCtrlY, tcell.KeyCtrlZ, tcell.KeyCtrlX, tcell.KeyCtrlV,
+			tcell.KeyCtrlH, tcell.KeyCtrlD, tcell.KeyCtrlK, tcell.KeyCtrlW,
+			tcell.KeyCtrlU:
+			return nil
+		}
+		if unicode.IsControl(event.Rune()) {
+			return event
+		}
+		switch event.Rune() {
+		case APP_KEY_BINDINGS.TextViewCopy:
+			return tcell.NewEventKey(tcell.KeyCtrlQ, 0, 0)
+		case APP_KEY_BINDINGS.TextViewUp:
+			return tcell.NewEventKey(tcell.KeyUp, 0, 0)
+		case APP_KEY_BINDINGS.TextViewSelectUp:
+			return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModShift)
+		case APP_KEY_BINDINGS.TextViewDown:
+			return tcell.NewEventKey(tcell.KeyDown, 0, 0)
+		case APP_KEY_BINDINGS.TextViewSelectDown:
+			return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModShift)
+		case APP_KEY_BINDINGS.TextViewLeft:
+			return tcell.NewEventKey(tcell.KeyLeft, 0, 0)
+		case APP_KEY_BINDINGS.TextViewSelectLeft:
+			return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModShift)
+		case APP_KEY_BINDINGS.TextViewRight:
+			return tcell.NewEventKey(tcell.KeyRight, 0, 0)
+		case APP_KEY_BINDINGS.TextViewSelectRight:
+			return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModShift)
+		case APP_KEY_BINDINGS.TextViewWordRight:
+			return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModCtrl)
+		case APP_KEY_BINDINGS.TextViewWordSelectRight:
+			return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModCtrl|tcell.ModShift)
+		case APP_KEY_BINDINGS.TextViewWordLeft:
+			return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModCtrl)
+		case APP_KEY_BINDINGS.TextViewWordSelectLeft:
+			return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModCtrl|tcell.ModShift)
+		}
+		return nil
 	})
 
 	return textArea

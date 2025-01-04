@@ -88,9 +88,9 @@ func (inst *AlarmsDetailsPageView) InitInputCapture() {
 
 	inst.HistoryTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlR:
+		case core.APP_KEY_BINDINGS.Reset:
 			refreshDetails()
-		case tcell.KeyCtrlN:
+		case core.APP_KEY_BINDINGS.NextPage:
 			inst.HistoryTable.RefreshHistory(false)
 		}
 		return event

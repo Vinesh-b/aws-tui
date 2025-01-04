@@ -161,7 +161,7 @@ func NewInsightsQuerySearchView(
 
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlF:
+		case core.APP_KEY_BINDINGS.Find:
 			if view.queryViewHidden {
 				view.ShowPage("QUERY")
 			} else {

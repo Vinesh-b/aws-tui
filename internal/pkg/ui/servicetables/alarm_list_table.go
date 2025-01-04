@@ -50,9 +50,9 @@ func NewAlarmListTable(
 
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlR:
+		case core.APP_KEY_BINDINGS.Reset:
 			view.RefreshAlarms(true)
-		case tcell.KeyCtrlN:
+		case core.APP_KEY_BINDINGS.NextPage:
 			view.RefreshAlarms(false)
 		}
 		return event
@@ -60,7 +60,7 @@ func NewAlarmListTable(
 
 	view.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
-		case tcell.KeyEnter:
+		case core.APP_KEY_BINDINGS.Done:
 			var search = view.GetSearchText()
 			view.FilterbyName(search)
 		}

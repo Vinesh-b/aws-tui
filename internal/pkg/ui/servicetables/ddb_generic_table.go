@@ -76,9 +76,9 @@ func NewDynamoDBGenericTable(
 	table.SetSelectionChangedFunc(func(row, column int) {})
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlR:
+		case core.APP_KEY_BINDINGS.Reset:
 			table.ExecuteSearch(table.lastTableOp, table.lastSearchExpr, true)
-		case tcell.KeyCtrlN:
+		case core.APP_KEY_BINDINGS.NextPage:
 			table.ExecuteSearch(table.lastTableOp, table.lastSearchExpr, false)
 		}
 		return event

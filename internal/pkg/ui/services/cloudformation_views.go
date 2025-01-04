@@ -66,7 +66,7 @@ func NewStacksDetailsPageView(
 func (inst *CloudFormationDetailsPageView) InitInputCapture() {
 	inst.stackListTable.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
-		case tcell.KeyEnter:
+		case core.APP_KEY_BINDINGS.Done:
 			inst.stackListTable.RefreshStacks(false)
 		}
 	})
@@ -150,9 +150,9 @@ func NewStackEventsPageView(
 func (inst *CloudFormationStackEventsPageView) InitInputCapture() {
 	inst.stackEventsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlR:
+		case core.APP_KEY_BINDINGS.Reset:
 			inst.stackEventsTable.RefreshEvents(true)
-		case tcell.KeyCtrlN:
+		case core.APP_KEY_BINDINGS.NextPage:
 			inst.stackEventsTable.RefreshEvents(false)
 		}
 		return event

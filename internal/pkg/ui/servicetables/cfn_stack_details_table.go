@@ -41,7 +41,7 @@ func NewStackDetailsTable(
 	view.populateStackDetailsTable()
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlR:
+		case core.APP_KEY_BINDINGS.Reset:
 			view.RefreshDetails(true)
 		}
 		return event

@@ -48,7 +48,7 @@ func NewLogGroupsTable(
 	view.SetSelectedFunc(func(row, column int) {})
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlR:
+		case core.APP_KEY_BINDINGS.Reset:
 			view.RefreshLogGroups(true)
 		}
 		return event
@@ -56,7 +56,7 @@ func NewLogGroupsTable(
 
 	view.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
-		case tcell.KeyEnter:
+		case core.APP_KEY_BINDINGS.Done:
 			var search = view.GetSearchText()
 			view.FilterByName(search)
 		}

@@ -51,7 +51,7 @@ func NewStackListTable(
 
 	view.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
-		case tcell.KeyEnter:
+		case core.APP_KEY_BINDINGS.Done:
 			var searchText = view.GetSearchText()
 			view.FilterByName(searchText)
 		}
@@ -133,7 +133,7 @@ func (inst *StackListTable) SetSelectionChangedFunc(handler func(row int, column
 func (inst *StackListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
 	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlR:
+		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshStacks(true)
 		}
 		return capture(event)

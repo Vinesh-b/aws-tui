@@ -66,7 +66,7 @@ func NewS3bucketsDetailsView(
 func (inst *S3BucketsDetailsView) InitInputCapture() {
 	inst.bucketsTable.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
-		case tcell.KeyEnter:
+		case core.APP_KEY_BINDINGS.Done:
 			inst.bucketsTable.RefreshBuckets(false)
 		}
 	})

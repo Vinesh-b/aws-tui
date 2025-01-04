@@ -52,9 +52,9 @@ func NewLogEventsTable(
 	view.populateLogEventsTable(false)
 	view.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlR:
+		case core.APP_KEY_BINDINGS.Reset:
 			view.RefreshLogEvents(true)
-		case tcell.KeyCtrlN:
+		case core.APP_KEY_BINDINGS.NextPage:
 			view.RefreshLogEvents(false)
 		}
 		return event

@@ -51,7 +51,7 @@ func NewLambdasListTable(
 
 	view.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
-		case tcell.KeyEnter:
+		case core.APP_KEY_BINDINGS.Done:
 			var searchText = view.GetSearchText()
 			view.FilterByName(searchText)
 		}
@@ -141,7 +141,7 @@ func (inst *LambdaListTable) SetSelectionChangedFunc(handler func(row int, colum
 func (inst *LambdaListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
 	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlR:
+		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshLambdas(true)
 		}
 		return capture(event)

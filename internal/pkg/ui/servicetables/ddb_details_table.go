@@ -42,7 +42,7 @@ func NewDynamoDBDetailsTable(
 	table.populateDetailsTable()
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlR:
+		case core.APP_KEY_BINDINGS.Reset:
 			table.RefreshDetails()
 		}
 		return event

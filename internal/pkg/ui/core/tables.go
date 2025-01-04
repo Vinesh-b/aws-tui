@@ -217,9 +217,9 @@ func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventK
 		var searchCount = len(inst.searchPositions)
 		if searchCount > 0 {
 			switch event.Rune() {
-			case rune('n'):
+			case APP_KEY_BINDINGS.NextSearch:
 				nextSearch = (nextSearch + 1) % searchCount
-			case rune('N'):
+			case APP_KEY_BINDINGS.PrevSearch:
 				nextSearch = (nextSearch - 1 + searchCount) % searchCount
 			default:
 				return event
@@ -244,13 +244,13 @@ func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventK
 func (inst *SelectableTable[T]) SetSearchDoneFunc(handler func(key tcell.Key)) {
 	var highlight_search = func(key tcell.Key) {
 		switch key {
-		case tcell.KeyEnter:
+		case APP_KEY_BINDINGS.Done:
 			inst.searchPositions = highlightTableSearch(
 				inst.table,
 				inst.GetSearchText(),
 				[]int{},
 			)
-		case tcell.KeyCtrlR:
+		case APP_KEY_BINDINGS.Reset:
 			clearSearchHighlights(inst.table)
 			inst.searchPositions = nil
 		}

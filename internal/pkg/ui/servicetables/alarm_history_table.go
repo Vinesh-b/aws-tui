@@ -47,7 +47,7 @@ func NewAlarmHistoryTable(
 	view.populateAlarmHistoryTable(true)
 	view.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
-		case tcell.KeyEnter:
+		case core.APP_KEY_BINDINGS.Done:
 			view.RefreshHistory(false)
 		}
 	})

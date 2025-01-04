@@ -46,7 +46,7 @@ func NewSelectedGroupsTable(
 	view.SetSelectionChangedFunc(func(row, column int) {})
 	view.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlR:
+		case core.APP_KEY_BINDINGS.Reset:
 			view.data = core.StringSet{}
 			view.RefreshSelectedGroups()
 		}

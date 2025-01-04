@@ -52,7 +52,7 @@ func NewStateMachinesListTable(
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
 	table.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
-		case tcell.KeyEnter:
+		case core.APP_KEY_BINDINGS.Done:
 			var search = table.GetSearchText()
 			table.FilterByName(search)
 		}
@@ -129,7 +129,7 @@ func (inst *StateMachinesListTable) SetSelectionChangedFunc(handler func(row int
 func (inst *StateMachinesListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
 	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlR:
+		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshStateMachines(true)
 		}
 

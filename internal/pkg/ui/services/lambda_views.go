@@ -137,7 +137,7 @@ func NewLambdaInvokePageView(
 func (inst *LambdaInvokePageView) initInputCapture() {
 	inst.payloadInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlR:
+		case core.APP_KEY_BINDINGS.Reset:
 			inst.Invoke()
 			return nil
 		}

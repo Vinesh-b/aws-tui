@@ -230,9 +230,9 @@ func (inst *BucketObjectsTable) SetSelectionChangedFunc(handler func(row int, co
 func (inst *BucketObjectsTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
 	inst.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlR:
+		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshObjects(true)
-		case tcell.KeyCtrlN:
+		case core.APP_KEY_BINDINGS.NextPage:
 			inst.RefreshObjects(false)
 		}
 		return capture(event)

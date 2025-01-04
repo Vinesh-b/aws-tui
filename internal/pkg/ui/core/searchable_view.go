@@ -42,7 +42,7 @@ func NewSearchableView(
 
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlF:
+		case APP_KEY_BINDINGS.Find:
 			if view.showSearch {
 				view.ShowPage(SEARCH_PAGE_NAME)
 			} else {
@@ -68,7 +68,7 @@ func (inst *SearchableView) SetSearchInputCapture(capture func(event *tcell.Even
 func (inst *SearchableView) SetSearchDoneFunc(handler func(key tcell.Key)) {
 	var default_func = func(key tcell.Key) {
 		switch key {
-		case tcell.KeyEnter:
+		case APP_KEY_BINDINGS.Done:
 			if !inst.showSearch {
 				inst.HidePage(SEARCH_PAGE_NAME)
 				inst.showSearch = !inst.showSearch

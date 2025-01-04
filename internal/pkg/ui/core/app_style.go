@@ -43,3 +43,72 @@ func ChangeColourScheme(colour tcell.Color) {
 	tview.Styles.BorderColor = colour
 	tview.Styles.MoreContrastBackgroundColor = colour
 }
+
+type KeyBindings struct {
+	ToggleServicesMenu      tcell.Key
+	Reset                   tcell.Key
+	NextPage                tcell.Key
+	Done                    tcell.Key
+	Find                    tcell.Key
+	PageForward             tcell.Key
+	PageBack                tcell.Key
+	ViewFocusUp             tcell.Key
+	ViewFocusDown           tcell.Key
+	ViewResizeModKey        tcell.ModMask
+	ViewResizeUp            rune
+	ViewResizeDown          rune
+	ViewResizeReset         rune
+	NextSearch              rune
+	PrevSearch              rune
+	FormFocusNext           tcell.Key
+	FormFocusPrev           tcell.Key
+	TableScan               tcell.Key
+	TableQuery              tcell.Key
+	TextViewCopy            rune
+	TextViewUp              rune
+	TextViewDown            rune
+	TextViewLeft            rune
+	TextViewRight           rune
+	TextViewSelectUp        rune
+	TextViewSelectDown      rune
+	TextViewSelectLeft      rune
+	TextViewSelectRight     rune
+	TextViewWordRight       rune
+	TextViewWordLeft        rune
+	TextViewWordSelectRight rune
+	TextViewWordSelectLeft  rune
+}
+
+var APP_KEY_BINDINGS = KeyBindings{
+	ToggleServicesMenu:      tcell.KeyCtrlSpace,
+	Reset:                   tcell.KeyCtrlR,
+	NextPage:                tcell.KeyCtrlN,
+	Done:                    tcell.KeyEnter,
+	Find:                    tcell.KeyCtrlF,
+	PageForward:             tcell.KeyCtrlL,
+	PageBack:                tcell.KeyCtrlH,
+	ViewFocusUp:             tcell.KeyCtrlK,
+	ViewFocusDown:           tcell.KeyCtrlJ,
+	ViewResizeModKey:        tcell.ModAlt,
+	ViewResizeUp:            'k',
+	ViewResizeDown:          'j',
+	NextSearch:              'n',
+	PrevSearch:              'N',
+	FormFocusNext:           tcell.KeyTab,
+	FormFocusPrev:           tcell.KeyBacktab,
+	TableScan:               tcell.KeyCtrlS,
+	TableQuery:              tcell.KeyCtrlQ,
+	TextViewCopy:            'y',
+	TextViewUp:              'k',
+	TextViewDown:            'j',
+	TextViewLeft:            'h',
+	TextViewRight:           'l',
+	TextViewSelectUp:        'K',
+	TextViewSelectDown:      'J',
+	TextViewSelectLeft:      'H',
+	TextViewSelectRight:     'L',
+	TextViewWordLeft:        'b',
+	TextViewWordRight:       'w',
+	TextViewWordSelectLeft:  'B',
+	TextViewWordSelectRight: 'W',
+}
