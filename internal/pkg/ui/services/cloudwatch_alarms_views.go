@@ -75,10 +75,10 @@ func NewAlarmsDetailsPageView(
 
 func (inst *AlarmsDetailsPageView) InitInputCapture() {
 	var refreshDetails = func() {
-		var name = inst.AlarmsTable.GetSelectedAlarm()
-		inst.DetailsTable.SetSelectedAlarm(name)
-		inst.DetailsTable.RefreshDetails()
-		inst.HistoryTable.SetSelectedAlarm(name)
+		var alarm = inst.AlarmsTable.GetSelectedAlarm()
+		inst.DetailsTable.RefreshDetails(alarm)
+		var alarmName = inst.AlarmsTable.GetSelectedAlarmName()
+		inst.HistoryTable.SetSelectedAlarm(alarmName)
 		inst.HistoryTable.RefreshHistory(true)
 	}
 

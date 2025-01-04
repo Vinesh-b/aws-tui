@@ -3,7 +3,6 @@ package servicetables
 import (
 	"fmt"
 	"log"
-	"slices"
 
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
@@ -17,11 +16,11 @@ import (
 type AlarmDetailsTable struct {
 	*tview.Grid
 	ErrorMessageCallback func(text string, a ...any)
-	selectedAlarm       string
-	data                *types.MetricAlarm
-	logger              *log.Logger
-	app                 *tview.Application
-	api                 *awsapi.CloudWatchAlarmsApi
+	selectedAlarm        string
+	data                 types.MetricAlarm
+	logger               *log.Logger
+	app                  *tview.Application
+	api                  *awsapi.CloudWatchAlarmsApi
 }
 
 func NewAlarmDetailsTable(
@@ -30,13 +29,13 @@ func NewAlarmDetailsTable(
 	logger *log.Logger,
 ) *AlarmDetailsTable {
 	var view = &AlarmDetailsTable{
-		Grid:                tview.NewGrid(),
+		Grid:                 tview.NewGrid(),
 		ErrorMessageCallback: func(text string, a ...any) {},
-		data:                nil,
-		selectedAlarm:       "",
-		logger:              logger,
-		app:                 app,
-		api:                 api,
+		data:                 types.MetricAlarm{},
+		selectedAlarm:        "",
+		logger:               logger,
+		app:                  app,
+		api:                  api,
 	}
 	view.
 		Clear().
@@ -54,18 +53,16 @@ func NewAlarmDetailsTable(
 func (inst *AlarmDetailsTable) populateAlarmDetailsGrid() {
 	var tableData []core.TableRow
 	var data = inst.data
-	if data != nil {
-		tableData = []core.TableRow{
-			{"Name", aws.ToString(data.AlarmName)},
-			{"Description", aws.ToString(data.AlarmDescription)},
-			{"State", string(data.StateValue)},
-			{"StateReason", aws.ToString(data.StateReason)},
-			{"MetricName", aws.ToString(data.MetricName)},
-			{"MetricNamespace", aws.ToString(data.Namespace)},
-			{"Period", fmt.Sprintf("%d", aws.ToInt32(data.Period))},
-			{"Threshold", fmt.Sprintf("%.2f", aws.ToFloat64(data.Threshold))},
-			{"DataPoints", fmt.Sprintf("%d", aws.ToInt32(data.DatapointsToAlarm))},
-		}
+	tableData = []core.TableRow{
+		{"Name", aws.ToString(data.AlarmName)},
+		{"Description", aws.ToString(data.AlarmDescription)},
+		{"State", string(data.StateValue)},
+		{"StateReason", aws.ToString(data.StateReason)},
+		{"MetricName", aws.ToString(data.MetricName)},
+		{"MetricNamespace", aws.ToString(data.Namespace)},
+		{"Period", fmt.Sprintf("%d", aws.ToInt32(data.Period))},
+		{"Threshold", fmt.Sprintf("%.2f", aws.ToFloat64(data.Threshold))},
+		{"DataPoints", fmt.Sprintf("%d", aws.ToInt32(data.DatapointsToAlarm))},
 	}
 
 	inst.SetTitle("Alarm Details")
@@ -88,35 +85,13 @@ func (inst *AlarmDetailsTable) populateAlarmDetailsGrid() {
 	}
 }
 
-func (inst *AlarmDetailsTable) RefreshDetails() {
-	var data []types.MetricAlarm
+func (inst *AlarmDetailsTable) RefreshDetails(alarm types.MetricAlarm) {
+    inst.data = alarm
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
-	dataLoader.AsyncLoadData(func() {
-		if len(inst.selectedAlarm) == 0 {
-			return
-		}
-
-		var err error = nil
-		data, err = inst.api.ListAlarms(false)
-		if err != nil {
-			inst.ErrorMessageCallback(err.Error())
-		}
-
-		var idx = slices.IndexFunc(data, func(d types.MetricAlarm) bool {
-			return aws.ToString(d.AlarmName) == inst.selectedAlarm
-		})
-
-		if idx != -1 {
-			inst.data = &data[idx]
-		}
-	})
+	dataLoader.AsyncLoadData(func() {})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateAlarmDetailsGrid()
 	})
-}
-
-func (inst *AlarmDetailsTable) SetSelectedAlarm(name string) {
-	inst.selectedAlarm = name
 }

@@ -14,8 +14,8 @@ import (
 )
 
 type AlarmListTable struct {
-	*core.SelectableTable[any]
-	selectedAlarm string
+	*core.SelectableTable[types.MetricAlarm]
+	selectedAlarm types.MetricAlarm
 	data          []types.MetricAlarm
 	logger        *log.Logger
 	app           *tview.Application
@@ -29,7 +29,7 @@ func NewAlarmListTable(
 ) *AlarmListTable {
 
 	var view = &AlarmListTable{
-		SelectableTable: core.NewSelectableTable[any](
+		SelectableTable: core.NewSelectableTable[types.MetricAlarm](
 			"Alarms",
 			core.TableRow{
 				"Name",
@@ -37,7 +37,7 @@ func NewAlarmListTable(
 			},
 		),
 		data:          nil,
-		selectedAlarm: "",
+		selectedAlarm: types.MetricAlarm{},
 		logger:        logger,
 		app:           app,
 		api:           api,
@@ -73,14 +73,16 @@ func NewAlarmListTable(
 
 func (inst *AlarmListTable) populateAlarmsTable() {
 	var tableData []core.TableRow
+	var privateData []types.MetricAlarm
 	for _, row := range inst.data {
 		tableData = append(tableData, core.TableRow{
 			aws.ToString(row.AlarmName),
 			string(row.StateValue),
 		})
+		privateData = append(privateData, row)
 	}
 
-	inst.SetData(tableData, nil, 0)
+	inst.SetData(tableData, privateData, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
 	inst.ScrollToBeginning()
 }
@@ -111,7 +113,7 @@ func (inst *AlarmListTable) SetSelectedFunc(handler func(row int, column int)) {
 		if row < 1 {
 			return
 		}
-		inst.selectedAlarm = inst.GetCell(row, 0).Text
+		inst.selectedAlarm = inst.GetPrivateData(row, 0)
 		handler(row, column)
 	})
 }
@@ -121,11 +123,15 @@ func (inst *AlarmListTable) SetSelectionChangedFunc(handler func(row int, column
 		if row < 1 {
 			return
 		}
-		inst.selectedAlarm = inst.GetCell(row, 0).Text
+		inst.selectedAlarm = inst.GetPrivateData(row, 0)
 		handler(row, column)
 	})
 }
 
-func (inst *AlarmListTable) GetSelectedAlarm() string {
+func (inst *AlarmListTable) GetSelectedAlarm() types.MetricAlarm {
 	return inst.selectedAlarm
+}
+
+func (inst *AlarmListTable) GetSelectedAlarmName() string {
+	return aws.ToString(inst.selectedAlarm.AlarmName)
 }
