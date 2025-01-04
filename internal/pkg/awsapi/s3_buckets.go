@@ -67,21 +67,9 @@ func (inst *S3BucketsApi) ListBuckets(force bool) ([]types.Bucket, error) {
 }
 
 func (inst *S3BucketsApi) FilterByName(name string) []types.Bucket {
-	if len(inst.allbuckets) == 0 {
-		return nil
-	}
-
-	var foundIdxs = core.FuzzySearch(name, inst.allbuckets, func(b types.Bucket) string {
+	return core.FuzzySearch(name, inst.allbuckets, func(b types.Bucket) string {
 		return aws.ToString(b.Name)
 	})
-
-	var foundBuckets []types.Bucket
-
-	for _, matchIdx := range foundIdxs {
-		var bucket = inst.allbuckets[matchIdx]
-		foundBuckets = append(foundBuckets, bucket)
-	}
-	return foundBuckets
 }
 
 func (inst *S3BucketsApi) ListObjects(

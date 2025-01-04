@@ -62,21 +62,9 @@ func (inst *LambdaApi) ListLambdas(force bool) ([]types.FunctionConfiguration, e
 }
 
 func (inst *LambdaApi) FilterByName(name string) []types.FunctionConfiguration {
-	if len(inst.allLambdas) == 0 {
-		return nil
-	}
-
-	var foundIdxs = core.FuzzySearch(name, inst.allLambdas, func(v types.FunctionConfiguration) string {
+	return core.FuzzySearch(name, inst.allLambdas, func(v types.FunctionConfiguration) string {
 		return aws.ToString(v.FunctionName)
 	})
-
-	var foundLambdas = []types.FunctionConfiguration{}
-
-	for _, matchIdx := range foundIdxs {
-		var config = inst.allLambdas[matchIdx]
-		foundLambdas = append(foundLambdas, config)
-	}
-	return foundLambdas
 }
 
 func (inst *LambdaApi) InvokeLambda(

@@ -114,7 +114,11 @@ func (inst *JsonTextView[T]) SetText(data T) {
 	inst.TextArea.SetText(logText, false)
 }
 
-func FuzzySearch[T any](search string, values []T, handler func(val T) string) []int {
+func FuzzySearch[T any](search string, values []T, handler func(val T) string) []T {
+	if len(values) == 0 {
+		return nil
+	}
+
 	var names = make([]string, 0, len(values))
 	for _, v := range values {
 		names = append(names, handler(v))
@@ -128,6 +132,10 @@ func FuzzySearch[T any](search string, values []T, handler func(val T) string) [
 		results = append(results, m.OriginalIndex)
 	}
 
-	return results
-}
+	var found = []T{}
+	for _, matchIdx := range results {
+		found = append(found, values[matchIdx])
+	}
 
+	return found
+}

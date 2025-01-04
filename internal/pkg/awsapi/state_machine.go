@@ -64,21 +64,9 @@ func (inst *StateMachineApi) ListStateMachines(force bool) ([]types.StateMachine
 }
 
 func (inst *StateMachineApi) FilterByName(name string) []types.StateMachineListItem {
-	if len(inst.allStateMachines) == 0 {
-		return nil
-	}
-
-	var foundIdxs = core.FuzzySearch(name, inst.allStateMachines, func(v types.StateMachineListItem) string {
+	return core.FuzzySearch(name, inst.allStateMachines, func(v types.StateMachineListItem) string {
 		return aws.ToString(v.Name)
 	})
-
-	var foundStateMachines []types.StateMachineListItem
-
-	for _, matchIdx := range foundIdxs {
-		var stateMachine = inst.allStateMachines[matchIdx]
-		foundStateMachines = append(foundStateMachines, stateMachine)
-	}
-	return foundStateMachines
 }
 
 func (inst *StateMachineApi) ListExecutions(stateMachineArn string, reset bool) ([]types.ExecutionListItem, error) {

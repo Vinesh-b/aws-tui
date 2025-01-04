@@ -72,21 +72,9 @@ func (inst *CloudWatchLogsApi) ListLogGroups(force bool) ([]types.LogGroup, erro
 }
 
 func (inst *CloudWatchLogsApi) FilterGroupByName(name string) []types.LogGroup {
-	if len(inst.allLogGroups) == 0 {
-		return nil
-	}
-
-	var foundIdxs = core.FuzzySearch(name, inst.allLogGroups, func(v types.LogGroup) string {
+	return core.FuzzySearch(name, inst.allLogGroups, func(v types.LogGroup) string {
 		return aws.ToString(v.LogGroupName)
 	})
-
-	var foundGroups []types.LogGroup
-
-	for _, matchIdx := range foundIdxs {
-		var logGroup = inst.allLogGroups[matchIdx]
-		foundGroups = append(foundGroups, logGroup)
-	}
-	return foundGroups
 }
 
 func (inst *CloudWatchLogsApi) ListLogStreams(

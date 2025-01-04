@@ -62,21 +62,9 @@ func (inst *CloudFormationApi) ListStacks(force bool) ([]types.StackSummary, err
 }
 
 func (inst *CloudFormationApi) FilterByName(name string) []types.StackSummary {
-	if len(inst.allStacks) == 0 {
-        return nil
-	}
-
-	var foundIdxs = core.FuzzySearch(name, inst.allStacks, func(v types.StackSummary) string {
+	return core.FuzzySearch(name, inst.allStacks, func(v types.StackSummary) string {
 		return aws.ToString(v.StackName)
 	})
-
-	var foundStacks = []types.StackSummary{}
-
-	for _, matchIdx := range foundIdxs {
-		var stack = inst.allStacks[matchIdx]
-		foundStacks = append(foundStacks, stack)
-	}
-	return foundStacks
 }
 
 func (inst *CloudFormationApi) DescribeStackEvents(stackName string, force bool) ([]types.StackEvent, error) {

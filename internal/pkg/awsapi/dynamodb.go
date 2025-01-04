@@ -62,21 +62,9 @@ func (inst *DynamoDBApi) ListTables(force bool) ([]string, error) {
 }
 
 func (inst *DynamoDBApi) FilterByName(name string) []string {
-	if len(inst.allTables) == 0 {
-		return nil
-	}
-
-	var foundIdxs = core.FuzzySearch(name, inst.allTables, func(t string) string {
+	return core.FuzzySearch(name, inst.allTables, func(t string) string {
 		return t
 	})
-
-	var foundTables []string
-
-	for _, matchIdx := range foundIdxs {
-		var table = inst.allTables[matchIdx]
-		foundTables = append(foundTables, table)
-	}
-	return foundTables
 }
 
 func (inst *DynamoDBApi) DescribeTable(tableName string) (*types.TableDescription, error) {

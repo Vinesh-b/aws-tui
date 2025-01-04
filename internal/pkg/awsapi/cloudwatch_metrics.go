@@ -81,20 +81,7 @@ func (inst *CloudWatchMetricsApi) ListMetrics(
 }
 
 func (inst *CloudWatchMetricsApi) FilterByName(name string) []types.Metric {
-
-	if len(inst.allMetrics) < 1 {
-		return nil
-	}
-
-	var foundIdxs = core.FuzzySearch(name, inst.allMetrics, func(v types.Metric) string {
+	return core.FuzzySearch(name, inst.allMetrics, func(v types.Metric) string {
 		return aws.ToString(v.MetricName)
 	})
-
-	var foundMetrics []types.Metric
-
-	for _, matchIdx := range foundIdxs {
-		var metric = inst.allMetrics[matchIdx]
-		foundMetrics = append(foundMetrics, metric)
-	}
-	return foundMetrics
 }

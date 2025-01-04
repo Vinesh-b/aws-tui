@@ -70,21 +70,9 @@ func (inst *CloudWatchAlarmsApi) ListAlarms(force bool) ([]types.MetricAlarm, er
 }
 
 func (inst *CloudWatchAlarmsApi) FilterByName(name string) []types.MetricAlarm {
-	if len(inst.allMetricAlarms) == 0 {
-		return nil
-	}
-
-	var foundIdxs = core.FuzzySearch(name, inst.allMetricAlarms, func(a types.MetricAlarm) string {
+	return core.FuzzySearch(name, inst.allMetricAlarms, func(a types.MetricAlarm) string {
 		return aws.ToString(a.AlarmName)
 	})
-
-	var foundAlarms []types.MetricAlarm
-
-	for _, matchIdx := range foundIdxs {
-		var alarm = inst.allMetricAlarms[matchIdx]
-		foundAlarms = append(foundAlarms, alarm)
-	}
-	return foundAlarms
 }
 
 func (inst *CloudWatchAlarmsApi) ListAlarmHistory(name string, force bool) ([]types.AlarmHistoryItem, error) {
