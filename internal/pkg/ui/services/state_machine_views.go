@@ -97,13 +97,13 @@ func NewStateMachineExectionDetailsPage(
 ) *StateMachineExectionDetailsPageView {
 
 	var inputsExpandedView = core.JsonTextView[tables.StateDetails]{
-		TextArea: core.CreateTextArea("Input"),
+		TextArea: core.CreateReadOnlyTextArea("Input"),
 		ExtractTextFunc: func(data tables.StateDetails) string {
 			return data.Input
 		},
 	}
 	var outputsExpandedView = core.JsonTextView[tables.StateDetails]{
-		TextArea: core.CreateTextArea("Output"),
+		TextArea: core.CreateReadOnlyTextArea("Output"),
 		ExtractTextFunc: func(data tables.StateDetails) string {
 			return data.Output
 		},

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"unicode"
 
 	"github.com/atotto/clipboard"
 	"github.com/gdamore/tcell/v2"
@@ -13,7 +14,7 @@ import (
 
 type StringSet map[string]struct{}
 
-func CreateTextArea(title string) *tview.TextArea {
+func CreateReadOnlyTextArea(title string) *tview.TextArea {
 	var textArea = tview.NewTextArea().
 		SetClipboard(
 			func(s string) { clipboard.WriteAll(s) },
@@ -29,6 +30,13 @@ func CreateTextArea(title string) *tview.TextArea {
 		SetTitle(title).
 		SetTitleAlign(tview.AlignLeft).
 		SetBorder(true)
+
+	textArea.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+        if unicode.IsControl(event.Rune()) {
+            return event
+        }
+        return nil
+	})
 
 	return textArea
 }
@@ -62,7 +70,7 @@ func CreateJsonTableDataView[T any, U any](
 	table PrivateDataTable[T, U],
 	fixedColIdx int,
 ) *tview.TextArea {
-	var expandedView = CreateTextArea("Message")
+	var expandedView = CreateReadOnlyTextArea("Message")
 
 	table.SetSelectionChangedFunc(func(row, column int) {
 		var col = column

@@ -98,9 +98,9 @@ func NewLambdaInvokePageView(
 	logger *log.Logger,
 ) *LambdaInvokePageView {
 
-	var payloadInput = core.CreateTextArea("Event Payload")
-	var logResults = core.CreateTextArea("Logs")
-	var responseOutput = core.CreateTextArea("Response")
+	var payloadInput = core.CreateReadOnlyTextArea("Event Payload")
+	var logResults = core.CreateReadOnlyTextArea("Logs")
+	var responseOutput = core.CreateReadOnlyTextArea("Response")
 
 	var serviceView = core.NewServicePageView(app, logger)
 	serviceView.MainPage.
