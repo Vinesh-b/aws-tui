@@ -225,7 +225,7 @@ func NewLambdaHomeView(
 
 	serviceRootView.
 		AddAndSwitchToPage("Lambdas", lambdasDetailsView, true).
-		AddPage("Invoke", lambdaInvokeView, true, true).
+		//AddPage("Invoke", lambdaInvokeView, true, true).
 		AddPage("Streams", logStreamsView, true, true).
 		AddPage("Events", logEventsView, true, true)
 
@@ -245,7 +245,7 @@ func NewLambdaHomeView(
 		logStreamsView.LogStreamsTable.SetSeletedLogGroup(selectedLogGroup)
 		logStreamsView.LogStreamsTable.SetLogStreamSearchPrefix("")
 		logStreamsView.LogStreamsTable.RefreshStreams(true)
-		serviceRootView.ChangePage(2, logStreamsView.LogStreamsTable)
+		serviceRootView.ChangePage(1, logStreamsView.LogStreamsTable)
 	})
 
 	logStreamsView.LogStreamsTable.SetSelectedFunc(func(row, column int) {
@@ -255,7 +255,7 @@ func NewLambdaHomeView(
 		logEventsView.LogEventsTable.SetSeletedLogGroup(selectedLogGroup)
 		logEventsView.LogEventsTable.SetSeletedLogStream(selectedLogStream)
 		logEventsView.LogEventsTable.RefreshLogEvents(true)
-		serviceRootView.ChangePage(3, logEventsView.LogEventsTable)
+		serviceRootView.ChangePage(2, logEventsView.LogEventsTable)
 	})
 
 	logEventsView.InitInputCapture()
