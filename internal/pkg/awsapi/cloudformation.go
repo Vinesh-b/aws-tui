@@ -1,7 +1,6 @@
 package awsapi
 
 import (
-	"aws-tui/internal/pkg/ui/core"
 	"context"
 	"fmt"
 	"log"
@@ -16,7 +15,6 @@ type CloudFormationApi struct {
 	logger               *log.Logger
 	config               aws.Config
 	client               *cloudformation.Client
-	allStacks            []types.StackSummary
 	stackEventsPaginator *cloudformation.DescribeStackEventsPaginator
 }
 
@@ -25,25 +23,20 @@ func NewCloudFormationApi(
 	logger *log.Logger,
 ) *CloudFormationApi {
 	return &CloudFormationApi{
-		config:    config,
-		logger:    logger,
-		client:    cloudformation.NewFromConfig(config),
-		allStacks: []types.StackSummary{},
+		config: config,
+		logger: logger,
+		client: cloudformation.NewFromConfig(config),
 	}
 }
 
 func (inst *CloudFormationApi) ListStacks(force bool) ([]types.StackSummary, error) {
-	if !force && len(inst.allStacks) > 0 {
-		return inst.allStacks, nil
-	}
-
-	inst.allStacks = []types.StackSummary{}
-
 	var paginator = cloudformation.NewListStacksPaginator(
 		inst.client, &cloudformation.ListStacksInput{},
 	)
 
 	var apiErr error = nil
+	var result = []types.StackSummary{}
+
 	for paginator.HasMorePages() {
 		var output, err = paginator.NextPage(context.TODO())
 		if err != nil {
@@ -51,20 +44,14 @@ func (inst *CloudFormationApi) ListStacks(force bool) ([]types.StackSummary, err
 			apiErr = err
 			break
 		}
-		inst.allStacks = append(inst.allStacks, output.StackSummaries...)
+		result = append(result, output.StackSummaries...)
 	}
 
-	sort.Slice(inst.allStacks, func(i, j int) bool {
-		return aws.ToString(inst.allStacks[i].StackName) < aws.ToString(inst.allStacks[j].StackName)
+	sort.Slice(result, func(i, j int) bool {
+		return aws.ToString(result[i].StackName) < aws.ToString(result[j].StackName)
 	})
 
-	return inst.allStacks, apiErr
-}
-
-func (inst *CloudFormationApi) FilterByName(name string) []types.StackSummary {
-	return core.FuzzySearch(name, inst.allStacks, func(v types.StackSummary) string {
-		return aws.ToString(v.StackName)
-	})
+	return result, apiErr
 }
 
 func (inst *CloudFormationApi) DescribeStackEvents(stackName string, force bool) ([]types.StackEvent, error) {

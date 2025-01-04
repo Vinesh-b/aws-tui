@@ -18,6 +18,7 @@ type StackListTable struct {
 	*core.SelectableTable[any]
 	selectedStack string
 	data          []types.StackSummary
+	filtered      []types.StackSummary
 	logger        *log.Logger
 	app           *tview.Application
 	api           *awsapi.CloudFormationApi
@@ -44,20 +45,28 @@ func NewStackListTable(
 		api:    api,
 	}
 
-	view.populateStacksTable()
+	view.populateStacksTable(view.data)
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
 	view.SetSelectionChangedFunc(func(row, column int) {})
 
-    view.SetSearchChangedFunc(func(text string) {
-		view.RefreshStacks(false)
-    })
+	view.SetSearchDoneFunc(func(key tcell.Key) {
+		switch key {
+		case tcell.KeyEnter:
+			var searchText = view.GetSearchText()
+			view.FilterByName(searchText)
+		}
+	})
+
+	view.SetSearchChangedFunc(func(text string) {
+		view.FilterByName(text)
+	})
 
 	return view
 }
 
-func (inst *StackListTable) populateStacksTable() {
+func (inst *StackListTable) populateStacksTable(data []types.StackSummary) {
 	var tableData []core.TableRow
-	for _, row := range inst.data {
+	for _, row := range data {
 		var lastUpdated = "-"
 		if row.LastUpdatedTime != nil {
 			lastUpdated = row.LastUpdatedTime.Format(time.DateTime)
@@ -73,24 +82,41 @@ func (inst *StackListTable) populateStacksTable() {
 	inst.GetCell(0, 0).SetExpansion(1)
 }
 
-func (inst *StackListTable) RefreshStacks(reset bool) {
-	var searchText = inst.GetSearchText()
+func (inst *StackListTable) FilterByName(name string) {
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		if len(searchText) > 0 {
-			inst.data = inst.api.FilterByName(searchText)
+		inst.filtered = core.FuzzySearch(
+			name,
+			inst.data,
+			func(v types.StackSummary) string {
+				return aws.ToString(v.StackName)
+			},
+		)
+	})
+
+	dataLoader.AsyncUpdateView(inst.Box, func() {
+		inst.populateStacksTable(inst.filtered)
+	})
+}
+
+func (inst *StackListTable) RefreshStacks(reset bool) {
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+
+	dataLoader.AsyncLoadData(func() {
+		var data, err = inst.api.ListStacks(reset)
+		if err != nil {
+			inst.ErrorMessageCallback(err.Error())
+		}
+		if !reset {
+            inst.data = append(inst.data, data...)
 		} else {
-			var err error = nil
-			inst.data, err = inst.api.ListStacks(reset)
-			if err != nil {
-				inst.ErrorMessageCallback(err.Error())
-			}
+            inst.data = data
 		}
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateStacksTable()
+		inst.populateStacksTable(inst.data)
 	})
 }
 
