@@ -16,6 +16,7 @@ type RootView interface {
 type View interface {
 	tview.Primitive
 	SetFocusFunc(callback func()) *tview.Box
+	SetTitle(title string) *tview.Box
 }
 
 type ServicePage interface {

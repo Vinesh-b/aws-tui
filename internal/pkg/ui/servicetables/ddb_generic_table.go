@@ -25,6 +25,7 @@ const (
 type DynamoDBGenericTable struct {
 	*core.SelectableTable[any]
 	*DynamoDBTableSearchView
+	rootView             core.View
 	table                *tview.Table
 	ErrorMessageCallback func(text string, a ...any)
 	data                 []map[string]any
@@ -51,12 +52,13 @@ func NewDynamoDBGenericTable(
 	logger *log.Logger,
 ) *DynamoDBGenericTable {
 	var selectableTable = core.NewSelectableTable[any]("", nil)
-	var t = selectableTable.GetTable()
+	var searchView = NewDynamoDBTableSearchView(selectableTable, app, logger)
 
 	var table = &DynamoDBGenericTable{
 		SelectableTable:         selectableTable,
-		DynamoDBTableSearchView: NewDynamoDBTableSearchView(selectableTable, app, logger),
-		table:                   t,
+		DynamoDBTableSearchView: searchView,
+		rootView:                selectableTable.Box,
+		table:                   selectableTable.GetTable(),
 		ErrorMessageCallback:    func(text string, a ...any) {},
 		data:                    []map[string]any{},
 		attributeIdxMap:         map[string]int{},
@@ -111,11 +113,6 @@ func NewDynamoDBGenericTable(
 }
 
 func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
-	inst.
-		SetTitleAlign(tview.AlignLeft).
-		SetBorderPadding(0, 0, 0, 0).
-		SetBorder(true)
-
 	if inst.tableDescription == nil {
 		return
 	}
@@ -125,7 +122,7 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 		aws.ToString(inst.tableDescription.TableName),
 		len(inst.data),
 	)
-	inst.SetTitle(tableTitle)
+	inst.rootView.SetTitle(tableTitle)
 
 	if !extend {
 		inst.attributeIdxMap = make(map[string]int)
