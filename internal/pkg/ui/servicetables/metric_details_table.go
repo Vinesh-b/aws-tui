@@ -2,7 +2,6 @@ package servicetables
 
 import (
 	"log"
-	"slices"
 
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
@@ -15,11 +14,10 @@ import (
 
 type MetricDetailsTable struct {
 	*core.DetailsTable
-	currentMetric string
-	data          *types.Metric
-	logger        *log.Logger
-	app           *tview.Application
-	api           *awsapi.CloudWatchMetricsApi
+	data   types.Metric
+	logger *log.Logger
+	app    *tview.Application
+	api    *awsapi.CloudWatchMetricsApi
 }
 
 func NewMetricDetailsTable(
@@ -28,12 +26,11 @@ func NewMetricDetailsTable(
 	logger *log.Logger,
 ) *MetricDetailsTable {
 	var view = &MetricDetailsTable{
-		DetailsTable:  core.NewDetailsTable("Metric Details"),
-		currentMetric: "",
-		data:          nil,
-		logger:        logger,
-		app:           app,
-		api:           api,
+		DetailsTable: core.NewDetailsTable("Metric Details"),
+		data:         types.Metric{},
+		logger:       logger,
+		app:          app,
+		api:          api,
 	}
 
 	return view
@@ -41,15 +38,18 @@ func NewMetricDetailsTable(
 
 func (inst *MetricDetailsTable) populateMetricDetailsTable() {
 	var tableData []core.TableRow
-	if inst.data != nil {
-		tableData = []core.TableRow{
-			{"Namespace", aws.ToString(inst.data.Namespace)},
-			{"MetricName", aws.ToString(inst.data.MetricName)},
-			{"Dimensions", ""},
-		}
-		for _, dim := range inst.data.Dimensions {
-			tableData = append(tableData, core.TableRow{aws.ToString(dim.Name), aws.ToString(dim.Value)})
-		}
+	tableData = []core.TableRow{
+		{"Namespace", aws.ToString(inst.data.Namespace)},
+		{"MetricName", aws.ToString(inst.data.MetricName)},
+		{"Dimensions", ""},
+	}
+	for _, dim := range inst.data.Dimensions {
+		tableData = append(tableData,
+			core.TableRow{
+				aws.ToString(dim.Name),
+				aws.ToString(dim.Value),
+			},
+		)
 	}
 
 	inst.SetData(tableData)
@@ -57,24 +57,11 @@ func (inst *MetricDetailsTable) populateMetricDetailsTable() {
 	inst.ScrollToBeginning()
 }
 
-func (inst *MetricDetailsTable) RefreshDetails(metric string, reset bool) {
-	inst.currentMetric = metric
+func (inst *MetricDetailsTable) RefreshDetails(metric types.Metric, reset bool) {
+	inst.data = metric
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
-	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.api.ListMetrics(nil, "", "", reset)
-		if err != nil {
-			inst.ErrorMessageCallback(err.Error())
-		}
-
-		var idx = slices.IndexFunc(data, func(d types.Metric) bool {
-			return aws.ToString(d.MetricName) == inst.currentMetric
-		})
-
-		if idx != -1 {
-			inst.data = &data[idx]
-		}
-	})
+	dataLoader.AsyncLoadData(func() {})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateMetricDetailsTable()

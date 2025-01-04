@@ -14,8 +14,8 @@ import (
 )
 
 type MetricListTable struct {
-	*core.SelectableTable[any]
-	selectedMetric string
+	*core.SelectableTable[types.Metric]
+	selectedMetric types.Metric
 	currentSearch  string
 	data           []types.Metric
 	logger         *log.Logger
@@ -29,14 +29,14 @@ func NewMetricsTable(
 	logger *log.Logger,
 ) *MetricListTable {
 	var view = &MetricListTable{
-		SelectableTable: core.NewSelectableTable[any](
+		SelectableTable: core.NewSelectableTable[types.Metric](
 			"Metrics",
 			core.TableRow{
 				"Namespace",
 				"Name",
 			},
 		),
-		selectedMetric: "",
+		selectedMetric: types.Metric{},
 		currentSearch:  "",
 		data:           nil,
 		logger:         logger,
@@ -64,14 +64,16 @@ func NewMetricsTable(
 
 func (inst *MetricListTable) populateMetricsTable() {
 	var tableData []core.TableRow
+	var privateData []types.Metric
 	for _, row := range inst.data {
 		tableData = append(tableData, core.TableRow{
 			aws.ToString(row.Namespace),
 			aws.ToString(row.MetricName),
 		})
+		privateData = append(privateData, row)
 	}
 
-	inst.SetData(tableData, nil, 0)
+	inst.SetData(tableData, privateData, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
 }
 
@@ -112,12 +114,12 @@ func (inst *MetricListTable) SetSelectionChangedFunc(handler func(row int, colum
 		if row < 1 {
 			return
 		}
-		inst.selectedMetric = inst.GetCell(row, 1).Text
+		inst.selectedMetric = inst.GetPrivateData(row, 0)
 
 		handler(row, column)
 	})
 }
 
-func (inst *MetricListTable) GetSeletedMetric() string {
+func (inst *MetricListTable) GetSeletedMetric() types.Metric {
 	return inst.selectedMetric
 }
