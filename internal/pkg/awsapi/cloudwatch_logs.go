@@ -1,7 +1,6 @@
 package awsapi
 
 import (
-	"aws-tui/internal/pkg/ui/core"
 	"context"
 	"fmt"
 	"log"
@@ -17,9 +16,9 @@ type CloudWatchLogsApi struct {
 	logger                     *log.Logger
 	config                     aws.Config
 	client                     *cloudwatchlogs.Client
-	allLogGroups               []types.LogGroup
 	logEventsPaginator         *cloudwatchlogs.GetLogEventsPaginator
 	logStreamsPaginator        *cloudwatchlogs.DescribeLogStreamsPaginator
+	logGroupsPaginator         *cloudwatchlogs.DescribeLogGroupsPaginator
 	filteredLogEventsPaginator *cloudwatchlogs.FilterLogEventsPaginator
 }
 
@@ -34,47 +33,34 @@ func NewCloudWatchLogsApi(
 	}
 }
 
-func (inst *CloudWatchLogsApi) ListLogGroups(force bool) ([]types.LogGroup, error) {
-	if len(inst.allLogGroups) > 0 && !force {
-		return inst.allLogGroups, nil
-	}
-
-	inst.allLogGroups = nil
-	var nextToken *string = nil
-	var apiErr error = nil
-
-	for {
-		output, err := inst.client.DescribeLogGroups(
-			context.TODO(), &cloudwatchlogs.DescribeLogGroupsInput{
-				Limit:     aws.Int32(50),
-				NextToken: nextToken,
+func (inst *CloudWatchLogsApi) ListLogGroups(reset bool) ([]types.LogGroup, error) {
+	if reset || inst.logGroupsPaginator == nil {
+		inst.logGroupsPaginator = cloudwatchlogs.NewDescribeLogGroupsPaginator(
+			inst.client,
+			&cloudwatchlogs.DescribeLogGroupsInput{
+				Limit: aws.Int32(50),
 			},
 		)
+	}
 
+	var apiErr error = nil
+	var result = []types.LogGroup{}
+
+	for inst.logGroupsPaginator.HasMorePages() {
+		var output, err = inst.logGroupsPaginator.NextPage(context.TODO())
 		if err != nil {
-			inst.logger.Println(err)
 			apiErr = err
 			break
 		}
 
-		nextToken = output.NextToken
-		inst.allLogGroups = append(inst.allLogGroups, output.LogGroups...)
-		if nextToken == nil {
-			break
-		}
+		result = append(result, output.LogGroups...)
 	}
 
-	sort.Slice(inst.allLogGroups, func(i, j int) bool {
-		return aws.ToString(inst.allLogGroups[i].LogGroupName) < aws.ToString(inst.allLogGroups[j].LogGroupName)
+	sort.Slice(result, func(i, j int) bool {
+		return aws.ToString(result[i].LogGroupName) < aws.ToString(result[j].LogGroupName)
 	})
 
-	return inst.allLogGroups, apiErr
-}
-
-func (inst *CloudWatchLogsApi) FilterGroupByName(name string) []types.LogGroup {
-	return core.FuzzySearch(name, inst.allLogGroups, func(v types.LogGroup) string {
-		return aws.ToString(v.LogGroupName)
-	})
+	return result, apiErr
 }
 
 func (inst *CloudWatchLogsApi) ListLogStreams(

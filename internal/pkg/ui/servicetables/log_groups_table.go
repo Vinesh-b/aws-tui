@@ -17,6 +17,7 @@ import (
 type LogGroupsTable struct {
 	*core.SelectableTable[string]
 	data             []types.LogGroup
+	filtered         []types.LogGroup
 	selectedLogGroup string
 	logger           *log.Logger
 	app              *tview.Application
@@ -43,7 +44,7 @@ func NewLogGroupsTable(
 		api:              api,
 	}
 
-	view.populateLogGroupsTable()
+	view.populateLogGroupsTable(view.data)
 	view.SetSelectedFunc(func(row, column int) {})
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
@@ -56,22 +57,23 @@ func NewLogGroupsTable(
 	view.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			view.RefreshLogGroups(false)
+			var search = view.GetSearchText()
+			view.FilterByName(search)
 		}
 	})
 
 	view.SetSearchChangedFunc(func(text string) {
-		view.RefreshLogGroups(false)
+		view.FilterByName(text)
 	})
 
 	return view
 }
 
-func (inst *LogGroupsTable) populateLogGroupsTable() {
+func (inst *LogGroupsTable) populateLogGroupsTable(data []types.LogGroup) {
 	var tableData []core.TableRow
 	var privateData []string
 
-	for _, row := range inst.data {
+	for _, row := range data {
 		tableData = append(tableData, core.TableRow{
 			aws.ToString(row.LogGroupName),
 		})
@@ -83,24 +85,38 @@ func (inst *LogGroupsTable) populateLogGroupsTable() {
 	inst.ScrollToBeginning()
 }
 
-func (inst *LogGroupsTable) RefreshLogGroups(force bool) {
-	var search = inst.GetSearchText()
+func (inst *LogGroupsTable) FilterByName(name string) {
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		var err error = nil
-		if len(search) > 0 {
-			inst.data = inst.api.FilterGroupByName(search)
+		inst.filtered = core.FuzzySearch(name, inst.data, func(v types.LogGroup) string {
+			return aws.ToString(v.LogGroupName)
+		})
+	})
+
+	dataLoader.AsyncUpdateView(inst.Box, func() {
+		inst.populateLogGroupsTable(inst.filtered)
+	})
+}
+
+func (inst *LogGroupsTable) RefreshLogGroups(reset bool) {
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+
+	dataLoader.AsyncLoadData(func() {
+		var data, err = inst.api.ListLogGroups(reset)
+		if err != nil {
+			inst.ErrorMessageCallback(err.Error())
+		}
+
+		if !reset {
+			inst.data = append(inst.data, data...)
 		} else {
-			inst.data, err = inst.api.ListLogGroups(force)
-			if err != nil {
-				inst.ErrorMessageCallback(err.Error())
-			}
+			inst.data = data
 		}
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateLogGroupsTable()
+		inst.populateLogGroupsTable(inst.data)
 	})
 }
 
