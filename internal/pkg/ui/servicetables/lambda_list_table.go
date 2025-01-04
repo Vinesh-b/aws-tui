@@ -16,6 +16,7 @@ import (
 type LambdaListTable struct {
 	*core.SelectableTable[types.FunctionConfiguration]
 	data           []types.FunctionConfiguration
+	filtered       []types.FunctionConfiguration
 	selectedLambda types.FunctionConfiguration
 	logger         *log.Logger
 	app            *tview.Application
@@ -43,7 +44,7 @@ func NewLambdasListTable(
 		api:            api,
 	}
 
-	view.populateLambdasTable()
+	view.populateLambdasTable(view.data)
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
 	view.SetSelectedFunc(func(row, column int) {})
 	view.SetSelectionChangedFunc(func(row, column int) {})
@@ -51,21 +52,22 @@ func NewLambdasListTable(
 	view.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			view.RefreshLambdas(false)
+			var searchText = view.GetSearchText()
+			view.FilterByName(searchText)
 		}
 	})
 
 	view.SetSearchChangedFunc(func(text string) {
-		view.RefreshLambdas(false)
+		view.FilterByName(text)
 	})
 
 	return view
 }
 
-func (inst *LambdaListTable) populateLambdasTable() {
+func (inst *LambdaListTable) populateLambdasTable(data []types.FunctionConfiguration) {
 	var tableData []core.TableRow
 	var privateData []types.FunctionConfiguration
-	for _, row := range inst.data {
+	for _, row := range data {
 		tableData = append(tableData, core.TableRow{
 			aws.ToString(row.FunctionName),
 			aws.ToString(row.LastModified),
@@ -77,24 +79,42 @@ func (inst *LambdaListTable) populateLambdasTable() {
 	inst.GetCell(0, 0).SetExpansion(1)
 }
 
-func (inst *LambdaListTable) RefreshLambdas(force bool) {
-	var searchText = inst.GetSearchText()
+func (inst *LambdaListTable) FilterByName(name string) {
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		var err error
-		if len(searchText) > 0 {
-			inst.data = inst.api.FilterByName(searchText)
+		inst.filtered = core.FuzzySearch(
+			name,
+			inst.data,
+			func(f types.FunctionConfiguration) string {
+				return aws.ToString(f.FunctionName)
+			},
+		)
+	})
+
+	dataLoader.AsyncUpdateView(inst.Box, func() {
+		inst.populateLambdasTable(inst.filtered)
+	})
+}
+
+func (inst *LambdaListTable) RefreshLambdas(reset bool) {
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+
+	dataLoader.AsyncLoadData(func() {
+		var data, err = inst.api.ListLambdas(reset)
+		if err != nil {
+			inst.ErrorMessageCallback(err.Error())
+		}
+
+		if !reset {
+			inst.data = append(inst.data, data...)
 		} else {
-			inst.data, err = inst.api.ListLambdas(force)
-			if err != nil {
-				inst.ErrorMessageCallback(err.Error())
-			}
+			inst.data = data
 		}
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateLambdasTable()
+		inst.populateLambdasTable(inst.data)
 	})
 }
 

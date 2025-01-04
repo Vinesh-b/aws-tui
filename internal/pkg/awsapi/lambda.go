@@ -1,7 +1,6 @@
 package awsapi
 
 import (
-	"aws-tui/internal/pkg/ui/core"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -25,24 +24,18 @@ func NewLambdaApi(
 	logger *log.Logger,
 ) *LambdaApi {
 	return &LambdaApi{
-		config:     config,
-		logger:     logger,
-		client:     lambda.NewFromConfig(config),
-		allLambdas: []types.FunctionConfiguration{},
+		config: config,
+		logger: logger,
+		client: lambda.NewFromConfig(config),
 	}
 }
 
 func (inst *LambdaApi) ListLambdas(force bool) ([]types.FunctionConfiguration, error) {
-	if len(inst.allLambdas) > 0 && !force {
-		return inst.allLambdas, nil
-	}
-
-	inst.allLambdas = []types.FunctionConfiguration{}
-
 	var paginator = lambda.NewListFunctionsPaginator(
 		inst.client, &lambda.ListFunctionsInput{},
 	)
 
+	var result = []types.FunctionConfiguration{}
 	var apiError error = nil
 	for paginator.HasMorePages() {
 		var output, err = paginator.NextPage(context.TODO())
@@ -51,20 +44,14 @@ func (inst *LambdaApi) ListLambdas(force bool) ([]types.FunctionConfiguration, e
 			break
 		}
 
-		inst.allLambdas = append(inst.allLambdas, output.Functions...)
+		result = append(result, output.Functions...)
 	}
 
-	sort.Slice(inst.allLambdas, func(i, j int) bool {
-		return aws.ToString(inst.allLambdas[i].FunctionName) < aws.ToString(inst.allLambdas[j].FunctionName)
+	sort.Slice(result, func(i, j int) bool {
+		return aws.ToString(result[i].FunctionName) < aws.ToString(result[j].FunctionName)
 	})
 
-	return inst.allLambdas, apiError
-}
-
-func (inst *LambdaApi) FilterByName(name string) []types.FunctionConfiguration {
-	return core.FuzzySearch(name, inst.allLambdas, func(v types.FunctionConfiguration) string {
-		return aws.ToString(v.FunctionName)
-	})
+	return result, apiError
 }
 
 func (inst *LambdaApi) InvokeLambda(
