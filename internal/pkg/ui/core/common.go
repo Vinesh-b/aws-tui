@@ -119,12 +119,16 @@ func FuzzySearch[T any](search string, values []T, handler func(val T) string) [
 		return nil
 	}
 
+	if len(search) == 0 {
+		return values
+	}
+
 	var names = make([]string, 0, len(values))
 	for _, v := range values {
 		names = append(names, handler(v))
 	}
 
-	var matches = fuzzy.RankFind(search, names)
+	var matches = fuzzy.RankFindFold(search, names)
 	sort.Sort(matches)
 
 	var results = make([]int, 0, len(matches))
