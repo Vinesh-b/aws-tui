@@ -12,6 +12,10 @@ import (
 )
 
 type TableRow = []string
+type CellPosition struct {
+	row int
+	col int
+}
 
 func ClampStringLen(input *string, maxLen int) string {
 	if len(*input) < maxLen {
@@ -30,6 +34,7 @@ type SelectableTable[T any] struct {
 	privateColumn        int
 	rowCount             int
 	colCount             int
+	searchPositions      []CellPosition
 	ErrorMessageCallback func(text string, a ...any)
 }
 
@@ -45,6 +50,7 @@ func NewSelectableTable[T any](title string, headings TableRow) *SelectableTable
 		headings:             headings,
 		data:                 nil,
 		privateColumn:        0,
+		searchPositions:      []CellPosition{},
 		ErrorMessageCallback: func(text string, a ...any) {},
 	}
 
@@ -201,9 +207,7 @@ func (inst *SelectableTable[T]) GetPrivateData(row int, column int) T {
 		return ref.(T)
 	default:
 		return *new(T)
-
 	}
-
 }
 
 func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
@@ -215,11 +219,14 @@ func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventK
 			switch event.Rune() {
 			case rune('n'):
 				nextSearch = (nextSearch + 1) % searchCount
-				inst.table.Select(inst.searchPositions[nextSearch], 0)
 			case rune('N'):
 				nextSearch = (nextSearch - 1 + searchCount) % searchCount
-				inst.table.Select(inst.searchPositions[nextSearch], 0)
+			default:
+				return event
 			}
+
+			var pos = inst.searchPositions[nextSearch]
+			inst.table.Select(pos.row, pos.col)
 		}
 
 		return event
@@ -376,8 +383,8 @@ func (inst *DetailsTable) ScrollToBeginning() *DetailsTable {
 	return inst
 }
 
-func searchRefsInTable(table *tview.Table, searchCols []int, search string) []int {
-	var resultPositions = []int{}
+func searchRefsInTable(table *tview.Table, searchCols []int, search string) []CellPosition {
+	var resultPositions = []CellPosition{}
 	if len(search) <= 0 {
 		return resultPositions
 	}
@@ -397,7 +404,7 @@ func searchRefsInTable(table *tview.Table, searchCols []int, search string) []in
 			var text = fmt.Sprintf("%v", cell.Reference)
 			if strings.Contains(text, search) {
 				cell.SetTextColor(TertiaryTextColor)
-				resultPositions = append(resultPositions, r)
+				resultPositions = append(resultPositions, CellPosition{r, c})
 			}
 		}
 	}
@@ -420,14 +427,14 @@ func highlightTableSearch(
 	table *tview.Table,
 	search string,
 	cols []int,
-) []int {
+) []CellPosition {
 	clearSearchHighlights(table)
 
-	var foundPositions []int
+	var foundPositions []CellPosition
 	if len(search) > 0 {
 		foundPositions = searchRefsInTable(table, cols, search)
 		if len(foundPositions) > 0 {
-			table.Select(foundPositions[0], 0)
+			table.Select(foundPositions[0].row, foundPositions[0].col)
 		}
 	}
 	return foundPositions

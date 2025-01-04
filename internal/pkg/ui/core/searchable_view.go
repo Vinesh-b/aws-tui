@@ -17,11 +17,10 @@ type SearchableView struct {
 	MainPage        tview.Primitive
 	HighlightSearch bool
 
-	searchInput     *tview.InputField
-	showSearch      bool
-	searchPositions []int
-	app             *tview.Application
-	logger          *log.Logger
+	searchInput *tview.InputField
+	showSearch  bool
+	app         *tview.Application
+	logger      *log.Logger
 }
 
 func NewSearchableView(
@@ -37,9 +36,8 @@ func NewSearchableView(
 		MainPage:        mainPage,
 		HighlightSearch: false,
 
-		searchInput:     floatingSearch.InputField,
-		showSearch:      true,
-		searchPositions: nil,
+		searchInput: floatingSearch.InputField,
+		showSearch:  true,
 	}
 
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
