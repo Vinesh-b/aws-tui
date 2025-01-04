@@ -288,6 +288,10 @@ func (inst *SelectableTable[T]) GetCell(row int, column int) *tview.TableCell {
 	return inst.table.GetCell(row, column)
 }
 
+func (inst *SelectableTable[T]) GetTable() *tview.Table {
+	return inst.table
+}
+
 func (inst *SelectableTable[T]) ScrollToBeginning() *SelectableTable[T] {
 	inst.table.ScrollToBeginning()
 	return inst

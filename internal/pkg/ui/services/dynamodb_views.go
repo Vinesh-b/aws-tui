@@ -77,7 +77,7 @@ func NewDynamoDBTableItemsPage(
 	api *awsapi.DynamoDBApi,
 	logger *log.Logger,
 ) *DynamoDBTableItemsPage {
-	var expandItemView = core.CreateJsonTableDataView(app, itemsTable, 0)
+	var expandItemView = core.CreateJsonTableDataView(app, itemsTable, -1)
 
 	const expandItemViewSize = 3
 	const itemsTableSize = 7
@@ -164,7 +164,7 @@ func NewDynamoDBHomeView(
 		if len(selectedTableName) > 0 {
 			ddbItemsView.ItemsTable.SetSelectedTable(selectedTableName)
 			ddbItemsView.ItemsTable.ExecuteSearch(tables.DDBTableScan, expression.Expression{}, true)
-			serviceRootView.ChangePage(1, ddbItemsView.ItemsTable.Table)
+			serviceRootView.ChangePage(1, ddbItemsView.ItemsTable)
 		}
 	})
 

@@ -23,8 +23,9 @@ const (
 )
 
 type DynamoDBGenericTable struct {
+	*core.SelectableTable[any]
 	*DynamoDBTableSearchView
-	Table                *tview.Table
+	table                *tview.Table
 	ErrorMessageCallback func(text string, a ...any)
 	data                 []map[string]any
 	tableDescription     *types.TableDescription
@@ -49,11 +50,13 @@ func NewDynamoDBGenericTable(
 	api *awsapi.DynamoDBApi,
 	logger *log.Logger,
 ) *DynamoDBGenericTable {
-	var t = tview.NewTable()
+	var selectableTable = core.NewSelectableTable[any]("", nil)
+	var t = selectableTable.GetTable()
 
 	var table = &DynamoDBGenericTable{
-		DynamoDBTableSearchView: NewDynamoDBTableSearchView(t, app, logger),
-		Table:                   t,
+		SelectableTable:         selectableTable,
+		DynamoDBTableSearchView: NewDynamoDBTableSearchView(selectableTable, app, logger),
+		table:                   t,
 		ErrorMessageCallback:    func(text string, a ...any) {},
 		data:                    []map[string]any{},
 		attributeIdxMap:         map[string]int{},
@@ -68,6 +71,7 @@ func NewDynamoDBGenericTable(
 		api:                     api,
 	}
 
+	table.HighlightSearch = true
 	table.populateDynamoDBTable(false)
 	table.SetSelectionChangedFunc(func(row, column int) {})
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -78,8 +82,8 @@ func NewDynamoDBGenericTable(
 			table.ExecuteSearch(table.lastTableOp, table.lastSearchExpr, false)
 		}
 		return event
-
 	})
+
 	table.QueryDoneButton.SetSelectedFunc(func() {
 		table.SetPartitionKeyName(table.pkName)
 		table.SetSortKeyName(table.skName)
@@ -107,7 +111,7 @@ func NewDynamoDBGenericTable(
 }
 
 func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
-	inst.Table.
+	inst.
 		SetTitleAlign(tview.AlignLeft).
 		SetBorderPadding(0, 0, 0, 0).
 		SetBorder(true)
@@ -116,12 +120,12 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 		return
 	}
 
-	inst.Table.Clear()
+	inst.table.Clear()
 	var tableTitle = fmt.Sprintf("%s (%d)",
 		aws.ToString(inst.tableDescription.TableName),
 		len(inst.data),
 	)
-	inst.Table.SetTitle(tableTitle)
+	inst.SetTitle(tableTitle)
 
 	if !extend {
 		inst.attributeIdxMap = make(map[string]int)
@@ -141,7 +145,7 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 			fixedCols++
 		}
 	}
-	inst.Table.SetFixed(1, fixedCols)
+	inst.table.SetFixed(1, fixedCols)
 
 	for _, rowData := range inst.data {
 		for heading := range rowData {
@@ -164,14 +168,16 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 			// always exist as a PK is required for all tables
 			if colIdx == 0 {
 				newCell.SetReference(rowData)
+			} else {
+				newCell.SetReference(rowData[heading])
 			}
 
-			inst.Table.SetCell(rowIdx+1, colIdx, newCell)
+			inst.table.SetCell(rowIdx+1, colIdx, newCell)
 		}
 	}
 
 	for heading, colIdx := range inst.attributeIdxMap {
-		inst.Table.SetCell(0, colIdx, tview.NewTableCell(heading).
+		inst.table.SetCell(0, colIdx, tview.NewTableCell(heading).
 			SetAlign(tview.AlignLeft).
 			SetTextColor(core.SecondaryTextColor).
 			SetSelectable(false).
@@ -180,12 +186,12 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 	}
 
 	if len(inst.data) > 0 {
-		inst.Table.SetSelectable(true, true).SetSelectedStyle(
+		inst.table.SetSelectable(true, true).SetSelectedStyle(
 			tcell.Style{}.Background(core.MoreContrastBackgroundColor),
 		)
 	}
 
-	inst.Table.Select(inst.lastSelectedRowIdx, 0)
+	inst.table.Select(inst.lastSelectedRowIdx, 0)
 }
 
 func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expression.Expression, reset bool) {
@@ -228,7 +234,7 @@ func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expre
 		}
 	})
 
-	dataLoader.AsyncUpdateView(inst.Table.Box, func() {
+	dataLoader.AsyncUpdateView(inst.table.Box, func() {
 		inst.populateDynamoDBTable(!reset)
 	})
 }
@@ -239,19 +245,10 @@ func (inst *DynamoDBGenericTable) SetSelectedTable(tableName string) {
 	inst.selectedTable = tableName
 }
 
-func (inst *DynamoDBGenericTable) GetPrivateData(row int, column int) map[string]any {
-	var ref = inst.Table.GetCell(row, column).Reference
-	if ref == nil {
-		return map[string]any{}
-	}
-
-	return ref.(map[string]any)
-}
-
 func (inst *DynamoDBGenericTable) SetSelectionChangedFunc(
 	handler func(row int, column int),
 ) *DynamoDBGenericTable {
-	inst.Table.SetSelectionChangedFunc(func(row, column int) {
+	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
 		inst.lastSelectedRowIdx = row
 		handler(row, column)
 	})
