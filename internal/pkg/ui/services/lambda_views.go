@@ -74,7 +74,7 @@ func NewLambdaDetailsPageView(
 
 func (inst *LambdaDetailsPageView) initInputCapture() {
 	inst.LambdaListTable.SetSelectionChangedFunc(func(row, column int) {
-		inst.LambdaDetailsTable.RefreshDetails(inst.LambdaListTable.GetSeletedLambda(), false)
+		inst.LambdaDetailsTable.RefreshDetails(inst.LambdaListTable.GetSeletedLambda())
 	})
 }
 
@@ -135,14 +135,6 @@ func NewLambdaInvokePageView(
 }
 
 func (inst *LambdaInvokePageView) initInputCapture() {
-	inst.DetailsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlR:
-			inst.DetailsTable.RefreshDetails(inst.SelectedLambda, true)
-		}
-		return event
-	})
-
 	inst.payloadInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:

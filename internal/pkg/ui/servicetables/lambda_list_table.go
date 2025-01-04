@@ -14,9 +14,9 @@ import (
 )
 
 type LambdaListTable struct {
-	*core.SelectableTable[any]
-	selectedLambda string
+	*core.SelectableTable[types.FunctionConfiguration]
 	data           []types.FunctionConfiguration
+	selectedLambda types.FunctionConfiguration
 	logger         *log.Logger
 	app            *tview.Application
 	api            *awsapi.LambdaApi
@@ -29,17 +29,18 @@ func NewLambdasListTable(
 ) *LambdaListTable {
 
 	var view = &LambdaListTable{
-		SelectableTable: core.NewSelectableTable[any](
+		SelectableTable: core.NewSelectableTable[types.FunctionConfiguration](
 			"Lambdas",
 			core.TableRow{
 				"Name",
 				"LastModified",
 			},
 		),
-		data:   nil,
-		logger: logger,
-		app:    app,
-		api:    api,
+		data:           nil,
+		selectedLambda: types.FunctionConfiguration{},
+		logger:         logger,
+		app:            app,
+		api:            api,
 	}
 
 	view.populateLambdasTable()
@@ -63,14 +64,16 @@ func NewLambdasListTable(
 
 func (inst *LambdaListTable) populateLambdasTable() {
 	var tableData []core.TableRow
+	var privateData []types.FunctionConfiguration
 	for _, row := range inst.data {
 		tableData = append(tableData, core.TableRow{
 			aws.ToString(row.FunctionName),
 			aws.ToString(row.LastModified),
 		})
+		privateData = append(privateData, row)
 	}
 
-	inst.SetData(tableData, nil, 0)
+	inst.SetData(tableData, privateData, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
 }
 
@@ -100,7 +103,7 @@ func (inst *LambdaListTable) SetSelectedFunc(handler func(row int, column int)) 
 		if row < 1 {
 			return
 		}
-		inst.selectedLambda = inst.GetCell(row, 0).Text
+		inst.selectedLambda = inst.GetPrivateData(row, 0)
 		handler(row, column)
 	})
 }
@@ -110,7 +113,7 @@ func (inst *LambdaListTable) SetSelectionChangedFunc(handler func(row int, colum
 		if row < 1 {
 			return
 		}
-		inst.selectedLambda = inst.GetCell(row, 0).Text
+		inst.selectedLambda = inst.GetPrivateData(row, 0)
 		handler(row, column)
 	})
 }
@@ -125,6 +128,6 @@ func (inst *LambdaListTable) SetInputCapture(capture func(event *tcell.EventKey)
 	})
 }
 
-func (inst *LambdaListTable) GetSeletedLambda() string {
+func (inst *LambdaListTable) GetSeletedLambda() types.FunctionConfiguration {
 	return inst.selectedLambda
 }
