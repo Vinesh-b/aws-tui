@@ -26,7 +26,7 @@ type DynamoDBGenericTable struct {
 	*DynamoDBTableSearchView
 	Table                *tview.Table
 	ErrorMessageCallback func(text string, a ...any)
-	data                 []map[string]interface{}
+	data                 []map[string]any
 	tableDescription     *types.TableDescription
 	selectedTable        string
 	pkQueryString        string
@@ -41,6 +41,7 @@ type DynamoDBGenericTable struct {
 	skName               string
 	lastTableOp          DDBTableOp
 	lastSearchExpr       expression.Expression
+	lastSelectedRowIdx   int
 }
 
 func NewDynamoDBGenericTable(
@@ -54,18 +55,21 @@ func NewDynamoDBGenericTable(
 		DynamoDBTableSearchView: NewDynamoDBTableSearchView(t, app, logger),
 		Table:                   t,
 		ErrorMessageCallback:    func(text string, a ...any) {},
-		data:                    nil,
+		data:                    []map[string]any{},
+		attributeIdxMap:         map[string]int{},
 		selectedTable:           "",
 		pkQueryString:           "",
 		skQueryString:           "",
 		searchIndexName:         "",
 		lastTableOp:             DDBTableScan,
+		lastSelectedRowIdx:      0,
 		logger:                  logger,
 		app:                     app,
 		api:                     api,
 	}
 
 	table.populateDynamoDBTable(false)
+	table.SetSelectionChangedFunc(func(row, column int) {})
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlR:
@@ -112,45 +116,45 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 		return
 	}
 
-	var rowIdxOffset = 0
-	if extend {
-		rowIdxOffset = inst.Table.GetRowCount() - 1
-	} else {
-		inst.Table.Clear()
+	inst.Table.Clear()
+	var tableTitle = fmt.Sprintf("%s (%d)",
+		aws.ToString(inst.tableDescription.TableName),
+		len(inst.data),
+	)
+	inst.Table.SetTitle(tableTitle)
+
+	if !extend {
 		inst.attributeIdxMap = make(map[string]int)
+		inst.lastSelectedRowIdx = 1
 	}
 
-	var headingIdx = 0
+	var fixedCols = 0
 	for _, atter := range inst.tableDescription.KeySchema {
 		switch atter.KeyType {
 		case types.KeyTypeHash:
 			inst.pkName = *atter.AttributeName
 			inst.attributeIdxMap[*atter.AttributeName] = 0
-			headingIdx++
+			fixedCols++
 		case types.KeyTypeRange:
 			inst.skName = *atter.AttributeName
 			inst.attributeIdxMap[*atter.AttributeName] = 1
-			headingIdx++
+			fixedCols++
+		}
+	}
+	inst.Table.SetFixed(1, fixedCols)
+
+	for _, rowData := range inst.data {
+		for heading := range rowData {
+			var headingIdx = len(inst.attributeIdxMap)
+			var _, ok = inst.attributeIdxMap[heading]
+			if !ok {
+				inst.attributeIdxMap[heading] = headingIdx
+			}
 		}
 	}
 
-	inst.Table.SetFixed(1, headingIdx)
-
-	var tableTitle = fmt.Sprintf("%s (%d)",
-		aws.ToString(inst.tableDescription.TableName),
-		len(inst.data)+rowIdxOffset,
-	)
-	inst.Table.SetTitle(tableTitle)
-
 	for rowIdx, rowData := range inst.data {
-		for heading := range rowData {
-			var colIdx, ok = inst.attributeIdxMap[heading]
-			if !ok {
-				inst.attributeIdxMap[heading] = headingIdx
-				colIdx = headingIdx
-				headingIdx++
-			}
-
+		for heading, colIdx := range inst.attributeIdxMap {
 			var cellData = fmt.Sprintf("%v", rowData[heading])
 			var previewText = core.ClampStringLen(&cellData, 100)
 			var newCell = tview.NewTableCell(previewText).
@@ -162,7 +166,7 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 				newCell.SetReference(rowData)
 			}
 
-			inst.Table.SetCell(rowIdx+rowIdxOffset+1, colIdx, newCell)
+			inst.Table.SetCell(rowIdx+1, colIdx, newCell)
 		}
 	}
 
@@ -176,11 +180,12 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 	}
 
 	if len(inst.data) > 0 {
-		inst.Table.SetSelectable(true, false).SetSelectedStyle(
+		inst.Table.SetSelectable(true, true).SetSelectedStyle(
 			tcell.Style{}.Background(core.MoreContrastBackgroundColor),
 		)
 	}
-	inst.Table.Select(1, 0)
+
+	inst.Table.Select(inst.lastSelectedRowIdx, 0)
 }
 
 func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expression.Expression, reset bool) {
@@ -203,11 +208,19 @@ func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expre
 			}
 		}
 
+		var data []map[string]any
+
 		switch operation {
 		case DDBTableScan:
-			inst.data, err = inst.api.ScanTable(inst.selectedTable, expr, "", reset)
+			data, err = inst.api.ScanTable(inst.selectedTable, expr, "", reset)
 		case DDBTableQuery:
-			inst.data, err = inst.api.QueryTable(inst.selectedTable, expr, "", reset)
+			data, err = inst.api.QueryTable(inst.selectedTable, expr, "", reset)
+		}
+
+		if !reset {
+			inst.data = append(inst.data, data...)
+		} else {
+			inst.data = data
 		}
 
 		if err != nil {
@@ -238,6 +251,9 @@ func (inst *DynamoDBGenericTable) GetPrivateData(row int, column int) map[string
 func (inst *DynamoDBGenericTable) SetSelectionChangedFunc(
 	handler func(row int, column int),
 ) *DynamoDBGenericTable {
-	inst.Table.SetSelectionChangedFunc(handler)
+	inst.Table.SetSelectionChangedFunc(func(row, column int) {
+		inst.lastSelectedRowIdx = row
+		handler(row, column)
+	})
 	return inst
 }
