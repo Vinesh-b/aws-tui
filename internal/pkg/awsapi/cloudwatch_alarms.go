@@ -1,7 +1,6 @@
 package awsapi
 
 import (
-	"aws-tui/internal/pkg/ui/core"
 	"context"
 	"fmt"
 	"log"
@@ -16,7 +15,6 @@ type CloudWatchAlarmsApi struct {
 	logger             *log.Logger
 	config             aws.Config
 	client             *cloudwatch.Client
-	allMetricAlarms    []types.MetricAlarm
 	allCompositeAlarms map[string]types.CompositeAlarm
 	alarmsPaginator    *cloudwatch.DescribeAlarmsPaginator
 	historyPaginator   *cloudwatch.DescribeAlarmHistoryPaginator
@@ -30,7 +28,6 @@ func NewCloudWatchAlarmsApi(
 		config:             config,
 		logger:             logger,
 		client:             cloudwatch.NewFromConfig(config),
-		allMetricAlarms:    []types.MetricAlarm{},
 		allCompositeAlarms: nil,
 		alarmsPaginator:    nil,
 		historyPaginator:   nil,
@@ -38,11 +35,6 @@ func NewCloudWatchAlarmsApi(
 }
 
 func (inst *CloudWatchAlarmsApi) ListAlarms(force bool) ([]types.MetricAlarm, error) {
-	if len(inst.allMetricAlarms) > 0 && !force {
-		return inst.allMetricAlarms, nil
-	}
-
-	inst.allMetricAlarms = []types.MetricAlarm{}
 	inst.alarmsPaginator = cloudwatch.NewDescribeAlarmsPaginator(
 		inst.client,
 		&cloudwatch.DescribeAlarmsInput{
@@ -50,29 +42,24 @@ func (inst *CloudWatchAlarmsApi) ListAlarms(force bool) ([]types.MetricAlarm, er
 		},
 	)
 
-	var err error = nil
-	var output *cloudwatch.DescribeAlarmsOutput
+	var apiErr error = nil
+	var result = []types.MetricAlarm{}
+
 	for inst.alarmsPaginator.HasMorePages() {
-		output, err = inst.alarmsPaginator.NextPage(context.TODO())
+		var output, err = inst.alarmsPaginator.NextPage(context.TODO())
 		if err != nil {
-			inst.logger.Println(err)
+			apiErr = err
 			break
 		}
 
-		inst.allMetricAlarms = append(inst.allMetricAlarms, output.MetricAlarms...)
+		result = append(result, output.MetricAlarms...)
 	}
 
-	sort.Slice(inst.allMetricAlarms, func(i, j int) bool {
-		return aws.ToString(inst.allMetricAlarms[i].AlarmName) < aws.ToString(inst.allMetricAlarms[j].AlarmName)
+	sort.Slice(result, func(i, j int) bool {
+		return aws.ToString(result[i].AlarmName) < aws.ToString(result[j].AlarmName)
 	})
 
-	return inst.allMetricAlarms, err
-}
-
-func (inst *CloudWatchAlarmsApi) FilterByName(name string) []types.MetricAlarm {
-	return core.FuzzySearch(name, inst.allMetricAlarms, func(a types.MetricAlarm) string {
-		return aws.ToString(a.AlarmName)
-	})
+	return result, apiErr
 }
 
 func (inst *CloudWatchAlarmsApi) ListAlarmHistory(name string, force bool) ([]types.AlarmHistoryItem, error) {

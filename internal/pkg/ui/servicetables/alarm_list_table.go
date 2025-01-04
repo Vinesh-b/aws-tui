@@ -17,6 +17,7 @@ type AlarmListTable struct {
 	*core.SelectableTable[types.MetricAlarm]
 	selectedAlarm types.MetricAlarm
 	data          []types.MetricAlarm
+	filtered      []types.MetricAlarm
 	logger        *log.Logger
 	app           *tview.Application
 	api           *awsapi.CloudWatchAlarmsApi
@@ -43,7 +44,7 @@ func NewAlarmListTable(
 		api:           api,
 	}
 
-	view.populateAlarmsTable()
+	view.populateAlarmsTable(view.data)
 	view.SetSelectedFunc(func(row, column int) {})
 	view.SetSelectionChangedFunc(func(row, column int) {})
 
@@ -60,21 +61,22 @@ func NewAlarmListTable(
 	view.SetSearchDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
-			view.RefreshAlarms(false)
+			var search = view.GetSearchText()
+			view.FilterbyName(search)
 		}
 	})
 
 	view.SetSearchChangedFunc(func(text string) {
-		view.RefreshAlarms(false)
+		view.FilterbyName(text)
 	})
 
 	return view
 }
 
-func (inst *AlarmListTable) populateAlarmsTable() {
+func (inst *AlarmListTable) populateAlarmsTable(data []types.MetricAlarm) {
 	var tableData []core.TableRow
 	var privateData []types.MetricAlarm
-	for _, row := range inst.data {
+	for _, row := range data {
 		tableData = append(tableData, core.TableRow{
 			aws.ToString(row.AlarmName),
 			string(row.StateValue),
@@ -87,24 +89,42 @@ func (inst *AlarmListTable) populateAlarmsTable() {
 	inst.ScrollToBeginning()
 }
 
-func (inst *AlarmListTable) RefreshAlarms(force bool) {
-	var search = inst.GetSearchText()
+func (inst *AlarmListTable) FilterbyName(name string) {
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		if len(search) > 0 {
-			inst.data = inst.api.FilterByName(search)
+		inst.filtered = core.FuzzySearch(
+			name,
+			inst.data,
+			func(a types.MetricAlarm) string {
+				return aws.ToString(a.AlarmName)
+			},
+		)
+	})
+
+	dataLoader.AsyncUpdateView(inst.Box, func() {
+		inst.populateAlarmsTable(inst.filtered)
+	})
+}
+
+func (inst *AlarmListTable) RefreshAlarms(reset bool) {
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+
+	dataLoader.AsyncLoadData(func() {
+		var data, err = inst.api.ListAlarms(reset)
+		if err != nil {
+			inst.ErrorMessageCallback(err.Error())
+		}
+
+		if !reset {
+			inst.data = append(inst.data, data...)
 		} else {
-			var err error = nil
-			inst.data, err = inst.api.ListAlarms(force)
-			if err != nil {
-				inst.ErrorMessageCallback(err.Error())
-			}
+			inst.data = data
 		}
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateAlarmsTable()
+		inst.populateAlarmsTable(inst.data)
 	})
 }
 
