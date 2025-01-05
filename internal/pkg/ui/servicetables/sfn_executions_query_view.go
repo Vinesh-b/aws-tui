@@ -155,7 +155,6 @@ func NewSfnExecutionsQuerySearchView(
 	logger *log.Logger,
 ) *SfnExecutionsQuerySearchView {
 	var queryView = NewSfnExecutionsQueryInputView(app, logger)
-    queryView.SetBorderPadding(0, 0, 1, 1)
 	var floatingQuery = core.FloatingView("Query", queryView, 55, 8)
 
 	var pages = tview.NewPages().
