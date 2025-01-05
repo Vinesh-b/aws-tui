@@ -36,7 +36,7 @@ func CreateReadOnlyTextArea(title string) *tview.TextArea {
 		case // Disable text area default edititing key events
 			tcell.KeyCtrlY, tcell.KeyCtrlZ, tcell.KeyCtrlX, tcell.KeyCtrlV,
 			tcell.KeyCtrlH, tcell.KeyCtrlD, tcell.KeyCtrlK, tcell.KeyCtrlW,
-			tcell.KeyCtrlU:
+			tcell.KeyCtrlU, tcell.KeyBackspace2, tcell.KeyDelete, tcell.KeyTab:
 			return nil
 		}
 		if unicode.IsControl(event.Rune()) {
