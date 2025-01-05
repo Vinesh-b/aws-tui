@@ -15,10 +15,10 @@ import (
 )
 
 type StackListTable struct {
-	*core.SelectableTable[any]
-	selectedStack string
+	*core.SelectableTable[types.StackSummary]
 	data          []types.StackSummary
 	filtered      []types.StackSummary
+	selectedStack types.StackSummary
 	logger        *log.Logger
 	app           *tview.Application
 	api           *awsapi.CloudFormationApi
@@ -31,7 +31,7 @@ func NewStackListTable(
 ) *StackListTable {
 
 	var view = &StackListTable{
-		SelectableTable: core.NewSelectableTable[any](
+		SelectableTable: core.NewSelectableTable[types.StackSummary](
 			"Stacks",
 			core.TableRow{
 				"StackName",
@@ -78,7 +78,7 @@ func (inst *StackListTable) populateStacksTable(data []types.StackSummary) {
 		})
 	}
 
-	inst.SetData(tableData, nil, 0)
+	inst.SetData(tableData, data, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
 }
 
@@ -109,9 +109,9 @@ func (inst *StackListTable) RefreshStacks(reset bool) {
 			inst.ErrorMessageCallback(err.Error())
 		}
 		if !reset {
-            inst.data = append(inst.data, data...)
+			inst.data = append(inst.data, data...)
 		} else {
-            inst.data = data
+			inst.data = data
 		}
 	})
 
@@ -125,7 +125,7 @@ func (inst *StackListTable) SetSelectionChangedFunc(handler func(row int, column
 		if row < 1 {
 			return
 		}
-		inst.selectedStack = inst.GetCell(row, 0).Text
+		inst.selectedStack = inst.GetPrivateData(row, 0)
 		handler(row, column)
 	})
 }
@@ -141,5 +141,9 @@ func (inst *StackListTable) SetInputCapture(capture func(event *tcell.EventKey) 
 }
 
 func (inst *StackListTable) GetSelectedStackName() string {
+	return aws.ToString(inst.selectedStack.StackName)
+}
+
+func (inst *StackListTable) GetSelectedStack() types.StackSummary {
 	return inst.selectedStack
 }

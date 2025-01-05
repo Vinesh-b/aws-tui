@@ -75,8 +75,7 @@ func (inst *CloudFormationDetailsPageView) InitInputCapture() {
 		if row < 1 {
 			return
 		}
-		inst.stackDetailsTable.SetStackName(inst.stackListTable.GetSelectedStackName())
-		inst.stackDetailsTable.RefreshDetails(force)
+		inst.stackDetailsTable.RefreshDetails(inst.stackListTable.GetSelectedStack())
 	}
 
 	inst.stackListTable.SetSelectionChangedFunc(func(row, column int) {

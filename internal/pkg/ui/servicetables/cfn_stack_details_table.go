@@ -2,7 +2,6 @@ package servicetables
 
 import (
 	"log"
-	"slices"
 	"time"
 
 	"aws-tui/internal/pkg/awsapi"
@@ -17,8 +16,8 @@ import (
 
 type StackDetailsTable struct {
 	*core.DetailsTable
-	selectedStack string
-	data          *types.StackSummary
+	data          types.StackSummary
+	selectedStack types.StackSummary
 	logger        *log.Logger
 	app           *tview.Application
 	api           *awsapi.CloudFormationApi
@@ -32,7 +31,7 @@ func NewStackDetailsTable(
 
 	var view = &StackDetailsTable{
 		DetailsTable: core.NewDetailsTable("Stack Details"),
-		data:         nil,
+		data:         types.StackSummary{},
 		logger:       logger,
 		app:          app,
 		api:          api,
@@ -42,7 +41,7 @@ func NewStackDetailsTable(
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case core.APP_KEY_BINDINGS.Reset:
-			view.RefreshDetails(true)
+			view.RefreshDetails(view.data)
 		}
 		return event
 	})
@@ -52,52 +51,31 @@ func NewStackDetailsTable(
 
 func (inst *StackDetailsTable) populateStackDetailsTable() {
 	var tableData []core.TableRow
-	if inst.data != nil {
-		var lastUpdated = "-"
-		if inst.data.LastUpdatedTime != nil {
-			lastUpdated = inst.data.LastUpdatedTime.Format(time.DateTime)
-		}
-		tableData = []core.TableRow{
-			{"Name", aws.ToString(inst.data.StackName)},
-			{"StackId", aws.ToString(inst.data.StackId)},
-			{"Description", aws.ToString(inst.data.TemplateDescription)},
-			{"Status", string(inst.data.StackStatus)},
-			{"StatusReason", aws.ToString(inst.data.StackStatusReason)},
-			{"CreationTime", inst.data.CreationTime.Format(time.DateTime)},
-			{"LastUpdated", lastUpdated},
-		}
+	var lastUpdated = "-"
+	if inst.data.LastUpdatedTime != nil {
+		lastUpdated = inst.data.LastUpdatedTime.Format(time.DateTime)
+	}
+	tableData = []core.TableRow{
+		{"Name", aws.ToString(inst.data.StackName)},
+		{"StackId", aws.ToString(inst.data.StackId)},
+		{"Description", aws.ToString(inst.data.TemplateDescription)},
+		{"Status", string(inst.data.StackStatus)},
+		{"StatusReason", aws.ToString(inst.data.StackStatusReason)},
+		{"CreationTime", aws.ToTime(inst.data.CreationTime).Format(time.DateTime)},
+		{"LastUpdated", lastUpdated},
 	}
 
 	inst.SetData(tableData)
 	inst.Select(0, 0)
 }
 
-func (inst *StackDetailsTable) RefreshDetails(force bool) {
-	var data []types.StackSummary
+func (inst *StackDetailsTable) RefreshDetails(data types.StackSummary) {
+	inst.data = data
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
-	dataLoader.AsyncLoadData(func() {
-		var err error = nil
-
-		data, err = inst.api.ListStacks(force)
-		if err != nil {
-			inst.ErrorMessageCallback(err.Error())
-		}
-
-		var idx = slices.IndexFunc(data, func(s types.StackSummary) bool {
-			return aws.ToString(s.StackName) == inst.selectedStack
-		})
-
-		if idx != -1 {
-			inst.data = &data[idx]
-		}
-	})
+	dataLoader.AsyncLoadData(func() {})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateStackDetailsTable()
 	})
-}
-
-func (inst *StackDetailsTable) SetStackName(stackName string) {
-	inst.selectedStack = stackName
 }
