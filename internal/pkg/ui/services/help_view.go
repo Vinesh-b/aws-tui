@@ -25,14 +25,16 @@ func NewHelpHomeView(
 
 	var textView = tview.NewTextView()
 	var helpNavigation = &HelpView{TextView: textView}
+	helpNavigation.SetBorderPadding(1, 1, 1, 1)
 
-	helpNavigation.SetText(`
-Navigation:
+	helpNavigation.SetText(`Navigation:
 The section at the bottom of a service page will display the
 Service-Name, Page-Name and Page-Number.
  - ESC to go back to the main menu
  - Ctrl-Space to toggle floating services menu
  - Ctrl-F to toggle floating search input
+ - Ctrl-Q to toggle floating DDB table query input
+ - Ctrl-S to toggle floating DDB table scan input
  - Ctrl-J to move one pane up
  - Ctrl-K to move one pane down
  - Ctrl-H to go to page left
