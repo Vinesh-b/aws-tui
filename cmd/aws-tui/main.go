@@ -14,7 +14,7 @@ import (
 func VersionString() string {
 	var buildInfo = []string{
 		"Name:    aws-tui",
-		"Version: 0.10.0",
+		"Version: 0.11.0",
 	}
 	if info, ok := debug.ReadBuildInfo(); ok {
 		for _, setting := range info.Settings {
