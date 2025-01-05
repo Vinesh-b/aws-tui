@@ -18,11 +18,11 @@ const sfnExecutionArnCol = 0
 
 type StateMachineExecutionsTable struct {
 	*core.SelectableTable[string]
-	nextToken            *string
+	*SfnExecutionsQuerySearchView
 	selectedFunctionArn  string
-	currentSearch        string
 	selectedExecutionArn string
 	data                 []types.ExecutionListItem
+	filtered             []types.ExecutionListItem
 	logger               *log.Logger
 	app                  *tview.Application
 	api                  *awsapi.StateMachineApi
@@ -33,25 +33,31 @@ func NewStateMachineExecutionsTable(
 	api *awsapi.StateMachineApi,
 	logger *log.Logger,
 ) *StateMachineExecutionsTable {
+	var selectableTable = core.NewSelectableTable[string](
+		"Executions",
+		core.TableRow{
+			"Execution Arn",
+			"Status",
+			"Start Date",
+			"Stop Date",
+		},
+	)
+	var searchView = NewSfnExecutionsQuerySearchView(selectableTable, app, logger)
 
 	var table = &StateMachineExecutionsTable{
-		SelectableTable: core.NewSelectableTable[string](
-			"Executions",
-			core.TableRow{
-				"Execution Arn",
-				"Status",
-				"Start Date",
-				"Stop Date",
-			},
-		),
-		selectedFunctionArn:  "",
-		currentSearch:        "",
-		selectedExecutionArn: "",
-		data:                 nil,
-		logger:               logger,
-		app:                  app,
-		api:                  api,
+		SfnExecutionsQuerySearchView: searchView,
+		SelectableTable:              selectableTable,
+		selectedFunctionArn:          "",
+		selectedExecutionArn:         "",
+		data:                         nil,
+		logger:                       logger,
+		app:                          app,
+		api:                          api,
 	}
+
+	var endTime = time.Now()
+	var startTime = endTime.Add(-24 * 30 * 15 * time.Hour)
+	table.queryView.SetDefaultTimes(startTime, endTime)
 
 	table.populateExecutionsTable(true)
 	table.SetSelectedFunc(func(row, column int) {})
@@ -60,11 +66,19 @@ func NewStateMachineExecutionsTable(
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case core.APP_KEY_BINDINGS.Reset:
+			var endTime = time.Now()
+			var startTime = endTime.Add(-24 * 30 * 15 * time.Hour)
+			table.queryView.SetDefaultTimes(startTime, endTime)
+
 			table.RefreshExecutions(true)
 		case core.APP_KEY_BINDINGS.NextPage:
 			table.RefreshExecutions(false)
 		}
 		return event
+	})
+
+	table.queryView.DoneButton.SetSelectedFunc(func() {
+		table.RefreshExecutions(true)
 	})
 
 	return table
@@ -100,13 +114,42 @@ func (inst *StateMachineExecutionsTable) SetSelectedFunc(handler func(row int, c
 	})
 }
 
+func (inst *StateMachineExecutionsTable) FilterByStatus(
+	data []types.ExecutionListItem, status string,
+) []types.ExecutionListItem {
+	if status == "ALL" {
+		return data
+	}
+
+	var result = []types.ExecutionListItem{}
+	for _, exe := range data {
+		if exe.Status == types.ExecutionStatus(status) {
+			result = append(result, exe)
+		}
+	}
+	return result
+}
+
 func (inst *StateMachineExecutionsTable) RefreshExecutions(reset bool) {
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var query, err = inst.queryView.GenerateQuery()
+	if err != nil {
+		inst.ErrorMessageCallback(err.Error())
+		return
+	}
 
 	dataLoader.AsyncLoadData(func() {
 		if len(inst.selectedFunctionArn) > 0 {
 			var err error = nil
-			inst.data, err = inst.api.ListExecutions(inst.selectedFunctionArn, reset)
+
+			inst.data, err = inst.api.ListExecutions(
+				inst.selectedFunctionArn,
+				query.startTime,
+				query.endTime,
+				reset,
+			)
+
+			inst.data = inst.FilterByStatus(inst.data, query.status)
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
 			}

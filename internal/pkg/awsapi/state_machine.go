@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
@@ -56,7 +57,9 @@ func (inst *StateMachineApi) ListStateMachines(force bool) ([]types.StateMachine
 	return result, apiErr
 }
 
-func (inst *StateMachineApi) ListExecutions(stateMachineArn string, reset bool) ([]types.ExecutionListItem, error) {
+func (inst *StateMachineApi) ListExecutions(
+	stateMachineArn string, start time.Time, end time.Time, reset bool,
+) ([]types.ExecutionListItem, error) {
 	var empty = []types.ExecutionListItem{}
 
 	if len(stateMachineArn) == 0 {
@@ -67,22 +70,33 @@ func (inst *StateMachineApi) ListExecutions(stateMachineArn string, reset bool) 
 		inst.listExecutionsPaginator = sfn.NewListExecutionsPaginator(
 			inst.client, &sfn.ListExecutionsInput{
 				StateMachineArn: aws.String(stateMachineArn),
-				MaxResults:      100,
+				MaxResults:      500,
 			},
 		)
 	}
 
-	if !inst.listExecutionsPaginator.HasMorePages() {
-		return empty, nil
+	var result = []types.ExecutionListItem{}
+	for inst.listExecutionsPaginator.HasMorePages() {
+		var output, err = inst.listExecutionsPaginator.NextPage(context.TODO())
+		if err != nil {
+			inst.logger.Println(err)
+			return empty, err
+		}
+
+		for _, exec := range output.Executions {
+			var date = exec.StartDate
+
+			if date.After(end) {
+				break
+			}
+
+			if date != nil && (date.Equal(start) || date.After(start)) && date.Before(end) {
+				result = append(result, exec)
+			}
+		}
 	}
 
-	var output, err = inst.listExecutionsPaginator.NextPage(context.TODO())
-	if err != nil {
-		inst.logger.Println(err)
-		return empty, err
-	}
-
-	return output.Executions, nil
+	return result, nil
 }
 
 func (inst *StateMachineApi) DescribeExecution(executionArn string) (*sfn.DescribeExecutionOutput, error) {
