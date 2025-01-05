@@ -86,13 +86,15 @@ func (inst *StateMachineApi) ListExecutions(
 		for _, exec := range output.Executions {
 			var date = exec.StartDate
 
-			if date.After(end) {
-				break
+			if date == nil || date.After(end){
+                continue
+            }
+
+            if date.Before(start) {
+				return result, nil
 			}
 
-			if date != nil && (date.Equal(start) || date.After(start)) && date.Before(end) {
-				result = append(result, exec)
-			}
+			result = append(result, exec)
 		}
 	}
 

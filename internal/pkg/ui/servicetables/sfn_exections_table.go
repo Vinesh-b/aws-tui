@@ -56,7 +56,7 @@ func NewStateMachineExecutionsTable(
 	}
 
 	var endTime = time.Now()
-	var startTime = endTime.Add(-24 * 30 * 15 * time.Hour)
+	var startTime = endTime.Add(-24 * 1 * time.Hour)
 	table.queryView.SetDefaultTimes(startTime, endTime)
 
 	table.populateExecutionsTable(true)
@@ -67,7 +67,7 @@ func NewStateMachineExecutionsTable(
 		switch event.Key() {
 		case core.APP_KEY_BINDINGS.Reset:
 			var endTime = time.Now()
-			var startTime = endTime.Add(-24 * 30 * 15 * time.Hour)
+			var startTime = endTime.Add(-24 * 1 * time.Hour)
 			table.queryView.SetDefaultTimes(startTime, endTime)
 
 			table.RefreshExecutions(true)
