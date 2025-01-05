@@ -36,7 +36,7 @@ func NewStateMachineExecutionsTable(
 	var selectableTable = core.NewSelectableTable[string](
 		"Executions",
 		core.TableRow{
-			"Execution Arn",
+			"Execution Id",
 			"Status",
 			"Start Date",
 			"Stop Date",
@@ -114,6 +114,23 @@ func (inst *StateMachineExecutionsTable) SetSelectedFunc(handler func(row int, c
 	})
 }
 
+func (inst *StateMachineExecutionsTable) FilterByExecutionId(
+	data []types.ExecutionListItem, executionArn string,
+) []types.ExecutionListItem {
+	if len(executionArn) == 0 {
+		return data
+	}
+
+	var result = []types.ExecutionListItem{}
+	for _, exe := range data {
+		if aws.ToString(exe.Name) == executionArn {
+			result = append(result, exe)
+			break
+		}
+	}
+	return result
+}
+
 func (inst *StateMachineExecutionsTable) FilterByStatus(
 	data []types.ExecutionListItem, status string,
 ) []types.ExecutionListItem {
@@ -149,10 +166,12 @@ func (inst *StateMachineExecutionsTable) RefreshExecutions(reset bool) {
 				reset,
 			)
 
-			inst.data = inst.FilterByStatus(inst.data, query.status)
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
 			}
+
+			inst.data = inst.FilterByStatus(inst.data, query.status)
+			inst.data = inst.FilterByExecutionId(inst.data, query.executionArn)
 		}
 	})
 

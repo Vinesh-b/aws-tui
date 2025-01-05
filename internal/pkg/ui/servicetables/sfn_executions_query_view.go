@@ -3,6 +3,7 @@ package servicetables
 import (
 	"aws-tui/internal/pkg/ui/core"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/sfn/types"
@@ -13,9 +14,10 @@ import (
 const dateTimelayout = "2006-01-02 15:04:05"
 
 type SfnExecutionsQuery struct {
-	status    string
-	startTime time.Time
-	endTime   time.Time
+	executionArn string
+	status       string
+	startTime    time.Time
+	endTime      time.Time
 }
 
 type SfnExecutionsQueryInputView struct {
@@ -23,13 +25,14 @@ type SfnExecutionsQueryInputView struct {
 	DoneButton   *tview.Button
 	CancelButton *tview.Button
 
-	logger         *log.Logger
-	app            *tview.Application
-	viewNavigation *core.ViewNavigation
-	statusDropDown *tview.DropDown
-	startDateInput *tview.InputField
-	endDateInput   *tview.InputField
-	query          SfnExecutionsQuery
+	logger            *log.Logger
+	app               *tview.Application
+	viewNavigation    *core.ViewNavigation
+	statusDropDown    *tview.DropDown
+	executionArnInput *tview.InputField
+	startDateInput    *tview.InputField
+	endDateInput      *tview.InputField
+	query             SfnExecutionsQuery
 }
 
 func NewSfnExecutionsQueryInputView(app *tview.Application, logger *log.Logger) *SfnExecutionsQueryInputView {
@@ -39,25 +42,23 @@ func NewSfnExecutionsQueryInputView(app *tview.Application, logger *log.Logger) 
 		DoneButton:   tview.NewButton("Done"),
 		CancelButton: tview.NewButton("Cancel"),
 
-		logger:         logger,
-		app:            app,
-		viewNavigation: core.NewViewNavigation(flex, nil, app),
-		statusDropDown: tview.NewDropDown(),
-		startDateInput: tview.NewInputField(),
-		endDateInput:   tview.NewInputField(),
+		logger:            logger,
+		app:               app,
+		viewNavigation:    core.NewViewNavigation(flex, nil, app),
+		statusDropDown:    tview.NewDropDown(),
+		executionArnInput: tview.NewInputField(),
+		startDateInput:    tview.NewInputField(),
+		endDateInput:      tview.NewInputField(),
 	}
 
 	var separator = tview.NewBox()
 
 	view.
 		AddItem(view.statusDropDown, 0, 1, true).
-		AddItem(
-			tview.NewFlex().SetDirection(tview.FlexColumn).
-				AddItem(view.startDateInput, 0, 1, false).
-				AddItem(separator, 1, 0, false).
-				AddItem(view.endDateInput, 0, 1, false),
-			1, 0, false,
-		).
+		AddItem(view.executionArnInput, 0, 1, false).
+		AddItem(view.startDateInput, 0, 1, false).
+		AddItem(view.endDateInput, 0, 1, false).
+		AddItem(separator, 1, 0, false).
 		AddItem(
 			tview.NewFlex().SetDirection(tview.FlexColumn).
 				AddItem(view.DoneButton, 0, 1, false).
@@ -72,9 +73,13 @@ func NewSfnExecutionsQueryInputView(app *tview.Application, logger *log.Logger) 
 			view.DoneButton,
 			view.endDateInput,
 			view.startDateInput,
+			view.executionArnInput,
 			view.statusDropDown,
 		}, 0,
 	)
+
+	view.executionArnInput.
+		SetLabel("Execution Id ")
 
 	var timeNow = time.Now()
 	var dateTimelayout = "2006-01-02 15:04:05"
@@ -82,13 +87,13 @@ func NewSfnExecutionsQueryInputView(app *tview.Application, logger *log.Logger) 
 		SetPlaceholder(dateTimelayout).
 		SetPlaceholderTextColor(core.PlaceHolderTextColor).
 		SetText(timeNow.Add(time.Duration(-3 * time.Hour)).Format(time.DateTime)).
-		SetLabel("Start Time ")
+		SetLabel("Start Time   ")
 
 	view.endDateInput.
 		SetPlaceholder(dateTimelayout).
 		SetPlaceholderTextColor(core.PlaceHolderTextColor).
 		SetText(timeNow.Format(time.DateTime)).
-		SetLabel("End Time ")
+		SetLabel("End Time     ")
 
 	view.statusDropDown.SetListStyles(
 		tcell.Style{}.
@@ -99,8 +104,10 @@ func NewSfnExecutionsQueryInputView(app *tview.Application, logger *log.Logger) 
 			Background(core.TextColour),
 	)
 
-	view.statusDropDown.AddOption("ALL", func() { view.query.status = "ALL" })
-	view.statusDropDown.SetCurrentOption(0)
+	view.statusDropDown.
+		SetLabel("Status       ").
+		AddOption("ALL", func() { view.query.status = "ALL" }).
+		SetCurrentOption(0)
 
 	for _, v := range types.ExecutionStatus.Values(types.ExecutionStatusFailed) {
 		var opt = string(v)
@@ -127,6 +134,8 @@ func (inst *SfnExecutionsQueryInputView) GenerateQuery() (SfnExecutionsQuery, er
 		return empty, err
 	}
 
+	inst.query.executionArn = strings.TrimSpace(inst.executionArnInput.GetText())
+
 	return inst.query, err
 }
 
@@ -146,7 +155,8 @@ func NewSfnExecutionsQuerySearchView(
 	logger *log.Logger,
 ) *SfnExecutionsQuerySearchView {
 	var queryView = NewSfnExecutionsQueryInputView(app, logger)
-	var floatingQuery = core.FloatingView("Query", queryView, 65, 5)
+    queryView.SetBorderPadding(0, 0, 1, 1)
+	var floatingQuery = core.FloatingView("Query", queryView, 55, 8)
 
 	var pages = tview.NewPages().
 		AddPage("MAIN_PAGE", mainPage, true, true).
