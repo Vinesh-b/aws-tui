@@ -4,77 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"unicode"
 
-	"github.com/atotto/clipboard"
-	"github.com/gdamore/tcell/v2"
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/rivo/tview"
 )
 
 type StringSet map[string]struct{}
-
-func CreateReadOnlyTextArea(title string) *tview.TextArea {
-	var textArea = tview.NewTextArea().
-		SetClipboard(
-			func(s string) { clipboard.WriteAll(s) },
-			func() string {
-				var res, _ = clipboard.ReadAll()
-				return res
-			},
-		).
-		SetSelectedStyle(
-			tcell.Style{}.Background(MoreContrastBackgroundColor),
-		)
-	textArea.
-		SetTitle(title).
-		SetTitleAlign(tview.AlignLeft).
-		SetBorder(true)
-
-	textArea.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case // Disable text area default edititing key events
-			tcell.KeyCtrlY, tcell.KeyCtrlZ, tcell.KeyCtrlX, tcell.KeyCtrlV,
-			tcell.KeyCtrlH, tcell.KeyCtrlD, tcell.KeyCtrlK, tcell.KeyCtrlW,
-			tcell.KeyCtrlU, tcell.KeyBackspace2, tcell.KeyDelete, tcell.KeyTab:
-			return nil
-		}
-		if unicode.IsControl(event.Rune()) {
-			return event
-		}
-		switch event.Rune() {
-		case APP_KEY_BINDINGS.TextViewCopy:
-			return tcell.NewEventKey(tcell.KeyCtrlQ, 0, 0)
-		case APP_KEY_BINDINGS.TextViewUp:
-			return tcell.NewEventKey(tcell.KeyUp, 0, 0)
-		case APP_KEY_BINDINGS.TextViewSelectUp:
-			return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModShift)
-		case APP_KEY_BINDINGS.TextViewDown:
-			return tcell.NewEventKey(tcell.KeyDown, 0, 0)
-		case APP_KEY_BINDINGS.TextViewSelectDown:
-			return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModShift)
-		case APP_KEY_BINDINGS.TextViewLeft:
-			return tcell.NewEventKey(tcell.KeyLeft, 0, 0)
-		case APP_KEY_BINDINGS.TextViewSelectLeft:
-			return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModShift)
-		case APP_KEY_BINDINGS.TextViewRight:
-			return tcell.NewEventKey(tcell.KeyRight, 0, 0)
-		case APP_KEY_BINDINGS.TextViewSelectRight:
-			return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModShift)
-		case APP_KEY_BINDINGS.TextViewWordRight:
-			return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModCtrl)
-		case APP_KEY_BINDINGS.TextViewWordSelectRight:
-			return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModCtrl|tcell.ModShift)
-		case APP_KEY_BINDINGS.TextViewWordLeft:
-			return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModCtrl)
-		case APP_KEY_BINDINGS.TextViewWordSelectLeft:
-			return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModCtrl|tcell.ModShift)
-		}
-		return nil
-	})
-
-	return textArea
-}
 
 type MessageDataType int
 
@@ -104,8 +39,8 @@ func CreateJsonTableDataView[T any, U any](
 	app *tview.Application,
 	table PrivateDataTable[T, U],
 	fixedColIdx int,
-) *tview.TextArea {
-	var expandedView = CreateReadOnlyTextArea("Message")
+) *SearchableTextView {
+	var expandedView = NewSearchableTextView("Message")
 
 	table.SetSelectionChangedFunc(func(row, column int) {
 		var col = column
@@ -139,7 +74,7 @@ func CreateJsonTableDataView[T any, U any](
 }
 
 type JsonTextView[T any] struct {
-	TextArea        *tview.TextArea
+	TextView        *SearchableTextView
 	ExtractTextFunc func(data T) string
 }
 
@@ -149,12 +84,12 @@ func (inst *JsonTextView[T]) SetText(data T) {
 	var logText = inst.ExtractTextFunc(data)
 	var err = json.Unmarshal([]byte(logText), &anyJson)
 	if err != nil {
-		inst.TextArea.SetText(logText, false)
+		inst.TextView.SetText(logText, false)
 		return
 	}
 	var jsonBytes, _ = json.MarshalIndent(anyJson, "", "  ")
 	logText = string(jsonBytes)
-	inst.TextArea.SetText(logText, false)
+	inst.TextView.SetText(logText, false)
 }
 
 func FuzzySearch[T any](search string, values []T, handler func(val T) string) []T {

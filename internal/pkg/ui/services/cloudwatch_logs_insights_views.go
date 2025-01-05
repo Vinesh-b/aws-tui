@@ -74,7 +74,7 @@ func (inst *LogGroupsSelectionPageView) InitInputCapture() {
 type InsightsQueryResultsPageView struct {
 	*core.ServicePageView
 	QueryResultsTable *tables.InsightsQueryResultsTable
-	ExpandedResult    *tview.TextArea
+	ExpandedResult    *core.SearchableTextView
 	app               *tview.Application
 	api               *awsapi.CloudWatchLogsApi
 	selectedLogGroups *[]string

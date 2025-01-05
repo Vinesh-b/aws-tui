@@ -97,13 +97,13 @@ func NewStateMachineExectionDetailsPage(
 ) *StateMachineExectionDetailsPageView {
 
 	var inputsExpandedView = core.JsonTextView[tables.StateDetails]{
-		TextArea: core.CreateReadOnlyTextArea("Input"),
+		TextView: core.NewSearchableTextView("Input"),
 		ExtractTextFunc: func(data tables.StateDetails) string {
 			return data.Input
 		},
 	}
 	var outputsExpandedView = core.JsonTextView[tables.StateDetails]{
-		TextArea: core.CreateReadOnlyTextArea("Output"),
+		TextView: core.NewSearchableTextView("Output"),
 		ExtractTextFunc: func(data tables.StateDetails) string {
 			return data.Output
 		},
@@ -130,8 +130,8 @@ func NewStateMachineExectionDetailsPage(
 	})
 
 	var inputOutputView = tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(inputsExpandedView.TextArea, 0, 1, false).
-		AddItem(outputsExpandedView.TextArea, 0, 1, false)
+		AddItem(inputsExpandedView.TextView, 0, 1, false).
+		AddItem(outputsExpandedView.TextView, 0, 1, false)
 
 	const detailsViewSize = 10
 	const inputOutputViewSize = 10
@@ -149,8 +149,8 @@ func NewStateMachineExectionDetailsPage(
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			outputsExpandedView.TextArea,
-			inputsExpandedView.TextArea,
+			outputsExpandedView.TextView,
+			inputsExpandedView.TextView,
 			executionDetails,
 			executionSummary,
 		},

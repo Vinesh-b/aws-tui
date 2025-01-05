@@ -84,9 +84,9 @@ type LambdaInvokePageView struct {
 	SelectedLambda string
 	DetailsTable   *tables.LambdaDetailsTable
 
-	logResults     *tview.TextArea
-	payloadInput   *tview.TextArea
-	responseOutput *tview.TextArea
+	logResults     *core.SearchableTextView
+	payloadInput   *core.SearchableTextView
+	responseOutput *core.SearchableTextView
 	app            *tview.Application
 	api            *awsapi.LambdaApi
 }
@@ -98,9 +98,9 @@ func NewLambdaInvokePageView(
 	logger *log.Logger,
 ) *LambdaInvokePageView {
 
-	var payloadInput = core.CreateReadOnlyTextArea("Event Payload")
-	var logResults = core.CreateReadOnlyTextArea("Logs")
-	var responseOutput = core.CreateReadOnlyTextArea("Response")
+	var payloadInput = core.NewSearchableTextView("Event Payload")
+	var logResults = core.NewSearchableTextView("Logs")
+	var responseOutput = core.NewSearchableTextView("Response")
 
 	var serviceView = core.NewServicePageView(app, logger)
 	serviceView.MainPage.

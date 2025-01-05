@@ -16,7 +16,7 @@ import (
 type LogEventsPageView struct {
 	*core.ServicePageView
 	LogEventsTable       *tables.LogEventsTable
-	ExpandedLogsTextArea *tview.TextArea
+	ExpandedLogsTextArea *core.SearchableTextView
 	selectedLogGroup     string
 	selectedLogStream    string
 	app                  *tview.Application
