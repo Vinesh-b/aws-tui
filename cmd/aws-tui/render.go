@@ -76,7 +76,7 @@ func RenderUI(config aws.Config, version string) {
 	var pages = tview.NewPages().
 		AddPage(SELECTED_SERVICE, currentServiceView, true, true).
 		AddPage(FLOATING_SERVICE_LIST,
-			core.FloatingView("Quick select", servicesList, 70, 25),
+			core.FloatingView("Quick select", servicesList, 70, 27),
 			true, true,
 		).
 		AddAndSwitchToPage(HOME_PAGE, flexLanding, true)

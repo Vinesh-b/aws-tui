@@ -26,7 +26,7 @@ type SearchableView struct {
 func NewSearchableView(
 	mainPage tview.Primitive,
 ) *SearchableView {
-	var floatingSearch = NewFloatingSearchView("Search", 70, 3)
+	var floatingSearch = NewFloatingSearchView("Search", 0, 3)
 	var pages = tview.NewPages().
 		AddPage("MAIN_PAGE", mainPage, true, true).
 		AddPage(SEARCH_PAGE_NAME, floatingSearch.RootView, true, false)
