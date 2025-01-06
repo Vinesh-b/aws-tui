@@ -17,13 +17,13 @@ import (
 const sfnFunctionNameCol = 0
 
 type StateMachinesListTable struct {
-	*core.SelectableTable[string]
-	selectedFunctionArn string
-	data                []types.StateMachineListItem
-	filtered            []types.StateMachineListItem
-	logger              *log.Logger
-	app                 *tview.Application
-	api                 *awsapi.StateMachineApi
+	*core.SelectableTable[types.StateMachineListItem]
+	selectedFunction types.StateMachineListItem
+	data             []types.StateMachineListItem
+	filtered         []types.StateMachineListItem
+	logger           *log.Logger
+	app              *tview.Application
+	api              *awsapi.StateMachineApi
 }
 
 func NewStateMachinesListTable(
@@ -33,10 +33,11 @@ func NewStateMachinesListTable(
 ) *StateMachinesListTable {
 
 	var table = &StateMachinesListTable{
-		SelectableTable: core.NewSelectableTable[string](
+		SelectableTable: core.NewSelectableTable[types.StateMachineListItem](
 			"State Machines",
 			core.TableRow{
 				"Name",
+				"Type",
 				"Creation Date",
 			},
 		),
@@ -63,16 +64,15 @@ func NewStateMachinesListTable(
 
 func (inst *StateMachinesListTable) populateStateMachinesTable(data []types.StateMachineListItem) {
 	var tableData []core.TableRow
-	var privateData []string
 	for _, row := range data {
 		tableData = append(tableData, core.TableRow{
 			aws.ToString(row.Name),
+			string(row.Type),
 			row.CreationDate.Format(time.DateTime),
 		})
-		privateData = append(privateData, aws.ToString(row.StateMachineArn))
 	}
 
-	inst.SetData(tableData, privateData, sfnFunctionNameCol)
+	inst.SetData(tableData, data, sfnFunctionNameCol)
 	inst.GetCell(0, 0).SetExpansion(1)
 }
 
@@ -116,12 +116,7 @@ func (inst *StateMachinesListTable) RefreshStateMachines(reset bool) {
 
 func (inst *StateMachinesListTable) SetSelectionChangedFunc(handler func(row int, column int)) {
 	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
-		var ref = inst.GetCell(row, 0).Reference
-		if row < 1 || ref == nil {
-			return
-		}
-		inst.selectedFunctionArn = ref.(string)
-
+		inst.selectedFunction = inst.GetPrivateData(row, 0)
 		handler(row, column)
 	})
 }
@@ -138,5 +133,9 @@ func (inst *StateMachinesListTable) SetInputCapture(capture func(event *tcell.Ev
 }
 
 func (inst *StateMachinesListTable) GetSeletedFunctionArn() string {
-	return inst.selectedFunctionArn
+	return aws.ToString(inst.selectedFunction.StateMachineArn)
+}
+
+func (inst *StateMachinesListTable) GetSeletedFunctionType() string {
+	return string(inst.selectedFunction.Type)
 }
