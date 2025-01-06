@@ -66,6 +66,11 @@ func (inst *DynamoDBDetailsTable) populateDetailsTable() {
 			}
 		}
 
+		var gsiList = []core.TableRow{}
+		for _, gsi := range inst.data.GlobalSecondaryIndexes {
+			gsiList = append(gsiList, core.TableRow{"GSI", fmt.Sprintf("%s", aws.ToString(gsi.IndexName))})
+		}
+
 		tableData = []core.TableRow{
 			{"Name", aws.ToString(inst.data.TableName)},
 			{"Status", fmt.Sprintf("%s", inst.data.TableStatus)},
@@ -73,8 +78,8 @@ func (inst *DynamoDBDetailsTable) populateDetailsTable() {
 			{"PartitionKey", partitionKey},
 			{"SortKey", sortKey},
 			{"ItemCount", fmt.Sprintf("%d", aws.ToInt64(inst.data.ItemCount))},
-			{"GSIs", fmt.Sprintf("%v", inst.data.GlobalSecondaryIndexes)},
 		}
+		tableData = append(tableData, gsiList...)
 	}
 
 	inst.SetData(tableData)
