@@ -71,17 +71,6 @@ func NewSelectableTable[T any](title string, headings TableRow, app *tview.Appli
 }
 
 func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privateDataCol int) error {
-	if len(data) == 0 {
-		return nil
-	}
-
-	if len(inst.headings) != len(data[0]) {
-		return errors.NewCoreTableError(
-			errors.InvalidDataDimentions,
-			"Table data and headings dimensions do not match",
-		)
-	}
-
 	inst.data = data
 	inst.table.Clear()
 
@@ -103,6 +92,17 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 			SetTextColor(SecondaryTextColor).
 			SetSelectable(false).
 			SetBackgroundColor(ContrastBackgroundColor),
+		)
+	}
+
+	if len(data) == 0 {
+		return nil
+	}
+
+	if len(inst.headings) != len(data[0]) {
+		return errors.NewCoreTableError(
+			errors.InvalidDataDimentions,
+			"Table data and headings dimensions do not match",
 		)
 	}
 
