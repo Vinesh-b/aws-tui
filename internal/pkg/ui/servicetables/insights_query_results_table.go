@@ -106,19 +106,13 @@ func (inst *InsightsQueryResultsTable) populateQueryResultsTable() {
 	}
 
 	for heading, colIdx := range inst.headingIdxMap {
-		inst.Table.SetCell(0, colIdx, tview.NewTableCell(heading).
-			SetAlign(tview.AlignLeft).
-			SetTextColor(core.SecondaryTextColor).
-			SetSelectable(false).
-			SetBackgroundColor(core.ContrastBackgroundColor),
-		)
+		core.SetTableHeading(inst.Table, heading, colIdx)
 	}
 
-	if len(inst.data) > 0 {
-		inst.Table.SetSelectable(true, true).SetSelectedStyle(
-			tcell.Style{}.Background(core.MoreContrastBackgroundColor),
-		)
-	}
+	inst.Table.SetSelectable(true, true).SetSelectedStyle(
+		tcell.Style{}.Background(core.MoreContrastBackgroundColor),
+	)
+
 	inst.Table.Select(1, 0)
 	inst.Table.ScrollToBeginning()
 }

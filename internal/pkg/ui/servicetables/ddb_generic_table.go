@@ -174,19 +174,12 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 	}
 
 	for heading, colIdx := range inst.attributeIdxMap {
-		inst.table.SetCell(0, colIdx, tview.NewTableCell(heading).
-			SetAlign(tview.AlignLeft).
-			SetTextColor(core.SecondaryTextColor).
-			SetSelectable(false).
-			SetBackgroundColor(core.ContrastBackgroundColor),
-		)
+		core.SetTableHeading(inst.table, heading, colIdx)
 	}
 
-	if len(inst.data) > 0 {
-		inst.table.SetSelectable(true, true).SetSelectedStyle(
-			tcell.Style{}.Background(core.MoreContrastBackgroundColor),
-		)
-	}
+	inst.table.SetSelectable(true, true).SetSelectedStyle(
+		tcell.Style{}.Background(core.MoreContrastBackgroundColor),
+	)
 
 	inst.table.Select(inst.lastSelectedRowIdx, 0)
 }

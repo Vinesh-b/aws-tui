@@ -24,6 +24,15 @@ func ClampStringLen(input *string, maxLen int) string {
 	return (*input)[0:maxLen]
 }
 
+func SetTableHeading(table *tview.Table, heading string, column int) {
+	table.SetCell(0, column, tview.NewTableCell(heading).
+		SetAlign(tview.AlignLeft).
+		SetTextColor(SecondaryTextColor).
+		SetSelectable(false).
+		SetBackgroundColor(ContrastBackgroundColor),
+	)
+}
+
 type SelectableTable[T any] struct {
 	*SearchableView
 	table                *tview.Table
@@ -83,12 +92,7 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 	)
 
 	for col, heading := range inst.headings {
-		inst.table.SetCell(0, col, tview.NewTableCell(heading).
-			SetAlign(tview.AlignLeft).
-			SetTextColor(SecondaryTextColor).
-			SetSelectable(false).
-			SetBackgroundColor(ContrastBackgroundColor),
-		)
+		SetTableHeading(inst.table, heading, col)
 	}
 
 	if len(data) == 0 {
