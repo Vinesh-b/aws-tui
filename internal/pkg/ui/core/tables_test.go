@@ -303,7 +303,7 @@ func TestTableSearchPrivateData(t *testing.T) {
 	}
 
 	var foundPos = table.SearchPrivateData([]int{0}, "p00")
-	if len(foundPos) != 1 || foundPos[0] != 1 {
+	if len(foundPos) != 1 || foundPos[0].row != 1 {
 		t.Fatalf("Expected to find private data on row 1 but got: %v", foundPos)
 	}
 

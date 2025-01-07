@@ -33,9 +33,6 @@ type SelectableTable[T any] struct {
 	data                 []TableRow
 	privateData          []T
 	privateColumn        int
-	privateDataInit      bool
-	rowCount             int
-	colCount             int
 	searchPositions      []CellPosition
 	ErrorMessageCallback func(text string, a ...any)
 }
@@ -46,15 +43,14 @@ func NewSelectableTable[T any](title string, headings TableRow, app *tview.Appli
 		SetFixed(1, len(headings)-1)
 
 	var view = &SelectableTable[T]{
-		table:                table,
 		SearchableView:       NewSearchableView(table, app),
+		table:                table,
 		title:                title,
 		titleExtra:           "",
 		headings:             headings,
 		data:                 nil,
 		privateData:          nil,
-		privateColumn:        0,
-		privateDataInit:      false,
+		privateColumn:        -1,
 		searchPositions:      []CellPosition{},
 		ErrorMessageCallback: func(text string, a ...any) {},
 	}
@@ -138,7 +134,6 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 		)
 	}
 
-	inst.privateDataInit = true
 	inst.privateData = privateData
 	inst.privateColumn = privateDataCol
 
@@ -187,7 +182,7 @@ func (inst *SelectableTable[T]) ExtendData(data []TableRow, privateData []T) err
 		return nil
 	}
 
-	if inst.privateDataInit == false {
+	if inst.privateColumn < 0 {
 		return errors.NewCoreTableError(
 			errors.InvalidDataDimentions,
 			"Table data and private data not initialised in SetData call",
@@ -212,34 +207,8 @@ func (inst *SelectableTable[T]) ExtendData(data []TableRow, privateData []T) err
 	return nil
 }
 
-func (inst *SelectableTable[T]) SearchPrivateData(searchCols []int, search string) []int {
-	var resultPositions = []int{}
-	if len(search) <= 0 {
-		return resultPositions
-	}
-	var table = inst.table
-
-	if len(searchCols) <= 0 {
-		for c := range table.GetColumnCount() {
-			searchCols = append(searchCols, c)
-		}
-	}
-	var rows = table.GetRowCount()
-	for r := 1; r < rows; r++ {
-		for _, c := range searchCols {
-			var cell = table.GetCell(r, c)
-			if cell.Reference == nil {
-				continue
-			}
-			var text = fmt.Sprintf("%v", cell.Reference.(T))
-			if strings.Contains(text, search) {
-				cell.SetTextColor(TertiaryTextColor)
-				resultPositions = append(resultPositions, r)
-			}
-		}
-	}
-
-	return resultPositions
+func (inst *SelectableTable[T]) SearchPrivateData(searchCols []int, search string) []CellPosition {
+	return searchRefsInTable(inst.table, searchCols, search)
 }
 
 func (inst *SelectableTable[T]) GetPrivateData(row int, column int) T {
@@ -367,6 +336,7 @@ func NewDetailsTable(title string) *DetailsTable {
 		Flex:                 tview.NewFlex(),
 		table:                table,
 		title:                title,
+		data:                 nil,
 		ErrorMessageCallback: func(text string, a ...any) {},
 	}
 
