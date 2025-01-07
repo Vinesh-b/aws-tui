@@ -91,11 +91,7 @@ func (inst *SelectedGroupsTable) RefreshSelectedGroups() {
 
 func (inst *SelectedGroupsTable) SetSelectionChangedFunc(handler func(row int, column int)) {
 	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
-		var ref = inst.GetCell(row, logNameCol).Reference
-		if row < 1 || ref == nil {
-			return
-		}
-		inst.selectedGroup = ref.(string)
+		inst.selectedGroup = inst.GetPrivateData(row, logNameCol)
 		handler(row, column)
 	})
 }
