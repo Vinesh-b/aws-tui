@@ -20,6 +20,7 @@ type InsightsQueryResultsTable struct {
 	data                 [][]types.ResultField
 	queryId              string
 	selectedLogGroups    []string
+	headingIdxMap        map[string]int
 	logger               *log.Logger
 	app                  *tview.Application
 	api                  *awsapi.CloudWatchLogsApi
@@ -38,6 +39,8 @@ func NewInsightsQueryResultsTable(
 		Table:                   table,
 		data:                    nil,
 		queryId:                 "",
+		selectedLogGroups:       nil,
+		headingIdxMap:           map[string]int{},
 		logger:                  logger,
 		app:                     app,
 		api:                     api,
@@ -78,18 +81,23 @@ func (inst *InsightsQueryResultsTable) populateQueryResultsTable() {
 	inst.SetTitle(tableTitle)
 
 	var headingIdx = 0
-	var headingIdxMap = make(map[string]int)
+	inst.headingIdxMap = map[string]int{}
 	for rowIdx, rowData := range inst.data {
 		for _, resField := range rowData {
-			var colIdx, ok = headingIdxMap[*resField.Field]
+			var colIdx, ok = inst.headingIdxMap[*resField.Field]
 			if !ok {
-				headingIdxMap[*resField.Field] = headingIdx
+				inst.headingIdxMap[*resField.Field] = headingIdx
 				colIdx = headingIdx
 				headingIdx++
 			}
 
 			var cellData = fmt.Sprintf("%s", aws.ToString(resField.Value))
 			var previewText = core.ClampStringLen(&cellData, 100)
+
+			if *resField.Field == "@ptr" {
+				previewText = cellData[len(cellData)-32:]
+			}
+
 			inst.Table.SetCell(rowIdx+1, colIdx, tview.NewTableCell(previewText).
 				SetReference(cellData).
 				SetAlign(tview.AlignLeft),
@@ -97,7 +105,7 @@ func (inst *InsightsQueryResultsTable) populateQueryResultsTable() {
 		}
 	}
 
-	for heading, colIdx := range headingIdxMap {
+	for heading, colIdx := range inst.headingIdxMap {
 		inst.Table.SetCell(0, colIdx, tview.NewTableCell(heading).
 			SetAlign(tview.AlignLeft).
 			SetTextColor(core.SecondaryTextColor).
@@ -243,8 +251,11 @@ func (inst *InsightsQueryResultsTable) GetColumnCount() int {
 }
 
 func (inst *InsightsQueryResultsTable) GetRecordPtr(row int) string {
-	var lastCol = inst.Table.GetColumnCount() - 1
-	var msg = inst.Table.GetCell(row, lastCol).Reference
+	var ptrCol, ok = inst.headingIdxMap["@ptr"]
+	if !ok {
+		return ""
+	}
+	var msg = inst.Table.GetCell(row, ptrCol).Reference
 	if row < 1 || msg == nil {
 		return ""
 	}
