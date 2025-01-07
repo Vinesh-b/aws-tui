@@ -41,6 +41,7 @@ func NewStateMachineExecutionsTable(
 			"Start Date",
 			"Stop Date",
 		},
+        app,
 	)
 	var searchView = NewSfnExecutionsQuerySearchView(selectableTable, app, logger)
 

@@ -40,14 +40,14 @@ type SelectableTable[T any] struct {
 	ErrorMessageCallback func(text string, a ...any)
 }
 
-func NewSelectableTable[T any](title string, headings TableRow) *SelectableTable[T] {
+func NewSelectableTable[T any](title string, headings TableRow, app *tview.Application) *SelectableTable[T] {
 	var table = tview.NewTable().
 		SetBorders(false).
 		SetFixed(1, len(headings)-1)
 
 	var view = &SelectableTable[T]{
 		table:                table,
-		SearchableView:       NewSearchableView(table),
+		SearchableView:       NewSearchableView(table, app),
 		title:                title,
 		titleExtra:           "",
 		headings:             headings,

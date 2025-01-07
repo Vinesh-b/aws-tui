@@ -140,7 +140,7 @@ func NewInsightsQuerySearchView(
 	logger *log.Logger,
 ) *InsightsQuerySearchView {
 	var queryView = NewInsightsQueryInputView(app, logger)
-	var floatingQuery = core.FloatingView("Query", queryView, 70, 12)
+	var floatingQuery = core.FloatingView("Query", queryView, 0, 14)
 
 	var pages = tview.NewPages().
 		AddPage("MAIN_PAGE", mainPage, true, true).
@@ -152,6 +152,7 @@ func NewInsightsQuerySearchView(
 
 		queryView:       queryView,
 		queryViewHidden: true,
+		app:             app,
 	}
 
 	view.queryView.CancelButton.SetSelectedFunc(func() {
@@ -164,6 +165,7 @@ func NewInsightsQuerySearchView(
 		case core.APP_KEY_BINDINGS.Find:
 			if view.queryViewHidden {
 				view.ShowPage("QUERY")
+				view.app.SetFocus(view.queryView)
 			} else {
 				view.HidePage("QUERY")
 			}

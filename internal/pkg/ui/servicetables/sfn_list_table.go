@@ -40,6 +40,7 @@ func NewStateMachinesListTable(
 				"Type",
 				"Creation Date",
 			},
+			app,
 		),
 
 		data:   nil,

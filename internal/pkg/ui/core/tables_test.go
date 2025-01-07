@@ -1,9 +1,14 @@
 package core
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/rivo/tview"
+)
 
 func TestTableSetData(t *testing.T) {
-	var table = NewSelectableTable[any]("test", TableRow{"col0", "col1", "col2"})
+	var app = tview.NewApplication()
+	var table = NewSelectableTable[any]("test", TableRow{"col0", "col1", "col2"}, app)
 	var data = []TableRow{
 		{"00", "01", "02"},
 		{"10", "11", "12"},
@@ -16,7 +21,8 @@ func TestTableSetData(t *testing.T) {
 }
 
 func TestTableSetData__TooManyColumns(t *testing.T) {
-	var table = NewSelectableTable[any]("test", TableRow{"col0", "col1", "col2"})
+	var app = tview.NewApplication()
+	var table = NewSelectableTable[any]("test", TableRow{"col0", "col1", "col2"}, app)
 	var data = []TableRow{
 		{"00", "01", "02", "03"},
 		{"10", "11", "12", "13"},
@@ -30,7 +36,8 @@ func TestTableSetData__TooManyColumns(t *testing.T) {
 }
 
 func TestTableSetData__TooFewColumns(t *testing.T) {
-	var table = NewSelectableTable[any]("test", TableRow{"col0", "col1", "col2"})
+	var app = tview.NewApplication()
+	var table = NewSelectableTable[any]("test", TableRow{"col0", "col1", "col2"}, app)
 	var data = []TableRow{
 		{"00", "01"},
 		{"10", "11"},
@@ -44,7 +51,8 @@ func TestTableSetData__TooFewColumns(t *testing.T) {
 }
 
 func TestTableSetData__WithPrivateData(t *testing.T) {
-	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1", "col2"})
+	var app = tview.NewApplication()
+	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1", "col2"}, app)
 	var data = []TableRow{
 		{"00", "01", "02"},
 		{"10", "11", "12"},
@@ -77,7 +85,8 @@ func TestTableSetData__WithPrivateData(t *testing.T) {
 }
 
 func TestTableSetData__WithPrivateDataBadColumnIndex(t *testing.T) {
-	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1", "col2"})
+	var app = tview.NewApplication()
+	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1", "col2"}, app)
 	var data = []TableRow{
 		{"00", "01", "02"},
 		{"10", "11", "12"},
@@ -98,7 +107,8 @@ func TestTableSetData__WithPrivateDataBadColumnIndex(t *testing.T) {
 }
 
 func TestTableSetData__WithPrivateDataLargerThanDisplayData(t *testing.T) {
-	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1", "col2"})
+	var app = tview.NewApplication()
+	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1", "col2"}, app)
 	var data = []TableRow{
 		{"00", "01", "02"},
 		{"10", "11", "12"},
@@ -120,7 +130,8 @@ func TestTableSetData__WithPrivateDataLargerThanDisplayData(t *testing.T) {
 }
 
 func TestTableExtendData(t *testing.T) {
-	var table = NewSelectableTable[any]("test", TableRow{"col0", "col1", "col2"})
+	var app = tview.NewApplication()
+	var table = NewSelectableTable[any]("test", TableRow{"col0", "col1", "col2"}, app)
 	var data = []TableRow{
 		{"00", "01", "02"},
 		{"10", "11", "12"},
@@ -140,7 +151,8 @@ func TestTableExtendData(t *testing.T) {
 }
 
 func TestTableExtendData__TooManyColumns(t *testing.T) {
-	var table = NewSelectableTable[any]("test", TableRow{"col0", "col1", "col2"})
+	var app = tview.NewApplication()
+	var table = NewSelectableTable[any]("test", TableRow{"col0", "col1", "col2"}, app)
 	var data = []TableRow{
 		{"00", "01", "02"},
 		{"10", "11", "12"},
@@ -160,7 +172,8 @@ func TestTableExtendData__TooManyColumns(t *testing.T) {
 }
 
 func TestTableExtendData__TooFewColumns(t *testing.T) {
-	var table = NewSelectableTable[any]("test", TableRow{"col0", "col1", "col2"})
+	var app = tview.NewApplication()
+	var table = NewSelectableTable[any]("test", TableRow{"col0", "col1", "col2"}, app)
 	var data = []TableRow{
 		{"00", "01", "02"},
 		{"10", "11", "12"},
@@ -180,7 +193,8 @@ func TestTableExtendData__TooFewColumns(t *testing.T) {
 }
 
 func TestTableExtendData__WithPrivateData(t *testing.T) {
-	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1", "col2"})
+	var app = tview.NewApplication()
+	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1", "col2"}, app)
 	var data = []TableRow{
 		{"00", "01", "02"},
 		{"10", "11", "12"},
@@ -211,7 +225,8 @@ func TestTableExtendData__WithPrivateData(t *testing.T) {
 }
 
 func TestTableExtendData__WithPrivateDataTooManyRows(t *testing.T) {
-	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1", "col2"})
+	var app = tview.NewApplication()
+	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1", "col2"}, app)
 	var data = []TableRow{
 		{"00", "01", "02"},
 		{"10", "11", "12"},
@@ -240,7 +255,8 @@ func TestTableExtendData__WithPrivateDataTooManyRows(t *testing.T) {
 }
 
 func TestTableExtendData__WithPrivateDataTooFewRows(t *testing.T) {
-	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1", "col2"})
+	var app = tview.NewApplication()
+	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1", "col2"}, app)
 	var data = []TableRow{
 		{"00", "01", "02"},
 	}
@@ -267,7 +283,8 @@ func TestTableExtendData__WithPrivateDataTooFewRows(t *testing.T) {
 }
 
 func TestTableSearchPrivateData(t *testing.T) {
-	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1", "col2"})
+	var app = tview.NewApplication()
+	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1", "col2"}, app)
 	var data = []TableRow{
 		{"00", "01", "02"},
 		{"10", "11", "12"},

@@ -36,6 +36,7 @@ func NewMetricsTable(
 				"Namespace",
 				"Name",
 			},
+            app,
 		),
 		selectedMetric: types.Metric{},
 		currentSearch:  "",

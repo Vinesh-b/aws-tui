@@ -36,6 +36,7 @@ func NewLogGroupsTable(
 			core.TableRow{
 				"Name",
 			},
+            app,
 		),
 		data:             nil,
 		selectedLogGroup: "",

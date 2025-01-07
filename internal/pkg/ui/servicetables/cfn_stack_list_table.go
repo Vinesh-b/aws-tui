@@ -38,6 +38,7 @@ func NewStackListTable(
 				"Status",
 				"LastUpdated",
 			},
+            app,
 		),
 		data:   nil,
 		logger: logger,

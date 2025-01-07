@@ -167,6 +167,7 @@ func NewSfnExecutionsQuerySearchView(
 
 		queryView:       queryView,
 		queryViewHidden: true,
+		app:             app,
 	}
 
 	view.queryView.CancelButton.SetSelectedFunc(func() {
@@ -179,6 +180,7 @@ func NewSfnExecutionsQuerySearchView(
 		case core.APP_KEY_BINDINGS.Find:
 			if view.queryViewHidden {
 				view.ShowPage("QUERY")
+                view.app.SetFocus(queryView)
 			} else {
 				view.HidePage("QUERY")
 			}

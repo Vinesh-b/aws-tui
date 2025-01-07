@@ -35,6 +35,7 @@ func NewBucketListTable(
 				"Name",
 				"CreationDate",
 			},
+            app,
 		),
 		data:   nil,
 		logger: logger,

@@ -51,7 +51,7 @@ func NewDynamoDBGenericTable(
 	api *awsapi.DynamoDBApi,
 	logger *log.Logger,
 ) *DynamoDBGenericTable {
-	var selectableTable = core.NewSelectableTable[any]("", nil)
+	var selectableTable = core.NewSelectableTable[any]("", nil, app)
 	var searchView = NewDynamoDBTableSearchView(selectableTable, app, logger)
 
 	var table = &DynamoDBGenericTable{

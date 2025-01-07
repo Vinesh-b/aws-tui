@@ -25,6 +25,7 @@ type SearchableView struct {
 
 func NewSearchableView(
 	mainPage tview.Primitive,
+	app *tview.Application,
 ) *SearchableView {
 	var floatingSearch = NewFloatingSearchView("Search", 0, 3)
 	var pages = tview.NewPages().
@@ -38,6 +39,7 @@ func NewSearchableView(
 
 		searchInput: floatingSearch.InputField,
 		showSearch:  true,
+		app:         app,
 	}
 
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -45,6 +47,7 @@ func NewSearchableView(
 		case APP_KEY_BINDINGS.Find:
 			if view.showSearch {
 				view.ShowPage(SEARCH_PAGE_NAME)
+				view.app.SetFocus(view.searchInput)
 			} else {
 				view.HidePage(SEARCH_PAGE_NAME)
 			}

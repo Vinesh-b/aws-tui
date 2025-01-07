@@ -36,6 +36,7 @@ func NewLambdasListTable(
 				"Name",
 				"LastModified",
 			},
+            app,
 		),
 		data:           nil,
 		selectedLambda: types.FunctionConfiguration{},

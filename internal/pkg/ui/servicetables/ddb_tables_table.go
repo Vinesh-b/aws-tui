@@ -31,6 +31,7 @@ func NewDynamoDBTablesTable(
 			core.TableRow{
 				"Name",
 			},
+            app,
 		),
 		data:   nil,
 		logger: logger,

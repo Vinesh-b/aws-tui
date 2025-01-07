@@ -33,6 +33,7 @@ func NewSelectedGroupsTable(
 			core.TableRow{
 				"Name",
 			},
+            app,
 		),
 		data:          core.StringSet{},
 		selectedGroup: "",

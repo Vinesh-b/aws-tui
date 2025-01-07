@@ -38,6 +38,7 @@ func NewStackEventsTable(
 				"Status",
 				"Reason",
 			},
+            app,
 		),
 		data:   nil,
 		logger: logger,

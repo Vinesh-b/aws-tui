@@ -36,6 +36,7 @@ func NewAlarmListTable(
 				"Name",
 				"State",
 			},
+            app,
 		),
 		data:          nil,
 		selectedAlarm: types.MetricAlarm{},

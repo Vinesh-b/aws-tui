@@ -36,6 +36,7 @@ func NewAlarmHistoryTable(
 				"Timestamp",
 				"History",
 			},
+            app,
 		),
 		data:          nil,
 		selectedAlarm: "",

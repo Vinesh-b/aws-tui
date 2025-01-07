@@ -19,9 +19,9 @@ type SearchableTextView struct {
 	title                string
 }
 
-func NewSearchableTextView(title string) *SearchableTextView {
+func NewSearchableTextView(title string, app *tview.Application) *SearchableTextView {
 	var textArea = tview.NewTextArea()
-	var searchableView = NewSearchableView(textArea)
+	var searchableView = NewSearchableView(textArea, app)
 
 	var view = &SearchableTextView{
 		SearchableView:       searchableView,
@@ -122,9 +122,7 @@ func NewSearchableTextView(title string) *SearchableTextView {
 			var text = textArea.GetText()
 			if expr, err := regexp.Compile(search); err == nil {
 				view.searchPositions = expr.FindAllStringIndex(text, -1)
-			} else {
-				return
-			}
+			} 
 		case APP_KEY_BINDINGS.Reset:
 			view.textArea.Select(0, 0)
 			view.searchPositions = nil

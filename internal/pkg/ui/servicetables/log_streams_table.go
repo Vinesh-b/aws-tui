@@ -38,6 +38,7 @@ func NewLogStreamsTable(
 				"Name",
 				"LastEventTimestamp",
 			},
+            app,
 		),
 		selectedLogStream:  "",
 		selectedLogGroup:   "",

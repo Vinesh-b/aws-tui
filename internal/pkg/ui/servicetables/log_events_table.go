@@ -39,6 +39,7 @@ func NewLogEventsTable(
 				"Timestamp",
 				"Message",
 			},
+            app,
 		),
 		data:              nil,
 		selectedLogGroup:  "",

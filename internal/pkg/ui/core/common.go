@@ -40,7 +40,7 @@ func CreateJsonTableDataView[T any, U any](
 	table PrivateDataTable[T, U],
 	fixedColIdx int,
 ) *SearchableTextView {
-	var expandedView = NewSearchableTextView("Message")
+	var expandedView = NewSearchableTextView("Message", app)
 
 	table.SetSelectionChangedFunc(func(row, column int) {
 		var col = column

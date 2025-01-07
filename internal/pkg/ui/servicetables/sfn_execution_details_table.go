@@ -42,6 +42,7 @@ func NewStateMachineExecutionDetailsTable(
 				"Status",
 				"Duration",
 			},
+            app,
 		),
 		ExecutionHistory:     nil,
 		selectedExecutionArn: "",
