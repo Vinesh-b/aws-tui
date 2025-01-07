@@ -33,6 +33,7 @@ type SelectableTable[T any] struct {
 	data                 []TableRow
 	privateData          []T
 	privateColumn        int
+	privateDataInit      bool
 	rowCount             int
 	colCount             int
 	searchPositions      []CellPosition
@@ -51,7 +52,9 @@ func NewSelectableTable[T any](title string, headings TableRow) *SelectableTable
 		titleExtra:           "",
 		headings:             headings,
 		data:                 nil,
+		privateData:          nil,
 		privateColumn:        0,
+		privateDataInit:      false,
 		searchPositions:      []CellPosition{},
 		ErrorMessageCallback: func(text string, a ...any) {},
 	}
@@ -68,14 +71,15 @@ func NewSelectableTable[T any](title string, headings TableRow) *SelectableTable
 }
 
 func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privateDataCol int) error {
-	if len(data) > 0 {
-		if len(inst.headings) != len(data[0]) {
-			log.Println("Table data and headings dimensions do not match")
-			return errors.NewCoreTableError(
-				errors.InvalidDataDimentions,
-				"Table data and headings dimensions do not match",
-			)
-		}
+	if len(data) == 0 {
+		return nil
+	}
+
+	if len(inst.headings) != len(data[0]) {
+		return errors.NewCoreTableError(
+			errors.InvalidDataDimentions,
+			"Table data and headings dimensions do not match",
+		)
 	}
 
 	inst.data = data
@@ -114,37 +118,59 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 		}
 	}
 
-	if len(privateData) > 0 {
-		if len(privateData) != len(inst.data) {
-			log.Println("Table data and private data row counts do not match")
-			return errors.NewCoreTableError(
-				errors.InvalidDataDimentions,
-				"Table data and private data row counts do not match",
-			)
-		}
-		inst.privateColumn = privateDataCol
+	inst.table.Select(1, 0)
 
-		for rowIdx, rowData := range inst.data {
-			for colIdx := range len(rowData) {
-				if colIdx == inst.privateColumn {
-					inst.table.GetCell(rowIdx+1, colIdx).
-						SetReference(privateData[rowIdx])
-				}
+	if len(privateData) == 0 {
+		return nil
+	}
+
+	if len(privateData) != len(inst.data) {
+		return errors.NewCoreTableError(
+			errors.InvalidDataDimentions,
+			"Table data and private data row counts do not match",
+		)
+	}
+
+	if privateDataCol < 0 || privateDataCol >= len(inst.data[0]) {
+		return errors.NewCoreTableError(
+			errors.InvalidDataDimentions,
+			"Private data column index out of bounds",
+		)
+	}
+
+	inst.privateDataInit = true
+	inst.privateData = privateData
+	inst.privateColumn = privateDataCol
+
+	for rowIdx, rowData := range inst.data {
+		for colIdx := range len(rowData) {
+			if colIdx == inst.privateColumn {
+				inst.table.GetCell(rowIdx+1, colIdx).
+					SetReference(privateData[rowIdx])
 			}
 		}
 	}
-
-	inst.table.Select(1, 0)
 
 	return nil
 }
 
 func (inst *SelectableTable[T]) ExtendData(data []TableRow, privateData []T) error {
+	if len(data) > 0 && len(inst.headings) != len(data[0]) {
+		log.Println("Table data and headings dimensions do not match")
+		return errors.NewCoreTableError(
+			errors.InvalidDataDimentions,
+			"Table data and headings dimensions do not match",
+		)
+	}
+
 	var table = inst.table
 	var rows = table.GetRowCount()
+
 	// Don't count the headings row in the title
 	var tableTitle = fmt.Sprintf("%s (%d)", inst.title, len(data)+rows-1)
 	inst.SetTitle(tableTitle)
+
+	inst.data = append(inst.data, data...)
 
 	for rowIdx, rowData := range data {
 		for colIdx, cellData := range rowData {
@@ -156,21 +182,33 @@ func (inst *SelectableTable[T]) ExtendData(data []TableRow, privateData []T) err
 		}
 	}
 
-	if len(privateData) > 0 {
-		if len(privateData) != len(inst.data) {
-			log.Println("Table data and private data row counts do not match")
-			return errors.NewCoreTableError(
-				errors.InvalidDataDimentions,
-				"Table data and private data row counts do not match",
-			)
-		}
-
-		for rowIdx := range inst.data {
-			inst.table.GetCell(rowIdx+rows, inst.privateColumn).
-				SetReference(privateData[rowIdx])
-		}
+	if len(privateData) == 0 {
+		inst.table.Select(rows-1, 0)
+		return nil
 	}
 
+	if inst.privateDataInit == false {
+		return errors.NewCoreTableError(
+			errors.InvalidDataDimentions,
+			"Table data and private data not initialised in SetData call",
+		)
+	}
+
+	if len(privateData) != len(data) {
+		return errors.NewCoreTableError(
+			errors.InvalidDataDimentions,
+			"Table data and private data row counts do not match",
+		)
+	}
+
+	inst.privateData = append(inst.privateData, privateData...)
+
+	for rowIdx := range data {
+		inst.table.GetCell(rowIdx+rows, inst.privateColumn).
+			SetReference(privateData[rowIdx])
+	}
+
+	inst.table.Select(rows-1, 0)
 	return nil
 }
 
