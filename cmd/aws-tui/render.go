@@ -60,9 +60,6 @@ func RenderUI(config aws.Config, version string) {
 		SetTitle("Logs").
 		SetTitleAlign(tview.AlignLeft)
 
-	var currentServiceView = tview.NewFlex()
-	currentServiceView.AddItem(serviceViews[services.LAMBDA], 0, 1, false)
-
 	var servicesList = services.ServicesHomeView()
 	var flexLanding = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(servicesList, 0, 1, true).
@@ -73,8 +70,13 @@ func RenderUI(config aws.Config, version string) {
 		)
 	flexLanding.SetBorder(true)
 
-	var pages = tview.NewPages().
-		AddPage(SELECTED_SERVICE, currentServiceView, true, true).
+	var pages = tview.NewPages()
+
+	for id, view := range serviceViews {
+		pages.AddPage(string(id), view, true, true)
+	}
+
+	pages.
 		AddPage(FLOATING_SERVICE_LIST,
 			core.FloatingView("Quick select", servicesList, 70, 27),
 			true, true,
@@ -83,23 +85,19 @@ func RenderUI(config aws.Config, version string) {
 
 	var showServicesListToggle = false
 	servicesList.SetSelectedFunc(func(i int, serviceName string, _ string, r rune) {
-		var view, ok = serviceViews[services.ViewId(serviceName)]
-		if ok {
-			currentServiceView.Clear()
-			currentServiceView.AddItem(view, 0, 1, false)
-			pages.SwitchToPage(SELECTED_SERVICE)
-			app.SetFocus(view.GetLastFocusedView())
+		var view = serviceViews[services.ViewId(serviceName)]
+		pages.SwitchToPage(serviceName)
+		app.SetFocus(view.GetLastFocusedView())
 
-			showServicesListToggle = true
-		}
+		showServicesListToggle = true
 	})
 
 	var lastFocus = app.GetFocus()
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyESC:
-			pages.SwitchToPage(HOME_PAGE)
-			app.SetFocus(servicesList)
+		//case tcell.KeyESC:
+		//	pages.SwitchToPage(HOME_PAGE)
+		//	app.SetFocus(servicesList)
 		case core.APP_KEY_BINDINGS.ToggleServicesMenu:
 			if showServicesListToggle {
 				lastFocus = app.GetFocus()
