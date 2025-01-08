@@ -16,7 +16,7 @@ import (
 
 type InsightsQueryResultsTable struct {
 	*InsightsQuerySearchView
-	Table                *tview.Table
+	table                *tview.Table
 	data                 [][]types.ResultField
 	queryId              string
 	selectedLogGroups    []string
@@ -36,7 +36,7 @@ func NewInsightsQueryResultsTable(
 
 	var view = &InsightsQueryResultsTable{
 		InsightsQuerySearchView: NewInsightsQuerySearchView(table, app, logger),
-		Table:                   table,
+		table:                   table,
 		data:                    nil,
 		queryId:                 "",
 		selectedLogGroups:       nil,
@@ -48,7 +48,7 @@ func NewInsightsQueryResultsTable(
 	}
 
 	view.populateQueryResultsTable()
-	view.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	view.table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case core.APP_KEY_BINDINGS.Reset:
 			view.RefreshResults()
@@ -68,7 +68,7 @@ func NewInsightsQueryResultsTable(
 }
 
 func (inst *InsightsQueryResultsTable) populateQueryResultsTable() {
-	inst.Table.
+	inst.table.
 		Clear().
 		SetBorders(false).
 		SetFixed(1, 0)
@@ -98,7 +98,7 @@ func (inst *InsightsQueryResultsTable) populateQueryResultsTable() {
 				previewText = cellData[len(cellData)-32:]
 			}
 
-			inst.Table.SetCell(rowIdx+1, colIdx, tview.NewTableCell(previewText).
+			inst.table.SetCell(rowIdx+1, colIdx, tview.NewTableCell(previewText).
 				SetReference(cellData).
 				SetAlign(tview.AlignLeft),
 			)
@@ -106,15 +106,15 @@ func (inst *InsightsQueryResultsTable) populateQueryResultsTable() {
 	}
 
 	for heading, colIdx := range inst.headingIdxMap {
-		core.SetTableHeading(inst.Table, heading, colIdx)
+		core.SetTableHeading(inst.table, heading, colIdx)
 	}
 
-	inst.Table.SetSelectable(true, true).SetSelectedStyle(
+	inst.table.SetSelectable(true, true).SetSelectedStyle(
 		tcell.Style{}.Background(core.MoreContrastBackgroundColor),
 	)
 
-	inst.Table.Select(1, 0)
-	inst.Table.ScrollToBeginning()
+	inst.table.Select(1, 0)
+	inst.table.ScrollToBeginning()
 }
 
 func (inst *InsightsQueryResultsTable) RefreshResults() {
@@ -220,7 +220,7 @@ func (inst *InsightsQueryResultsTable) StopQuery() {
 func (inst *InsightsQueryResultsTable) SetSelectedFunc(
 	handler func(row int, column int),
 ) *InsightsQueryResultsTable {
-	inst.Table.SetSelectedFunc(func(row, column int) {
+	inst.table.SetSelectedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}
@@ -232,7 +232,7 @@ func (inst *InsightsQueryResultsTable) SetSelectedFunc(
 func (inst *InsightsQueryResultsTable) SetSelectionChangedFunc(
 	handler func(row int, column int),
 ) *InsightsQueryResultsTable {
-	inst.Table.SetSelectionChangedFunc(handler)
+	inst.table.SetSelectionChangedFunc(handler)
 	return inst
 }
 
@@ -241,7 +241,7 @@ func (inst *InsightsQueryResultsTable) SetQueryId(id string) {
 }
 
 func (inst *InsightsQueryResultsTable) GetColumnCount() int {
-	return inst.Table.GetColumnCount()
+	return inst.table.GetColumnCount()
 }
 
 func (inst *InsightsQueryResultsTable) GetRecordPtr(row int) string {
@@ -249,7 +249,7 @@ func (inst *InsightsQueryResultsTable) GetRecordPtr(row int) string {
 	if !ok {
 		return ""
 	}
-	var msg = inst.Table.GetCell(row, ptrCol).Reference
+	var msg = inst.table.GetCell(row, ptrCol).Reference
 	if row < 1 || msg == nil {
 		return ""
 	}
@@ -257,7 +257,7 @@ func (inst *InsightsQueryResultsTable) GetRecordPtr(row int) string {
 }
 
 func (inst *InsightsQueryResultsTable) GetPrivateData(row int, column int) string {
-	var ref = inst.Table.GetCell(row, column).Reference
+	var ref = inst.table.GetCell(row, column).Reference
 	if ref == nil {
 		return ""
 	}
