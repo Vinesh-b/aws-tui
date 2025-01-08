@@ -65,7 +65,16 @@ func NewSearchableView(
 }
 
 func (inst *SearchableView) SetSearchInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
-	inst.searchInput.SetInputCapture(capture)
+	inst.searchInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+        switch event.Key(){
+        case APP_KEY_BINDINGS.Escape:
+            inst.HidePage(SEARCH_PAGE_NAME)
+            inst.showSearch = true
+            return nil
+        }
+
+        return capture(event)
+    })
 }
 
 func (inst *SearchableView) SetSearchDoneFunc(handler func(key tcell.Key)) {

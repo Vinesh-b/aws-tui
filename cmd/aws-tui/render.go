@@ -83,23 +83,27 @@ func RenderUI(config aws.Config, version string) {
 		).
 		AddAndSwitchToPage(HOME_PAGE, flexLanding, true)
 
-	var showServicesListToggle = false
+	var serviceListHidden = false
 	servicesList.SetSelectedFunc(func(i int, serviceName string, _ string, r rune) {
 		var view = serviceViews[services.ViewId(serviceName)]
 		pages.SwitchToPage(serviceName)
 		app.SetFocus(view.GetLastFocusedView())
 
-		showServicesListToggle = true
+		serviceListHidden = true
 	})
 
 	var lastFocus = app.GetFocus()
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		//case tcell.KeyESC:
-		//	pages.SwitchToPage(HOME_PAGE)
-		//	app.SetFocus(servicesList)
+		case tcell.KeyESC:
+            if !serviceListHidden {
+				pages.HidePage(FLOATING_SERVICE_LIST)
+				app.SetFocus(lastFocus)
+                serviceListHidden = true
+                return nil
+            }
 		case core.APP_KEY_BINDINGS.ToggleServicesMenu:
-			if showServicesListToggle {
+			if serviceListHidden {
 				lastFocus = app.GetFocus()
 				pages.ShowPage(FLOATING_SERVICE_LIST)
 				app.SetFocus(servicesList)
@@ -107,7 +111,7 @@ func RenderUI(config aws.Config, version string) {
 				pages.HidePage(FLOATING_SERVICE_LIST)
 				app.SetFocus(lastFocus)
 			}
-			showServicesListToggle = !showServicesListToggle
+			serviceListHidden = !serviceListHidden
 		}
 		return event
 	})

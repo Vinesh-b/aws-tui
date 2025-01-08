@@ -30,7 +30,7 @@ func NewHelpHomeView(
 	helpNavigation.SetText(`Navigation:
 The section at the bottom of a service page will display the
 Service-Name, Page-Name and Page-Number.
- - ESC to go back to the main menu
+ - ESC to go back
  - Ctrl-Space to toggle floating services menu
  - Ctrl-F to toggle floating search input
  - Ctrl-Q to toggle floating DDB table query input

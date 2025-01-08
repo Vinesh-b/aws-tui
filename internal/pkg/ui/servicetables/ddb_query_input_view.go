@@ -672,6 +672,11 @@ func NewDynamoDBTableSearchView(
 
 	view.pages.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
+		case core.APP_KEY_BINDINGS.Escape:
+			pages.HidePage(QUERY_PAGE_NAME)
+			pages.HidePage(SCAN_PAGE_NAME)
+			view.queryViewHidden = true
+			view.scanViewHidden = true
 		case core.APP_KEY_BINDINGS.TableQuery:
 			if view.queryViewHidden {
 				pages.ShowPage(QUERY_PAGE_NAME)
