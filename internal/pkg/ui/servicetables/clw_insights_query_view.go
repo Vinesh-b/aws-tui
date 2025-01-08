@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/atotto/clipboard"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -79,6 +80,14 @@ func NewInsightsQueryInputView(app *tview.Application, logger *log.Logger) *Insi
 			"| sort @timestamp desc\n"+
 			"| limit 1000\n",
 		false,
+	)
+
+	view.queryTextArea.SetClipboard(
+		func(s string) { clipboard.WriteAll(s) },
+		func() string {
+			var res, _ = clipboard.ReadAll()
+			return res
+		},
 	)
 
 	var timeNow = time.Now()
