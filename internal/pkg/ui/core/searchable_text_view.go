@@ -90,12 +90,12 @@ func NewSearchableTextView(title string, app *tview.Application) *SearchableText
 			return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModCtrl|tcell.ModShift)
 		case APP_KEY_BINDINGS.NextSearch:
 			if searchCount := len(view.searchPositions); searchCount > 0 {
-                updateSearch = true
+				updateSearch = true
 				view.nextSearchPosition = (view.nextSearchPosition + 1) % searchCount
 			}
 		case APP_KEY_BINDINGS.PrevSearch:
 			if searchCount := len(view.searchPositions); searchCount > 0 {
-                updateSearch = true
+				updateSearch = true
 				view.nextSearchPosition = (view.nextSearchPosition - 1 + searchCount) % searchCount
 			}
 		}
@@ -106,7 +106,7 @@ func NewSearchableTextView(title string, app *tview.Application) *SearchableText
 				"%s [%s: %d/%d]",
 				view.title,
 				view.GetSearchText(),
-				view.nextSearchPosition,
+				view.nextSearchPosition+1,
 				len(view.searchPositions),
 			))
 			view.textArea.Select(pos[0], pos[1])
@@ -120,9 +120,12 @@ func NewSearchableTextView(title string, app *tview.Application) *SearchableText
 		case APP_KEY_BINDINGS.Done:
 			var search = searchableView.GetSearchText()
 			var text = textArea.GetText()
+			if len(search) == 0 || len(text) == 0 {
+				return
+			}
 			if expr, err := regexp.Compile(search); err == nil {
 				view.searchPositions = expr.FindAllStringIndex(text, -1)
-			} 
+			}
 		case APP_KEY_BINDINGS.Reset:
 			view.textArea.Select(0, 0)
 			view.searchPositions = nil
