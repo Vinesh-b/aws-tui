@@ -206,10 +206,6 @@ func NewLambdaHomeView(
 			tables.NewLambdasListTable(app, api, logger),
 			app, api, logger,
 		)
-		lambdaInvokeView = NewLambdaInvokePageView(
-			tables.NewLambdaDetailsTable(app, api, logger),
-			app, api, logger,
-		)
 		logEventsView = NewLogEventsPageView(
 			tables.NewLogEventsTable(app, cwl_api, logger),
 			app, cwl_api, logger,
@@ -225,28 +221,21 @@ func NewLambdaHomeView(
 
 	serviceRootView.
 		AddAndSwitchToPage("Lambdas", lambdasDetailsView, true).
-		//AddPage("Invoke", lambdaInvokeView, true, true).
 		AddPage("Streams", logStreamsView, true, true).
 		AddPage("Events", logEventsView, true, true)
 
 	serviceRootView.InitPageNavigation()
 
-	lambdasDetailsView.LambdaListTable.SetSelectedFunc(func(row, column int) {
-		if row < 1 {
-			return
-		}
-		lambdaInvokeView.SelectedLambda = lambdasDetailsView.SelectedLambda
-		app.SetFocus(lambdasDetailsView.LambdaDetailsTable)
-	})
-
-	lambdasDetailsView.LambdaDetailsTable.SetSelectedFunc(func(row, column int) {
-		var selectedLogGroup = lambdasDetailsView.LambdaDetailsTable.GetCell(7, 1).Text
-
-		logStreamsView.LogStreamsTable.SetSeletedLogGroup(selectedLogGroup)
+	var lambdaSelectedFunc = func(_, _ int) {
+		var logGroup = lambdasDetailsView.LambdaListTable.GetSeletedLambdaLogGroup()
+		logStreamsView.LogStreamsTable.SetSeletedLogGroup(logGroup)
 		logStreamsView.LogStreamsTable.SetLogStreamSearchPrefix("")
 		logStreamsView.LogStreamsTable.RefreshStreams(true)
-		serviceRootView.ChangePage(1, logStreamsView.LogStreamsTable)
-	})
+		serviceRootView.ChangePage(1, nil)
+	}
+
+	lambdasDetailsView.LambdaListTable.SetSelectedFunc(lambdaSelectedFunc)
+	lambdasDetailsView.LambdaDetailsTable.SetSelectedFunc(lambdaSelectedFunc)
 
 	logStreamsView.LogStreamsTable.SetSelectedFunc(func(row, column int) {
 		var selectedLogStream = logStreamsView.LogStreamsTable.GetSeletedLogStream()
@@ -255,7 +244,7 @@ func NewLambdaHomeView(
 		logEventsView.LogEventsTable.SetSeletedLogGroup(selectedLogGroup)
 		logEventsView.LogEventsTable.SetSeletedLogStream(selectedLogStream)
 		logEventsView.LogEventsTable.RefreshLogEvents(true)
-		serviceRootView.ChangePage(2, logEventsView.LogEventsTable)
+		serviceRootView.ChangePage(2, nil)
 	})
 
 	logEventsView.InitInputCapture()
