@@ -64,27 +64,8 @@ func NewStacksDetailsPageView(
 }
 
 func (inst *CloudFormationDetailsPageView) InitInputCapture() {
-	inst.stackListTable.SetSearchDoneFunc(func(key tcell.Key) {
-		switch key {
-		case core.APP_KEY_BINDINGS.Done:
-			inst.stackListTable.RefreshStacks(false)
-		}
-	})
-
-	var refreshDetails = func(row int, force bool) {
-		if row < 1 {
-			return
-		}
-		inst.stackDetailsTable.RefreshDetails(inst.stackListTable.GetSelectedStack())
-	}
-
 	inst.stackListTable.SetSelectionChangedFunc(func(row, column int) {
-		refreshDetails(row, false)
-	})
-
-	inst.stackListTable.SetSelectedFunc(func(row, column int) {
-		refreshDetails(row, false)
-		inst.app.SetFocus(inst.stackDetailsTable)
+		inst.stackDetailsTable.RefreshDetails(inst.stackListTable.GetSelectedStack())
 	})
 }
 
@@ -187,11 +168,14 @@ func NewStacksHomeView(
 
 	serviceRootView.InitPageNavigation()
 
-	stacksDetailsView.stackDetailsTable.SetSelectedFunc(func(row, column int) {
+	stacksDetailsView.stackListTable.SetSelectedFunc(func(row, column int) {
 		var selectedStackName = stacksDetailsView.stackListTable.GetSelectedStackName()
-		stackEventsView.stackEventsTable.SetSelectedStackName(selectedStackName)
-		stackEventsView.stackEventsTable.RefreshEvents(true)
-		serviceRootView.ChangePage(1, stackEventsView.stackEventsTable)
+		if len(selectedStackName) > 0 {
+			stackEventsView.stackEventsTable.SetSelectedStackName(selectedStackName)
+			stackEventsView.stackEventsTable.SetTitleExtra(selectedStackName)
+			stackEventsView.stackEventsTable.RefreshEvents(true)
+			serviceRootView.ChangePage(1, nil)
+		}
 	})
 
 	stackEventsView.InitInputCapture()

@@ -160,12 +160,11 @@ func NewLogsInsightsHomeView(
 	serviceRootView.InitPageNavigation()
 
 	groupSelectionView.SeletedGroupsTable.SetSelectedFunc(func(row, column int) {
-		if row < 1 {
-			return
-		}
 		var logGroups = groupSelectionView.SeletedGroupsTable.GetAllLogGroups()
-		insightsResultsView.QueryResultsTable.SetSelectedLogGroups(logGroups)
-		serviceRootView.ChangePage(1, insightsResultsView.QueryResultsTable)
+		if len(logGroups) > 0 {
+			insightsResultsView.QueryResultsTable.SetSelectedLogGroups(logGroups)
+			serviceRootView.ChangePage(1, nil)
+		}
 	})
 
 	groupSelectionView.InitInputCapture()
@@ -185,7 +184,7 @@ func NewLogsInsightsHomeView(
 		logEventsView.LogEventsTable.SetSeletedLogGroup(logGroup)
 		logEventsView.LogEventsTable.SetSeletedLogStream(logStream)
 		logEventsView.LogEventsTable.RefreshLogEvents(true)
-		serviceRootView.ChangePage(2, logEventsView.LogEventsTable)
+		serviceRootView.ChangePage(2, nil)
 	})
 
 	return serviceRootView

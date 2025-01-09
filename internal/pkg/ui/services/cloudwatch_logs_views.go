@@ -205,7 +205,7 @@ func NewLogsHomeView(
 		logStreamsView.LogStreamsTable.SetSeletedLogGroup(logGroup)
 		logStreamsView.LogStreamsTable.SetLogStreamSearchPrefix("")
 		logStreamsView.LogStreamsTable.RefreshStreams(true)
-		serviceRootView.ChangePage(1, logStreamsView.LogStreamsTable)
+		serviceRootView.ChangePage(1, nil)
 	})
 
 	logStreamsView.LogStreamsTable.SetSelectedFunc(func(row, column int) {
@@ -215,7 +215,7 @@ func NewLogsHomeView(
 		logEventsView.LogEventsTable.SetSeletedLogGroup(logGroup)
 		logEventsView.LogEventsTable.SetSeletedLogStream(logStream)
 		logEventsView.LogEventsTable.RefreshLogEvents(true)
-		serviceRootView.ChangePage(2, logEventsView.LogEventsTable)
+		serviceRootView.ChangePage(2, nil)
 	})
 
 	logEventsView.InitInputCapture()

@@ -211,13 +211,14 @@ func NewStepFunctionsHomeView(
 
 	serviceRootView.InitPageNavigation()
 
-	var selectedExecution = ""
 	stateMachinesDetailsView.stateMachineExecutionsTable.SetSelectedFunc(func(row, column int) {
-		selectedExecution = stateMachinesDetailsView.
+		var selectedExecution = stateMachinesDetailsView.
 			stateMachineExecutionsTable.GetSeletedExecutionArn()
-		executionDetailsView.summaryTable.RefreshExecutionDetails(selectedExecution, true)
-		executionDetailsView.detailsTable.RefreshExecutionDetails(selectedExecution, true)
-		serviceRootView.ChangePage(1, executionDetailsView.summaryTable)
+		if len(selectedExecution) > 0 {
+			executionDetailsView.summaryTable.RefreshExecutionDetails(selectedExecution, true)
+			executionDetailsView.detailsTable.RefreshExecutionDetails(selectedExecution, true)
+			serviceRootView.ChangePage(1, nil)
+		}
 	})
 
 	stateMachinesDetailsView.initInputCapture()

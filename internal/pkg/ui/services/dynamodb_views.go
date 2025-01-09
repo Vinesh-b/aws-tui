@@ -151,9 +151,6 @@ func NewDynamoDBHomeView(
 
 	var selectedTableName = ""
 	ddbDetailsView.TablesTable.SetSelectionChangedFunc(func(row, column int) {
-		if row < 1 {
-			return
-		}
 		selectedTableName = ddbDetailsView.TablesTable.GetSelectedTable()
 		ddbDetailsView.DetailsTable.SetSelectedTable(selectedTableName)
 		ddbDetailsView.DetailsTable.RefreshDetails()
@@ -164,7 +161,7 @@ func NewDynamoDBHomeView(
 		if len(selectedTableName) > 0 {
 			ddbItemsView.ItemsTable.SetSelectedTable(selectedTableName)
 			ddbItemsView.ItemsTable.ExecuteSearch(tables.DDBTableScan, expression.Expression{}, true)
-			serviceRootView.ChangePage(1, ddbItemsView.ItemsTable)
+			serviceRootView.ChangePage(1, nil)
 		}
 	})
 
