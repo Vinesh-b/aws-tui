@@ -41,7 +41,7 @@ func NewStateMachineExecutionsTable(
 			"Start Date",
 			"Stop Date",
 		},
-        app,
+		app,
 	)
 	var searchView = NewSfnExecutionsQuerySearchView(selectableTable, app, logger)
 
@@ -93,8 +93,8 @@ func (inst *StateMachineExecutionsTable) populateExecutionsTable(force bool) {
 		tableData = append(tableData, core.TableRow{
 			aws.ToString(row.Name),
 			string(row.Status),
-			row.StartDate.Format(time.DateTime),
-			row.StopDate.Format(time.DateTime),
+			aws.ToTime(row.StartDate).Format(time.DateTime),
+			aws.ToTime(row.StopDate).Format(time.DateTime),
 		})
 		privateData = append(privateData, aws.ToString(row.ExecutionArn))
 	}
