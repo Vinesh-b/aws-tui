@@ -72,9 +72,9 @@ func NewStateMachinesDetailsPageView(
 
 func (inst *StateMachinesDetailsPageView) initInputCapture() {
 	inst.stateMachinesTable.SetSelectedFunc(func(row, column int) {
+		var selectedFunc = inst.stateMachinesTable.GetSeletedFunctionArn()
+		inst.stateMachineExecutionsTable.SetSeletedFunctionArn(selectedFunc)
 		if smType := inst.stateMachinesTable.GetSeletedFunctionType(); smType == "STANDARD" {
-			var selectedFunc = inst.stateMachinesTable.GetSeletedFunctionArn()
-			inst.stateMachineExecutionsTable.SetSeletedFunctionArn(selectedFunc)
 			inst.stateMachineExecutionsTable.RefreshExecutions(true)
 		}
 	})
