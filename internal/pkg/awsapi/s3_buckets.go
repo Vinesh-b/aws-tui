@@ -96,7 +96,7 @@ func (inst *S3BucketsApi) ListObjects(
 	}
 
 	if !inst.objectsPaginator.HasMorePages() {
-		return nil, nil, nil
+		return nil, nil, fmt.Errorf("No more pages found")
 	}
 
 	var output, err = inst.objectsPaginator.NextPage(context.TODO())
