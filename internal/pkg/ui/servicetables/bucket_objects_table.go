@@ -31,12 +31,13 @@ func parentDir(s3ObjectPrefix string) string {
 type BucketObjectsTable struct {
 	*tview.Table
 	ErrorMessageCallback func(text string, a ...any)
-	selectedBucket      string
-	selectedPrefix      string
-	data                []types.Object
-	logger              *log.Logger
-	app                 *tview.Application
-	api                 *awsapi.S3BucketsApi
+	selectedBucket       string
+	selectedPrefix       string
+	selectedDir          string
+	data                 []types.Object
+	logger               *log.Logger
+	app                  *tview.Application
+	api                  *awsapi.S3BucketsApi
 }
 
 func NewBucketObjectsTable(
@@ -45,14 +46,15 @@ func NewBucketObjectsTable(
 	logger *log.Logger,
 ) *BucketObjectsTable {
 	var view = &BucketObjectsTable{
-		Table:               tview.NewTable(),
+		Table:                tview.NewTable(),
 		ErrorMessageCallback: func(text string, a ...any) {},
-		selectedBucket:      "",
-		selectedPrefix:      "",
-		data:                nil,
-		logger:              logger,
-		app:                 app,
-		api:                 api,
+		selectedBucket:       "",
+		selectedPrefix:       "",
+		selectedDir:          "",
+		data:                 nil,
+		logger:               logger,
+		app:                  app,
+		api:                  api,
 	}
 	view.populateS3ObjectsTable(nil, false)
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
@@ -75,7 +77,7 @@ func (inst *BucketObjectsTable) appendToObjectsTable(
 		for colIdx, cellData := range rowData {
 			var text = cellData
 			if colIdx == 0 {
-				text, _ = filepath.Rel(inst.selectedPrefix, cellData)
+				text, _ = filepath.Rel(inst.selectedDir, cellData)
 			}
 			inst.Table.SetCell(rowIdx+rowOffset, colIdx, tview.NewTableCell(text).
 				SetReference(cellData).
@@ -202,6 +204,7 @@ func (inst *BucketObjectsTable) SetSelectedFunc(handler func(row, column int)) {
 
 		if isDir {
 			// Load and show files in currently selected directory.
+			inst.selectedDir = inst.selectedPrefix
 			inst.RefreshObjects(true)
 		} else {
 			inst.api.DownloadFile(
