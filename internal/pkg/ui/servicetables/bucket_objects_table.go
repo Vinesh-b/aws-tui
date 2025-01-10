@@ -5,7 +5,6 @@ import (
 	"log"
 	"path/filepath"
 	"slices"
-	"strings"
 	"time"
 
 	"aws-tui/internal/pkg/awsapi"
@@ -17,16 +16,6 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
-
-func parentDir(s3ObjectPrefix string) string {
-	var vals = strings.Split(s3ObjectPrefix, "/")
-	if len(vals) <= 2 {
-		return ""
-	}
-
-	var parent = strings.Join(vals[0:len(vals)-2], "/")
-	return fmt.Sprintf("%s/", parent)
-}
 
 type BucketObjectsTable struct {
 	*core.SelectableTable[types.Object]
@@ -92,37 +81,41 @@ func NewBucketObjectsTable(
 }
 
 func (inst *BucketObjectsTable) populateS3ObjectsTable(
-	data []types.Object,
-	dirs []types.CommonPrefix,
+	data []types.Object, dirs []types.CommonPrefix,
 ) {
+	var selectedKey = aws.ToString(inst.selectedObject.Key)
+	var cleanedPrefix = filepath.Clean(selectedKey)
+	var parentDir = filepath.Dir(cleanedPrefix) + "/"
+	if parentDir == "./" {
+		parentDir = ""
+	}
+
 	var tableData = []core.TableRow{
 		{"../", "-", "-"},
 	}
 	var privateData = []types.Object{
-		{Key: aws.String(parentDir(aws.ToString(inst.selectedObject.Key)))},
+		{Key: aws.String(parentDir)},
 	}
 
 	for _, row := range dirs {
 		tableData = append(tableData, core.TableRow{
-			aws.ToString(row.Prefix), "-", "-",
+			filepath.Base(aws.ToString(row.Prefix)) + "/", "-", "-",
 		})
 		privateData = append(privateData, types.Object{Key: row.Prefix})
 	}
 
 	for _, row := range data {
 		tableData = append(tableData, core.TableRow{
-			aws.ToString(row.Key),
+			filepath.Base(aws.ToString(row.Key)),
 			fmt.Sprintf("%.1f KB", float64(aws.ToInt64(row.Size))/1024.0),
 			row.LastModified.Format(time.DateTime),
 		})
 	}
 	privateData = append(privateData, data...)
 
-	var table = inst.GetTable()
-	var rowCount = table.GetRowCount() - 1
-
+	inst.SetTitleExtra(cleanedPrefix)
 	inst.SetData(tableData, privateData, 0)
-	table.Select(rowCount, 0)
+	inst.GetTable().Select(1, 0).ScrollToBeginning()
 }
 
 func (inst *BucketObjectsTable) FilterByName(name string) {
