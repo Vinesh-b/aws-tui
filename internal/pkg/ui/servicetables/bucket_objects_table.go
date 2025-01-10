@@ -29,12 +29,15 @@ func parentDir(s3ObjectPrefix string) string {
 }
 
 type BucketObjectsTable struct {
-	*tview.Table
+	*core.SelectableTable[types.Object]
 	ErrorMessageCallback func(text string, a ...any)
+	selectedObject       types.Object
 	selectedBucket       string
-	selectedPrefix       string
 	selectedDir          string
 	data                 []types.Object
+	filtered             []types.Object
+	dirs                 []types.CommonPrefix
+	filteredDirs         []types.CommonPrefix
 	logger               *log.Logger
 	app                  *tview.Application
 	api                  *awsapi.S3BucketsApi
@@ -46,134 +49,113 @@ func NewBucketObjectsTable(
 	logger *log.Logger,
 ) *BucketObjectsTable {
 	var view = &BucketObjectsTable{
-		Table:                tview.NewTable(),
+		SelectableTable: core.NewSelectableTable[types.Object](
+			"Objects",
+			core.TableRow{
+				"Key",
+				"Size",
+				"LastModified",
+			},
+			app,
+		),
 		ErrorMessageCallback: func(text string, a ...any) {},
+		selectedObject:       types.Object{},
 		selectedBucket:       "",
-		selectedPrefix:       "",
 		selectedDir:          "",
 		data:                 nil,
+		filtered:             nil,
+		dirs:                 nil,
+		filteredDirs:         nil,
 		logger:               logger,
 		app:                  app,
 		api:                  api,
 	}
-	view.populateS3ObjectsTable(nil, false)
+
+	view.populateS3ObjectsTable(nil, nil)
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
 	view.SetSelectionChangedFunc(func(row, column int) {})
 	view.SetSelectedFunc(func(row, column int) {})
 
+	view.SetSearchDoneFunc(func(key tcell.Key) {
+		switch key {
+		case core.APP_KEY_BINDINGS.Done:
+			var searchText = view.GetSearchText()
+			view.FilterByName(searchText)
+		}
+	})
+
+	view.SetSearchChangedFunc(func(text string) {
+		view.FilterByName(text)
+	})
+
 	return view
 }
 
-func (inst *BucketObjectsTable) appendToObjectsTable(
-	title string,
-	data []core.TableRow,
-	rowOffset int,
-) {
-	// Don't count the headings row in the title hence the -1
-	var tableTitle = fmt.Sprintf("%s (%d)", title, len(data)+rowOffset-1)
-	inst.Table.SetTitle(tableTitle)
-
-	for rowIdx, rowData := range data {
-		for colIdx, cellData := range rowData {
-			var text = cellData
-			if colIdx == 0 {
-				text, _ = filepath.Rel(inst.selectedDir, cellData)
-			}
-			inst.Table.SetCell(rowIdx+rowOffset, colIdx, tview.NewTableCell(text).
-				SetReference(cellData).
-				SetAlign(tview.AlignLeft),
-			)
-		}
-	}
-}
-
 func (inst *BucketObjectsTable) populateS3ObjectsTable(
+	data []types.Object,
 	dirs []types.CommonPrefix,
-	extend bool,
 ) {
-	var tableData []core.TableRow
+	var tableData = []core.TableRow{
+		{"../", "-", "-"},
+	}
+	var privateData = []types.Object{
+		{Key: aws.String(parentDir(aws.ToString(inst.selectedObject.Key)))},
+	}
+
 	for _, row := range dirs {
 		tableData = append(tableData, core.TableRow{
-			aws.ToString(row.Prefix),
-			"-",
-			"-",
+			aws.ToString(row.Prefix), "-", "-",
 		})
+		privateData = append(privateData, types.Object{Key: row.Prefix})
 	}
 
-	for _, row := range inst.data {
+	for _, row := range data {
 		tableData = append(tableData, core.TableRow{
 			aws.ToString(row.Key),
 			fmt.Sprintf("%.1f KB", float64(aws.ToInt64(row.Size))/1024.0),
 			row.LastModified.Format(time.DateTime),
 		})
 	}
+	privateData = append(privateData, data...)
 
-	var title = "Objects"
-	if extend {
-		var rowOffset = inst.Table.GetRowCount()
-		inst.appendToObjectsTable(title, tableData, rowOffset)
-		return
-	}
+	var table = inst.GetTable()
+	var rowCount = table.GetRowCount() - 1
 
-	var headings = core.TableRow{
-		"Key",
-		"Size",
-		"LastModified",
-	}
+	inst.SetData(tableData, privateData, 0)
+	table.Select(rowCount, 0)
+}
 
-	inst.Table.
-		Clear().
-		SetBorders(false).
-		SetFixed(1, len(headings)-1)
-	inst.Table.
-		SetTitle(title).
-		SetTitleAlign(tview.AlignLeft).
-		SetBorderPadding(0, 0, 0, 0).
-		SetBorder(true)
+func (inst *BucketObjectsTable) FilterByName(name string) {
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
-	if len(tableData) > 0 {
-		if len(headings) != len(tableData[0]) {
-			log.Panicln("Table data and headings dimensions do not match")
-		}
-	}
-
-	inst.Table.SetSelectable(true, false).SetSelectedStyle(
-		tcell.Style{}.Background(core.MoreContrastBackgroundColor),
-	)
-
-	var rowOffset = 0
-	for col, heading := range headings {
-		inst.Table.SetCell(rowOffset, col, tview.NewTableCell(heading).
-			SetAlign(tview.AlignLeft).
-			SetTextColor(core.SecondaryTextColor).
-			SetSelectable(false).
-			SetBackgroundColor(core.ContrastBackgroundColor),
+	dataLoader.AsyncLoadData(func() {
+		inst.filtered = core.FuzzySearch(
+			name,
+			inst.data,
+			func(f types.Object) string {
+				return aws.ToString(f.Key)
+			},
 		)
-	}
-	rowOffset++
-
-	var parentDirRow = core.TableRow{"../", "-", "-"}
-	for colIdx, cellData := range parentDirRow {
-		inst.Table.SetCell(rowOffset, colIdx, tview.NewTableCell(cellData).
-			SetReference(parentDir(inst.selectedPrefix)).
-			SetAlign(tview.AlignLeft),
+		inst.filteredDirs = core.FuzzySearch(
+			name,
+			inst.dirs,
+			func(f types.CommonPrefix) string {
+				return aws.ToString(f.Prefix)
+			},
 		)
-	}
-	rowOffset++
+	})
 
-	inst.appendToObjectsTable(title, tableData, rowOffset)
-
-	inst.Table.GetCell(0, 0).SetExpansion(1)
-	inst.Table.Select(1, 0)
+	dataLoader.AsyncUpdateView(inst.Box, func() {
+		inst.populateS3ObjectsTable(inst.filtered, inst.filteredDirs)
+	})
 }
 
 func (inst *BucketObjectsTable) RefreshObjects(force bool) {
-	var dirs []types.CommonPrefix
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		var objects, commonPrefixes, err = inst.api.ListObjects(
-			inst.selectedBucket, inst.selectedPrefix, force,
+			inst.selectedBucket, aws.ToString(inst.selectedObject.Key), force,
 		)
 
 		if err != nil {
@@ -184,34 +166,35 @@ func (inst *BucketObjectsTable) RefreshObjects(force bool) {
 		var filterObjs = objects
 		// the current dir is retured in the objects list and we don't want that
 		for idx, val := range objects {
-			if aws.ToString(val.Key) == inst.selectedPrefix {
+			if aws.ToString(val.Key) == aws.ToString(inst.selectedObject.Key) {
 				filterObjs = slices.Delete(objects, idx, idx+1)
 				break
 			}
 		}
-		dirs = commonPrefixes
-		inst.data = filterObjs
+		inst.dirs = commonPrefixes
+		if !force {
+			inst.data = append(inst.data, filterObjs...)
+		} else {
+			inst.data = filterObjs
+		}
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateS3ObjectsTable(dirs, !force)
+		inst.populateS3ObjectsTable(inst.data, inst.dirs)
 	})
 }
 
 func (inst *BucketObjectsTable) SetSelectedFunc(handler func(row, column int)) {
-	inst.Table.SetSelectedFunc(func(row, column int) {
-		var isDir = inst.selectedPrefix == "" || inst.selectedPrefix[len(inst.selectedPrefix)-1] == '/'
+	inst.GetTable().SetSelectedFunc(func(row, column int) {
+		var prefix = aws.ToString(inst.selectedObject.Key)
+		var isDir = prefix == "" || prefix[len(prefix)-1] == '/'
 
 		if isDir {
 			// Load and show files in currently selected directory.
-			inst.selectedDir = inst.selectedPrefix
+			inst.selectedDir = prefix
 			inst.RefreshObjects(true)
 		} else {
-			inst.api.DownloadFile(
-				inst.selectedBucket,
-				inst.selectedPrefix,
-				filepath.Base(inst.selectedPrefix),
-			)
+			inst.api.DownloadFile(inst.selectedBucket, prefix, filepath.Base(prefix))
 		}
 
 		handler(row, column)
@@ -219,19 +202,14 @@ func (inst *BucketObjectsTable) SetSelectedFunc(handler func(row, column int)) {
 }
 
 func (inst *BucketObjectsTable) SetSelectionChangedFunc(handler func(row int, column int)) {
-	inst.Table.SetSelectionChangedFunc(func(row, column int) {
-		var reference = inst.Table.GetCell(row, 0).GetReference()
-		if reference == nil || row < 1 {
-			return
-		}
-
-		inst.selectedPrefix = reference.(string)
+	inst.GetTable().SetSelectionChangedFunc(func(row, column int) {
+		inst.selectedObject = inst.GetPrivateData(row, 0)
 		handler(row, column)
 	})
 }
 
 func (inst *BucketObjectsTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
-	inst.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	inst.GetTable().SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshObjects(true)
@@ -244,9 +222,8 @@ func (inst *BucketObjectsTable) SetInputCapture(capture func(event *tcell.EventK
 
 func (inst *BucketObjectsTable) SetSelectedBucket(name string) {
 	inst.selectedBucket = name
-	inst.selectedPrefix = ""
 }
 
 func (inst *BucketObjectsTable) GetSelectedPrefix() string {
-	return inst.selectedPrefix
+	return aws.ToString(inst.selectedObject.Key)
 }

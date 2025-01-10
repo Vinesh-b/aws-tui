@@ -78,7 +78,7 @@ func (inst *S3BucketsDetailsView) InitInputCapture() {
 		var name = inst.bucketsTable.GetSeletedBucket()
 		inst.objectsTable.SetSelectedBucket(name)
 		inst.objectsTable.RefreshObjects(true)
-		inst.app.SetFocus(inst.objectsTable.Table)
+		inst.app.SetFocus(inst.objectsTable)
 	})
 }
 
