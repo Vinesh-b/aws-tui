@@ -88,3 +88,39 @@ func (inst *LambdaApi) InvokeLambda(
 
 	return output, err
 }
+
+func (inst *LambdaApi) GetPolicy(lambdaArn string) (string, error) {
+	if len(lambdaArn) == 0 {
+		return "", fmt.Errorf("lambda ARN not set")
+	}
+
+	var output, err = inst.client.GetPolicy(
+		context.TODO(),
+		&lambda.GetPolicyInput{
+			FunctionName: aws.String(lambdaArn),
+		},
+	)
+	if err != nil {
+		return "", err
+	}
+
+	return aws.ToString(output.Policy), err
+}
+
+func (inst *LambdaApi) ListTags(lambdaArn string) (map[string]string, error) {
+	if len(lambdaArn) == 0 {
+		return nil, fmt.Errorf("lambda ARN not set")
+	}
+
+	var output, err = inst.client.ListTags(
+		context.TODO(),
+		&lambda.ListTagsInput{
+			Resource: aws.String(lambdaArn),
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return output.Tags, err
+}
