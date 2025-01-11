@@ -123,24 +123,14 @@ func (inst *LogGroupsTable) RefreshLogGroups(reset bool) {
 
 func (inst *LogGroupsTable) SetSelectionChangedFunc(handler func(row int, column int)) {
 	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
-		var ref = inst.GetCell(row, 0).Reference
-		if row < 1 || ref == nil {
-			return
-		}
-
-		inst.selectedLogGroup = ref.(string)
+		inst.selectedLogGroup = inst.GetPrivateData(row, 0)
 		handler(row, column)
 	})
 }
 
 func (inst *LogGroupsTable) SetSelectedFunc(handler func(row int, column int)) {
 	inst.SelectableTable.SetSelectedFunc(func(row, column int) {
-		var ref = inst.GetCell(row, 0).Reference
-		if row < 1 || ref == nil {
-			return
-		}
-
-		inst.selectedLogGroup = ref.(string)
+		inst.selectedLogGroup = inst.GetPrivateData(row, 0)
 		handler(row, column)
 	})
 }
