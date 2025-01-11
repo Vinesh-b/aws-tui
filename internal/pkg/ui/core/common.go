@@ -18,6 +18,13 @@ const (
 	DATA_TYPE_MAP_STRING_ANY
 )
 
+func ClampStringLen(input *string, maxLen int) string {
+	if len(*input) < maxLen {
+		return *input
+	}
+	return (*input)[0:maxLen-1] + "…"
+}
+
 func TryFormatToJson(text string) (string, bool) {
 	var anyJson map[string]interface{}
 	var err = json.Unmarshal([]byte(text), &anyJson)

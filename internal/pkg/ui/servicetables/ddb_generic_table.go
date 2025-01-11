@@ -7,7 +7,6 @@ import (
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
@@ -118,10 +117,8 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 	}
 
 	inst.table.Clear()
-	var tableTitle = fmt.Sprintf("%s (%d)",
-		aws.ToString(inst.tableDescription.TableName),
-		len(inst.data),
-	)
+	var clampedName = core.ClampStringLen(inst.tableDescription.TableName, 100)
+	var tableTitle = fmt.Sprintf("%s (%d)", clampedName, len(inst.data))
 	inst.rootView.SetTitle(tableTitle)
 
 	if !extend {

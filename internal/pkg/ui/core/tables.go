@@ -23,13 +23,6 @@ type CellPosition struct {
 	col int
 }
 
-func ClampStringLen(input *string, maxLen int) string {
-	if len(*input) < maxLen {
-		return *input
-	}
-	return (*input)[0:maxLen]
-}
-
 func NewTableCell[T any](text string, ref *T) *tview.TableCell {
 	// the table render processes the full string making it extremly slow so
 	// we have to clamp the text length
