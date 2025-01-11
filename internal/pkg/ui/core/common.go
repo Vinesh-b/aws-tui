@@ -11,13 +11,6 @@ import (
 
 type StringSet map[string]struct{}
 
-type MessageDataType int
-
-const (
-	DATA_TYPE_STRING MessageDataType = iota
-	DATA_TYPE_MAP_STRING_ANY
-)
-
 func ClampStringLen(input *string, maxLen int) string {
 	if len(*input) < maxLen {
 		return *input
