@@ -255,7 +255,7 @@ func (inst *SelectableTable[T]) ExtendData(data []TableRow, privateData []T) err
 }
 
 func (inst *SelectableTable[T]) SearchPrivateData(searchCols []int, search string) []CellPosition {
-	return searchRefsInTable(inst.table, searchCols, search)
+	return searchTextInTable[T](inst.table, searchCols, search)
 }
 
 func (inst *SelectableTable[T]) GetCellText(row int, column int) string {
@@ -301,7 +301,7 @@ func (inst *SelectableTable[T]) SetSearchDoneFunc(handler func(key tcell.Key)) {
 	var highlight_search = func(key tcell.Key) {
 		switch key {
 		case APP_KEY_BINDINGS.Done:
-			inst.searchPositions = highlightTableSearch(
+			inst.searchPositions = highlightTableSearch[T](
 				inst.table,
 				inst.GetSearchText(),
 				[]int{},
@@ -448,7 +448,7 @@ func (inst *DetailsTable) ScrollToBeginning() *DetailsTable {
 	return inst
 }
 
-func searchRefsInTable(table *tview.Table, searchCols []int, search string) []CellPosition {
+func searchTextInTable[T any](table *tview.Table, searchCols []int, search string) []CellPosition {
 	var resultPositions = []CellPosition{}
 	if len(search) <= 0 {
 		return resultPositions
@@ -463,10 +463,7 @@ func searchRefsInTable(table *tview.Table, searchCols []int, search string) []Ce
 	for r := 1; r < rows; r++ {
 		for _, c := range searchCols {
 			var cell = table.GetCell(r, c)
-			if cell.Reference == nil {
-				continue
-			}
-			var text = fmt.Sprintf("%v", cell.Reference)
+			var text = GetCellText[T](cell)
 			if strings.Contains(text, search) {
 				cell.SetTextColor(TertiaryTextColor)
 				resultPositions = append(resultPositions, CellPosition{r, c})
@@ -488,7 +485,7 @@ func clearSearchHighlights(table *tview.Table) {
 	}
 }
 
-func highlightTableSearch(
+func highlightTableSearch[T any](
 	table *tview.Table,
 	search string,
 	cols []int,
@@ -497,7 +494,7 @@ func highlightTableSearch(
 
 	var foundPositions []CellPosition
 	if len(search) > 0 {
-		foundPositions = searchRefsInTable(table, cols, search)
+		foundPositions = searchTextInTable[T](table, cols, search)
 		if len(foundPositions) > 0 {
 			table.Select(foundPositions[0].row, foundPositions[0].col)
 		}
