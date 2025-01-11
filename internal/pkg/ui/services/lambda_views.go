@@ -23,6 +23,7 @@ type LambdaDetailsPageView struct {
 	LambdaDetailsTable *tables.LambdaDetailsTable
 	LambdaEnvVarsTable *tables.LambdaEnvVarsTable
 	LambdaVpcConfTable *tables.LambdaVpcConfigTable
+	LambdaTagsTable    *tables.LambdaTagsTable
 
 	app *tview.Application
 	api *awsapi.LambdaApi
@@ -32,19 +33,21 @@ func NewLambdaDetailsPageView(
 	lambdaDetailsTable *tables.LambdaDetailsTable,
 	lambdaEnvVarsTable *tables.LambdaEnvVarsTable,
 	lambdaVpcConfTable *tables.LambdaVpcConfigTable,
+	lambdaTagsTable *tables.LambdaTagsTable,
 	lambdaListTable *tables.LambdaListTable,
 	app *tview.Application,
 	api *awsapi.LambdaApi,
 	logger *log.Logger,
 ) *LambdaDetailsPageView {
 	var tabView = core.NewTabView(
-		[]string{"Details", "Environment Vars", "VPC Config"},
+		[]string{"Details", "Environment Vars", "VPC Config", "Tags"},
 		app,
 		logger,
 	)
 	tabView.GetTab("Details").MainPage.AddItem(lambdaDetailsTable, 0, 1, true)
 	tabView.GetTab("Environment Vars").MainPage.AddItem(lambdaEnvVarsTable, 0, 1, true)
 	tabView.GetTab("VPC Config").MainPage.AddItem(lambdaVpcConfTable, 0, 1, true)
+	tabView.GetTab("Tags").MainPage.AddItem(lambdaTagsTable, 0, 1, true)
 
 	const detailsViewSize = 3000
 	const tableViewSize = 7000
@@ -65,6 +68,7 @@ func NewLambdaDetailsPageView(
 		LambdaDetailsTable: lambdaDetailsTable,
 		LambdaEnvVarsTable: lambdaEnvVarsTable,
 		LambdaVpcConfTable: lambdaVpcConfTable,
+		LambdaTagsTable:    lambdaTagsTable,
 		app:                app,
 		api:                api,
 	}
@@ -75,6 +79,9 @@ func NewLambdaDetailsPageView(
 
 	lambdaDetailsTable.ErrorMessageCallback = errorHandler
 	lambdaListTable.ErrorMessageCallback = errorHandler
+	lambdaEnvVarsTable.ErrorMessageCallback = errorHandler
+	lambdaVpcConfTable.ErrorMessageCallback = errorHandler
+	lambdaTagsTable.ErrorMessageCallback = errorHandler
 
 	view.InitViewNavigation(
 		[]core.View{
@@ -94,6 +101,7 @@ func (inst *LambdaDetailsPageView) initInputCapture() {
 		inst.LambdaDetailsTable.RefreshDetails(selectedLambda)
 		inst.LambdaEnvVarsTable.RefreshDetails(selectedLambda)
 		inst.LambdaVpcConfTable.RefreshDetails(selectedLambda)
+		inst.LambdaTagsTable.ClearDetails()
 	})
 }
 
@@ -224,6 +232,7 @@ func NewLambdaHomeView(
 			tables.NewLambdaDetailsTable(app, api, logger),
 			tables.NewLambdaEnvVarsTable(app, api, logger),
 			tables.NewLambdaVpcConfigTable(app, api, logger),
+			tables.NewLambdaTagsTable(app, api, logger),
 			tables.NewLambdasListTable(app, api, logger),
 			app, api, logger,
 		)
@@ -251,8 +260,11 @@ func NewLambdaHomeView(
 		var logGroup = lambdasDetailsView.LambdaListTable.GetSeletedLambdaLogGroup()
 		logStreamsView.LogStreamsTable.SetSeletedLogGroup(logGroup)
 		logStreamsView.LogStreamsTable.SetLogStreamSearchPrefix("")
+
+		var selectedLambda = lambdasDetailsView.LambdaListTable.GetSeletedLambda()
+		lambdasDetailsView.LambdaTagsTable.RefreshDetails(selectedLambda)
 		logStreamsView.LogStreamsTable.RefreshStreams(true)
-		serviceRootView.ChangePage(1, nil)
+		//serviceRootView.ChangePage(1, nil)
 	}
 
 	lambdasDetailsView.LambdaListTable.SetSelectedFunc(lambdaSelectedFunc)
