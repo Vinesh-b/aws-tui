@@ -289,8 +289,15 @@ func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventK
 	}
 
 	inst.table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case APP_KEY_BINDINGS.ClearTable:
+			inst.SetData(nil, nil, 0)
+			inst.privateColumn = -1
+			return nil
+		}
+
 		if inst.HighlightSearch {
-			highlight_search(event)
+			event = highlight_search(event)
 		}
 
 		return capture(event)

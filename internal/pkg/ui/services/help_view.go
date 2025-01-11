@@ -45,6 +45,7 @@ Service-Name, Page-Name and Page-Number.
 Data Loading:
  - Ctrl-R to force refresh of the selected pane
  - Ctrl-N to load more data for the slected pane
+ - Ctrl-X to clear selected pane
  - Enter to select an item a table and load more info
 
 Text Area:

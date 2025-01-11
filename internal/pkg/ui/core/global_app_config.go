@@ -48,6 +48,7 @@ type KeyBindings struct {
 	Escape                  tcell.Key
 	ToggleServicesMenu      tcell.Key
 	Reset                   tcell.Key
+	ClearTable              tcell.Key
 	NextPage                tcell.Key
 	Done                    tcell.Key
 	Find                    tcell.Key
@@ -84,6 +85,7 @@ var APP_KEY_BINDINGS = KeyBindings{
 	Escape:                  tcell.KeyESC,
 	ToggleServicesMenu:      tcell.KeyCtrlSpace,
 	Reset:                   tcell.KeyCtrlR,
+	ClearTable:              tcell.KeyCtrlX,
 	NextPage:                tcell.KeyCtrlN,
 	Done:                    tcell.KeyEnter,
 	Find:                    tcell.KeyCtrlF,
