@@ -38,12 +38,12 @@ func NewLambdaDetailsPageView(
 	logger *log.Logger,
 ) *LambdaDetailsPageView {
 	var tabView = core.NewTabView(
-		[]string{"Details", "EnvVars", "VPC Config"},
+		[]string{"Details", "Environment Vars", "VPC Config"},
 		app,
 		logger,
 	)
 	tabView.GetTab("Details").MainPage.AddItem(lambdaDetailsTable, 0, 1, true)
-	tabView.GetTab("EnvVars").MainPage.AddItem(lambdaEnvVarsTable, 0, 1, true)
+	tabView.GetTab("Environment Vars").MainPage.AddItem(lambdaEnvVarsTable, 0, 1, true)
 	tabView.GetTab("VPC Config").MainPage.AddItem(lambdaVpcConfTable, 0, 1, true)
 
 	const detailsViewSize = 3000
