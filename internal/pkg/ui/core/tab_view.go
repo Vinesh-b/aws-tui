@@ -71,8 +71,9 @@ func NewTabView(tabs []string, app *tview.Application, logger *log.Logger) *TabV
 	}
 
 	view.pages.SwitchToPage(tabs[0])
+	view.list.SetBorderPadding(0, 0, 1, 1)
 	view.Flex.SetDirection(tview.FlexColumn).
-		AddItem(view.list, 18, 0, true).
+		AddItem(view.list, 20, 0, true).
 		AddItem(view.pages, 0, 1, true)
 
 	return view
