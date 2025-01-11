@@ -44,12 +44,12 @@ func NewTabView(tabs []string, app *tview.Application, logger *log.Logger) *TabV
 		switch event.Key() {
 		case tcell.KeyRune:
 			switch event.Rune() {
-			case rune('k'):
+			case APP_KEY_BINDINGS.MoveUpRune:
 				currentIdx = (currentIdx - 1 + numItems) % numItems
 				view.list.SetCurrentItem(currentIdx)
 				view.list.GetItemSelectedFunc(currentIdx)()
 				return nil
-			case rune('j'):
+			case APP_KEY_BINDINGS.MoveDownRune:
 				currentIdx = (currentIdx + 1) % numItems
 				view.list.SetCurrentItem(currentIdx)
 				view.list.GetItemSelectedFunc(currentIdx)()

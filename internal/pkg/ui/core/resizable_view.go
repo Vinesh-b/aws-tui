@@ -53,13 +53,13 @@ func (inst *ResizableView) paneResizeHightHandler(event *tcell.EventKey) *tcell.
 	switch event.Modifiers() {
 	case APP_KEY_BINDINGS.ViewResizeModKey:
 		switch event.Rune() {
-		case APP_KEY_BINDINGS.ViewResizeDown:
+		case APP_KEY_BINDINGS.MoveDownRune:
 			if view2Size > 0 {
 				inst.ResizeItem(inst.view1, 0, view1Size+1)
 				inst.ResizeItem(inst.view2, 0, view2Size-1)
 			}
 			return nil
-		case APP_KEY_BINDINGS.ViewResizeUp:
+		case APP_KEY_BINDINGS.MoveUpRune:
 			if view1Size > 0 {
 				inst.ResizeItem(inst.view1, 0, view1Size-1)
 				inst.ResizeItem(inst.view2, 0, view2Size+1)

@@ -39,11 +39,11 @@ func ServicesHomeView() *tview.List {
 		switch event.Key() {
 		case tcell.KeyRune:
 			switch event.Rune() {
-			case rune('k'):
+			case core.APP_KEY_BINDINGS.MoveUpRune:
 				currentIdx = (currentIdx - 1 + numItems) % numItems
 				servicesList.SetCurrentItem(currentIdx)
 				return nil
-			case rune('j'):
+			case core.APP_KEY_BINDINGS.MoveDownRune:
 				currentIdx = (currentIdx + 1) % numItems
 				servicesList.SetCurrentItem(currentIdx)
 				return nil

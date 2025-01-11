@@ -57,8 +57,8 @@ type KeyBindings struct {
 	ViewFocusUp             tcell.Key
 	ViewFocusDown           tcell.Key
 	ViewResizeModKey        tcell.ModMask
-	ViewResizeUp            rune
-	ViewResizeDown          rune
+	MoveUpRune              rune
+	MoveDownRune            rune
 	ViewResizeReset         rune
 	NextSearch              rune
 	PrevSearch              rune
@@ -69,8 +69,8 @@ type KeyBindings struct {
 	TextViewCopy            rune
 	TextViewUp              rune
 	TextViewDown            rune
-	TextViewLeft            rune
-	TextViewRight           rune
+	MoveLeftRune            rune
+	MoveRightRune           rune
 	TextViewSelectUp        rune
 	TextViewSelectDown      rune
 	TextViewSelectLeft      rune
@@ -94,8 +94,10 @@ var APP_KEY_BINDINGS = KeyBindings{
 	ViewFocusUp:             tcell.KeyCtrlK,
 	ViewFocusDown:           tcell.KeyCtrlJ,
 	ViewResizeModKey:        tcell.ModAlt,
-	ViewResizeUp:            'k',
-	ViewResizeDown:          'j',
+	MoveUpRune:              'k',
+	MoveDownRune:            'j',
+	MoveLeftRune:            'h',
+	MoveRightRune:           'l',
 	NextSearch:              'n',
 	PrevSearch:              'N',
 	FormFocusNext:           tcell.KeyTab,
@@ -103,10 +105,6 @@ var APP_KEY_BINDINGS = KeyBindings{
 	TableScan:               tcell.KeyCtrlS,
 	TableQuery:              tcell.KeyCtrlQ,
 	TextViewCopy:            'y',
-	TextViewUp:              'k',
-	TextViewDown:            'j',
-	TextViewLeft:            'h',
-	TextViewRight:           'l',
 	TextViewSelectUp:        'K',
 	TextViewSelectDown:      'J',
 	TextViewSelectLeft:      'H',

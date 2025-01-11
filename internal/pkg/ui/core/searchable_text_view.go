@@ -64,19 +64,19 @@ func NewSearchableTextView(title string, app *tview.Application) *SearchableText
 		switch event.Rune() {
 		case APP_KEY_BINDINGS.TextViewCopy:
 			return tcell.NewEventKey(tcell.KeyCtrlQ, 0, 0)
-		case APP_KEY_BINDINGS.TextViewUp:
+		case APP_KEY_BINDINGS.MoveUpRune:
 			return tcell.NewEventKey(tcell.KeyUp, 0, 0)
 		case APP_KEY_BINDINGS.TextViewSelectUp:
 			return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModShift)
-		case APP_KEY_BINDINGS.TextViewDown:
+		case APP_KEY_BINDINGS.MoveDownRune:
 			return tcell.NewEventKey(tcell.KeyDown, 0, 0)
 		case APP_KEY_BINDINGS.TextViewSelectDown:
 			return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModShift)
-		case APP_KEY_BINDINGS.TextViewLeft:
+		case APP_KEY_BINDINGS.MoveLeftRune:
 			return tcell.NewEventKey(tcell.KeyLeft, 0, 0)
 		case APP_KEY_BINDINGS.TextViewSelectLeft:
 			return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModShift)
-		case APP_KEY_BINDINGS.TextViewRight:
+		case APP_KEY_BINDINGS.MoveRightRune:
 			return tcell.NewEventKey(tcell.KeyRight, 0, 0)
 		case APP_KEY_BINDINGS.TextViewSelectRight:
 			return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModShift)
