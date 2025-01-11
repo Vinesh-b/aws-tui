@@ -62,6 +62,7 @@ func (inst *LambdaDetailsTable) populateLambdaDetailsTable() {
 		{"SystemLogLevel", sysLogLevel},
 		{"State", string(inst.data.State)},
 		{"LastModified", aws.ToString(inst.data.LastModified)},
+		{"Role", aws.ToString(inst.data.Role)},
 	}
 
 	inst.SetData(tableData)
