@@ -34,6 +34,38 @@ func NewTableCell[T any](text string, ref *T) *tview.TableCell {
 	return cell
 }
 
+func GetPrivateData[T any](cell *tview.TableCell) T {
+	var privateData = cell.Reference
+	if privateData == nil {
+		return *new(T)
+	}
+	switch privateData.(type) {
+	case *CellData[T]:
+		var cellDataRef = privateData.(*CellData[T]).ref
+		if cellDataRef != nil {
+			return *cellDataRef
+		}
+	}
+
+	return *new(T)
+}
+
+func GetCellText[T any](cell *tview.TableCell) string {
+	var privateData = cell.Reference
+	if privateData == nil {
+		return ""
+	}
+	switch privateData.(type) {
+	case *CellData[T]:
+		var cellDataText = privateData.(*CellData[T]).text
+		if cellDataText != nil {
+			return *cellDataText
+		}
+	}
+
+	return ""
+}
+
 func SetTableHeading(table *tview.Table, heading string, column int) {
 	table.SetCell(0, column, tview.NewTableCell(heading).
 		SetAlign(tview.AlignLeft).
@@ -227,35 +259,11 @@ func (inst *SelectableTable[T]) SearchPrivateData(searchCols []int, search strin
 }
 
 func (inst *SelectableTable[T]) GetCellText(row int, column int) string {
-	var privateData = inst.table.GetCell(row, column).Reference
-	if privateData == nil {
-		return ""
-	}
-	switch privateData.(type) {
-	case *CellData[T]:
-		var cellDataText = privateData.(*CellData[T]).text
-		if cellDataText != nil {
-			return *cellDataText
-		}
-	}
-
-	return ""
+	return GetCellText[T](inst.table.GetCell(row, column))
 }
 
 func (inst *SelectableTable[T]) GetPrivateData(row int, column int) T {
-	var privateData = inst.table.GetCell(row, column).Reference
-	if privateData == nil {
-		return *new(T)
-	}
-	switch privateData.(type) {
-	case *CellData[T]:
-		var cellDataRef = privateData.(*CellData[T]).ref
-		if cellDataRef != nil {
-			return *cellDataRef
-		}
-	}
-
-	return *new(T)
+	return GetPrivateData[T](inst.table.GetCell(row, column))
 }
 
 func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
