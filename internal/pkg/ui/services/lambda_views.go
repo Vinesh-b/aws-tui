@@ -21,6 +21,8 @@ type LambdaDetailsPageView struct {
 	SelectedLambda     string
 	LambdaListTable    *tables.LambdaListTable
 	LambdaDetailsTable *tables.LambdaDetailsTable
+	LambdaEnvVarsTable *tables.LambdaEnvVarsTable
+	LambdaVpcConfTable *tables.LambdaVpcConfigTable
 
 	app *tview.Application
 	api *awsapi.LambdaApi
@@ -28,16 +30,27 @@ type LambdaDetailsPageView struct {
 
 func NewLambdaDetailsPageView(
 	lambdaDetailsTable *tables.LambdaDetailsTable,
+	lambdaEnvVarsTable *tables.LambdaEnvVarsTable,
+	lambdaVpcConfTable *tables.LambdaVpcConfigTable,
 	lambdaListTable *tables.LambdaListTable,
 	app *tview.Application,
 	api *awsapi.LambdaApi,
 	logger *log.Logger,
 ) *LambdaDetailsPageView {
-	const detailsViewSize = 4000
-	const tableViewSize = 6000
+	var tabView = core.NewTabView(
+		[]string{"Details", "EnvVars", "VPC Config"},
+		app,
+		logger,
+	)
+	tabView.GetTab("Details").MainPage.AddItem(lambdaDetailsTable, 0, 1, true)
+	tabView.GetTab("EnvVars").MainPage.AddItem(lambdaEnvVarsTable, 0, 1, true)
+	tabView.GetTab("VPC Config").MainPage.AddItem(lambdaVpcConfTable, 0, 1, true)
+
+	const detailsViewSize = 3000
+	const tableViewSize = 7000
 
 	var mainPage = core.NewResizableView(
-		lambdaDetailsTable, detailsViewSize,
+		tabView, detailsViewSize,
 		lambdaListTable, tableViewSize,
 		tview.FlexRow,
 	)
@@ -50,6 +63,8 @@ func NewLambdaDetailsPageView(
 
 		LambdaListTable:    lambdaListTable,
 		LambdaDetailsTable: lambdaDetailsTable,
+		LambdaEnvVarsTable: lambdaEnvVarsTable,
+		LambdaVpcConfTable: lambdaVpcConfTable,
 		app:                app,
 		api:                api,
 	}
@@ -64,7 +79,8 @@ func NewLambdaDetailsPageView(
 	view.InitViewNavigation(
 		[]core.View{
 			lambdaListTable,
-			lambdaDetailsTable,
+			tabView.GetTabsList(),
+			tabView.GetTabDisplayView(),
 		},
 	)
 	view.initInputCapture()
@@ -74,7 +90,10 @@ func NewLambdaDetailsPageView(
 
 func (inst *LambdaDetailsPageView) initInputCapture() {
 	inst.LambdaListTable.SetSelectionChangedFunc(func(row, column int) {
-		inst.LambdaDetailsTable.RefreshDetails(inst.LambdaListTable.GetSeletedLambda())
+		var selectedLambda = inst.LambdaListTable.GetSeletedLambda()
+		inst.LambdaDetailsTable.RefreshDetails(selectedLambda)
+		inst.LambdaEnvVarsTable.RefreshDetails(selectedLambda)
+		inst.LambdaVpcConfTable.RefreshDetails(selectedLambda)
 	})
 }
 
@@ -203,6 +222,8 @@ func NewLambdaHomeView(
 		cwl_api            = awsapi.NewCloudWatchLogsApi(config, logger)
 		lambdasDetailsView = NewLambdaDetailsPageView(
 			tables.NewLambdaDetailsTable(app, api, logger),
+			tables.NewLambdaEnvVarsTable(app, api, logger),
+			tables.NewLambdaVpcConfigTable(app, api, logger),
 			tables.NewLambdasListTable(app, api, logger),
 			app, api, logger,
 		)
