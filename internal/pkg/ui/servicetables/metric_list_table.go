@@ -67,16 +67,14 @@ func NewMetricsTable(
 
 func (inst *MetricListTable) populateMetricsTable(data []types.Metric) {
 	var tableData []core.TableRow
-	var privateData []types.Metric
 	for _, row := range data {
 		tableData = append(tableData, core.TableRow{
 			aws.ToString(row.Namespace),
 			aws.ToString(row.MetricName),
 		})
-		privateData = append(privateData, row)
 	}
 
-	inst.SetData(tableData, privateData, 0)
+	inst.SetData(tableData, data, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
 }
 
