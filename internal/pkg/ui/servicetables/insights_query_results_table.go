@@ -15,7 +15,9 @@ import (
 )
 
 type InsightsQueryResultsTable struct {
+	*core.SelectableTable[string]
 	*InsightsQuerySearchView
+	rootView             core.View
 	table                *tview.Table
 	data                 [][]types.ResultField
 	queryId              string
@@ -32,11 +34,14 @@ func NewInsightsQueryResultsTable(
 	api *awsapi.CloudWatchLogsApi,
 	logger *log.Logger,
 ) *InsightsQueryResultsTable {
-	var table = tview.NewTable()
+	var selectableTable = core.NewSelectableTable[string]("", nil, app)
+	var searchView = NewInsightsQuerySearchView(selectableTable, app, logger)
 
 	var view = &InsightsQueryResultsTable{
-		InsightsQuerySearchView: NewInsightsQuerySearchView(table, app, logger),
-		table:                   table,
+		SelectableTable:         selectableTable,
+		InsightsQuerySearchView: searchView,
+		rootView:                selectableTable.Box,
+		table:                   selectableTable.GetTable(),
 		data:                    nil,
 		queryId:                 "",
 		selectedLogGroups:       nil,
@@ -70,15 +75,10 @@ func NewInsightsQueryResultsTable(
 func (inst *InsightsQueryResultsTable) populateQueryResultsTable() {
 	inst.table.
 		Clear().
-		SetBorders(false).
 		SetFixed(1, 0)
-	inst.
-		SetTitleAlign(tview.AlignLeft).
-		SetBorderPadding(0, 0, 0, 0).
-		SetBorder(true)
 
 	var tableTitle = fmt.Sprintf("Query Results (%d)", len(inst.data))
-	inst.SetTitle(tableTitle)
+	inst.rootView.SetTitle(tableTitle)
 
 	var headingIdx = 0
 	inst.headingIdxMap = map[string]int{}
@@ -91,17 +91,8 @@ func (inst *InsightsQueryResultsTable) populateQueryResultsTable() {
 				headingIdx++
 			}
 
-			var cellData = fmt.Sprintf("%s", aws.ToString(resField.Value))
-			var previewText = core.ClampStringLen(&cellData, 100)
-
-			if *resField.Field == "@ptr" {
-				previewText = cellData[len(cellData)-32:]
-			}
-
-			inst.table.SetCell(rowIdx+1, colIdx, tview.NewTableCell(previewText).
-				SetReference(cellData).
-				SetAlign(tview.AlignLeft),
-			)
+			var cellText = aws.ToString(resField.Value)
+			inst.table.SetCell(rowIdx+1, colIdx, core.NewTableCell(cellText, &cellText))
 		}
 	}
 
@@ -249,20 +240,7 @@ func (inst *InsightsQueryResultsTable) GetRecordPtr(row int) string {
 	if !ok {
 		return ""
 	}
-	var msg = inst.table.GetCell(row, ptrCol).Reference
-	if row < 1 || msg == nil {
-		return ""
-	}
-	return msg.(string)
-}
-
-func (inst *InsightsQueryResultsTable) GetPrivateData(row int, column int) string {
-	var ref = inst.table.GetCell(row, column).Reference
-	if ref == nil {
-		return ""
-	}
-
-	return ref.(string)
+	return inst.GetPrivateData(row, ptrCol)
 }
 
 func (inst *InsightsQueryResultsTable) SetSelectedLogGroups(groups []string) {

@@ -21,10 +21,10 @@ type StateMachineExecutionDetailsTable struct {
 	*core.SelectableTable[StateDetails]
 	ExecutionHistory     *sfn.GetExecutionHistoryOutput
 	selectedExecutionArn string
-
-	logger *log.Logger
-	app    *tview.Application
-	api    *awsapi.StateMachineApi
+	selectedState        StateDetails
+	logger               *log.Logger
+	app                  *tview.Application
+	api                  *awsapi.StateMachineApi
 }
 
 func NewStateMachineExecutionDetailsTable(
@@ -42,10 +42,11 @@ func NewStateMachineExecutionDetailsTable(
 				"Status",
 				"Duration",
 			},
-            app,
+			app,
 		),
 		ExecutionHistory:     nil,
 		selectedExecutionArn: "",
+		selectedState:        StateDetails{},
 
 		logger: logger,
 		app:    app,
@@ -154,4 +155,22 @@ func (inst *StateMachineExecutionDetailsTable) RefreshExecutionDetails(execution
 	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateTable()
 	})
+}
+
+func (inst *StateMachineExecutionDetailsTable) SetSelectionChangedFunc(handler func(row int, column int)) {
+	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
+		if row < 1 {
+			return
+		}
+		inst.selectedState = inst.GetPrivateData(row, 0)
+		handler(row, column)
+	})
+}
+
+func (inst *StateMachineExecutionDetailsTable) GetSelectedStepInput() string {
+	return inst.selectedState.Input
+}
+
+func (inst *StateMachineExecutionDetailsTable) GetSelectedStepOutput() string {
+	return inst.selectedState.Output
 }

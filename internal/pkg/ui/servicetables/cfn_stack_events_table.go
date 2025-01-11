@@ -14,12 +14,13 @@ import (
 )
 
 type StackEventsTable struct {
-	*core.SelectableTable[string]
-	selectedStack string
-	data          []types.StackEvent
-	logger        *log.Logger
-	app           *tview.Application
-	api           *awsapi.CloudFormationApi
+	*core.SelectableTable[types.StackEvent]
+	selectedStack     types.StackEvent
+	selectedStackName string
+	data              []types.StackEvent
+	logger            *log.Logger
+	app               *tview.Application
+	api               *awsapi.CloudFormationApi
 }
 
 func NewStackEventsTable(
@@ -29,7 +30,7 @@ func NewStackEventsTable(
 ) *StackEventsTable {
 
 	var view = &StackEventsTable{
-		SelectableTable: core.NewSelectableTable[string](
+		SelectableTable: core.NewSelectableTable[types.StackEvent](
 			"Stacks Events",
 			core.TableRow{
 				"Timestamp",
@@ -38,12 +39,14 @@ func NewStackEventsTable(
 				"Status",
 				"Reason",
 			},
-            app,
+			app,
 		),
-		data:   nil,
-		logger: logger,
-		app:    app,
-		api:    api,
+		data:              nil,
+		selectedStack:     types.StackEvent{},
+		selectedStackName: "",
+		logger:            logger,
+		app:               app,
+		api:               api,
 	}
 
 	view.HighlightSearch = true
@@ -56,7 +59,6 @@ func NewStackEventsTable(
 
 func (inst *StackEventsTable) populateStackEventsTable(reset bool) {
 	var tableData []core.TableRow
-	var privateData []string
 	for _, row := range inst.data {
 		tableData = append(tableData, core.TableRow{
 			row.Timestamp.Format("2006-01-02 15:04:05.000"),
@@ -65,14 +67,13 @@ func (inst *StackEventsTable) populateStackEventsTable(reset bool) {
 			string(row.ResourceStatus),
 			aws.ToString(row.ResourceStatusReason),
 		})
-		privateData = append(privateData, aws.ToString(row.ResourceStatusReason))
 	}
 	if !reset {
-		inst.ExtendData(tableData, privateData)
+		inst.ExtendData(tableData, inst.data)
 		return
 	}
 
-	inst.SetData(tableData, privateData, 4)
+	inst.SetData(tableData, inst.data, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
 	inst.Select(1, 0)
 }
@@ -81,9 +82,9 @@ func (inst *StackEventsTable) RefreshEvents(reset bool) {
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		if len(inst.selectedStack) > 0 {
+		if len(inst.selectedStackName) > 0 {
 			var err error = nil
-			inst.data, err = inst.api.DescribeStackEvents(inst.selectedStack, reset)
+			inst.data, err = inst.api.DescribeStackEvents(inst.selectedStackName, reset)
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
 			}
@@ -117,13 +118,9 @@ func (inst *StackEventsTable) SetInputCapture(capture func(event *tcell.EventKey
 }
 
 func (inst *StackEventsTable) SetSelectedStackName(name string) {
-	inst.selectedStack = name
+	inst.selectedStackName = name
 }
 
 func (inst *StackEventsTable) GetResourceStatusReason(row int) string {
-	var reason = inst.GetCell(row, 4).Reference
-	if row < 1 || reason == nil {
-		return ""
-	}
-	return reason.(string)
+	return aws.ToString(inst.GetPrivateData(row, 0).ResourceStatusReason)
 }

@@ -12,6 +12,12 @@ import (
 )
 
 type TableRow = []string
+
+type CellData[T any] struct {
+	text *string
+	ref  *T
+}
+
 type CellPosition struct {
 	row int
 	col int
@@ -22,6 +28,17 @@ func ClampStringLen(input *string, maxLen int) string {
 		return *input
 	}
 	return (*input)[0:maxLen]
+}
+
+func NewTableCell[T any](text string, ref *T) *tview.TableCell {
+	// the table render processes the full string making it extremly slow so
+	// we have to clamp the text length
+	var cellData = CellData[T]{text: &text, ref: ref}
+	var cell = tview.NewTableCell(text).
+		SetText(ClampStringLen(cellData.text, 180)).
+		SetAlign(tview.AlignLeft).
+		SetReference(&cellData)
+	return cell
 }
 
 func SetTableHeading(table *tview.Table, heading string, column int) {
@@ -107,14 +124,9 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 	}
 
 	for rowIdx, rowData := range data {
-		for colIdx, cellData := range rowData {
-			// the table render process the full string making it extremly slow so
-			// we have to clamp the text length
-			var text = ClampStringLen(&cellData, 180)
-			inst.table.SetCell(rowIdx+1, colIdx, tview.NewTableCell(text).
-				SetReference(cellData).
-				SetAlign(tview.AlignLeft),
-			)
+		for colIdx, cellText := range rowData {
+			var cell = NewTableCell[T](cellText, nil)
+			inst.table.SetCell(rowIdx+1, colIdx, cell)
 		}
 	}
 
@@ -144,8 +156,9 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 	for rowIdx, rowData := range inst.data {
 		for colIdx := range len(rowData) {
 			if colIdx == inst.privateColumn {
-				inst.table.GetCell(rowIdx+1, colIdx).
-					SetReference(privateData[rowIdx])
+				var cellData = inst.table.GetCell(rowIdx+1, colIdx).
+					GetReference().(*CellData[T])
+				cellData.ref = &privateData[rowIdx]
 			}
 		}
 	}
@@ -220,18 +233,36 @@ func (inst *SelectableTable[T]) SearchPrivateData(searchCols []int, search strin
 	return searchRefsInTable(inst.table, searchCols, search)
 }
 
-func (inst *SelectableTable[T]) GetPrivateData(row int, column int) T {
-	var ref = inst.table.GetCell(row, column).Reference
-	if ref == nil {
-		return *new(T)
+func (inst *SelectableTable[T]) GetCellText(row int, column int) string {
+	var privateData = inst.table.GetCell(row, column).Reference
+	if privateData == nil {
+		return ""
+	}
+	switch privateData.(type) {
+	case *CellData[T]:
+		var cellDataText = privateData.(*CellData[T]).text
+		if cellDataText != nil {
+			return *cellDataText
+		}
 	}
 
-	switch any(ref).(type) {
-	case T:
-		return ref.(T)
-	default:
+	return ""
+}
+
+func (inst *SelectableTable[T]) GetPrivateData(row int, column int) T {
+	var privateData = inst.table.GetCell(row, column).Reference
+	if privateData == nil {
 		return *new(T)
 	}
+	switch privateData.(type) {
+	case *CellData[T]:
+		var cellDataRef = privateData.(*CellData[T]).ref
+		if cellDataRef != nil {
+			return *cellDataRef
+		}
+	}
+
+	return *new(T)
 }
 
 func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {

@@ -23,7 +23,7 @@ const (
 )
 
 type DynamoDBGenericTable struct {
-	*core.SelectableTable[any]
+	*core.SelectableTable[map[string]any]
 	*DynamoDBTableSearchView
 	rootView             core.View
 	table                *tview.Table
@@ -51,7 +51,7 @@ func NewDynamoDBGenericTable(
 	api *awsapi.DynamoDBApi,
 	logger *log.Logger,
 ) *DynamoDBGenericTable {
-	var selectableTable = core.NewSelectableTable[any]("", nil, app)
+	var selectableTable = core.NewSelectableTable[map[string]any]("", nil, app)
 	var searchView = NewDynamoDBTableSearchView(selectableTable, app, logger)
 
 	var table = &DynamoDBGenericTable{
@@ -156,20 +156,18 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 
 	for rowIdx, rowData := range inst.data {
 		for heading, colIdx := range inst.attributeIdxMap {
-			var cellData = fmt.Sprintf("%v", rowData[heading])
-			var previewText = core.ClampStringLen(&cellData, 100)
-			var newCell = tview.NewTableCell(previewText).
-				SetAlign(tview.AlignLeft)
+			var text = fmt.Sprintf("%v", rowData[heading])
+			var cell *tview.TableCell
 
-			// Store the ref to the full row data in the first cell. It will
-			// always exist as a PK is required for all tables
 			if colIdx == 0 {
-				newCell.SetReference(rowData)
+				// Store the ref to the full row data in the first cell. It will
+				// always exist as a PK is required for all tables
+				cell = core.NewTableCell(text, &rowData)
 			} else {
-				newCell.SetReference(rowData[heading])
+				cell = core.NewTableCell(text, &map[string]any{heading: rowData[heading]})
 			}
 
-			inst.table.SetCell(rowIdx+1, colIdx, newCell)
+			inst.table.SetCell(rowIdx+1, colIdx, cell)
 		}
 	}
 

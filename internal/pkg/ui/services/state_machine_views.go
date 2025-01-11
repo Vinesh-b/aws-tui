@@ -98,38 +98,26 @@ func NewStateMachineExectionDetailsPage(
 	logger *log.Logger,
 ) *StateMachineExectionDetailsPageView {
 
-	var inputsExpandedView = core.JsonTextView[tables.StateDetails]{
+	var inputsExpandedView = core.JsonTextView[string]{
 		TextView: core.NewSearchableTextView("Input", app),
-		ExtractTextFunc: func(data tables.StateDetails) string {
-			return data.Input
+		ExtractTextFunc: func(data string) string {
+			return data
 		},
 	}
-	var outputsExpandedView = core.JsonTextView[tables.StateDetails]{
+	var outputsExpandedView = core.JsonTextView[string]{
 		TextView: core.NewSearchableTextView("Output", app),
-		ExtractTextFunc: func(data tables.StateDetails) string {
-			return data.Output
+		ExtractTextFunc: func(data string) string {
+			return data
 		},
 	}
 
-	var selectionFunc = func(row int) {
-		var privateData = executionDetails.GetCell(row, 0).Reference
-		if row < 1 || privateData == nil {
-			return
-		}
-		switch any(privateData).(type) {
-		case tables.StateDetails:
-			inputsExpandedView.SetText(privateData.(tables.StateDetails))
-			outputsExpandedView.SetText(privateData.(tables.StateDetails))
-		}
+	var selectionFunc = func(_, _ int) {
+		inputsExpandedView.SetText(executionDetails.GetSelectedStepInput())
+		outputsExpandedView.SetText(executionDetails.GetSelectedStepOutput())
 	}
 
-	executionDetails.SetSelectedFunc(func(row, column int) {
-		selectionFunc(row)
-	})
-
-	executionDetails.SetSelectionChangedFunc(func(row, column int) {
-		selectionFunc(row)
-	})
+	executionDetails.SetSelectedFunc(selectionFunc)
+	executionDetails.SetSelectionChangedFunc(selectionFunc)
 
 	var inputOutputView = tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(inputsExpandedView.TextView, 0, 1, false).
