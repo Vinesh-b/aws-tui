@@ -215,12 +215,9 @@ func (inst *SelectableTable[T]) ExtendData(data []TableRow, privateData []T) err
 	inst.data = append(inst.data, data...)
 
 	for rowIdx, rowData := range data {
-		for colIdx, cellData := range rowData {
-			var text = ClampStringLen(&cellData, 180)
-			table.SetCell(rowIdx+rows, colIdx, tview.NewTableCell(text).
-				SetReference(cellData).
-				SetAlign(tview.AlignLeft),
-			)
+		for colIdx, cellText := range rowData {
+			var cell = NewTableCell[T](cellText, nil)
+			table.SetCell(rowIdx+rows, colIdx, cell)
 		}
 	}
 
@@ -246,8 +243,9 @@ func (inst *SelectableTable[T]) ExtendData(data []TableRow, privateData []T) err
 	inst.privateData = append(inst.privateData, privateData...)
 
 	for rowIdx := range data {
-		inst.table.GetCell(rowIdx+rows, inst.privateColumn).
-			SetReference(privateData[rowIdx])
+		var cellData = inst.table.GetCell(rowIdx+rows, inst.privateColumn).
+			GetReference().(*CellData[T])
+		cellData.ref = &privateData[rowIdx]
 	}
 
 	inst.table.Select(rows-1, 0)
