@@ -178,14 +178,10 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 	inst.privateData = privateData
 	inst.privateColumn = privateDataCol
 
-	for rowIdx, rowData := range inst.data {
-		for colIdx := range len(rowData) {
-			if colIdx == inst.privateColumn {
-				var cellData = inst.table.GetCell(rowIdx+1, colIdx).
-					GetReference().(*CellData[T])
-				cellData.ref = &privateData[rowIdx]
-			}
-		}
+	for rowIdx := range inst.data {
+		var cellData = inst.table.GetCell(rowIdx+1, inst.privateColumn).
+			GetReference().(*CellData[T])
+		cellData.ref = &privateData[rowIdx]
 	}
 
 	return nil
