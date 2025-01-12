@@ -14,6 +14,87 @@ import (
 	"github.com/rivo/tview"
 )
 
+type InsightsQueryRunner struct {
+	data    [][]types.ResultField
+	queryId string
+
+	app                  *tview.Application
+	api                  *awsapi.CloudWatchLogsApi
+	ErrorMessageCallback func(text string, a ...any)
+}
+
+func NewInsightsQueryRunner(
+	app *tview.Application,
+	api *awsapi.CloudWatchLogsApi,
+) *InsightsQueryRunner {
+
+	return &InsightsQueryRunner{
+		data:                 nil,
+		queryId:              "",
+		app:                  app,
+		api:                  api,
+		ErrorMessageCallback: func(text string, a ...any) {},
+	}
+}
+
+func (inst *InsightsQueryRunner) ExecuteInsightsQuery(
+	query InsightsQuery, logGroups []string, resultChan chan [][]types.ResultField,
+) {
+	if len(logGroups) == 0 {
+		inst.ErrorMessageCallback("No log groups selected")
+		return
+	}
+
+	go func() {
+		if len(inst.queryId) > 0 {
+			var _, err = inst.api.StopInightsQuery(inst.queryId)
+			if err != nil {
+				inst.ErrorMessageCallback(err.Error())
+			}
+			inst.queryId = ""
+		}
+
+		var err error = nil
+		inst.queryId, err = inst.api.StartInightsQuery(
+			logGroups,
+			query.startTime,
+			query.endTime,
+			query.query,
+		)
+		if err != nil {
+			inst.ErrorMessageCallback(err.Error())
+		}
+
+		var results [][]types.ResultField
+		var status types.QueryStatus
+		for range 10 {
+			if len(inst.queryId) == 0 {
+				break
+			}
+
+			results, status, err = inst.api.GetInightsQueryResults(inst.queryId)
+
+			switch status {
+			case types.QueryStatusRunning, types.QueryStatusScheduled:
+				time.Sleep(2 * time.Second)
+			case types.QueryStatusComplete, types.QueryStatusCancelled:
+				inst.queryId = ""
+				break
+			default:
+				inst.queryId = ""
+				if err != nil {
+					inst.ErrorMessageCallback(err.Error())
+				} else {
+					inst.ErrorMessageCallback(fmt.Sprintf("Query failed with status %s", status))
+				}
+				break
+			}
+		}
+
+		resultChan <- results
+	}()
+}
+
 type InsightsQueryResultsTable struct {
 	*core.SelectableTable[string]
 	*InsightsQuerySearchView
