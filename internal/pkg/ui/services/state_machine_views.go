@@ -16,8 +16,9 @@ import (
 type StateMachinesDetailsPageView struct {
 	*core.ServicePageView
 	selectedStateMachine        string
-	stateMachineExecutionsTable *tables.StateMachineExecutionsTable
 	stateMachinesTable          *tables.StateMachinesListTable
+	stateMachineExecutionsTable *tables.StateMachineExecutionsTable
+	stateMachineDetailsTable    *tables.StateMachineDetailsTable
 	app                         *tview.Application
 	api                         *awsapi.StateMachineApi
 }
@@ -25,16 +26,24 @@ type StateMachinesDetailsPageView struct {
 func NewStateMachinesDetailsPageView(
 	stateMachinesList *tables.StateMachinesListTable,
 	stateMachineExecutions *tables.StateMachineExecutionsTable,
+	stateMachineDetailsTable *tables.StateMachineDetailsTable,
 	app *tview.Application,
 	api *awsapi.StateMachineApi,
 	logger *log.Logger,
 ) *StateMachinesDetailsPageView {
+	var tabView = core.NewTabView(
+		[]string{"Executions", "Details"},
+		app,
+		logger,
+	)
+	tabView.GetTab("Executions").MainPage.AddItem(stateMachineExecutions, 0, 1, true)
+	tabView.GetTab("Details").MainPage.AddItem(stateMachineDetailsTable, 0, 1, true)
 
 	const detailsViewSize = 4000
 	const tableViewSize = 6000
 
 	var mainPage = core.NewResizableView(
-		stateMachineExecutions, detailsViewSize,
+		tabView, detailsViewSize,
 		stateMachinesList, tableViewSize,
 		tview.FlexRow,
 	)
@@ -45,7 +54,8 @@ func NewStateMachinesDetailsPageView(
 	serviceView.InitViewNavigation(
 		[]core.View{
 			stateMachinesList,
-			stateMachineExecutions,
+			tabView.GetTabsList(),
+			tabView.GetTabDisplayView(),
 		},
 	)
 
@@ -55,12 +65,14 @@ func NewStateMachinesDetailsPageView(
 
 	stateMachinesList.ErrorMessageCallback = errorHandler
 	stateMachineExecutions.ErrorMessageCallback = errorHandler
+	stateMachineDetailsTable.ErrorMessageCallback = errorHandler
 
 	var detailsView = &StateMachinesDetailsPageView{
 		ServicePageView:             serviceView,
 		selectedStateMachine:        "",
 		stateMachinesTable:          stateMachinesList,
 		stateMachineExecutionsTable: stateMachineExecutions,
+		stateMachineDetailsTable:    stateMachineDetailsTable,
 		app:                         app,
 		api:                         api,
 	}
@@ -74,6 +86,7 @@ func (inst *StateMachinesDetailsPageView) initInputCapture() {
 	inst.stateMachinesTable.SetSelectedFunc(func(row, column int) {
 		var selectedFunc = inst.stateMachinesTable.GetSeletedFunctionArn()
 		inst.stateMachineExecutionsTable.SetSeletedFunctionArn(selectedFunc)
+		inst.stateMachineDetailsTable.RefreshDetails(selectedFunc)
 		if smType := inst.stateMachinesTable.GetSeletedFunctionType(); smType == "STANDARD" {
 			inst.stateMachineExecutionsTable.RefreshExecutions(true)
 		}
@@ -183,6 +196,7 @@ func NewStepFunctionsHomeView(
 		stateMachinesDetailsView = NewStateMachinesDetailsPageView(
 			tables.NewStateMachinesListTable(app, api, logger),
 			tables.NewStateMachineExecutionsTable(app, api, logger),
+			tables.NewStateMachineDetailsTable(app, api, logger),
 			app, api, logger)
 
 		executionDetailsView = NewStateMachineExectionDetailsPage(
