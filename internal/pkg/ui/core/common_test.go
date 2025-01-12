@@ -8,13 +8,18 @@ import (
 
 func TestCreateJsonTableDataView(t *testing.T) {
 	var app = tview.NewApplication()
-	var table = NewSelectableTable[any]("test", TableRow{"col0"}, app)
+	var table = NewSelectableTable[string]("test", TableRow{"col0"}, app)
 	var data = []TableRow{
-		{`{"userId": 1,"id": 1,"title": "delectus aut autem","completed": false}`},
-		{`Hello`},
-		{""},
+		{`Cell text 1`},
+		{`Cell text 2`},
+		{`Cell text 3`},
 	}
-	if err := table.SetData(data, nil, 0); err != nil {
+	var privateData = []string{
+		`{"userId": 1,"id": 1,"title": "delectus aut autem","completed": false}`,
+		`Hello`,
+		"",
+	}
+	if err := table.SetData(data, privateData, 0); err != nil {
 		t.Fatalf("Failed to set data: %v", err)
 	}
 
