@@ -252,7 +252,7 @@ func (inst *SelectableTable[T]) ExtendData(data []TableRow, privateData []T) err
 	return nil
 }
 
-func (inst *SelectableTable[T]) SearchPrivateData(searchCols []int, search string) []CellPosition {
+func (inst *SelectableTable[T]) SearchTableText(searchCols []int, search string) []CellPosition {
 	return searchTextInTable[T](inst.table, searchCols, search)
 }
 

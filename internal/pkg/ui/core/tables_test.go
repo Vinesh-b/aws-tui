@@ -282,7 +282,7 @@ func TestTableExtendData__WithPrivateDataTooFewRows(t *testing.T) {
 	}
 }
 
-func TestTableSearchPrivateData(t *testing.T) {
+func TestSearchTableText(t *testing.T) {
 	var app = tview.NewApplication()
 	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1", "col2"}, app)
 	var data = []TableRow{
@@ -291,28 +291,21 @@ func TestTableSearchPrivateData(t *testing.T) {
 		{"20", "21", "22"},
 	}
 
-	var privateDataColumn = 0
-	var privateData = []string{
-		"p00",
-		"p10",
-		"p20",
-	}
-
-	if err := table.SetData(data, privateData, privateDataColumn); err != nil {
+	if err := table.SetData(data, nil, -1); err != nil {
 		t.Fatalf("Failed to set data: %v", err)
 	}
 
-	var foundPos = table.SearchPrivateData([]int{0}, "p00")
-	if len(foundPos) != 1 || foundPos[0].row != 1 {
+	var foundPos = table.SearchTableText([]int{}, "12")
+	if len(foundPos) != 1 || foundPos[0].row != 2 {
 		t.Fatalf("Expected to find private data on row 1 but got: %v", foundPos)
 	}
 
-	foundPos = table.SearchPrivateData([]int{0}, "p")
-	if len(foundPos) != 3 {
+	foundPos = table.SearchTableText([]int{}, "1")
+	if len(foundPos) != 5 {
 		t.Fatalf("Expected to find private data on row 1,2,3 but got: %v", foundPos)
 	}
 
-	foundPos = table.SearchPrivateData([]int{0}, "abcd")
+	foundPos = table.SearchTableText([]int{}, "abcd")
 	if len(foundPos) != 0 {
 		t.Fatalf("Expected to find nothing but got: %v", foundPos)
 	}
