@@ -57,6 +57,25 @@ func (inst *StateMachineApi) ListStateMachines(force bool) ([]types.StateMachine
 	return result, apiErr
 }
 
+func (inst *StateMachineApi) DescribeStateMachine(stateMachineArn string) (*sfn.DescribeStateMachineOutput, error) {
+	if len(stateMachineArn) == 0 {
+		return nil, fmt.Errorf("state machine ARN not set")
+	}
+
+	var output, err = inst.client.DescribeStateMachine(
+		context.TODO(),
+		&sfn.DescribeStateMachineInput{
+			StateMachineArn: aws.String(stateMachineArn),
+		},
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return output, err
+}
+
 func (inst *StateMachineApi) ListExecutions(
 	stateMachineArn string, start time.Time, end time.Time, reset bool,
 ) ([]types.ExecutionListItem, error) {
@@ -86,11 +105,11 @@ func (inst *StateMachineApi) ListExecutions(
 		for _, exec := range output.Executions {
 			var date = exec.StartDate
 
-			if date == nil || date.After(end){
-                continue
-            }
+			if date == nil || date.After(end) {
+				continue
+			}
 
-            if date.Before(start) {
+			if date.Before(start) {
 				return result, nil
 			}
 
