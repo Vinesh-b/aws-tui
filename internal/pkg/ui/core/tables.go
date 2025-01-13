@@ -198,13 +198,14 @@ func (inst *SelectableTable[T]) ExtendData(data []TableRow, privateData []T) err
 
 	var table = inst.table
 	var rows = table.GetRowCount()
+	var totalRowCount = len(data) + len(inst.data)
 
 	// Don't count the headings row in the title
 	var tableTitle = ""
 	if len(inst.titleExtra) == 0 {
-		tableTitle = fmt.Sprintf("%s (%d)", inst.title, len(data))
+		tableTitle = fmt.Sprintf("%s (%d)", inst.title, totalRowCount)
 	} else {
-		tableTitle = fmt.Sprintf("%s (%d) [%s]", inst.title, len(data), inst.titleExtra)
+		tableTitle = fmt.Sprintf("%s (%d) [%s]", inst.title, totalRowCount, inst.titleExtra)
 	}
 	inst.SetTitle(tableTitle)
 
