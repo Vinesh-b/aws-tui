@@ -24,27 +24,30 @@ type LambdaDetailsPageView struct {
 	LambdaEnvVarsTable *tables.LambdaEnvVarsTable
 	LambdaVpcConfTable *tables.LambdaVpcConfigTable
 	LambdaTagsTable    *tables.LambdaTagsTable
+	LogStreamsTable    *tables.LogStreamsTable
 
 	app *tview.Application
 	api *awsapi.LambdaApi
 }
 
 func NewLambdaDetailsPageView(
+	lambdaListTable *tables.LambdaListTable,
 	lambdaDetailsTable *tables.LambdaDetailsTable,
 	lambdaEnvVarsTable *tables.LambdaEnvVarsTable,
 	lambdaVpcConfTable *tables.LambdaVpcConfigTable,
 	lambdaTagsTable *tables.LambdaTagsTable,
-	lambdaListTable *tables.LambdaListTable,
+	logStreamsTable *tables.LogStreamsTable,
 	app *tview.Application,
 	api *awsapi.LambdaApi,
 	logger *log.Logger,
 ) *LambdaDetailsPageView {
 	var tabView = core.NewTabView(
-		[]string{"Details", "Environment Vars", "VPC Config", "Tags"},
+		[]string{"Details", "Log Streams", "Environment Vars", "VPC Config", "Tags"},
 		app,
 		logger,
 	)
 	tabView.GetTab("Details").MainPage.AddItem(lambdaDetailsTable, 0, 1, true)
+	tabView.GetTab("Log Streams").MainPage.AddItem(logStreamsTable, 0, 1, true)
 	tabView.GetTab("Environment Vars").MainPage.AddItem(lambdaEnvVarsTable, 0, 1, true)
 	tabView.GetTab("VPC Config").MainPage.AddItem(lambdaVpcConfTable, 0, 1, true)
 	tabView.GetTab("Tags").MainPage.AddItem(lambdaTagsTable, 0, 1, true)
@@ -69,6 +72,7 @@ func NewLambdaDetailsPageView(
 		LambdaEnvVarsTable: lambdaEnvVarsTable,
 		LambdaVpcConfTable: lambdaVpcConfTable,
 		LambdaTagsTable:    lambdaTagsTable,
+		LogStreamsTable:    logStreamsTable,
 		app:                app,
 		api:                api,
 	}
@@ -229,20 +233,16 @@ func NewLambdaHomeView(
 		api                = awsapi.NewLambdaApi(config, logger)
 		cwl_api            = awsapi.NewCloudWatchLogsApi(config, logger)
 		lambdasDetailsView = NewLambdaDetailsPageView(
+			tables.NewLambdasListTable(app, api, logger),
 			tables.NewLambdaDetailsTable(app, api, logger),
 			tables.NewLambdaEnvVarsTable(app, api, logger),
 			tables.NewLambdaVpcConfigTable(app, api, logger),
 			tables.NewLambdaTagsTable(app, api, logger),
-			tables.NewLambdasListTable(app, api, logger),
+			tables.NewLogStreamsTable(app, cwl_api, logger),
 			app, api, logger,
 		)
 		logEventsView = NewLogEventsPageView(
 			tables.NewLogEventsTable(app, cwl_api, logger),
-			app, cwl_api, logger,
-		)
-		logStreamsView = NewLogStreamsPageView(
-			tables.NewLogStreamDetailsTable(app, cwl_api, logger),
-			tables.NewLogStreamsTable(app, cwl_api, logger),
 			app, cwl_api, logger,
 		)
 	)
@@ -251,37 +251,37 @@ func NewLambdaHomeView(
 
 	serviceRootView.
 		AddAndSwitchToPage("Lambdas", lambdasDetailsView, true).
-		AddPage("Streams", logStreamsView, true, true).
-		AddPage("Events", logEventsView, true, true)
+		AddPage("Log Events", logEventsView, true, true)
 
 	serviceRootView.InitPageNavigation()
+	var lambdasListTable = lambdasDetailsView.LambdaListTable
+	var logStreamsTable = lambdasDetailsView.LogStreamsTable
+	var logEventsTable = logEventsView.LogEventsTable
 
 	var lambdaSelectedFunc = func(_, _ int) {
-		var logGroup = lambdasDetailsView.LambdaListTable.GetSeletedLambdaLogGroup()
-		logStreamsView.LogStreamsTable.SetSeletedLogGroup(logGroup)
-		logStreamsView.LogStreamsTable.SetLogStreamSearchPrefix("")
+		var logGroup = lambdasListTable.GetSeletedLambdaLogGroup()
+		logStreamsTable.SetSeletedLogGroup(logGroup)
+		logStreamsTable.SetLogStreamSearchPrefix("")
 
-		var selectedLambda = lambdasDetailsView.LambdaListTable.GetSeletedLambda()
+		var selectedLambda = lambdasListTable.GetSeletedLambda()
 		lambdasDetailsView.LambdaTagsTable.RefreshDetails(selectedLambda)
-		logStreamsView.LogStreamsTable.RefreshStreams(true)
-		//serviceRootView.ChangePage(1, nil)
+		logStreamsTable.RefreshStreams(true)
 	}
 
-	lambdasDetailsView.LambdaListTable.SetSelectedFunc(lambdaSelectedFunc)
+	lambdasListTable.SetSelectedFunc(lambdaSelectedFunc)
 	lambdasDetailsView.LambdaDetailsTable.SetSelectedFunc(lambdaSelectedFunc)
 
-	logStreamsView.LogStreamsTable.SetSelectedFunc(func(row, column int) {
-		var selectedLogStream = logStreamsView.LogStreamsTable.GetSeletedLogStream()
-		var selectedLogGroup = logStreamsView.LogStreamsTable.GetSeletedLogGroup()
+	logStreamsTable.SetSelectedFunc(func(row, column int) {
+		var selectedLogStream = logStreamsTable.GetSeletedLogStream()
+		var selectedLogGroup = logStreamsTable.GetSeletedLogGroup()
 
-		logEventsView.LogEventsTable.SetSeletedLogGroup(selectedLogGroup)
-		logEventsView.LogEventsTable.SetSeletedLogStream(selectedLogStream)
-		logEventsView.LogEventsTable.RefreshLogEvents(true)
-		serviceRootView.ChangePage(2, nil)
+		logEventsTable.SetSeletedLogGroup(selectedLogGroup)
+		logEventsTable.SetSeletedLogStream(selectedLogStream)
+		logEventsTable.RefreshLogEvents(true)
+		serviceRootView.ChangePage(1, nil)
 	})
 
 	logEventsView.InitInputCapture()
-	logStreamsView.InitInputCapture()
 
 	return serviceRootView
 }
