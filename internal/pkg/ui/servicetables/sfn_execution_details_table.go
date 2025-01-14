@@ -3,7 +3,6 @@ package servicetables
 import (
 	"log"
 	"slices"
-	"strings"
 	"time"
 
 	"aws-tui/internal/pkg/awsapi"
@@ -39,8 +38,10 @@ func NewStateMachineExecutionDetailsTable(
 			core.TableRow{
 				"Name",
 				"Type",
-				"Status",
+				"Resource Type",
 				"Duration",
+				"Errors",
+				"Casue",
 			},
 			app,
 		),
@@ -66,74 +67,141 @@ func NewStateMachineExecutionDetailsTable(
 }
 
 type StateDetails struct {
-	Id        int64
-	Name      string
-	Type      string
-	Status    string
-	Input     string
-	Output    string
-	StartTime time.Time
-	EndTime   time.Time
+	Id           int64
+	Name         string
+	Type         string
+	Input        string
+	Output       string
+	StartTime    time.Time
+	EndTime      time.Time
+	Errors       string
+	Casue        string
+	Resource     string
+	ResourceType string
+}
+
+func (inst *StateMachineExecutionDetailsTable) parseExecutionHistory() []StateDetails {
+	var results []StateDetails
+	if inst.ExecutionHistory == nil {
+		return results
+	}
+
+	var executionStartTime time.Time
+	var taskStartTime time.Time
+	for _, row := range inst.ExecutionHistory.Events {
+		var stateDetails = StateDetails{
+			Id:        row.Id,
+			Type:      string(row.Type),
+			StartTime: aws.ToTime(row.Timestamp),
+			EndTime:   aws.ToTime(row.Timestamp),
+		}
+		switch row.Type {
+		case types.HistoryEventTypeExecutionStarted:
+			stateDetails.Input = aws.ToString(row.ExecutionStartedEventDetails.Input)
+			executionStartTime = aws.ToTime(row.Timestamp)
+
+		case types.HistoryEventTypeExecutionSucceeded:
+			stateDetails.Output = aws.ToString(row.ExecutionSucceededEventDetails.Output)
+			stateDetails.StartTime = executionStartTime
+			stateDetails.EndTime = aws.ToTime(row.Timestamp)
+
+		case types.HistoryEventTypeExecutionFailed:
+			stateDetails.Errors = aws.ToString(row.ExecutionFailedEventDetails.Error)
+			stateDetails.Casue = aws.ToString(row.ExecutionFailedEventDetails.Cause)
+			stateDetails.StartTime = executionStartTime
+			stateDetails.EndTime = aws.ToTime(row.Timestamp)
+
+		case types.HistoryEventTypeExecutionAborted:
+			stateDetails.Errors = aws.ToString(row.ExecutionAbortedEventDetails.Error)
+			stateDetails.Casue = aws.ToString(row.ExecutionAbortedEventDetails.Cause)
+			stateDetails.StartTime = executionStartTime
+			stateDetails.EndTime = aws.ToTime(row.Timestamp)
+
+		case types.HistoryEventTypeExecutionTimedOut:
+			stateDetails.Errors = aws.ToString(row.ExecutionTimedOutEventDetails.Error)
+			stateDetails.Casue = aws.ToString(row.ExecutionTimedOutEventDetails.Cause)
+			stateDetails.StartTime = executionStartTime
+			stateDetails.EndTime = aws.ToTime(row.Timestamp)
+
+		case types.HistoryEventTypeTaskStartFailed:
+			stateDetails.Errors = aws.ToString(row.TaskStartFailedEventDetails.Error)
+			stateDetails.Casue = aws.ToString(row.TaskStartFailedEventDetails.Cause)
+			stateDetails.EndTime = aws.ToTime(row.Timestamp)
+
+		case types.HistoryEventTypeTaskFailed:
+			stateDetails.Errors = aws.ToString(row.TaskFailedEventDetails.Error)
+			stateDetails.Casue = aws.ToString(row.TaskFailedEventDetails.Cause)
+			stateDetails.EndTime = aws.ToTime(row.Timestamp)
+
+		case types.HistoryEventTypeTaskScheduled:
+			stateDetails.Resource = aws.ToString(row.TaskScheduledEventDetails.Resource)
+			stateDetails.ResourceType = aws.ToString(row.TaskScheduledEventDetails.ResourceType)
+			stateDetails.Input = aws.ToString(row.TaskScheduledEventDetails.Parameters)
+
+		case types.HistoryEventTypeTaskSubmitted:
+			stateDetails.Output = aws.ToString(row.TaskSubmittedEventDetails.Output)
+			stateDetails.Resource = aws.ToString(row.TaskSubmittedEventDetails.Resource)
+			stateDetails.ResourceType = aws.ToString(row.TaskSubmittedEventDetails.ResourceType)
+
+		case types.HistoryEventTypeTaskStarted:
+			stateDetails.Resource = aws.ToString(row.TaskStartedEventDetails.Resource)
+			stateDetails.ResourceType = aws.ToString(row.TaskStartedEventDetails.ResourceType)
+
+		case types.HistoryEventTypeTaskSucceeded:
+			stateDetails.Output = aws.ToString(row.TaskSucceededEventDetails.Output)
+			stateDetails.Resource = aws.ToString(row.TaskSucceededEventDetails.Resource)
+			stateDetails.ResourceType = aws.ToString(row.TaskSucceededEventDetails.ResourceType)
+
+		case
+			types.HistoryEventTypeTaskStateEntered,
+			types.HistoryEventTypePassStateEntered,
+			types.HistoryEventTypeParallelStateEntered,
+			types.HistoryEventTypeMapStateEntered,
+			types.HistoryEventTypeChoiceStateEntered,
+			types.HistoryEventTypeSucceedStateEntered,
+			types.HistoryEventTypeFailStateEntered:
+
+			stateDetails.Name = aws.ToString(row.StateEnteredEventDetails.Name)
+			stateDetails.Input = aws.ToString(row.StateEnteredEventDetails.Input)
+			taskStartTime = aws.ToTime(row.Timestamp)
+
+		case
+			types.HistoryEventTypeTaskStateExited,
+			types.HistoryEventTypePassStateExited,
+			types.HistoryEventTypeParallelStateExited,
+			types.HistoryEventTypeMapStateExited,
+			types.HistoryEventTypeChoiceStateExited,
+			types.HistoryEventTypeSucceedStateExited:
+
+			var idx = slices.IndexFunc(results, func(d StateDetails) bool {
+				return d.Name == aws.ToString(row.StateExitedEventDetails.Name)
+			})
+
+			if idx > -1 {
+				stateDetails.Output = aws.ToString(row.StateExitedEventDetails.Output)
+				stateDetails.StartTime = taskStartTime
+				stateDetails.EndTime = aws.ToTime(row.Timestamp)
+			}
+		}
+
+		results = append(results, stateDetails)
+	}
+
+	return results
 }
 
 func (inst *StateMachineExecutionDetailsTable) populateTable() {
+	var results = inst.parseExecutionHistory()
 	var tableData []core.TableRow
-	var enteredEventTypes = []types.HistoryEventType{
-		types.HistoryEventTypeTaskStateEntered,
-		types.HistoryEventTypePassStateEntered,
-		types.HistoryEventTypeParallelStateEntered,
-		types.HistoryEventTypeFailStateEntered,
-		types.HistoryEventTypeSucceedStateEntered,
-		types.HistoryEventTypeMapStateEntered,
-		types.HistoryEventTypeChoiceStateEntered,
-	}
-
-	var exitedEventTypes = []types.HistoryEventType{
-		types.HistoryEventTypeTaskStateExited,
-		types.HistoryEventTypePassStateExited,
-		types.HistoryEventTypeParallelStateExited,
-		types.HistoryEventTypeMapStateExited,
-		types.HistoryEventTypeChoiceStateExited,
-		types.HistoryEventTypeSucceedStateExited,
-	}
-
-	var results = []StateDetails{}
-
-	if inst.ExecutionHistory != nil {
-		for _, row := range inst.ExecutionHistory.Events {
-			if slices.Contains(enteredEventTypes, row.Type) {
-				results = append(results, StateDetails{
-					Id:        row.Id,
-					Name:      aws.ToString(row.StateEnteredEventDetails.Name),
-					Type:      strings.Replace(string(row.Type), "Entered", "", 1),
-					Status:    "Entered",
-					Input:     aws.ToString(row.StateEnteredEventDetails.Input),
-					Output:    "",
-					StartTime: aws.ToTime(row.Timestamp),
-					EndTime:   aws.ToTime(row.Timestamp),
-				})
-			}
-
-			if slices.Contains(exitedEventTypes, row.Type) {
-				var idx = slices.IndexFunc(results, func(d StateDetails) bool {
-					return d.Name == aws.ToString(row.StateExitedEventDetails.Name)
-				})
-
-				if idx > -1 {
-					results[idx].Status = "Succeeded"
-					results[idx].Output = aws.ToString(row.StateExitedEventDetails.Output)
-					results[idx].EndTime = aws.ToTime(row.Timestamp)
-				}
-			}
-		}
-	}
 
 	for _, row := range results {
 		tableData = append(tableData, core.TableRow{
 			row.Name,
 			row.Type,
-			row.Status,
+			row.ResourceType,
 			row.EndTime.Sub(row.StartTime).String(),
+			row.Errors,
+			row.Casue,
 		})
 	}
 
