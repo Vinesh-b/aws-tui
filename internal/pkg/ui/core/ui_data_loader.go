@@ -31,7 +31,7 @@ func (inst *UiDataLoader) AsyncLoadData(handler func()) {
 	}()
 }
 
-func (inst *UiDataLoader) AsyncUpdateView(view *tview.Box, updateViewFunc func()) {
+func (inst *UiDataLoader) AsyncUpdateView(view View, updateViewFunc func()) {
 	go func() {
 		var idx = 0
 		var originalTitle = view.GetTitle()

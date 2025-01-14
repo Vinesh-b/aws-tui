@@ -224,7 +224,7 @@ func (inst *InsightsQueryResultsTable) RefreshResults() {
 		inst.data = results
 	})
 
-	dataLoader.AsyncUpdateView(inst.Box, func() {
+	dataLoader.AsyncUpdateView(inst.rootView, func() {
 		inst.populateQueryResultsTable() // update according to query status
 	})
 }
