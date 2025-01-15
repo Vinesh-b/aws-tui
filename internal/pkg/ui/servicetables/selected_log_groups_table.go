@@ -2,6 +2,7 @@ package servicetables
 
 import (
 	"log"
+	"sort"
 
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
@@ -33,7 +34,7 @@ func NewSelectedGroupsTable(
 			core.TableRow{
 				"Name",
 			},
-            app,
+			app,
 		),
 		data:          core.StringSet{},
 		selectedGroup: "",
@@ -74,8 +75,20 @@ func (inst *SelectedGroupsTable) populateSelectedGroupsTable() {
 		privateData = append(privateData, row)
 	}
 
+	sort.Slice(privateData, func(i, j int) bool {
+		return privateData[i] < privateData[j]
+	})
+
+	sort.Slice(tableData, func(i, j int) bool {
+		return tableData[i][0] < tableData[j][0]
+	})
+
 	inst.SetData(tableData, privateData, logNameCol)
 	inst.GetCell(0, 0).SetExpansion(1)
+
+	if len(privateData) > 0 {
+		inst.selectedGroup = privateData[0]
+	}
 }
 
 func (inst *SelectedGroupsTable) RefreshSelectedGroups() {
