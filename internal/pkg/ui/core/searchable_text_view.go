@@ -47,6 +47,22 @@ func NewSearchableTextView(title string, app *tview.Application) *SearchableText
 		SetTitleAlign(tview.AlignLeft).
 		SetBorder(true)
 
+	var updateSearchPosition = func() {
+		var pos = view.searchPositions[view.nextSearchPosition]
+		view.SearchableView.SetTitle(fmt.Sprintf(
+			"%s [%s: %d/%d]",
+			view.title,
+			view.GetSearchText(),
+			view.nextSearchPosition+1,
+			len(view.searchPositions),
+		))
+		var selectedLine = countRune(view.GetText(), '\n', pos[0])
+		// Provide 5 lines of previous text for context
+		view.textArea.SetOffset(selectedLine-5, 0)
+		view.textArea.Select(pos[0], pos[1])
+
+	}
+
 	view.textArea.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case // Disable text area default edititing key events
@@ -109,15 +125,7 @@ func NewSearchableTextView(title string, app *tview.Application) *SearchableText
 		}
 
 		if updateSearch {
-			var pos = view.searchPositions[view.nextSearchPosition]
-			view.SearchableView.SetTitle(fmt.Sprintf(
-				"%s [%s: %d/%d]",
-				view.title,
-				view.GetSearchText(),
-				view.nextSearchPosition+1,
-				len(view.searchPositions),
-			))
-			view.textArea.Select(pos[0], pos[1])
+			updateSearchPosition()
 		}
 
 		return nil
@@ -133,6 +141,7 @@ func NewSearchableTextView(title string, app *tview.Application) *SearchableText
 			}
 			if expr, err := regexp.Compile(search); err == nil {
 				view.searchPositions = expr.FindAllStringIndex(text, -1)
+				updateSearchPosition()
 			}
 		case APP_KEY_BINDINGS.Reset:
 			view.textArea.Select(0, 0)
@@ -142,6 +151,21 @@ func NewSearchableTextView(title string, app *tview.Application) *SearchableText
 	})
 
 	return view
+}
+
+func countRune(s string, r rune, limit int) int {
+	var count = 0
+	for _, c := range s {
+		if limit <= 0 {
+			break
+		}
+		limit--
+
+		if c == r {
+			count++
+		}
+	}
+	return count
 }
 
 func (inst *SearchableTextView) GetText() string {
