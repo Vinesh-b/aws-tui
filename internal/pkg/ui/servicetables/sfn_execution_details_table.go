@@ -269,10 +269,10 @@ func (inst *StateMachineExecutionDetailsTable) RefreshExpressExecutionDetails(ex
 	insightsQueryRunner.ErrorMessageCallback = inst.ErrorMessageCallback
 
 	var resultsChan = make(chan [][]cwlTypes.ResultField)
-	insightsQueryRunner.ExecuteInsightsQuery(insightsQuery, []string{aws.ToString(executionItem.logGroup)}, resultsChan)
 
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 	dataLoader.AsyncLoadData(func() {
+		insightsQueryRunner.ExecuteInsightsQuery(insightsQuery, []string{aws.ToString(executionItem.logGroup)}, resultsChan)
 		var insightsResults = <-resultsChan
 		if len(insightsResults) == 0 {
 			return

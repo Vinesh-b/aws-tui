@@ -61,6 +61,7 @@ func NewStateMachineExecutionsTable(
 		SfnExecutionsQuerySearchView: searchView,
 		SelectableTable:              selectableTable,
 		selectedFunctionArn:          "",
+		selectedExecution:            ExecutionItem{ExecutionListItem: &types.ExecutionListItem{}},
 		data:                         nil,
 		logger:                       logger,
 		app:                          app,
@@ -83,7 +84,11 @@ func NewStateMachineExecutionsTable(
 			var startTime = endTime.Add(-24 * 1 * time.Hour)
 			table.queryView.SetDefaultTimes(startTime, endTime)
 
-			table.RefreshExecutions(true)
+			if table.selectedExecution.StateMachineType == "STANDARD" {
+				table.RefreshExecutions(true)
+			} else {
+				table.RefreshExpressExecutions(aws.ToString(table.selectedExecution.logGroup), true)
+			}
 		case core.APP_KEY_BINDINGS.NextPage:
 			table.RefreshExecutions(false)
 		}
@@ -94,7 +99,7 @@ func NewStateMachineExecutionsTable(
 		if table.selectedExecution.StateMachineType == "STANDARD" {
 			table.RefreshExecutions(true)
 		} else {
-			table.RefreshExpressExecutions("", true)
+			table.RefreshExpressExecutions(aws.ToString(table.selectedExecution.logGroup), true)
 		}
 	})
 
@@ -163,6 +168,7 @@ func (inst *StateMachineExecutionsTable) FilterByStatus(
 }
 
 func (inst *StateMachineExecutionsTable) RefreshExpressExecutions(logGroup string, reset bool) {
+	inst.selectedExecution.logGroup = &logGroup
 	var query, err = inst.queryView.GenerateQuery()
 	if err != nil {
 		inst.ErrorMessageCallback(err.Error())
@@ -179,10 +185,10 @@ func (inst *StateMachineExecutionsTable) RefreshExpressExecutions(logGroup strin
 	insightsQueryRunner.ErrorMessageCallback = inst.ErrorMessageCallback
 
 	var resultsChan = make(chan [][]cwlTypes.ResultField)
-	insightsQueryRunner.ExecuteInsightsQuery(insightsQuery, []string{logGroup}, resultsChan)
 
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 	dataLoader.AsyncLoadData(func() {
+		insightsQueryRunner.ExecuteInsightsQuery(insightsQuery, []string{logGroup}, resultsChan)
 		var insightsResults = <-resultsChan
 		if len(insightsResults) == 0 {
 			return
@@ -245,7 +251,7 @@ func (inst *StateMachineExecutionsTable) RefreshExpressExecutions(logGroup strin
 		inst.data = tableData
 	})
 
-	dataLoader.AsyncUpdateView(inst.Box, func() {
+	dataLoader.AsyncUpdateView(inst.SelectableTable.Box, func() {
 		inst.populateExecutionsTable(reset)
 	})
 }
@@ -285,7 +291,7 @@ func (inst *StateMachineExecutionsTable) RefreshExecutions(reset bool) {
 		}
 	})
 
-	dataLoader.AsyncUpdateView(inst.Box, func() {
+	dataLoader.AsyncUpdateView(inst.SelectableTable.Box, func() {
 		inst.populateExecutionsTable(reset)
 	})
 }
