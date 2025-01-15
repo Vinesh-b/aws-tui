@@ -78,6 +78,14 @@ func NewSearchableTextView(title string, app *tview.Application) *SearchableText
 			return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModShift)
 		case APP_KEY_BINDINGS.MoveRightRune:
 			return tcell.NewEventKey(tcell.KeyRight, 0, 0)
+		case APP_KEY_BINDINGS.TextViewPageUp:
+			return tcell.NewEventKey(tcell.KeyPgUp, 0, 0)
+		case APP_KEY_BINDINGS.TextViewSelectPageUp:
+			return tcell.NewEventKey(tcell.KeyPgUp, 0, tcell.ModShift)
+		case APP_KEY_BINDINGS.TextViewPageDown:
+			return tcell.NewEventKey(tcell.KeyPgDn, 0, 0)
+		case APP_KEY_BINDINGS.TextViewSelectPageDown:
+			return tcell.NewEventKey(tcell.KeyPgDn, 0, tcell.ModShift)
 		case APP_KEY_BINDINGS.TextViewSelectRight:
 			return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModShift)
 		case APP_KEY_BINDINGS.TextViewWordRight:

@@ -71,6 +71,10 @@ type KeyBindings struct {
 	TextViewDown            rune
 	MoveLeftRune            rune
 	MoveRightRune           rune
+	TextViewPageUp          rune
+	TextViewPageDown        rune
+	TextViewSelectPageUp    rune
+	TextViewSelectPageDown  rune
 	TextViewSelectUp        rune
 	TextViewSelectDown      rune
 	TextViewSelectLeft      rune
@@ -105,6 +109,10 @@ var APP_KEY_BINDINGS = KeyBindings{
 	TableScan:               tcell.KeyCtrlS,
 	TableQuery:              tcell.KeyCtrlQ,
 	TextViewCopy:            'y',
+	TextViewPageUp:          'u',
+	TextViewPageDown:        'd',
+	TextViewSelectPageUp:    'U',
+	TextViewSelectPageDown:  'D',
 	TextViewSelectUp:        'K',
 	TextViewSelectDown:      'J',
 	TextViewSelectLeft:      'H',
