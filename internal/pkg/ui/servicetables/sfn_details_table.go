@@ -1,8 +1,10 @@
 package servicetables
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"aws-tui/internal/pkg/awsapi"
@@ -19,6 +21,7 @@ type StateMachineDetailsTable struct {
 	data                    *sfn.DescribeStateMachineOutput
 	selectedStateMachineArn string
 	logGroups               []string
+	logGroupsChan           chan []string
 	logger                  *log.Logger
 	app                     *tview.Application
 	api                     *awsapi.StateMachineApi
@@ -33,6 +36,7 @@ func NewStateMachineDetailsTable(
 		DetailsTable:            core.NewDetailsTable("State Machine Details"),
 		data:                    nil,
 		logGroups:               []string{},
+		logGroupsChan:           make(chan []string),
 		selectedStateMachineArn: "",
 		logger:                  logger,
 		app:                     app,
@@ -68,8 +72,10 @@ func (inst *StateMachineDetailsTable) populateStateMachineDetailsTableTable() {
 			for _, logDest := range logConfig.Destinations {
 				var group = logDest.CloudWatchLogsLogGroup
 				if group != nil {
-					logData = append(logData, core.TableRow{"", aws.ToString(group.LogGroupArn)})
-					inst.logGroups = append(inst.logGroups, aws.ToString(group.LogGroupArn))
+
+					var splitArn = strings.Split(aws.ToString(group.LogGroupArn), ":")
+					logData = append(logData, core.TableRow{"", splitArn[6]})
+					inst.logGroups = append(inst.logGroups, splitArn[6])
 				}
 			}
 
@@ -95,7 +101,6 @@ func (inst *StateMachineDetailsTable) ClearDetails() {
 
 func (inst *StateMachineDetailsTable) RefreshDetails(stateMachineArn string) {
 	inst.selectedStateMachineArn = stateMachineArn
-	inst.logGroups = nil
 
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
@@ -105,6 +110,18 @@ func (inst *StateMachineDetailsTable) RefreshDetails(stateMachineArn string) {
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}
+		var logConfig = inst.data.LoggingConfiguration
+		inst.logGroups = nil
+		if logConfig != nil {
+			for _, logDest := range logConfig.Destinations {
+				var group = logDest.CloudWatchLogsLogGroup
+				if group != nil {
+					var splitArn = strings.Split(aws.ToString(group.LogGroupArn), ":")
+					inst.logGroups = append(inst.logGroups, splitArn[6])
+					inst.logGroupsChan <- inst.logGroups
+				}
+			}
+		}
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
@@ -113,8 +130,21 @@ func (inst *StateMachineDetailsTable) RefreshDetails(stateMachineArn string) {
 }
 
 func (inst *StateMachineDetailsTable) GetSelectedSmLogGroup() string {
-	if inst.logGroups == nil {
-		return ""
+	var logGroups []string
+	var timeoutCtx, cancelFunc = context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFunc()
+	for {
+		select {
+		case logGroups = <-inst.logGroupsChan:
+			if len(logGroups) > 0 {
+				return logGroups[0]
+			}
+			return ""
+		case <-timeoutCtx.Done():
+			inst.ErrorMessageCallback("Timed out requesting state machine log groups")
+			return ""
+		default:
+			time.Sleep(time.Millisecond * 100)
+		}
 	}
-	return inst.logGroups[0]
 }

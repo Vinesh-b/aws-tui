@@ -89,6 +89,9 @@ func (inst *StateMachinesDetailsPageView) initInputCapture() {
 		inst.stateMachineDetailsTable.RefreshDetails(selectedFunc)
 		if smType := inst.stateMachinesTable.GetSeletedFunctionType(); smType == "STANDARD" {
 			inst.stateMachineExecutionsTable.RefreshExecutions(true)
+		} else {
+			var group = inst.stateMachineDetailsTable.GetSelectedSmLogGroup()
+			inst.stateMachineExecutionsTable.RefreshExpressExecutions(group, true)
 		}
 	})
 }
@@ -198,38 +201,49 @@ func NewStepFunctionsHomeView(
 		api    = awsapi.NewStateMachineApi(config, logger)
 		cwlApi = awsapi.NewCloudWatchLogsApi(config, logger)
 
-		stateMachinesDetailsView = NewStateMachinesDetailsPageView(
+		SfnDetailsView = NewStateMachinesDetailsPageView(
 			tables.NewStateMachinesListTable(app, api, logger),
 			tables.NewStateMachineExecutionsTable(app, api, cwlApi, logger),
 			tables.NewStateMachineDetailsTable(app, api, logger),
 			app, api, logger)
 
-		executionDetailsView = NewStateMachineExectionDetailsPage(
+		SfnExeDetailsView = NewStateMachineExectionDetailsPage(
 			tables.NewStateMachineExecutionSummaryTable(app, api, logger),
-			tables.NewStateMachineExecutionDetailsTable(app, api, logger),
+			tables.NewStateMachineExecutionDetailsTable(app, api, cwlApi, logger),
 			app, api, logger)
 	)
 
 	var serviceRootView = core.NewServiceRootView(app, string(STATE_MACHINES))
 
 	serviceRootView.
-		AddAndSwitchToPage("StateMachines", stateMachinesDetailsView, true).
-		AddPage("Exection Details", executionDetailsView, true, true)
+		AddAndSwitchToPage("StateMachines", SfnDetailsView, true).
+		AddPage("Exection Details", SfnExeDetailsView, true, true)
 
 	serviceRootView.InitPageNavigation()
 
-	stateMachinesDetailsView.stateMachineExecutionsTable.SetSelectedFunc(func(row, column int) {
-		var selectedExecution = stateMachinesDetailsView.
+	SfnDetailsView.stateMachinesTable.SetSelectedFunc(func(row, column int) {
+	})
+
+	SfnDetailsView.stateMachineExecutionsTable.SetSelectedFunc(func(row, column int) {
+		var selectedExecution = SfnDetailsView.
 			stateMachineExecutionsTable.GetSeletedExecutionArn()
+		var sfType = SfnDetailsView.stateMachinesTable.GetSeletedFunctionType()
+
 		if len(selectedExecution) > 0 {
-			executionDetailsView.summaryTable.RefreshExecutionDetails(selectedExecution, true)
-			executionDetailsView.detailsTable.RefreshExecutionDetails(selectedExecution, true)
+			if sfType == "EXPRESS" {
+				var execution = SfnDetailsView.
+					stateMachineExecutionsTable.GetSeletedExecution()
+				SfnExeDetailsView.detailsTable.RefreshExpressExecutionDetails(execution, true)
+			} else {
+				SfnExeDetailsView.summaryTable.RefreshExecutionDetails(selectedExecution, true)
+				SfnExeDetailsView.detailsTable.RefreshExecutionDetails(selectedExecution, true)
+			}
 			serviceRootView.ChangePage(1, nil)
 		}
 	})
 
-	stateMachinesDetailsView.initInputCapture()
-	executionDetailsView.initInputCapture()
+	SfnDetailsView.initInputCapture()
+	SfnExeDetailsView.initInputCapture()
 
 	return serviceRootView
 }
