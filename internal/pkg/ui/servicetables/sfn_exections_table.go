@@ -1,39 +1,51 @@
 package servicetables
 
 import (
+	"encoding/json"
 	"log"
+	"sort"
+	"strings"
 	"time"
 
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	cwlTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/gdamore/tcell/v2"
 
 	"github.com/rivo/tview"
 )
 
+type ExecutionItem struct {
+	*types.ExecutionListItem
+	logGroup         *string
+	StateMachineType string
+}
+
 const sfnExecutionArnCol = 0
 
 type StateMachineExecutionsTable struct {
-	*core.SelectableTable[string]
+	*core.SelectableTable[ExecutionItem]
 	*SfnExecutionsQuerySearchView
-	selectedFunctionArn  string
-	selectedExecutionArn string
-	data                 []types.ExecutionListItem
-	filtered             []types.ExecutionListItem
-	logger               *log.Logger
-	app                  *tview.Application
-	api                  *awsapi.StateMachineApi
+	selectedFunctionArn string
+	data                []ExecutionItem
+	filtered            []ExecutionItem
+	selectedExecution   ExecutionItem
+	logger              *log.Logger
+	app                 *tview.Application
+	api                 *awsapi.StateMachineApi
+	cwlApi              *awsapi.CloudWatchLogsApi
 }
 
 func NewStateMachineExecutionsTable(
 	app *tview.Application,
 	api *awsapi.StateMachineApi,
+	cwlApi *awsapi.CloudWatchLogsApi,
 	logger *log.Logger,
 ) *StateMachineExecutionsTable {
-	var selectableTable = core.NewSelectableTable[string](
+	var selectableTable = core.NewSelectableTable[ExecutionItem](
 		"Executions",
 		core.TableRow{
 			"Execution Id",
@@ -49,11 +61,11 @@ func NewStateMachineExecutionsTable(
 		SfnExecutionsQuerySearchView: searchView,
 		SelectableTable:              selectableTable,
 		selectedFunctionArn:          "",
-		selectedExecutionArn:         "",
 		data:                         nil,
 		logger:                       logger,
 		app:                          app,
 		api:                          api,
+		cwlApi:                       cwlApi,
 	}
 
 	var endTime = time.Now()
@@ -79,7 +91,11 @@ func NewStateMachineExecutionsTable(
 	})
 
 	table.queryView.DoneButton.SetSelectedFunc(func() {
-		table.RefreshExecutions(true)
+		if table.selectedExecution.StateMachineType == "STANDARD" {
+			table.RefreshExecutions(true)
+		} else {
+			table.RefreshExpressExecutions("", true)
+		}
 	})
 
 	return table
@@ -87,7 +103,6 @@ func NewStateMachineExecutionsTable(
 
 func (inst *StateMachineExecutionsTable) populateExecutionsTable(force bool) {
 	var tableData []core.TableRow
-	var privateData []string
 
 	for _, row := range inst.data {
 		tableData = append(tableData, core.TableRow{
@@ -96,33 +111,32 @@ func (inst *StateMachineExecutionsTable) populateExecutionsTable(force bool) {
 			aws.ToTime(row.StartDate).Format(time.DateTime),
 			aws.ToTime(row.StopDate).Format(time.DateTime),
 		})
-		privateData = append(privateData, aws.ToString(row.ExecutionArn))
 	}
 
 	if !force {
-		inst.ExtendData(tableData, privateData)
+		inst.ExtendData(tableData, inst.data)
 		return
 	}
 
-	inst.SetData(tableData, privateData, sfnExecutionArnCol)
+	inst.SetData(tableData, inst.data, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
 }
 
 func (inst *StateMachineExecutionsTable) SetSelectedFunc(handler func(row int, column int)) {
 	inst.SelectableTable.SetSelectedFunc(func(row, column int) {
-		inst.selectedExecutionArn = inst.GetPrivateData(row, sfnExecutionArnCol)
+		inst.selectedExecution = inst.GetPrivateData(row, sfnExecutionArnCol)
 		handler(row, column)
 	})
 }
 
 func (inst *StateMachineExecutionsTable) FilterByExecutionId(
-	data []types.ExecutionListItem, executionArn string,
-) []types.ExecutionListItem {
+	data []ExecutionItem, executionArn string,
+) []ExecutionItem {
 	if len(executionArn) == 0 {
 		return data
 	}
 
-	var result = []types.ExecutionListItem{}
+	var result = []ExecutionItem{}
 	for _, exe := range data {
 		if aws.ToString(exe.Name) == executionArn {
 			result = append(result, exe)
@@ -133,19 +147,107 @@ func (inst *StateMachineExecutionsTable) FilterByExecutionId(
 }
 
 func (inst *StateMachineExecutionsTable) FilterByStatus(
-	data []types.ExecutionListItem, status string,
-) []types.ExecutionListItem {
+	data []ExecutionItem, status string,
+) []ExecutionItem {
 	if status == "ALL" {
 		return data
 	}
 
-	var result = []types.ExecutionListItem{}
+	var result = []ExecutionItem{}
 	for _, exe := range data {
 		if exe.Status == types.ExecutionStatus(status) {
 			result = append(result, exe)
 		}
 	}
 	return result
+}
+
+func (inst *StateMachineExecutionsTable) RefreshExpressExecutions(logGroup string, reset bool) {
+	var query, err = inst.queryView.GenerateQuery()
+	if err != nil {
+		inst.ErrorMessageCallback(err.Error())
+		return
+	}
+
+	var insightsQuery = InsightsQuery{
+		query:     `fields @message | filter type=~"Execution" | limit 1000`,
+		startTime: query.startTime,
+		endTime:   query.endTime,
+	}
+
+	var insightsQueryRunner = NewInsightsQueryRunner(inst.app, inst.cwlApi)
+	insightsQueryRunner.ErrorMessageCallback = inst.ErrorMessageCallback
+
+	var resultsChan = make(chan [][]cwlTypes.ResultField)
+	insightsQueryRunner.ExecuteInsightsQuery(insightsQuery, []string{logGroup}, resultsChan)
+
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	dataLoader.AsyncLoadData(func() {
+		var insightsResults = <-resultsChan
+		if len(insightsResults) == 0 {
+			return
+		}
+
+		var executions = map[string]*ExecutionItem{}
+
+		var tableData = []ExecutionItem{}
+		for _, message := range insightsResults {
+			var stateMachineStep StateMachineStep
+			for _, resultField := range message {
+				var field = aws.ToString(resultField.Field)
+				switch field {
+				case "@message":
+					if err := json.Unmarshal([]byte(aws.ToString(resultField.Value)), &stateMachineStep); err != nil {
+						inst.ErrorMessageCallback("Failed to parse state: %s", err.Error())
+					}
+				}
+			}
+			var splitArn = strings.SplitN(stateMachineStep.ExecutionArn, ":", 8)
+			var name = splitArn[7]
+			var currentExe = &ExecutionItem{
+				ExecutionListItem: &types.ExecutionListItem{},
+				StateMachineType:  "EXPRESS",
+			}
+			if execution, ok := executions[stateMachineStep.ExecutionArn]; !ok {
+				executions[stateMachineStep.ExecutionArn] = currentExe
+			} else {
+				currentExe = execution
+			}
+
+			var timestamp = stateMachineStep.Timestamp
+
+			switch stateMachineStep.StateType {
+			case types.HistoryEventTypeExecutionStarted:
+				currentExe.StartDate = aws.Time(time.UnixMilli(timestamp))
+
+			case
+				types.HistoryEventTypeExecutionFailed,
+				types.HistoryEventTypeExecutionSucceeded,
+				types.HistoryEventTypeExecutionTimedOut,
+				types.HistoryEventTypeExecutionAborted:
+
+				currentExe.StopDate = aws.Time(time.UnixMilli(timestamp))
+			}
+
+			currentExe.ExecutionArn = aws.String(stateMachineStep.ExecutionArn)
+			currentExe.Name = aws.String(name)
+			currentExe.StateMachineArn = nil
+			currentExe.logGroup = aws.String(logGroup)
+		}
+
+		for _, exe := range executions {
+			tableData = append(tableData, *exe)
+		}
+		sort.Slice(tableData, func(i, j int) bool {
+			return tableData[i].StartDate.After(*tableData[j].StartDate)
+		})
+
+		inst.data = tableData
+	})
+
+	dataLoader.AsyncUpdateView(inst.Box, func() {
+		inst.populateExecutionsTable(reset)
+	})
 }
 
 func (inst *StateMachineExecutionsTable) RefreshExecutions(reset bool) {
@@ -158,9 +260,7 @@ func (inst *StateMachineExecutionsTable) RefreshExecutions(reset bool) {
 
 	dataLoader.AsyncLoadData(func() {
 		if len(inst.selectedFunctionArn) > 0 {
-			var err error = nil
-
-			inst.data, err = inst.api.ListExecutions(
+			var data, err = inst.api.ListExecutions(
 				inst.selectedFunctionArn,
 				query.startTime,
 				query.endTime,
@@ -169,6 +269,15 @@ func (inst *StateMachineExecutionsTable) RefreshExecutions(reset bool) {
 
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
+			}
+
+			inst.data = nil
+			for _, d := range data {
+				inst.data = append(inst.data, ExecutionItem{
+					ExecutionListItem: &d,
+					logGroup:          nil,
+					StateMachineType:  "STANDARD",
+				})
 			}
 
 			inst.data = inst.FilterByStatus(inst.data, query.status)
@@ -183,14 +292,18 @@ func (inst *StateMachineExecutionsTable) RefreshExecutions(reset bool) {
 
 func (inst *StateMachineExecutionsTable) SetSelectionChangedFunc(handler func(row int, column int)) {
 	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
-		inst.selectedExecutionArn = inst.GetPrivateData(row, sfnExecutionArnCol)
+		inst.selectedExecution = inst.GetPrivateData(row, sfnExecutionArnCol)
 
 		handler(row, column)
 	})
 }
 
+func (inst *StateMachineExecutionsTable) GetSeletedExecution() ExecutionItem {
+	return inst.selectedExecution
+}
+
 func (inst *StateMachineExecutionsTable) GetSeletedExecutionArn() string {
-	return inst.selectedExecutionArn
+	return aws.ToString(inst.selectedExecution.ExecutionArn)
 }
 
 func (inst *StateMachineExecutionsTable) SetSeletedFunctionArn(functionArn string) {

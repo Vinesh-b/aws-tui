@@ -195,11 +195,12 @@ func NewStepFunctionsHomeView(
 	defer core.ResetGlobalStyle()
 
 	var (
-		api = awsapi.NewStateMachineApi(config, logger)
+		api    = awsapi.NewStateMachineApi(config, logger)
+		cwlApi = awsapi.NewCloudWatchLogsApi(config, logger)
 
 		stateMachinesDetailsView = NewStateMachinesDetailsPageView(
 			tables.NewStateMachinesListTable(app, api, logger),
-			tables.NewStateMachineExecutionsTable(app, api, logger),
+			tables.NewStateMachineExecutionsTable(app, api, cwlApi, logger),
 			tables.NewStateMachineDetailsTable(app, api, logger),
 			app, api, logger)
 
