@@ -38,7 +38,8 @@ func NewStateMachineExecutionDetailsTable(
 			core.TableRow{
 				"Name",
 				"Type",
-				"Resource Type",
+				"Resource",
+				"Action",
 				"Duration",
 				"Errors",
 				"Casue",
@@ -199,6 +200,7 @@ func (inst *StateMachineExecutionDetailsTable) populateTable() {
 			row.Name,
 			row.Type,
 			row.ResourceType,
+			row.Resource,
 			row.EndTime.Sub(row.StartTime).String(),
 			row.Errors,
 			row.Casue,
@@ -241,4 +243,8 @@ func (inst *StateMachineExecutionDetailsTable) GetSelectedStepInput() string {
 
 func (inst *StateMachineExecutionDetailsTable) GetSelectedStepOutput() string {
 	return inst.selectedState.Output
+}
+
+func (inst *StateMachineExecutionDetailsTable) GetSelectedStepErrorCause() string {
+	return inst.selectedState.Casue
 }

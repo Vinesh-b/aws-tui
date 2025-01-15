@@ -111,51 +111,55 @@ func NewStateMachineExectionDetailsPage(
 	logger *log.Logger,
 ) *StateMachineExectionDetailsPageView {
 
-	var inputsExpandedView = core.JsonTextView[string]{
-		TextView: core.NewSearchableTextView("Input", app),
-		ExtractTextFunc: func(data string) string {
-			return data
-		},
-	}
-	var outputsExpandedView = core.JsonTextView[string]{
-		TextView: core.NewSearchableTextView("Output", app),
+	var inputOutputExpandedView = core.JsonTextView[string]{
+		TextView: core.NewSearchableTextView("", app),
 		ExtractTextFunc: func(data string) string {
 			return data
 		},
 	}
 
 	var selectionFunc = func(_, _ int) {
-		inputsExpandedView.SetText(executionDetails.GetSelectedStepInput())
-		outputsExpandedView.SetText(executionDetails.GetSelectedStepOutput())
+		if input := executionDetails.GetSelectedStepInput(); len(input) > 0 {
+			inputOutputExpandedView.SetTitle("Input")
+			inputOutputExpandedView.SetText(input)
+		} else if output := executionDetails.GetSelectedStepOutput(); len(output) > 0 {
+			inputOutputExpandedView.SetTitle("Ouput")
+			inputOutputExpandedView.SetText(output)
+		} else {
+			inputOutputExpandedView.SetTitle("Errors")
+			inputOutputExpandedView.SetText(executionDetails.GetSelectedStepErrorCause())
+		}
 	}
 
 	executionDetails.SetSelectedFunc(selectionFunc)
 	executionDetails.SetSelectionChangedFunc(selectionFunc)
 
-	var inputOutputView = tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(inputsExpandedView.TextView, 0, 1, false).
-		AddItem(outputsExpandedView.TextView, 0, 1, false)
+	var tabView = core.NewTabView(
+		[]string{"Input/Output", "Summary"},
+		app,
+		logger,
+	)
+	tabView.GetTab("Input/Output").MainPage.AddItem(inputOutputExpandedView.TextView, 0, 1, true)
+	tabView.GetTab("Summary").MainPage.AddItem(executionSummary, 0, 1, true)
 
 	const detailsViewSize = 10
 	const inputOutputViewSize = 10
 
 	var resizableView = core.NewResizableView(
+		tabView, inputOutputViewSize,
 		executionDetails, detailsViewSize,
-		inputOutputView, inputOutputViewSize,
 		tview.FlexRow,
 	)
 
 	var serviceView = core.NewServicePageView(app, logger)
 	serviceView.MainPage.
-		AddItem(executionSummary, 8, 0, true).
 		AddItem(resizableView, 0, 1, false)
 
 	serviceView.InitViewNavigation(
 		[]core.View{
-			outputsExpandedView.TextView,
-			inputsExpandedView.TextView,
 			executionDetails,
-			executionSummary,
+			tabView.GetTabsList(),
+			tabView.GetTabDisplayView(),
 		},
 	)
 

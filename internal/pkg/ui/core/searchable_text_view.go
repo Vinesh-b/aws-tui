@@ -42,7 +42,7 @@ func NewSearchableTextView(title string, app *tview.Application) *SearchableText
 		SetSelectedStyle(
 			tcell.Style{}.Background(MoreContrastBackgroundColor),
 		)
-	view.textArea.
+	view.SearchableView.
 		SetTitle(title).
 		SetTitleAlign(tview.AlignLeft).
 		SetBorder(true)
@@ -102,7 +102,7 @@ func NewSearchableTextView(title string, app *tview.Application) *SearchableText
 
 		if updateSearch {
 			var pos = view.searchPositions[view.nextSearchPosition]
-			view.textArea.SetTitle(fmt.Sprintf(
+			view.SearchableView.SetTitle(fmt.Sprintf(
 				"%s [%s: %d/%d]",
 				view.title,
 				view.GetSearchText(),
@@ -142,5 +142,4 @@ func (inst *SearchableTextView) GetText() string {
 
 func (inst *SearchableTextView) SetText(text string, cursorAtTheEnd bool) {
 	inst.textArea.SetText(text, cursorAtTheEnd)
-	inst.textArea.SetTitle(inst.title)
 }

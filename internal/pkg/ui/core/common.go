@@ -92,6 +92,10 @@ func (inst *JsonTextView[T]) SetText(data T) {
 	inst.TextView.SetText(logText, false)
 }
 
+func (inst *JsonTextView[T]) SetTitle(title string) {
+	inst.TextView.SetTitle(title)
+}
+
 func FuzzySearch[T any](search string, values []T, handler func(val T) string) []T {
 	if len(values) == 0 {
 		return nil
