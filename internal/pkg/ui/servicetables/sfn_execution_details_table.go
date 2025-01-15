@@ -1,6 +1,8 @@
 package servicetables
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
 	"slices"
 	"time"
@@ -9,12 +11,32 @@ import (
 	"aws-tui/internal/pkg/ui/core"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	cwlTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	"github.com/aws/aws-sdk-go-v2/service/sfn/types"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
+
+type StateMachineStep struct {
+	Id           int64                  `json:"id,string"`
+	PreviousId   int64                  `json:"previous_event_id,string"`
+	Timestamp    int64                  `json:"event_timestamp,string"`
+	StateType    types.HistoryEventType `json:"type"`
+	RedriveCount string                 `json:"redrive_count"`
+	ExecutionArn string                 `json:"execution_arn"`
+	Details      struct {
+		Input        string `json:"input"`
+		Output       string `json:"output"`
+		Name         string `json:"name"`
+		Parameters   string `json:"parameters"`
+		Resource     string `json:"resource"`
+		ResourceType string `json:"resourceType"`
+		ErrorCode    string `json:"error"`
+		ErrorCause   string `json:"cause"`
+	} `json:"details"`
+}
 
 type StateMachineExecutionDetailsTable struct {
 	*core.SelectableTable[StateDetails]
@@ -24,11 +46,13 @@ type StateMachineExecutionDetailsTable struct {
 	logger               *log.Logger
 	app                  *tview.Application
 	api                  *awsapi.StateMachineApi
+	cwlApi               *awsapi.CloudWatchLogsApi
 }
 
 func NewStateMachineExecutionDetailsTable(
 	app *tview.Application,
 	api *awsapi.StateMachineApi,
+	cwlApi *awsapi.CloudWatchLogsApi,
 	logger *log.Logger,
 ) *StateMachineExecutionDetailsTable {
 
@@ -53,6 +77,7 @@ func NewStateMachineExecutionDetailsTable(
 		logger: logger,
 		app:    app,
 		api:    api,
+		cwlApi: cwlApi,
 	}
 
 	view.populateTable()
@@ -219,6 +244,163 @@ func (inst *StateMachineExecutionDetailsTable) RefreshExecutionDetails(execution
 		inst.ExecutionHistory, err = inst.api.GetExecutionHistory(executionArn)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
+		}
+	})
+
+	dataLoader.AsyncUpdateView(inst.Box, func() {
+		inst.populateTable()
+	})
+}
+
+func (inst *StateMachineExecutionDetailsTable) RefreshExpressExecutionDetails(executionItem ExecutionItem, force bool) {
+	inst.selectedExecutionArn = aws.ToString(executionItem.ExecutionArn)
+	var findExecutionDetailsQuery = fmt.Sprintf(
+		`fields @message | filter execution_arn="%s" | sort id asc | limit 1000`,
+		inst.selectedExecutionArn,
+	)
+
+	var insightsQuery = InsightsQuery{
+		query:     findExecutionDetailsQuery,
+		startTime: *executionItem.StartDate,
+		endTime:   *executionItem.StopDate,
+	}
+
+	var insightsQueryRunner = NewInsightsQueryRunner(inst.app, inst.cwlApi)
+	insightsQueryRunner.ErrorMessageCallback = inst.ErrorMessageCallback
+
+	var resultsChan = make(chan [][]cwlTypes.ResultField)
+	insightsQueryRunner.ExecuteInsightsQuery(insightsQuery, []string{aws.ToString(executionItem.logGroup)}, resultsChan)
+
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	dataLoader.AsyncLoadData(func() {
+		var insightsResults = <-resultsChan
+		if len(insightsResults) == 0 {
+			return
+		}
+
+		var historyEvents = []types.HistoryEvent{}
+		for _, message := range insightsResults {
+			var stateMachineStep StateMachineStep
+
+			for _, col := range message {
+				switch aws.ToString(col.Field) {
+				case "@message":
+					if err := json.Unmarshal([]byte(aws.ToString(col.Value)), &stateMachineStep); err != nil {
+						inst.ErrorMessageCallback("Failed to parse state: %s", err.Error())
+					}
+				}
+			}
+			var id = stateMachineStep.Id
+			var prevId = stateMachineStep.PreviousId
+			var timestamp = stateMachineStep.Timestamp
+
+			var executionItem = types.HistoryEvent{
+				Id:              id,
+				PreviousEventId: prevId,
+				Timestamp:       aws.Time(time.UnixMilli(timestamp)),
+				Type:            stateMachineStep.StateType,
+			}
+
+			switch stateMachineStep.StateType {
+			case types.HistoryEventTypeExecutionStarted:
+				executionItem.ExecutionStartedEventDetails = &types.ExecutionStartedEventDetails{
+					Input: &stateMachineStep.Details.Input,
+				}
+
+			case types.HistoryEventTypeExecutionSucceeded:
+				executionItem.ExecutionSucceededEventDetails = &types.ExecutionSucceededEventDetails{
+					Output: &stateMachineStep.Details.Output,
+				}
+
+			case types.HistoryEventTypeExecutionFailed:
+				executionItem.ExecutionFailedEventDetails = &types.ExecutionFailedEventDetails{
+					Error: &stateMachineStep.Details.ErrorCode,
+					Cause: &stateMachineStep.Details.ErrorCause,
+				}
+
+			case types.HistoryEventTypeExecutionAborted:
+				executionItem.ExecutionAbortedEventDetails = &types.ExecutionAbortedEventDetails{
+					Error: &stateMachineStep.Details.ErrorCode,
+					Cause: &stateMachineStep.Details.ErrorCause,
+				}
+
+			case types.HistoryEventTypeExecutionTimedOut:
+				executionItem.ExecutionTimedOutEventDetails = &types.ExecutionTimedOutEventDetails{
+					Error: &stateMachineStep.Details.ErrorCode,
+					Cause: &stateMachineStep.Details.ErrorCause,
+				}
+
+			case types.HistoryEventTypeTaskStartFailed:
+				executionItem.TaskStartFailedEventDetails = &types.TaskStartFailedEventDetails{
+					Error: &stateMachineStep.Details.ErrorCode,
+					Cause: &stateMachineStep.Details.ErrorCause,
+				}
+
+			case types.HistoryEventTypeTaskFailed:
+				executionItem.TaskFailedEventDetails = &types.TaskFailedEventDetails{
+					Error: &stateMachineStep.Details.ErrorCode,
+					Cause: &stateMachineStep.Details.ErrorCause,
+				}
+
+			case types.HistoryEventTypeTaskScheduled:
+				executionItem.TaskScheduledEventDetails = &types.TaskScheduledEventDetails{
+					Resource:     &stateMachineStep.Details.Resource,
+					ResourceType: &stateMachineStep.Details.ResourceType,
+					Parameters:   &stateMachineStep.Details.Parameters,
+				}
+
+			case types.HistoryEventTypeTaskSubmitted:
+				executionItem.TaskSubmittedEventDetails = &types.TaskSubmittedEventDetails{
+					Resource:     &stateMachineStep.Details.Resource,
+					ResourceType: &stateMachineStep.Details.ResourceType,
+					Output:       &stateMachineStep.Details.Output,
+				}
+
+			case types.HistoryEventTypeTaskStarted:
+				executionItem.TaskStartedEventDetails = &types.TaskStartedEventDetails{
+					Resource:     &stateMachineStep.Details.Resource,
+					ResourceType: &stateMachineStep.Details.ResourceType,
+				}
+
+			case types.HistoryEventTypeTaskSucceeded:
+				executionItem.TaskSucceededEventDetails = &types.TaskSucceededEventDetails{
+					Resource:     &stateMachineStep.Details.Resource,
+					ResourceType: &stateMachineStep.Details.ResourceType,
+					Output:       &stateMachineStep.Details.Output,
+				}
+
+			case
+				types.HistoryEventTypeTaskStateEntered,
+				types.HistoryEventTypePassStateEntered,
+				types.HistoryEventTypeParallelStateEntered,
+				types.HistoryEventTypeMapStateEntered,
+				types.HistoryEventTypeChoiceStateEntered,
+				types.HistoryEventTypeSucceedStateEntered,
+				types.HistoryEventTypeFailStateEntered:
+
+				executionItem.StateEnteredEventDetails = &types.StateEnteredEventDetails{
+					Input: &stateMachineStep.Details.Input,
+					Name:  &stateMachineStep.Details.Name,
+				}
+
+			case
+				types.HistoryEventTypeTaskStateExited,
+				types.HistoryEventTypePassStateExited,
+				types.HistoryEventTypeParallelStateExited,
+				types.HistoryEventTypeMapStateExited,
+				types.HistoryEventTypeChoiceStateExited,
+				types.HistoryEventTypeSucceedStateExited:
+
+				executionItem.StateExitedEventDetails = &types.StateExitedEventDetails{
+					Output: &stateMachineStep.Details.Output,
+					Name:   &stateMachineStep.Details.Name,
+				}
+			}
+			historyEvents = append(historyEvents, executionItem)
+		}
+
+		inst.ExecutionHistory = &sfn.GetExecutionHistoryOutput{
+			Events: historyEvents,
 		}
 	})
 
