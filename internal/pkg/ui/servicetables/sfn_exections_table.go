@@ -176,7 +176,7 @@ func (inst *StateMachineExecutionsTable) RefreshExpressExecutions(logGroup strin
 	}
 
 	var insightsQuery = InsightsQuery{
-		query:     `fields @message | filter type=~"Execution" | limit 1000`,
+		query:     `fields @message | filter type=~"Execution"`,
 		startTime: query.startTime,
 		endTime:   query.endTime,
 	}
@@ -242,7 +242,10 @@ func (inst *StateMachineExecutionsTable) RefreshExpressExecutions(logGroup strin
 		}
 
 		for _, exe := range executions {
-			tableData = append(tableData, *exe)
+			// Only collect full execution data
+			if exe.StartDate != nil && exe.StopDate != nil {
+				tableData = append(tableData, *exe)
+			}
 		}
 		sort.Slice(tableData, func(i, j int) bool {
 			var start1 = aws.ToTime(tableData[i].StartDate)
