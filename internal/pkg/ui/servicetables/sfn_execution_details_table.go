@@ -64,9 +64,9 @@ func NewStateMachineExecutionDetailsTable(
 				"Type",
 				"Resource",
 				"Action",
+				"StartTime",
 				"Duration",
 				"Errors",
-				"Casue",
 			},
 			app,
 		),
@@ -226,9 +226,9 @@ func (inst *StateMachineExecutionDetailsTable) populateTable() {
 			row.Type,
 			row.ResourceType,
 			row.Resource,
+			row.StartTime.Format(time.DateTime),
 			row.EndTime.Sub(row.StartTime).String(),
 			row.Errors,
-			row.Casue,
 		})
 	}
 
