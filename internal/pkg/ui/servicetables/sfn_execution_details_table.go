@@ -261,8 +261,8 @@ func (inst *StateMachineExecutionDetailsTable) RefreshExpressExecutionDetails(ex
 
 	var insightsQuery = InsightsQuery{
 		query:     findExecutionDetailsQuery,
-		startTime: *executionItem.StartDate,
-		endTime:   *executionItem.StopDate,
+		startTime: aws.ToTime(executionItem.StartDate),
+		endTime:   aws.ToTime(executionItem.StopDate),
 	}
 
 	var insightsQueryRunner = NewInsightsQueryRunner(inst.app, inst.cwlApi)

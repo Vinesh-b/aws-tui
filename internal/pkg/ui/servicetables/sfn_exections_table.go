@@ -245,7 +245,9 @@ func (inst *StateMachineExecutionsTable) RefreshExpressExecutions(logGroup strin
 			tableData = append(tableData, *exe)
 		}
 		sort.Slice(tableData, func(i, j int) bool {
-			return tableData[i].StartDate.After(*tableData[j].StartDate)
+			var start1 = aws.ToTime(tableData[i].StartDate)
+			var start2 = aws.ToTime(tableData[j].StartDate)
+			return start1.After(start2)
 		})
 
 		inst.data = tableData
