@@ -15,7 +15,7 @@ type SearchDateTimeView struct {
 	endTimeInput   *tview.InputField
 	startDateTime  time.Time
 	endDateTime    time.Time
-	viewNavigation *ViewNavigation
+	viewNavigation *ViewNavigation1D
 }
 
 func NewSearchDateTimeView(label string, app *tview.Application) *SearchDateTimeView {
@@ -50,7 +50,7 @@ func NewSearchDateTimeView(label string, app *tview.Application) *SearchDateTime
 		endTimeInput:   endTimeInput,
 		startDateTime:  time.Now(),
 		endDateTime:    time.Now(),
-		viewNavigation: NewViewNavigation(
+		viewNavigation: NewViewNavigation1D(
 			wrapper,
 			[]View{
 				startTimeInput,

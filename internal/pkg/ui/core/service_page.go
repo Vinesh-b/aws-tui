@@ -37,7 +37,7 @@ const (
 type ServicePageView struct {
 	*tview.Pages
 	MainPage       *tview.Flex
-	viewNavigation *ViewNavigation
+	viewNavigation *ViewNavigation1D
 	errorView      *MessagePromptView
 	infoView       *MessagePromptView
 	lastFocusView  tview.Primitive
@@ -50,7 +50,7 @@ func NewServicePageView(
 	logger *log.Logger,
 ) *ServicePageView {
 	var flex = tview.NewFlex()
-	var viewNav = NewViewNavigation(flex, nil, app)
+	var viewNav = NewViewNavigation1D(flex, nil, app)
 	viewNav.SetNavigationKeys(
 		APP_KEY_BINDINGS.ViewFocusDown,
 		APP_KEY_BINDINGS.ViewFocusUp,

@@ -27,7 +27,7 @@ type SfnExecutionsQueryInputView struct {
 
 	logger            *log.Logger
 	app               *tview.Application
-	viewNavigation    *core.ViewNavigation
+	viewNavigation    *core.ViewNavigation1D
 	statusDropDown    *tview.DropDown
 	executionArnInput *tview.InputField
 	startDateInput    *tview.InputField
@@ -44,7 +44,7 @@ func NewSfnExecutionsQueryInputView(app *tview.Application, logger *log.Logger) 
 
 		logger:            logger,
 		app:               app,
-		viewNavigation:    core.NewViewNavigation(flex, nil, app),
+		viewNavigation:    core.NewViewNavigation1D(flex, nil, app),
 		statusDropDown:    tview.NewDropDown(),
 		executionArnInput: tview.NewInputField(),
 		startDateInput:    tview.NewInputField(),

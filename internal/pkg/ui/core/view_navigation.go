@@ -5,7 +5,7 @@ import (
 	"github.com/rivo/tview"
 )
 
-type ViewNavigation struct {
+type ViewNavigation1D struct {
 	app          *tview.Application
 	rootView     RootView
 	orderedViews []View
@@ -15,8 +15,10 @@ type ViewNavigation struct {
 	keyBack      tcell.Key
 }
 
-func NewViewNavigation(rootView RootView, orderedViews []View, app *tview.Application) *ViewNavigation {
-	var view = &ViewNavigation{
+func NewViewNavigation1D(
+	rootView RootView, orderedViews []View, app *tview.Application,
+) *ViewNavigation1D {
+	var view = &ViewNavigation1D{
 		rootView:     rootView,
 		orderedViews: orderedViews,
 		app:          app,
@@ -44,21 +46,24 @@ func NewViewNavigation(rootView RootView, orderedViews []View, app *tview.Applic
 	return view
 }
 
-func (inst *ViewNavigation) SetNavigationKeys(keyForward tcell.Key, keyBack tcell.Key) {
+func (inst *ViewNavigation1D) SetNavigationKeys(keyForward tcell.Key, keyBack tcell.Key) {
 	inst.keyForward = keyForward
 	inst.keyBack = keyBack
 }
 
-func (inst *ViewNavigation) UpdateOrderedViews(orderedViews []View, intitalIxd int) {
+func (inst *ViewNavigation1D) UpdateOrderedViews(orderedViews []View, intitalIxd int) {
 	inst.orderedViews = orderedViews
 	inst.numViews = len(inst.orderedViews)
 	inst.viewIdx = (intitalIxd + inst.numViews) % inst.numViews
 }
 
-func (inst *ViewNavigation) GetOrderedViews() []View {
+func (inst *ViewNavigation1D) GetOrderedViews() []View {
 	return inst.orderedViews
 }
 
-func (inst *ViewNavigation) GetLastFocusedView() tview.Primitive {
+func (inst *ViewNavigation1D) GetLastFocusedView() tview.Primitive {
+	if len(inst.orderedViews) == 0 {
+		return nil
+	}
 	return inst.orderedViews[inst.viewIdx]
 }

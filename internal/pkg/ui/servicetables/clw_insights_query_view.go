@@ -24,7 +24,7 @@ type InsightsQueryInputView struct {
 
 	logger         *log.Logger
 	app            *tview.Application
-	viewNavigation *core.ViewNavigation
+	viewNavigation *core.ViewNavigation1D
 	queryTextArea  *tview.TextArea
 	startDateInput *tview.InputField
 	endDateInput   *tview.InputField
@@ -40,7 +40,7 @@ func NewInsightsQueryInputView(app *tview.Application, logger *log.Logger) *Insi
 
 		logger:         logger,
 		app:            app,
-		viewNavigation: core.NewViewNavigation(flex, nil, app),
+		viewNavigation: core.NewViewNavigation1D(flex, nil, app),
 		queryTextArea:  tview.NewTextArea(),
 		startDateInput: tview.NewInputField(),
 		endDateInput:   tview.NewInputField(),
