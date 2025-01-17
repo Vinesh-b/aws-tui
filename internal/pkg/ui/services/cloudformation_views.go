@@ -132,7 +132,7 @@ func (inst *CloudFormationStackEventsPageView) InitInputCapture() {
 		switch event.Key() {
 		case core.APP_KEY_BINDINGS.Reset:
 			inst.stackEventsTable.RefreshEvents(true)
-		case core.APP_KEY_BINDINGS.NextPage:
+		case core.APP_KEY_BINDINGS.LoadMoreData:
 			inst.stackEventsTable.RefreshEvents(false)
 		}
 		return event

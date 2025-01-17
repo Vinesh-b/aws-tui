@@ -49,7 +49,7 @@ type KeyBindings struct {
 	ToggleServicesMenu      tcell.Key
 	Reset                   tcell.Key
 	ClearTable              tcell.Key
-	NextPage                tcell.Key
+	LoadMoreData            tcell.Key
 	Done                    tcell.Key
 	Find                    tcell.Key
 	PageForward             tcell.Key
@@ -90,7 +90,7 @@ var APP_KEY_BINDINGS = KeyBindings{
 	ToggleServicesMenu:      tcell.KeyCtrlSpace,
 	Reset:                   tcell.KeyCtrlR,
 	ClearTable:              tcell.KeyCtrlX,
-	NextPage:                tcell.KeyCtrlN,
+	LoadMoreData:            tcell.KeyCtrlN,
 	Done:                    tcell.KeyEnter,
 	Find:                    tcell.KeyCtrlF,
 	PageForward:             tcell.KeyCtrlL,

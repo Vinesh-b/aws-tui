@@ -89,7 +89,7 @@ func NewStateMachineExecutionsTable(
 			} else {
 				table.RefreshExpressExecutions(aws.ToString(table.selectedExecution.logGroup), true)
 			}
-		case core.APP_KEY_BINDINGS.NextPage:
+		case core.APP_KEY_BINDINGS.LoadMoreData:
 			table.RefreshExecutions(false)
 		}
 		return event

@@ -206,7 +206,7 @@ func (inst *BucketObjectsTable) SetInputCapture(capture func(event *tcell.EventK
 		switch event.Key() {
 		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshObjects(true)
-		case core.APP_KEY_BINDINGS.NextPage:
+		case core.APP_KEY_BINDINGS.LoadMoreData:
 			inst.RefreshObjects(false)
 		}
 		return capture(event)

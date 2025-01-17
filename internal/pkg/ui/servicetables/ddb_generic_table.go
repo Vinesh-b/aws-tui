@@ -79,7 +79,7 @@ func NewDynamoDBGenericTable(
 		switch event.Key() {
 		case core.APP_KEY_BINDINGS.Reset:
 			table.ExecuteSearch(table.lastTableOp, table.lastSearchExpr, true)
-		case core.APP_KEY_BINDINGS.NextPage:
+		case core.APP_KEY_BINDINGS.LoadMoreData:
 			table.ExecuteSearch(table.lastTableOp, table.lastSearchExpr, false)
 		}
 		return event

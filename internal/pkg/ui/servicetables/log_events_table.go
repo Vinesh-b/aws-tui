@@ -55,7 +55,7 @@ func NewLogEventsTable(
 		switch event.Key() {
 		case core.APP_KEY_BINDINGS.Reset:
 			view.RefreshLogEvents(true)
-		case core.APP_KEY_BINDINGS.NextPage:
+		case core.APP_KEY_BINDINGS.LoadMoreData:
 			view.RefreshLogEvents(false)
 		}
 		return event
