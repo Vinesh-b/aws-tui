@@ -55,7 +55,7 @@ func CreatePaginatorView(
 					remainingTime.String(),
 				))
 			})
-			time.Sleep(1 * time.Second)
+			time.Sleep(5 * time.Second)
 		}
 		app.QueueUpdateDraw(func() {
 			sessionDetailsView.SetText(fmt.Sprintf(
