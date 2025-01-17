@@ -100,8 +100,19 @@ func (inst *StateMachineDetailsTable) ClearDetails() {
 }
 
 func (inst *StateMachineDetailsTable) RefreshDetails(stateMachineArn string) {
-	inst.selectedStateMachineArn = stateMachineArn
+ChanFlushLoop:
+	for {
+		select {
+		case _, ok := <-inst.logGroupsChan:
+			if !ok {
+				break ChanFlushLoop
+			}
+		default:
+			break ChanFlushLoop
+		}
+	}
 
+	inst.selectedStateMachineArn = stateMachineArn
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
 	dataLoader.AsyncLoadData(func() {
@@ -118,7 +129,9 @@ func (inst *StateMachineDetailsTable) RefreshDetails(stateMachineArn string) {
 				if group != nil {
 					var splitArn = strings.Split(aws.ToString(group.LogGroupArn), ":")
 					inst.logGroups = append(inst.logGroups, splitArn[6])
-					inst.logGroupsChan <- inst.logGroups
+					go func() {
+						inst.logGroupsChan <- inst.logGroups
+					}()
 				}
 			}
 		}
