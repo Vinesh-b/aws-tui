@@ -47,10 +47,10 @@ func NewAlarmsDetailsPageView(
 	serviceView.MainPage.AddItem(mainPage, 0, 1, false)
 
 	serviceView.InitViewNavigation(
-		[]core.View{
-			alarmListTable,
-			alarmHistoryTable,
-			alarmDetailsTable,
+		[][]core.View{
+			{alarmDetailsTable},
+			{alarmHistoryTable},
+			{alarmListTable},
 		},
 	)
 

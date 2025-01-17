@@ -43,9 +43,9 @@ func NewLogGroupsSelectionPageView(
 		AddItem(logGroupsView.LogGroupsTable, 0, 1, true)
 
 	serviceView.InitViewNavigation(
-		[]core.View{
-			logGroupsView.LogGroupsTable,
-			selectedGroupsTable,
+		[][]core.View{
+			{selectedGroupsTable},
+			{logGroupsView.LogGroupsTable},
 		},
 	)
 
@@ -107,9 +107,9 @@ func NewInsightsQueryResultsPageView(
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
-		[]core.View{
-			insightsQueryResultsTable,
-			expandedResultView,
+		[][]core.View{
+			{expandedResultView},
+			{insightsQueryResultsTable},
 		},
 	)
 

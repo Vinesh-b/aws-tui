@@ -41,9 +41,9 @@ func NewMetricsDetailsView(
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
-		[]core.View{
-			metricListTable,
-			metricDetailsTable,
+		[][]core.View{
+			{metricDetailsTable},
+			{metricListTable},
 		},
 	)
 

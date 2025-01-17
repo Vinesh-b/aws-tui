@@ -45,9 +45,9 @@ func NewLogEventsPageView(
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
-		[]core.View{
-			logEventsTable,
-			expandedLogsView,
+		[][]core.View{
+			{expandedLogsView},
+			{logEventsTable},
 		},
 	)
 
@@ -90,9 +90,9 @@ func NewLogStreamsPageView(
 		AddItem(logStreamsTable, 0, 1, true)
 
 	serviceView.InitViewNavigation(
-		[]core.View{
-			logStreamsTable,
-			logStreamDetailsTable,
+		[][]core.View{
+			{logStreamDetailsTable},
+			{logStreamsTable},
 		},
 	)
 
@@ -139,9 +139,9 @@ func NewLogGroupsPageView(
 		AddItem(logGroupsTable, 0, 1, true)
 
 	serviceView.InitViewNavigation(
-		[]core.View{
-			logGroupsTable,
-			logGroupDetailsTable,
+		[][]core.View{
+			{logGroupDetailsTable},
+			{logGroupsTable},
 		},
 	)
 

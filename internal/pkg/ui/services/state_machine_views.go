@@ -52,10 +52,9 @@ func NewStateMachinesDetailsPageView(
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
-		[]core.View{
-			stateMachinesList,
-			tabView.GetTabsList(),
-			tabView.GetTabDisplayView(),
+		[][]core.View{
+			{tabView.GetTabsList(), tabView.GetTabDisplayView()},
+			{stateMachinesList},
 		},
 	)
 
@@ -159,10 +158,9 @@ func NewStateMachineExectionDetailsPage(
 		AddItem(resizableView, 0, 1, false)
 
 	serviceView.InitViewNavigation(
-		[]core.View{
-			executionDetails,
-			tabView.GetTabsList(),
-			tabView.GetTabDisplayView(),
+		[][]core.View{
+			{tabView.GetTabsList(), tabView.GetTabDisplayView()},
+			{executionDetails},
 		},
 	)
 

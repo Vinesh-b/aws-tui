@@ -41,9 +41,9 @@ func NewS3bucketsDetailsView(
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
-		[]core.View{
-			bucketListTable,
-			bucketObjectsTable,
+		[][]core.View{
+			{bucketObjectsTable},
+			{bucketListTable},
 		},
 	)
 

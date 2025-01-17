@@ -41,9 +41,9 @@ func NewStacksDetailsPageView(
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
-		[]core.View{
-			stackListTable,
-			stackDetailsTable,
+		[][]core.View{
+			{stackDetailsTable},
+			{stackListTable},
 		},
 	)
 
@@ -108,9 +108,9 @@ func NewStackEventsPageView(
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
-		[]core.View{
-			stackEventsTable,
-			expandedMsgView,
+		[][]core.View{
+			{expandedMsgView},
+			{stackEventsTable},
 		},
 	)
 

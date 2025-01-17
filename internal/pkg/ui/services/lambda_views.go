@@ -88,10 +88,9 @@ func NewLambdaDetailsPageView(
 	lambdaTagsTable.ErrorMessageCallback = errorHandler
 
 	view.InitViewNavigation(
-		[]core.View{
-			lambdaListTable,
-			tabView.GetTabsList(),
-			tabView.GetTabDisplayView(),
+		[][]core.View{
+			{tabView.GetTabsList(), tabView.GetTabDisplayView()},
+			{lambdaListTable},
 		},
 	)
 	view.initInputCapture()
@@ -141,11 +140,11 @@ func NewLambdaInvokePageView(
 		AddItem(logResults, 0, 5000, false)
 
 	serviceView.InitViewNavigation(
-		[]core.View{
-			payloadInput,
-			lambdaDetails,
-			logResults,
-			responseOutput,
+		[][]core.View{
+			{responseOutput},
+			{lambdaDetails},
+			{logResults},
+			{payloadInput},
 		},
 	)
 	var view = &LambdaInvokePageView{

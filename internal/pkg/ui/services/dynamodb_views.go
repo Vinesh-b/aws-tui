@@ -43,9 +43,9 @@ func NewDynamoDBDetailsPage(
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
-		[]core.View{
-			tablesTable,
-			detailsTable,
+		[][]core.View{
+			{detailsTable},
+			{tablesTable},
 		},
 	)
 
@@ -92,9 +92,9 @@ func NewDynamoDBTableItemsPage(
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
-		[]core.View{
-			itemsTable,
-			expandItemView,
+		[][]core.View{
+			{expandItemView},
+			{itemsTable},
 		},
 	)
 
