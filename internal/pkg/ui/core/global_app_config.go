@@ -56,6 +56,8 @@ type KeyBindings struct {
 	PageBack                tcell.Key
 	ViewFocusUp             tcell.Key
 	ViewFocusDown           tcell.Key
+	ViewFocusLeft           tcell.Key
+	ViewFocusRight          tcell.Key
 	ViewResizeModKey        tcell.ModMask
 	MoveUpRune              rune
 	MoveDownRune            rune
@@ -93,10 +95,12 @@ var APP_KEY_BINDINGS = KeyBindings{
 	LoadMoreData:            tcell.KeyCtrlN,
 	Done:                    tcell.KeyEnter,
 	Find:                    tcell.KeyCtrlF,
-	PageForward:             tcell.KeyCtrlL,
-	PageBack:                tcell.KeyCtrlH,
+	PageForward:             tcell.KeyCtrlRightSq,
+	PageBack:                tcell.KeyCtrlLeftSq,
 	ViewFocusUp:             tcell.KeyCtrlK,
 	ViewFocusDown:           tcell.KeyCtrlJ,
+	ViewFocusLeft:           tcell.KeyCtrlH,
+	ViewFocusRight:          tcell.KeyCtrlL,
 	ViewResizeModKey:        tcell.ModAlt,
 	MoveUpRune:              'k',
 	MoveDownRune:            'j',

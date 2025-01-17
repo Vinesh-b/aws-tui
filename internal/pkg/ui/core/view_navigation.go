@@ -67,3 +67,92 @@ func (inst *ViewNavigation1D) GetLastFocusedView() tview.Primitive {
 	}
 	return inst.orderedViews[inst.viewIdx]
 }
+
+type ViewNavigation2D struct {
+	app          *tview.Application
+	rootView     RootView
+	orderedViews [][]View
+	colIdx       int
+	numCol       int
+	rowIdx       int
+	numRow       int
+	keyUp        tcell.Key
+	keyDown      tcell.Key
+	keyLeft      tcell.Key
+	keyRight     tcell.Key
+}
+
+func NewViewNavigation2D(
+	rootView RootView, orderedViews [][]View, app *tview.Application,
+) *ViewNavigation2D {
+	var view = &ViewNavigation2D{
+		rootView:     rootView,
+		orderedViews: orderedViews,
+		app:          app,
+		rowIdx:       0,
+		numRow:       1,
+		colIdx:       len(orderedViews),
+		numCol:       len(orderedViews),
+		keyUp:        APP_KEY_BINDINGS.ViewFocusUp,
+		keyDown:      APP_KEY_BINDINGS.ViewFocusDown,
+		keyLeft:      APP_KEY_BINDINGS.ViewFocusLeft,
+		keyRight:     APP_KEY_BINDINGS.ViewFocusRight,
+	}
+	if len(view.orderedViews) > 0 {
+		view.numCol = len(orderedViews[0])
+	}
+
+	view.rootView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case view.keyUp:
+			view.rowIdx = (view.rowIdx - 1 + view.numRow) % view.numRow
+			var colIdx = view.colIdx
+			if colIdx >= len(view.orderedViews[view.rowIdx]) {
+				colIdx = len(view.orderedViews[view.rowIdx]) - 1
+			}
+			view.app.SetFocus(view.orderedViews[view.rowIdx][colIdx])
+			return nil
+		case view.keyDown:
+			view.rowIdx = (view.rowIdx + 1) % view.numRow
+			var colIdx = view.colIdx
+			if colIdx >= len(view.orderedViews[view.rowIdx]) {
+				colIdx = len(view.orderedViews[view.rowIdx]) - 1
+			}
+			view.app.SetFocus(view.orderedViews[view.rowIdx][colIdx])
+			return nil
+		case view.keyRight:
+			view.colIdx = (view.colIdx + 1) % view.numCol
+			view.app.SetFocus(view.orderedViews[view.rowIdx][view.colIdx])
+			return nil
+		case view.keyLeft:
+			view.colIdx = (view.colIdx - 1 + view.numCol) % view.numCol
+			view.app.SetFocus(view.orderedViews[view.rowIdx][view.colIdx])
+			return nil
+		}
+
+		return event
+	})
+
+	return view
+}
+
+func (inst *ViewNavigation2D) UpdateOrderedViews(orderedViews [][]View, intitalIxd int) {
+	if len(inst.orderedViews) == 0 || len(inst.orderedViews[0]) == 0 {
+		inst.orderedViews = orderedViews
+		inst.numRow = len(inst.orderedViews)
+		inst.numCol = len(inst.orderedViews[0])
+		inst.rowIdx = inst.numRow - 1
+		inst.colIdx = 0
+	}
+}
+
+func (inst *ViewNavigation2D) GetOrderedViews() [][]View {
+	return inst.orderedViews
+}
+
+func (inst *ViewNavigation2D) GetLastFocusedView() tview.Primitive {
+	if len(inst.orderedViews) == 0 || len(inst.orderedViews[0]) == 0 {
+		return nil
+	}
+	return inst.orderedViews[inst.rowIdx][inst.colIdx]
+}
