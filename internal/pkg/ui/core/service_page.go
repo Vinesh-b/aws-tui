@@ -92,6 +92,10 @@ func (inst *ServicePageView) InitViewNavigation(orderedViews []View) {
 	inst.viewNavigation.UpdateOrderedViews(orderedViews, 0)
 }
 
+func (inst *ServicePageView) GetViewNavigation() []View {
+	return inst.viewNavigation.GetOrderedViews()
+}
+
 func (inst *ServicePageView) DisplayMessage(messageType MessagePromptType, text string, a ...any) {
 
 	var message = fmt.Sprintf(text, a...)
