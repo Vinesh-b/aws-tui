@@ -29,6 +29,11 @@ func CreatePaginatorView(
 
 		if err != nil {
 			logger.Print(err.Error())
+			app.QueueUpdateDraw(func() {
+				sessionDetailsView.SetText(fmt.Sprintf(
+					"Credentials Error: %s", err.Error(),
+				))
+			})
 			return
 		}
 
@@ -38,10 +43,12 @@ func CreatePaginatorView(
 		}
 
 		if creds.CanExpire == false {
-			sessionDetailsView.SetText(fmt.Sprintf(
-				"Profile: %s | Account Id: %s | Session duration: Never",
-				profileName, creds.AccountID,
-			))
+			app.QueueUpdateDraw(func() {
+				sessionDetailsView.SetText(fmt.Sprintf(
+					"Profile: %s | Account Id: %s | Session duration: Never",
+					profileName, creds.AccountID,
+				))
+			})
 			return
 		}
 
@@ -64,7 +71,6 @@ func CreatePaginatorView(
 				creds.AccountID,
 			))
 		})
-
 	}()
 
 	var pageCount = tview.NewTextView().
