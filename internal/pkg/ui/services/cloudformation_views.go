@@ -160,7 +160,7 @@ func NewStacksHomeView(
 		)
 	)
 
-	var serviceRootView = core.NewServiceRootView(app, string(CLOUDFORMATION))
+	var serviceRootView = core.NewServiceRootView(string(CLOUDFORMATION), app, &config, logger)
 
 	serviceRootView.
 		AddAndSwitchToPage("Stacks", stacksDetailsView, true).

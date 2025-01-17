@@ -150,7 +150,7 @@ func NewLogsInsightsHomeView(
 		app, api, logger,
 	)
 
-	var serviceRootView = core.NewServiceRootView(app, string(CLOUDWATCH_LOGS_INSIGHTS))
+	var serviceRootView = core.NewServiceRootView(string(CLOUDWATCH_LOGS_INSIGHTS), app, &config, logger)
 
 	serviceRootView.
 		AddAndSwitchToPage("GroupsSelection", groupSelectionView, true).

@@ -247,7 +247,7 @@ func NewLambdaHomeView(
 		)
 	)
 
-	var serviceRootView = core.NewServiceRootView(app, string(LAMBDA))
+	var serviceRootView = core.NewServiceRootView(string(LAMBDA), app, &config, logger)
 
 	serviceRootView.
 		AddAndSwitchToPage("Lambdas", lambdasDetailsView, true).

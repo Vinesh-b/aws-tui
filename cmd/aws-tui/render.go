@@ -51,7 +51,7 @@ func RenderUI(config aws.Config, version string) {
 		services.S3BUCKETS:                services.NewS3bucketsHomeView(app, config, inAppLogger),
 		services.STATE_MACHINES:           services.NewStepFunctionsHomeView(app, config, inAppLogger),
 
-		services.HELP:       services.NewHelpHomeView(app, inAppLogger),
+		services.HELP:       services.NewHelpHomeView(app, config, inAppLogger),
 		services.DEBUG_LOGS: errorTextArea,
 	}
 
@@ -96,12 +96,12 @@ func RenderUI(config aws.Config, version string) {
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyESC:
-            if !serviceListHidden {
+			if !serviceListHidden {
 				pages.HidePage(FLOATING_SERVICE_LIST)
 				app.SetFocus(lastFocus)
-                serviceListHidden = true
-                return nil
-            }
+				serviceListHidden = true
+				return nil
+			}
 		case core.APP_KEY_BINDINGS.ToggleServicesMenu:
 			if serviceListHidden {
 				lastFocus = app.GetFocus()

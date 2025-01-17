@@ -2,7 +2,9 @@ package core
 
 import (
 	"fmt"
+	"log"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -19,10 +21,13 @@ type ServiceRootView struct {
 }
 
 func NewServiceRootView(
-	app *tview.Application,
 	serviceName string,
+	app *tview.Application,
+	config *aws.Config,
+	logger *log.Logger,
+
 ) *ServiceRootView {
-	var paginatorView = CreatePaginatorView(serviceName)
+	var paginatorView = CreatePaginatorView(serviceName, app, config, logger)
 
 	var view = &ServiceRootView{
 		Flex:            tview.NewFlex().SetDirection(tview.FlexRow),
@@ -37,7 +42,7 @@ func NewServiceRootView(
 
 	view.
 		AddItem(view.pages, 0, 1, true).
-		AddItem(paginatorView, 1, 0, false)
+		AddItem(paginatorView, 2, 0, false)
 
 	return view
 }

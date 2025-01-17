@@ -114,7 +114,7 @@ func NewAlarmsHomeView(
 	)
 	alarmsDetailsView.InitInputCapture()
 
-	var serviceRootView = core.NewServiceRootView(app, string(CLOUDWATCH_ALARMS))
+	var serviceRootView = core.NewServiceRootView(string(CLOUDWATCH_ALARMS), app, &config, logger)
 
 	serviceRootView.AddAndSwitchToPage("Alarms", alarmsDetailsView, true)
 

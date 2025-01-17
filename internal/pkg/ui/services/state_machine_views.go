@@ -213,7 +213,7 @@ func NewStepFunctionsHomeView(
 			app, api, logger)
 	)
 
-	var serviceRootView = core.NewServiceRootView(app, string(STATE_MACHINES))
+	var serviceRootView = core.NewServiceRootView(string(STATE_MACHINES), app, &config, logger)
 
 	serviceRootView.
 		AddAndSwitchToPage("StateMachines", SfnDetailsView, true).

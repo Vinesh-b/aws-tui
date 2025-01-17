@@ -85,7 +85,7 @@ func NewMetricsHomeView(
 	)
 	metricsDetailsView.InitInputCapture()
 
-	var serviceRootView = core.NewServiceRootView(app, string(CLOUDWATCH_METRICS))
+	var serviceRootView = core.NewServiceRootView(string(CLOUDWATCH_METRICS), app, &config, logger)
 
 	serviceRootView.AddAndSwitchToPage("Metrics", metricsDetailsView, true)
 

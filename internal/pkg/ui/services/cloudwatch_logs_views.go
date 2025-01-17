@@ -190,7 +190,7 @@ func NewLogsHomeView(
 		app, api, logger,
 	)
 
-	var serviceRootView = core.NewServiceRootView(app, string(CLOUDWATCH_LOGS_GROUPS))
+	var serviceRootView = core.NewServiceRootView(string(CLOUDWATCH_LOGS_GROUPS), app, &config, logger)
 
 	serviceRootView.
 		AddAndSwitchToPage("Groups", logGroupsView, true).

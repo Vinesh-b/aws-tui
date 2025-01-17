@@ -99,7 +99,7 @@ func NewS3bucketsHomeView(
 		)
 	)
 
-	var serviceRootView = core.NewServiceRootView(app, string(S3BUCKETS))
+	var serviceRootView = core.NewServiceRootView(string(S3BUCKETS), app, &config, logger)
 
 	serviceRootView.AddAndSwitchToPage("S3Buckets", s3DetailsView, true)
 

@@ -141,7 +141,7 @@ func NewDynamoDBHomeView(
 		)
 	)
 
-	var serviceRootView = core.NewServiceRootView(app, string(DYNAMODB))
+	var serviceRootView = core.NewServiceRootView(string(DYNAMODB), app, &config, logger)
 
 	serviceRootView.
 		AddAndSwitchToPage("Tables", ddbDetailsView, true).
