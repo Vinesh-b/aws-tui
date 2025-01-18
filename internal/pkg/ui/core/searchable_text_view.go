@@ -48,6 +48,10 @@ func NewSearchableTextView(title string, app *tview.Application) *SearchableText
 		SetBorder(true)
 
 	var updateSearchPosition = func() {
+		if len(view.searchPositions) == 0 {
+			return
+		}
+
 		var pos = view.searchPositions[view.nextSearchPosition]
 		view.SearchableView.SetTitle(fmt.Sprintf(
 			"%s [%s: %d/%d]",
