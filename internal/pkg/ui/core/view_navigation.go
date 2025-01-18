@@ -91,8 +91,8 @@ func NewViewNavigation2D(
 		app:          app,
 		rowIdx:       0,
 		numRow:       1,
-		colIdx:       len(orderedViews),
-		numCol:       len(orderedViews),
+		colIdx:       0,
+		numCol:       1,
 		keyUp:        APP_KEY_BINDINGS.ViewFocusUp,
 		keyDown:      APP_KEY_BINDINGS.ViewFocusDown,
 		keyLeft:      APP_KEY_BINDINGS.ViewFocusLeft,
@@ -103,6 +103,10 @@ func NewViewNavigation2D(
 	}
 
 	view.rootView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if view.orderedViews == nil || len(view.orderedViews) == 0 {
+			return event
+		}
+
 		switch event.Key() {
 		case view.keyUp:
 			view.rowIdx = (view.rowIdx - 1 + view.numRow) % view.numRow
@@ -121,10 +125,12 @@ func NewViewNavigation2D(
 			view.app.SetFocus(view.orderedViews[view.rowIdx][colIdx])
 			return nil
 		case view.keyRight:
+			view.numCol = len(view.orderedViews[view.rowIdx])
 			view.colIdx = (view.colIdx + 1) % view.numCol
 			view.app.SetFocus(view.orderedViews[view.rowIdx][view.colIdx])
 			return nil
 		case view.keyLeft:
+			view.numCol = len(view.orderedViews[view.rowIdx])
 			view.colIdx = (view.colIdx - 1 + view.numCol) % view.numCol
 			view.app.SetFocus(view.orderedViews[view.rowIdx][view.colIdx])
 			return nil
@@ -137,7 +143,7 @@ func NewViewNavigation2D(
 }
 
 func (inst *ViewNavigation2D) UpdateOrderedViews(orderedViews [][]View, intitalIxd int) {
-	if len(inst.orderedViews) == 0 || len(inst.orderedViews[0]) == 0 {
+	if len(orderedViews) != 0 && len(orderedViews[0]) != 0 {
 		inst.orderedViews = orderedViews
 		inst.numRow = len(inst.orderedViews)
 		inst.numCol = len(inst.orderedViews[0])
