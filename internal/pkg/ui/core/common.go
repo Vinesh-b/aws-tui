@@ -33,6 +33,8 @@ func TryFormatToJson(text string) (string, bool) {
 type PrivateDataTable[T any, U any] interface {
 	GetPrivateData(row int, column int) T
 	SetSelectionChangedFunc(handler func(row int, column int)) U
+	SetSearchText(text string)
+	GetSearchText() string
 }
 
 func CreateJsonTableDataView[T any, U any](
@@ -56,6 +58,7 @@ func CreateJsonTableDataView[T any, U any](
 			var text = privateData.(string)
 			if err := json.Unmarshal([]byte(text), &anyJson); err != nil {
 				expandedView.SetText(text, false)
+				expandedView.SetSearchText(table.GetSearchText())
 				return
 			}
 		case map[string]interface{}:
@@ -63,11 +66,13 @@ func CreateJsonTableDataView[T any, U any](
 		default:
 			var text = fmt.Sprintf("%v", privateData)
 			expandedView.SetText(text, false)
+			expandedView.SetSearchText(table.GetSearchText())
 			return
 		}
 
 		var jsonBytes, _ = json.MarshalIndent(anyJson, "", "  ")
 		expandedView.SetText(string(jsonBytes), false)
+		expandedView.SetSearchText(table.GetSearchText())
 	})
 
 	return expandedView

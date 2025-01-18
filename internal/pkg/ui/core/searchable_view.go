@@ -17,10 +17,11 @@ type SearchableView struct {
 	MainPage        tview.Primitive
 	HighlightSearch bool
 
-	searchInput *tview.InputField
-	showSearch  bool
-	app         *tview.Application
-	logger      *log.Logger
+	searchInput       *tview.InputField
+	showSearch        bool
+	searchDoneHandler func(key tcell.Key)
+	app               *tview.Application
+	logger            *log.Logger
 }
 
 func NewSearchableView(
@@ -37,9 +38,10 @@ func NewSearchableView(
 		MainPage:        mainPage,
 		HighlightSearch: false,
 
-		searchInput: floatingSearch.InputField,
-		showSearch:  true,
-		app:         app,
+		searchInput:       floatingSearch.InputField,
+		showSearch:        true,
+		searchDoneHandler: func(key tcell.Key) {},
+		app:               app,
 	}
 
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -66,15 +68,15 @@ func NewSearchableView(
 
 func (inst *SearchableView) SetSearchInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
 	inst.searchInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-        switch event.Key(){
-        case APP_KEY_BINDINGS.Escape:
-            inst.HidePage(SEARCH_PAGE_NAME)
-            inst.showSearch = true
-            return nil
-        }
+		switch event.Key() {
+		case APP_KEY_BINDINGS.Escape:
+			inst.HidePage(SEARCH_PAGE_NAME)
+			inst.showSearch = true
+			return nil
+		}
 
-        return capture(event)
-    })
+		return capture(event)
+	})
 }
 
 func (inst *SearchableView) SetSearchDoneFunc(handler func(key tcell.Key)) {
@@ -89,9 +91,11 @@ func (inst *SearchableView) SetSearchDoneFunc(handler func(key tcell.Key)) {
 		return
 	}
 
+	inst.searchDoneHandler = handler
+
 	inst.searchInput.SetDoneFunc(func(key tcell.Key) {
 		default_func(key)
-		handler(key)
+		inst.searchDoneHandler(key)
 	})
 }
 
@@ -105,4 +109,5 @@ func (inst *SearchableView) GetSearchText() string {
 
 func (inst *SearchableView) SetSearchText(text string) {
 	inst.searchInput.SetText(text)
+	inst.searchDoneHandler(APP_KEY_BINDINGS.Done)
 }

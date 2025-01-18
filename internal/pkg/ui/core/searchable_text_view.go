@@ -60,11 +60,14 @@ func NewSearchableTextView(title string, app *tview.Application) *SearchableText
 			view.nextSearchPosition+1,
 			len(view.searchPositions),
 		))
-		var selectedLine = countRune(view.GetText(), '\n', pos[0])
-		// Provide 5 lines of previous text for context
-		view.textArea.SetOffset(selectedLine-5, 0)
 		view.textArea.Select(pos[0], pos[1])
-
+		// Provide 5 lines of previous text for context if available
+		var selectedLine = countRune(view.GetText(), '\n', pos[0])
+		var contextLineCount = 5
+		if selectedLine >= contextLineCount {
+			selectedLine -= contextLineCount
+		}
+		view.textArea.SetOffset(selectedLine, 0)
 	}
 
 	view.textArea.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
