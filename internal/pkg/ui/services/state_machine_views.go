@@ -31,13 +31,9 @@ func NewStateMachinesDetailsPageView(
 	api *awsapi.StateMachineApi,
 	logger *log.Logger,
 ) *StateMachinesDetailsPageView {
-	var tabView = core.NewTabView(
-		[]string{"Executions", "Details"},
-		app,
-		logger,
-	)
-	tabView.GetTab("Executions").MainPage.AddItem(stateMachineExecutions, 0, 1, true)
-	tabView.GetTab("Details").MainPage.AddItem(stateMachineDetailsTable, 0, 1, true)
+	var tabView = core.NewTabView(app, logger).
+		AddAndSwitchToTab("Executions", stateMachineExecutions, 0, 1, true).
+		AddTab("Details", stateMachineDetailsTable, 0, 1, true)
 
 	const detailsViewSize = 4000
 	const tableViewSize = 6000
@@ -136,13 +132,9 @@ func NewStateMachineExectionDetailsPage(
 	executionDetails.SetSelectedFunc(selectionFunc)
 	executionDetails.SetSelectionChangedFunc(selectionFunc)
 
-	var tabView = core.NewTabView(
-		[]string{"Input/Output", "Summary"},
-		app,
-		logger,
-	)
-	tabView.GetTab("Input/Output").MainPage.AddItem(inputOutputExpandedView.TextView, 0, 1, true)
-	tabView.GetTab("Summary").MainPage.AddItem(executionSummary, 0, 1, true)
+	var tabView = core.NewTabView(app, logger).
+		AddAndSwitchToTab("Input/Output", inputOutputExpandedView.TextView, 0, 1, true).
+		AddTab("Summary", executionSummary, 0, 1, true)
 
 	const detailsViewSize = 10
 	const inputOutputViewSize = 10

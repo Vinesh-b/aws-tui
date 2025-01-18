@@ -41,16 +41,12 @@ func NewLambdaDetailsPageView(
 	api *awsapi.LambdaApi,
 	logger *log.Logger,
 ) *LambdaDetailsPageView {
-	var tabView = core.NewTabView(
-		[]string{"Details", "Log Streams", "Environment Vars", "VPC Config", "Tags"},
-		app,
-		logger,
-	)
-	tabView.GetTab("Details").MainPage.AddItem(lambdaDetailsTable, 0, 1, true)
-	tabView.GetTab("Log Streams").MainPage.AddItem(logStreamsTable, 0, 1, true)
-	tabView.GetTab("Environment Vars").MainPage.AddItem(lambdaEnvVarsTable, 0, 1, true)
-	tabView.GetTab("VPC Config").MainPage.AddItem(lambdaVpcConfTable, 0, 1, true)
-	tabView.GetTab("Tags").MainPage.AddItem(lambdaTagsTable, 0, 1, true)
+	var tabView = core.NewTabView(app, logger).
+		AddAndSwitchToTab("Details", lambdaDetailsTable, 0, 1, true).
+		AddTab("Log Streams", logStreamsTable, 0, 1, true).
+		AddTab("Environment Vars", lambdaEnvVarsTable, 0, 1, true).
+		AddTab("VPC Config", lambdaVpcConfTable, 0, 1, true).
+		AddTab("Tags", lambdaTagsTable, 0, 1, true)
 
 	const detailsViewSize = 3000
 	const tableViewSize = 7000

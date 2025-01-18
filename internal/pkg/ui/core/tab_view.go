@@ -9,23 +9,21 @@ import (
 
 type TabView struct {
 	*tview.Flex
-	tabNames []string
-	list     *tview.List
-	pages    *tview.Pages
-	tabs     map[string]*ServicePageView
-	app      *tview.Application
-	logger   *log.Logger
+	list   *tview.List
+	pages  *tview.Pages
+	tabs   map[string]*ServicePageView
+	app    *tview.Application
+	logger *log.Logger
 }
 
-func NewTabView(tabs []string, app *tview.Application, logger *log.Logger) *TabView {
+func NewTabView(app *tview.Application, logger *log.Logger) *TabView {
 	var view = &TabView{
-		Flex:     tview.NewFlex(),
-		tabNames: tabs,
-		list:     tview.NewList(),
-		pages:    tview.NewPages(),
-		tabs:     map[string]*ServicePageView{},
-		app:      app,
-		logger:   logger,
+		Flex:   tview.NewFlex(),
+		list:   tview.NewList(),
+		pages:  tview.NewPages(),
+		tabs:   map[string]*ServicePageView{},
+		app:    app,
+		logger: logger,
 	}
 
 	view.list.
@@ -60,17 +58,6 @@ func NewTabView(tabs []string, app *tview.Application, logger *log.Logger) *TabV
 		return event
 	})
 
-	for _, name := range view.tabNames {
-		var servicePage = NewServicePageView(app, logger)
-		view.pages.AddPage(name, servicePage, true, true)
-		view.tabs[name] = servicePage
-
-		view.list.AddItem(name, "", 0, func() {
-			view.pages.SwitchToPage(name)
-		})
-	}
-
-	view.pages.SwitchToPage(tabs[0])
 	view.list.SetBorderPadding(0, 0, 1, 1)
 	view.Flex.SetDirection(tview.FlexColumn).
 		AddItem(view.list, 20, 0, true).
@@ -81,6 +68,28 @@ func NewTabView(tabs []string, app *tview.Application, logger *log.Logger) *TabV
 
 func (inst *TabView) GetTabsList() *tview.List {
 	return inst.list
+}
+
+func (inst *TabView) AddTab(
+	name string, view tview.Primitive, fixedSize int, proportion int, focus bool,
+) *TabView {
+	var servicePage = NewServicePageView(inst.app, inst.logger)
+	servicePage.MainPage.AddItem(view, fixedSize, proportion, focus)
+	inst.pages.AddPage(name, servicePage, true, false)
+	inst.tabs[name] = servicePage
+
+	inst.list.AddItem(name, "", 0, func() {
+		inst.pages.SwitchToPage(name)
+	})
+	return inst
+}
+
+func (inst *TabView) AddAndSwitchToTab(
+	name string, view tview.Primitive, fixedSize int, proportion int, focus bool,
+) *TabView {
+	inst.AddTab(name, view, fixedSize, proportion, focus)
+	inst.pages.SwitchToPage(name)
+	return inst
 }
 
 func (inst *TabView) GetTab(name string) *ServicePageView {
