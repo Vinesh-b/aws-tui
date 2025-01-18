@@ -36,7 +36,7 @@ func NewLogGroupsTable(
 			core.TableRow{
 				"Name",
 			},
-            app,
+			app,
 		),
 		data:             nil,
 		selectedLogGroup: "",
@@ -48,7 +48,7 @@ func NewLogGroupsTable(
 	view.populateLogGroupsTable(view.data)
 	view.SetSelectedFunc(func(row, column int) {})
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
+		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			view.RefreshLogGroups(true)
 		}

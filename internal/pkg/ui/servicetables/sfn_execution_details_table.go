@@ -82,7 +82,7 @@ func NewStateMachineExecutionDetailsTable(
 
 	view.populateTable()
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
+		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			view.RefreshExecutionDetails(view.selectedExecutionArn, true)
 		}

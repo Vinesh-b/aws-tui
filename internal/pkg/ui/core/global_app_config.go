@@ -47,9 +47,9 @@ func ChangeColourScheme(colour tcell.Color) {
 type KeyBindings struct {
 	Escape                  tcell.Key
 	ToggleServicesMenu      tcell.Key
-	Reset                   tcell.Key
+	Reset                   rune
+	LoadMoreData            rune
 	ClearTable              tcell.Key
-	LoadMoreData            tcell.Key
 	Done                    tcell.Key
 	Find                    tcell.Key
 	PageForward             tcell.Key
@@ -90,9 +90,9 @@ type KeyBindings struct {
 var APP_KEY_BINDINGS = KeyBindings{
 	Escape:                  tcell.KeyESC,
 	ToggleServicesMenu:      tcell.KeyCtrlSpace,
-	Reset:                   tcell.KeyCtrlR,
+	Reset:                   'r',
+	LoadMoreData:            'n',
 	ClearTable:              tcell.KeyCtrlX,
-	LoadMoreData:            tcell.KeyCtrlN,
 	Done:                    tcell.KeyEnter,
 	Find:                    tcell.KeyCtrlF,
 	PageForward:             tcell.KeyCtrlRightSq,

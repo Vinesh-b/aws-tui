@@ -147,10 +147,6 @@ func NewSearchableTextView(title string, app *tview.Application) *SearchableText
 				view.searchPositions = expr.FindAllStringIndex(text, -1)
 				updateSearchPosition()
 			}
-		case APP_KEY_BINDINGS.Reset:
-			view.textArea.Select(0, 0)
-			view.searchPositions = nil
-			view.nextSearchPosition = 0
 		}
 	})
 

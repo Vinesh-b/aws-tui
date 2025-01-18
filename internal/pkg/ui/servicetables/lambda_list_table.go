@@ -36,7 +36,7 @@ func NewLambdasListTable(
 				"Name",
 				"LastModified",
 			},
-            app,
+			app,
 		),
 		data:           nil,
 		selectedLambda: types.FunctionConfiguration{},
@@ -141,7 +141,7 @@ func (inst *LambdaListTable) SetSelectionChangedFunc(handler func(row int, colum
 
 func (inst *LambdaListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
 	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
+		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshLambdas(true)
 		}
@@ -150,9 +150,9 @@ func (inst *LambdaListTable) SetInputCapture(capture func(event *tcell.EventKey)
 }
 
 func (inst *LambdaListTable) GetSeletedLambdaLogGroup() string {
-    if inst.selectedLambda.LoggingConfig != nil {
-        return aws.ToString(inst.selectedLambda.LoggingConfig.LogGroup)
-    }
+	if inst.selectedLambda.LoggingConfig != nil {
+		return aws.ToString(inst.selectedLambda.LoggingConfig.LogGroup)
+	}
 	return ""
 }
 

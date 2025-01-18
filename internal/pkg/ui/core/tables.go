@@ -308,9 +308,6 @@ func (inst *SelectableTable[T]) SetSearchDoneFunc(handler func(key tcell.Key)) {
 				inst.GetSearchText(),
 				[]int{},
 			)
-		case APP_KEY_BINDINGS.Reset:
-			clearSearchHighlights(inst.table)
-			inst.searchPositions = nil
 		}
 		return
 	}

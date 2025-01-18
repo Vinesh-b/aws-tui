@@ -39,7 +39,7 @@ func NewLogEventsTable(
 				"Timestamp",
 				"Message",
 			},
-            app,
+			app,
 		),
 		data:              nil,
 		selectedLogGroup:  "",
@@ -52,7 +52,7 @@ func NewLogEventsTable(
 	view.HighlightSearch = true
 	view.populateLogEventsTable(false)
 	view.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
+		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			view.RefreshLogEvents(true)
 		case core.APP_KEY_BINDINGS.LoadMoreData:

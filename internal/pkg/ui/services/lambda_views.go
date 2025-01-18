@@ -160,16 +160,7 @@ func NewLambdaInvokePageView(
 	return view
 }
 
-func (inst *LambdaInvokePageView) initInputCapture() {
-	inst.payloadInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case core.APP_KEY_BINDINGS.Reset:
-			inst.Invoke()
-			return nil
-		}
-		return event
-	})
-}
+func (inst *LambdaInvokePageView) initInputCapture() {}
 
 func (inst *LambdaInvokePageView) loadLogs(text string) {
 	inst.logResults.SetTitle("Logs")

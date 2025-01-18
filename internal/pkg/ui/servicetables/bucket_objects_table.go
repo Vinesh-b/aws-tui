@@ -203,7 +203,7 @@ func (inst *BucketObjectsTable) SetSelectionChangedFunc(handler func(row int, co
 
 func (inst *BucketObjectsTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
 	inst.GetTable().SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
+		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshObjects(true)
 		case core.APP_KEY_BINDINGS.LoadMoreData:

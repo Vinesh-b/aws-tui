@@ -36,7 +36,7 @@ func NewAlarmListTable(
 				"Name",
 				"State",
 			},
-            app,
+			app,
 		),
 		data:          nil,
 		selectedAlarm: types.MetricAlarm{},
@@ -50,7 +50,7 @@ func NewAlarmListTable(
 	view.SetSelectionChangedFunc(func(row, column int) {})
 
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
+		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			view.RefreshAlarms(true)
 		case core.APP_KEY_BINDINGS.LoadMoreData:

@@ -47,12 +47,10 @@ func NewSelectedGroupsTable(
 	view.populateSelectedGroupsTable()
 	view.SetSelectionChangedFunc(func(row, column int) {})
 	view.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
+		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			view.data = core.StringSet{}
 			view.RefreshSelectedGroups()
-		}
-		switch event.Rune() {
 		case rune('u'):
 			var groupName = view.GetSelectedLogGroup()
 			logger.Printf("Removing: %v", groupName)

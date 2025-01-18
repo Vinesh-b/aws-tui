@@ -76,7 +76,7 @@ func NewDynamoDBGenericTable(
 	table.populateDynamoDBTable(false)
 	table.SetSelectionChangedFunc(func(row, column int) {})
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
+		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			table.ExecuteSearch(table.lastTableOp, table.lastSearchExpr, true)
 		case core.APP_KEY_BINDINGS.LoadMoreData:

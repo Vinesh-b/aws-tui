@@ -36,7 +36,7 @@ func NewMetricsTable(
 				"Namespace",
 				"Name",
 			},
-            app,
+			app,
 		),
 		selectedMetric: types.Metric{},
 		currentSearch:  "",
@@ -119,7 +119,7 @@ func (inst *MetricListTable) RefreshMetrics(reset bool) {
 
 func (inst *MetricListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
 	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
+		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshMetrics(true)
 		}

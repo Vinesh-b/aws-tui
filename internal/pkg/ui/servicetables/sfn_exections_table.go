@@ -78,7 +78,7 @@ func NewStateMachineExecutionsTable(
 	table.SetSelectionChangedFunc(func(row, column int) {})
 
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
+		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			var endTime = time.Now()
 			var startTime = endTime.Add(-24 * 1 * time.Hour)
