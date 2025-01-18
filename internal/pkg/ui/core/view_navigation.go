@@ -157,8 +157,11 @@ func (inst *ViewNavigation2D) GetOrderedViews() [][]View {
 }
 
 func (inst *ViewNavigation2D) GetLastFocusedView() tview.Primitive {
-	if len(inst.orderedViews) == 0 || len(inst.orderedViews[0]) == 0 {
+	if len(inst.orderedViews) == 0 || len(inst.orderedViews[inst.rowIdx]) == 0 {
 		return nil
 	}
-	return inst.orderedViews[inst.rowIdx][inst.colIdx]
+
+	var row = inst.rowIdx % len(inst.orderedViews)
+	var col = inst.colIdx % len(inst.orderedViews[row])
+	return inst.orderedViews[row][col]
 }
