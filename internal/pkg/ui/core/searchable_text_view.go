@@ -141,6 +141,8 @@ func NewSearchableTextView(title string, app *tview.Application) *SearchableText
 			var search = searchableView.GetSearchText()
 			var text = textArea.GetText()
 			if len(search) == 0 || len(text) == 0 {
+				view.SearchableView.SetTitle(view.title)
+				view.searchPositions = nil
 				return
 			}
 			if expr, err := regexp.Compile(search); err == nil {
