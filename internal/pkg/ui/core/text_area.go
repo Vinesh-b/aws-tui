@@ -1,0 +1,60 @@
+package core
+
+import (
+	"encoding/json"
+
+	"github.com/atotto/clipboard"
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
+)
+
+type TextArea struct {
+	*tview.TextArea
+	ErrorMessageCallback func(text string, a ...any)
+	lineCount            int
+	title                string
+}
+
+func NewTextArea(title string) *TextArea {
+	var t = tview.NewTextArea()
+	var view = &TextArea{
+		TextArea:             t,
+		ErrorMessageCallback: func(text string, a ...any) {},
+		lineCount:            0,
+		title:                title,
+	}
+
+	view.
+		SetClipboard(
+			func(s string) { clipboard.WriteAll(s) },
+			func() string {
+				var res, _ = clipboard.ReadAll()
+				return res
+			},
+		).
+		SetSelectedStyle(
+			tcell.Style{}.Background(MoreContrastBackgroundColor),
+		)
+
+	view.
+		SetTitle(title).
+		SetTitleAlign(tview.AlignLeft).
+		SetBorder(true)
+
+	return view
+}
+
+func (inst *TextArea) FormatAsJson() {
+	var payload = make(map[string]any)
+	if err := json.Unmarshal([]byte(inst.GetText()), &payload); err != nil {
+		inst.ErrorMessageCallback(err.Error())
+		return
+	}
+
+	var jsonPayload, err = json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		inst.ErrorMessageCallback(err.Error())
+	}
+
+	inst.SetText(string(jsonPayload), false)
+}
