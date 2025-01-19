@@ -3,6 +3,7 @@ package services
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"aws-tui/internal/pkg/awsapi"
@@ -106,55 +107,71 @@ func (inst *LambdaDetailsPageView) initInputCapture() {
 	})
 }
 
-// Todo: Fix navigaion with shared components
 type LambdaInvokePageView struct {
 	*core.ServicePageView
-	SelectedLambda string
-	DetailsTable   *tables.LambdaDetailsTable
-
+	selectedLambda string
+	invokeButton   *tview.Button
+	formatButton   *tview.Button
 	logResults     *core.SearchableTextView
-	payloadInput   *core.SearchableTextView
+	payloadInput   *core.TextArea
 	responseOutput *core.SearchableTextView
+	title          string
+	titleExtra     string
 	app            *tview.Application
 	api            *awsapi.LambdaApi
 }
 
 func NewLambdaInvokePageView(
-	lambdaDetails *tables.LambdaDetailsTable,
 	app *tview.Application,
 	api *awsapi.LambdaApi,
 	logger *log.Logger,
 ) *LambdaInvokePageView {
-
-	var payloadInput = core.NewSearchableTextView("Event Payload", app)
+	var payloadInput = core.NewTextArea("Payload")
 	var logResults = core.NewSearchableTextView("Logs", app)
 	var responseOutput = core.NewSearchableTextView("Response", app)
+	var invokeButton = tview.NewButton("Invoke")
+	var formatButton = tview.NewButton("Format Payload")
+	var buttonsView = tview.NewFlex().
+		SetDirection(tview.FlexColumn).
+		AddItem(invokeButton, 0, 1, false).
+		AddItem(formatButton, 0, 1, false)
+	buttonsView.SetBorder(true)
 
 	var serviceView = core.NewServicePageView(app, logger)
 	serviceView.MainPage.
-		AddItem(lambdaDetails, 0, 3000, false).
 		AddItem(payloadInput, 0, 4000, false).
+		AddItem(buttonsView, 3, 0, false).
 		AddItem(responseOutput, 0, 4000, false).
 		AddItem(logResults, 0, 5000, false)
 
+	var errorHandler = func(text string, a ...any) {
+		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
+	}
+
+	logResults.ErrorMessageCallback = errorHandler
+	responseOutput.ErrorMessageCallback = errorHandler
+	payloadInput.ErrorMessageCallback = errorHandler
+
 	serviceView.InitViewNavigation(
 		[][]core.View{
-			{responseOutput},
-			{lambdaDetails},
-			{logResults},
 			{payloadInput},
+			{invokeButton, formatButton},
+			{responseOutput},
+			{logResults},
 		},
 	)
 	var view = &LambdaInvokePageView{
 		ServicePageView: serviceView,
-		SelectedLambda:  "",
-
-		DetailsTable:   lambdaDetails,
-		payloadInput:   payloadInput,
-		logResults:     logResults,
-		responseOutput: responseOutput,
-		app:            app,
-		api:            api,
+		selectedLambda:  "",
+		invokeButton:    invokeButton,
+		formatButton:    formatButton,
+		payloadInput:    payloadInput,
+		logResults:      logResults,
+		responseOutput:  responseOutput,
+		title:           "Payload",
+		titleExtra:      "",
+		app:             app,
+		api:             api,
 	}
 
 	view.initInputCapture()
@@ -162,7 +179,10 @@ func NewLambdaInvokePageView(
 	return view
 }
 
-func (inst *LambdaInvokePageView) initInputCapture() {}
+func (inst *LambdaInvokePageView) initInputCapture() {
+	inst.invokeButton.SetSelectedFunc(func() { inst.Invoke() })
+	inst.formatButton.SetSelectedFunc(func() { inst.payloadInput.FormatAsJson() })
+}
 
 func (inst *LambdaInvokePageView) loadLogs(text string) {
 	inst.logResults.SetTitle("Logs")
@@ -175,6 +195,16 @@ func (inst *LambdaInvokePageView) loadResponse(text string) {
 	inst.responseOutput.SetText(newText, false)
 }
 
+func (inst *LambdaInvokePageView) SetSelectedLambda(name string) {
+	inst.selectedLambda = name
+	inst.titleExtra = name
+	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	dataLoader.AsyncLoadData(func() {})
+	dataLoader.AsyncUpdateView(inst.payloadInput, func() {
+		inst.payloadInput.SetTitle(fmt.Sprintf("%s [%s]", inst.title, inst.titleExtra))
+	})
+}
+
 func (inst *LambdaInvokePageView) Invoke() {
 	var logResults = []byte{}
 	var responseOutput = []byte{}
@@ -185,19 +215,19 @@ func (inst *LambdaInvokePageView) Invoke() {
 		var payload = make(map[string]any)
 		err = json.Unmarshal([]byte(inst.payloadInput.GetText()), &payload)
 		if err != nil {
-			// log something to the console
+			inst.responseOutput.ErrorMessageCallback(err.Error())
 			return
 		}
 
 		var data *lambda.InvokeOutput = nil
-		data, err = inst.api.InvokeLambda(inst.SelectedLambda, payload)
+		data, err = inst.api.InvokeLambda(inst.selectedLambda, payload)
 		if err != nil {
-			// log something to the console
+			inst.responseOutput.ErrorMessageCallback(err.Error())
 		}
 
 		logResults, err = base64.StdEncoding.DecodeString(aws.ToString(data.LogResult))
 		if err != nil {
-			// log something to the console
+			inst.logResults.ErrorMessageCallback(err.Error())
 		}
 
 		responseOutput = data.Payload
@@ -233,13 +263,17 @@ func NewLambdaHomeView(
 			tables.NewLogEventsTable(app, cwl_api, logger),
 			app, cwl_api, logger,
 		)
+		lambdaInvokeView = NewLambdaInvokePageView(
+			app, api, logger,
+		)
 	)
 
 	var serviceRootView = core.NewServiceRootView(string(LAMBDA), app, &config, logger)
 
 	serviceRootView.
 		AddAndSwitchToPage("Lambdas", lambdasDetailsView, true).
-		AddPage("Log Events", logEventsView, true, true)
+		AddPage("Log Events", logEventsView, true, true).
+		AddPage("Invoke", lambdaInvokeView, true, true)
 
 	serviceRootView.InitPageNavigation()
 	var lambdasListTable = lambdasDetailsView.LambdaListTable
@@ -254,6 +288,7 @@ func NewLambdaHomeView(
 		var selectedLambda = lambdasListTable.GetSeletedLambda()
 		lambdasDetailsView.LambdaTagsTable.RefreshDetails(selectedLambda)
 		logStreamsTable.RefreshStreams(true)
+		lambdaInvokeView.SetSelectedLambda(aws.ToString(selectedLambda.FunctionName))
 	}
 
 	lambdasListTable.SetSelectedFunc(lambdaSelectedFunc)
