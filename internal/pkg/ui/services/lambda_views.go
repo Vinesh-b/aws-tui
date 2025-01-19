@@ -100,6 +100,8 @@ func (inst *LambdaDetailsPageView) initInputCapture() {
 		inst.LambdaDetailsTable.RefreshDetails(selectedLambda)
 		inst.LambdaEnvVarsTable.RefreshDetails(selectedLambda)
 		inst.LambdaVpcConfTable.RefreshDetails(selectedLambda)
+		var logGroup = inst.LambdaListTable.GetSeletedLambdaLogGroup()
+		inst.LogStreamsTable.SetSeletedLogGroup(logGroup)
 		inst.LambdaTagsTable.ClearDetails()
 	})
 }
