@@ -95,7 +95,7 @@ func RenderUI(config aws.Config, version string) {
 	var lastFocus = app.GetFocus()
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyESC:
+		case core.APP_KEY_BINDINGS.Escape:
 			if !serviceListHidden {
 				pages.HidePage(FLOATING_SERVICE_LIST)
 				app.SetFocus(lastFocus)

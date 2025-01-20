@@ -53,8 +53,9 @@ type KeyBindings struct {
 	ClearTable              tcell.Key
 	Done                    tcell.Key
 	Find                    tcell.Key
-	PageForward             tcell.Key
-	PageBack                tcell.Key
+	PageChangeModKey        tcell.ModMask
+	PageForward             rune
+	PageBack                rune
 	ViewFocusUp             tcell.Key
 	ViewFocusDown           tcell.Key
 	ViewFocusLeft           tcell.Key
@@ -97,8 +98,9 @@ var APP_KEY_BINDINGS = KeyBindings{
 	ClearTable:              tcell.KeyCtrlX,
 	Done:                    tcell.KeyEnter,
 	Find:                    tcell.KeyCtrlF,
-	PageForward:             tcell.KeyCtrlRightSq,
-	PageBack:                tcell.KeyCtrlLeftSq,
+	PageChangeModKey:        tcell.ModAlt,
+	PageForward:             ']',
+	PageBack:                '[',
 	ViewFocusUp:             tcell.KeyCtrlK,
 	ViewFocusDown:           tcell.KeyCtrlJ,
 	ViewFocusLeft:           tcell.KeyCtrlH,

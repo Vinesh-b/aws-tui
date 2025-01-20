@@ -144,15 +144,18 @@ func (inst *ServiceRootView) InitPageNavigation() {
 	inst.ChangePage(0, nil)
 
 	inst.pages.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case APP_KEY_BINDINGS.PageBack:
-			inst.pageIndex = (inst.pageIndex - 1 + numPages) % numPages
-			inst.ChangePage(inst.pageIndex, nil)
-			return nil
-		case APP_KEY_BINDINGS.PageForward:
-			inst.pageIndex = (inst.pageIndex + 1) % numPages
-			inst.ChangePage(inst.pageIndex, nil)
-			return nil
+		switch event.Modifiers() {
+		case tcell.ModAlt:
+			switch event.Rune() {
+			case APP_KEY_BINDINGS.PageBack:
+				inst.pageIndex = (inst.pageIndex - 1 + numPages) % numPages
+				inst.ChangePage(inst.pageIndex, nil)
+				return nil
+			case APP_KEY_BINDINGS.PageForward:
+				inst.pageIndex = (inst.pageIndex + 1) % numPages
+				inst.ChangePage(inst.pageIndex, nil)
+				return nil
+			}
 		}
 		return event
 	})
