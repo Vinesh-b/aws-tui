@@ -31,11 +31,11 @@ func NewViewNavigation1D(
 	view.rootView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case view.keyForward:
-			view.viewIdx = (view.viewIdx - 1 + view.numViews) % view.numViews
+			view.viewIdx = (view.viewIdx + 1) % view.numViews
 			view.app.SetFocus(view.orderedViews[view.viewIdx])
 			return nil
 		case view.keyBack:
-			view.viewIdx = (view.viewIdx + 1) % view.numViews
+			view.viewIdx = (view.viewIdx - 1 + view.numViews) % view.numViews
 			view.app.SetFocus(view.orderedViews[view.viewIdx])
 			return nil
 		}

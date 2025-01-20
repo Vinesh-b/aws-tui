@@ -67,11 +67,11 @@ func NewInsightsQueryInputView(app *tview.Application, logger *log.Logger) *Insi
 
 	view.viewNavigation.UpdateOrderedViews(
 		[]core.View{
-			view.CancelButton,
-			view.DoneButton,
-			view.endDateInput,
-			view.startDateInput,
 			view.queryTextArea,
+			view.startDateInput,
+			view.endDateInput,
+			view.DoneButton,
+			view.CancelButton,
 		}, 0,
 	)
 

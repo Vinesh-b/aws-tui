@@ -69,12 +69,12 @@ func NewSfnExecutionsQueryInputView(app *tview.Application, logger *log.Logger) 
 
 	view.viewNavigation.UpdateOrderedViews(
 		[]core.View{
-			view.CancelButton,
-			view.DoneButton,
-			view.endDateInput,
-			view.startDateInput,
-			view.executionArnInput,
 			view.statusDropDown,
+			view.executionArnInput,
+			view.startDateInput,
+			view.endDateInput,
+			view.DoneButton,
+			view.CancelButton,
 		}, 0,
 	)
 
@@ -180,7 +180,7 @@ func NewSfnExecutionsQuerySearchView(
 		case core.APP_KEY_BINDINGS.Find:
 			if view.queryViewHidden {
 				view.ShowPage("QUERY")
-                view.app.SetFocus(queryView)
+				view.app.SetFocus(queryView)
 			} else {
 				view.HidePage("QUERY")
 			}
