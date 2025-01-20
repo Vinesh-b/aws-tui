@@ -303,12 +303,13 @@ func NewFilterInputView(app *tview.Application, logger *log.Logger) *FilterInput
 	var value2Input = tview.NewInputField().SetLabel("Value ")
 
 	var spacerView = tview.NewBox()
-	var line2View = tview.NewFlex().SetDirection(tview.FlexColumn)
+	var line2View = tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(spacerView, 0, 1, false)
 	var line1View = tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(attrNameInput, 0, 1, true).
-		AddItem(spacerView, 1, 0, true).
+		AddItem(spacerView, 1, 0, false).
 		AddItem(attrTypeInput, 13, 0, true).
-		AddItem(spacerView, 1, 0, true).
+		AddItem(spacerView, 1, 0, false).
 		AddItem(conditionInput, 18, 0, true)
 
 	var wrapper = tview.NewFlex().SetDirection(tview.FlexRow).
@@ -335,10 +336,11 @@ func NewFilterInputView(app *tview.Application, logger *log.Logger) *FilterInput
 
 		switch condValue {
 		case "exist", "notexist":
+			line2View.AddItem(spacerView, 0, 1, false)
 		case "between":
 			line2View.
 				AddItem(value1Input, 0, 1, false).
-				AddItem(tview.NewBox(), 1, 0, false).
+				AddItem(spacerView, 1, 0, false).
 				AddItem(value2Input, 0, 1, false)
 			tabNavigator.UpdateOrderedViews([]core.View{
 				attrNameInput,
@@ -536,16 +538,18 @@ func NewDynamoDBScanInputView(app *tview.Application, logger *log.Logger) *Dynam
 
 	var wrapper = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(projAttrInput, 0, 1, false).
-		AddItem(separater, 1, 0, true)
+		AddItem(separater, 0, 1, false)
 
 	for _, view := range filterInputViews {
-		wrapper.AddItem(view, 3, 0, true)
+		wrapper.
+			AddItem(view, 2, 0, true).
+			AddItem(separater, 0, 1, false)
 	}
 
 	wrapper.AddItem(
 		tview.NewFlex().SetDirection(tview.FlexColumn).
 			AddItem(doneButton, 0, 1, true).
-			AddItem(separater, 1, 0, true).
+			AddItem(separater, 1, 0, false).
 			AddItem(cancelButton, 0, 1, true),
 		1, 0, true,
 	)
