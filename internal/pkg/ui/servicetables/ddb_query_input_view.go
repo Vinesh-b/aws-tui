@@ -570,18 +570,19 @@ func NewDynamoDBScanInputView(app *tview.Application, logger *log.Logger) *Dynam
 }
 
 func (inst *DynamoDBScanInputView) GenerateScanExpression() (expression.Expression, error) {
-	//	var filterCond expression.ConditionBuilder
-	//	for _, filterView := range inst.filterInputViews {
-	//		var cond, err = filterView.GenerateFilterCondition()
-	//		if err == nil {
-	//			filterCond.And(cond)
-	//		}
-	//	}
-	var exprBuilder = expression.NewBuilder()
 	var filterCond, filtErr = inst.filterInputViews[0].GenerateFilterCondition()
 	if filtErr != nil {
 		return expression.Expression{}, filtErr
 	}
+
+	for _, filterView := range inst.filterInputViews[1:] {
+		var cond, err = filterView.GenerateFilterCondition()
+		if err == nil {
+			filterCond = filterCond.And(cond)
+		}
+	}
+
+	var exprBuilder = expression.NewBuilder()
 
 	if filterCond.IsSet() {
 		exprBuilder = exprBuilder.WithFilter(filterCond)
