@@ -232,6 +232,16 @@ func (inst *StateMachineExecutionsTable) RefreshExpressExecutions(logGroup strin
 				types.HistoryEventTypeExecutionTimedOut,
 				types.HistoryEventTypeExecutionAborted:
 
+				switch stateMachineStep.StateType {
+				case types.HistoryEventTypeExecutionFailed:
+					currentExe.Status = types.ExecutionStatusFailed
+				case types.HistoryEventTypeExecutionSucceeded:
+					currentExe.Status = types.ExecutionStatusSucceeded
+				case types.HistoryEventTypeExecutionTimedOut:
+					currentExe.Status = types.ExecutionStatusTimedOut
+				case types.HistoryEventTypeExecutionAborted:
+					currentExe.Status = types.ExecutionStatusAborted
+				}
 				currentExe.StopDate = aws.Time(time.UnixMilli(timestamp))
 			}
 
