@@ -135,7 +135,7 @@ func (inst *ServiceRootView) switchToPage(name string) {
 }
 
 func (inst *ServiceRootView) ChangePage(pageIdx int, focusView tview.Primitive) {
-	var pageName = inst.orderedPages[min(inst.pageIndex, len(inst.orderedPages))]
+	var pageName = inst.orderedPages[min(pageIdx, len(inst.orderedPages))]
 	inst.switchToPage(pageName)
 }
 
