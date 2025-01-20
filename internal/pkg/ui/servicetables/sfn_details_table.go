@@ -120,7 +120,13 @@ ChanFlushLoop:
 		inst.data, err = inst.api.DescribeStateMachine(stateMachineArn)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
+			return
 		}
+
+		if inst.data == nil {
+			return
+		}
+
 		var logConfig = inst.data.LoggingConfiguration
 		inst.logGroups = nil
 		if logConfig != nil {
