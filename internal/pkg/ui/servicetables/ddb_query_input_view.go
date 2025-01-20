@@ -594,16 +594,13 @@ func (inst *DynamoDBScanInputView) GenerateScanExpression() (expression.Expressi
 	}
 
 	var projectionText = strings.TrimSpace(inst.projectedAttributesInput.GetText())
-	var atterStrings = strings.Split(projectionText, ",")
-
-	var names = []expression.NameBuilder{}
-	for _, attr := range atterStrings {
-		names = append(names, expression.Name(attr))
-	}
-	if len(names) > 0 {
-		// FAILING: Build error: unset parameter: NameBuilder
-		//	var projection = expression.NamesList(names[0], names[1:]...)
-		//	exprBuilder = exprBuilder.WithProjection(projection)
+	if atterStrings := strings.Split(projectionText, ","); len(atterStrings[0]) > 0 {
+		var names = []expression.NameBuilder{}
+		for _, attr := range atterStrings {
+			names = append(names, expression.Name(attr))
+		}
+		var projection = expression.NamesList(names[0], names[1:]...)
+		exprBuilder = exprBuilder.WithProjection(projection)
 	}
 
 	var expr, err = exprBuilder.Build()
