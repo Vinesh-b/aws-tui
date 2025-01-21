@@ -2,6 +2,8 @@ package core
 
 import (
 	"aws-tui/internal/pkg/errors"
+	"encoding/csv"
+	"os"
 
 	"fmt"
 	"log"
@@ -61,14 +63,18 @@ func GetCellText[T any](cell *tview.TableCell) string {
 		if cellDataText != nil {
 			return *cellDataText
 		}
+	default:
+		var cellDataText = privateData.(*CellData[any]).text
+		if cellDataText != nil {
+			return *cellDataText
+		}
 	}
 
 	return ""
 }
 
 func SetTableHeading(table *tview.Table, heading string, column int) {
-	table.SetCell(0, column, tview.NewTableCell(heading).
-		SetAlign(tview.AlignLeft).
+	table.SetCell(0, column, NewTableCell[any](heading, nil).
 		SetTextColor(SecondaryTextColor).
 		SetSelectable(false).
 		SetBackgroundColor(ContrastBackgroundColor),
@@ -259,6 +265,34 @@ func (inst *SelectableTable[T]) GetCellText(row int, column int) string {
 
 func (inst *SelectableTable[T]) GetPrivateData(row int, column int) T {
 	return GetPrivateData[T](inst.table.GetCell(row, column))
+}
+
+func (inst *SelectableTable[T]) DumpTableToCsv(filename string) error {
+	var file, err = os.Create(filename)
+	if err != nil {
+		return err
+	}
+
+	var csvWriter = csv.NewWriter(file)
+	var rows = inst.table.GetRowCount()
+	if rows == 0 {
+		return nil
+	}
+
+	for r := range inst.table.GetRowCount() {
+		var rowdata = []string{}
+		for c := range inst.table.GetColumnCount() {
+			var text = GetCellText[string](inst.table.GetCell(r, c))
+			rowdata = append(rowdata, text)
+		}
+		csvWriter.Write(rowdata)
+	}
+
+	csvWriter.Flush()
+	if err := file.Close(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
