@@ -173,7 +173,13 @@ func (inst *InsightsQueryResultsTable) populateQueryResultsTable() {
 			}
 
 			var cellText = aws.ToString(resField.Value)
-			inst.table.SetCell(rowIdx+1, colIdx, core.NewTableCell(cellText, &cellText))
+			var newCell = core.NewTableCell(cellText, &cellText)
+
+			if *resField.Field == "@ptr" {
+				newCell = core.NewTableCell("", &cellText)
+			}
+
+			inst.table.SetCell(rowIdx+1, colIdx, newCell)
 		}
 	}
 
