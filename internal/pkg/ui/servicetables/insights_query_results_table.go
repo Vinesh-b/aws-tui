@@ -95,6 +95,8 @@ func (inst *InsightsQueryRunner) ExecuteInsightsQuery(
 	}()
 }
 
+const LogRecordPtrCol = 0
+
 type InsightsQueryResultsTable struct {
 	*core.SelectableTable[string]
 	*InsightsQuerySearchView
@@ -164,7 +166,18 @@ func (inst *InsightsQueryResultsTable) populateQueryResultsTable() {
 	var headingIdx = 0
 	inst.headingIdxMap = map[string]int{}
 	for rowIdx, rowData := range inst.data {
+		var logStreamPtr = ""
 		for _, resField := range rowData {
+			if *resField.Field == "@ptr" {
+				logStreamPtr = aws.ToString(resField.Value)
+				break
+			}
+		}
+		for _, resField := range rowData {
+			if *resField.Field == "@ptr" {
+				continue
+			}
+
 			var colIdx, ok = inst.headingIdxMap[*resField.Field]
 			if !ok {
 				inst.headingIdxMap[*resField.Field] = headingIdx
@@ -173,10 +186,10 @@ func (inst *InsightsQueryResultsTable) populateQueryResultsTable() {
 			}
 
 			var cellText = aws.ToString(resField.Value)
-			var newCell = core.NewTableCell(cellText, &cellText)
+			var newCell = core.NewTableCell[string](cellText, nil)
 
-			if *resField.Field == "@ptr" {
-				newCell = core.NewTableCell("", &cellText)
+			if colIdx == LogRecordPtrCol {
+				newCell = core.NewTableCell(cellText, &logStreamPtr)
 			}
 
 			inst.table.SetCell(rowIdx+1, colIdx, newCell)
@@ -323,11 +336,12 @@ func (inst *InsightsQueryResultsTable) GetColumnCount() int {
 }
 
 func (inst *InsightsQueryResultsTable) GetRecordPtr(row int) string {
-	var ptrCol, ok = inst.headingIdxMap["@ptr"]
-	if !ok {
-		return ""
-	}
-	return inst.GetPrivateData(row, ptrCol)
+	return inst.SelectableTable.GetPrivateData(row, LogRecordPtrCol)
+}
+
+// To make the table data preview work (to be refactored)
+func (inst *InsightsQueryResultsTable) GetPrivateData(row int, col int) string {
+	return inst.GetCellText(row, col)
 }
 
 func (inst *InsightsQueryResultsTable) SetSelectedLogGroups(groups []string) {
