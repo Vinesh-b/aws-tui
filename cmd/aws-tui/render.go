@@ -50,6 +50,7 @@ func RenderUI(config aws.Config, version string) {
 		services.DYNAMODB:                 services.NewDynamoDBHomeView(app, config, inAppLogger),
 		services.S3BUCKETS:                services.NewS3bucketsHomeView(app, config, inAppLogger),
 		services.STATE_MACHINES:           services.NewStepFunctionsHomeView(app, config, inAppLogger),
+		services.SYSTEMS_MANAGER:          services.NewSystemManagerHomeView(app, config, inAppLogger),
 
 		services.HELP:       services.NewHelpHomeView(app, config, inAppLogger),
 		services.DEBUG_LOGS: errorTextArea,

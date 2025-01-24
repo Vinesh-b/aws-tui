@@ -18,6 +18,7 @@ const (
 	DYNAMODB                 ViewId = "DynamoDB"
 	S3BUCKETS                ViewId = "S3 Buckets"
 	STATE_MACHINES           ViewId = "State Machines"
+	SYSTEMS_MANAGER          ViewId = "Systems Manager"
 
 	HELP       ViewId = "Help"
 	SETTINGS   ViewId = "Settings"
@@ -98,6 +99,11 @@ func ServicesHomeView() *tview.List {
 			string(STATE_MACHINES),
 			"󱁊 View State Machines",
 			rune('9'), nil,
+		).
+		AddItem(
+			string(SYSTEMS_MANAGER),
+			"󱁊 View Systems Manager",
+			rune('S'), nil,
 		).
 		AddItem(
 			string(HELP),
