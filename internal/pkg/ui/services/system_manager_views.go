@@ -16,7 +16,8 @@ import (
 
 type SystemManagerDetailsPageView struct {
 	*core.ServicePageView
-	SsmParametersListTable *tables.SSMParametersListTable
+	SSMParametersListTable   *tables.SSMParametersListTable
+	SSMParameterHistoryTable *tables.SSMParameterHistoryTable
 
 	app *tview.Application
 	api *awsapi.SystemsManagerApi
@@ -24,6 +25,7 @@ type SystemManagerDetailsPageView struct {
 
 func NewSystemManagerDetailsPageView(
 	ssmParamsListTable *tables.SSMParametersListTable,
+	ssmParamHistoryTable *tables.SSMParameterHistoryTable,
 	app *tview.Application,
 	api *awsapi.SystemsManagerApi,
 	logger *log.Logger,
@@ -46,7 +48,7 @@ func NewSystemManagerDetailsPageView(
 
 	var tabView = core.NewTabView(app, logger).
 		AddAndSwitchToTab("Param Value", paramValueView.TextView, 0, 1, true).
-		AddTab("Param History", tview.NewBox(), 0, 1, true)
+		AddTab("Param History", ssmParamHistoryTable, 0, 1, true)
 
 	var mainPage = core.NewResizableView(
 		tabView, expandItemViewSize,
@@ -57,11 +59,11 @@ func NewSystemManagerDetailsPageView(
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	var view = &SystemManagerDetailsPageView{
-		ServicePageView: serviceView,
-
-		SsmParametersListTable: ssmParamsListTable,
-		app:                    app,
-		api:                    api,
+		ServicePageView:          serviceView,
+		SSMParametersListTable:   ssmParamsListTable,
+		SSMParameterHistoryTable: ssmParamHistoryTable,
+		app:                      app,
+		api:                      api,
 	}
 
 	var errorHandler = func(text string, a ...any) {
@@ -82,6 +84,10 @@ func NewSystemManagerDetailsPageView(
 }
 
 func (inst *SystemManagerDetailsPageView) initInputCapture() {
+	inst.SSMParametersListTable.SetSelectedFunc(func(row, column int) {
+		inst.SSMParameterHistoryTable.SetSeletedParameter(inst.SSMParametersListTable.GetSeletedParameter())
+		inst.SSMParameterHistoryTable.RefreshHistory(true)
+	})
 }
 
 func NewSystemManagerHomeView(
@@ -96,6 +102,7 @@ func NewSystemManagerHomeView(
 		api                       = awsapi.NewSystemsManagerApi(config, logger)
 		systemManagersDetailsView = NewSystemManagerDetailsPageView(
 			tables.NewSSMParametersListTable(app, api, logger),
+			tables.NewSSMParameterHistoryTable(app, api, logger),
 			app, api, logger,
 		)
 	)
