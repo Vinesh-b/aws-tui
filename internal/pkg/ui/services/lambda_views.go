@@ -223,11 +223,13 @@ func (inst *LambdaInvokePageView) Invoke() {
 		data, err = inst.api.InvokeLambda(inst.selectedLambda, payload)
 		if err != nil {
 			inst.responseOutput.ErrorMessageCallback(err.Error())
+            return
 		}
 
 		logResults, err = base64.StdEncoding.DecodeString(aws.ToString(data.LogResult))
 		if err != nil {
 			inst.logResults.ErrorMessageCallback(err.Error())
+            return
 		}
 
 		responseOutput = data.Payload
