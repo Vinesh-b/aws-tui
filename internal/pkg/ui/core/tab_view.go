@@ -9,21 +9,23 @@ import (
 
 type TabView struct {
 	*tview.Flex
-	list   *tview.List
-	pages  *tview.Pages
-	tabs   map[string]*ServicePageView
-	app    *tview.Application
-	logger *log.Logger
+	list       *tview.List
+	pages      *tview.Pages
+	pageIdxMap map[string]int
+	tabs       map[string]*ServicePageView
+	app        *tview.Application
+	logger     *log.Logger
 }
 
 func NewTabView(app *tview.Application, logger *log.Logger) *TabView {
 	var view = &TabView{
-		Flex:   tview.NewFlex(),
-		list:   tview.NewList(),
-		pages:  tview.NewPages(),
-		tabs:   map[string]*ServicePageView{},
-		app:    app,
-		logger: logger,
+		Flex:       tview.NewFlex(),
+		list:       tview.NewList(),
+		pages:      tview.NewPages(),
+		pageIdxMap: map[string]int{},
+		tabs:       map[string]*ServicePageView{},
+		app:        app,
+		logger:     logger,
 	}
 
 	view.list.
@@ -78,6 +80,7 @@ func (inst *TabView) AddTab(
 	inst.pages.AddPage(name, servicePage, true, false)
 	inst.tabs[name] = servicePage
 
+	inst.pageIdxMap[name] = inst.list.GetItemCount()
 	inst.list.AddItem(name, "", 0, func() {
 		inst.pages.SwitchToPage(name)
 	})
@@ -89,6 +92,13 @@ func (inst *TabView) AddAndSwitchToTab(
 ) *TabView {
 	inst.AddTab(name, view, fixedSize, proportion, focus)
 	inst.pages.SwitchToPage(name)
+	return inst
+}
+
+func (inst *TabView) SwitchToTab(name string) *TabView {
+	inst.pages.SwitchToPage(name)
+	var idx = inst.pageIdxMap[name]
+	inst.list.SetCurrentItem(idx)
 	return inst
 }
 

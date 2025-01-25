@@ -18,6 +18,7 @@ type SystemManagerDetailsPageView struct {
 	*core.ServicePageView
 	SSMParametersListTable   *tables.SSMParametersListTable
 	SSMParameterHistoryTable *tables.SSMParameterHistoryTable
+	TabView                  *core.TabView
 
 	app *tview.Application
 	api *awsapi.SystemsManagerApi
@@ -30,29 +31,38 @@ func NewSystemManagerDetailsPageView(
 	api *awsapi.SystemsManagerApi,
 	logger *log.Logger,
 ) *SystemManagerDetailsPageView {
-	var paramValueView = core.JsonTextView[types.Parameter]{
+	var paramValueView = core.JsonTextView[any]{
 		TextView: core.NewSearchableTextView("", app),
-		ExtractTextFunc: func(data types.Parameter) string {
-			return aws.ToString(data.Value)
+		ExtractTextFunc: func(data any) string {
+			switch data.(type) {
+			case types.Parameter:
+				return aws.ToString(data.(types.Parameter).Value)
+			case types.ParameterHistory:
+				return aws.ToString(data.(types.ParameterHistory).Value)
+			}
+			return ""
 		},
 	}
 
-	var selectionFunc = func(row int, col int) {
-		paramValueView.SetTitle("Value")
-		paramValueView.SetText(ssmParamsListTable.GetPrivateData(row, col))
-	}
+	paramValueView.SetTitle("Value")
+	ssmParamsListTable.SetSelectionChangedFunc(func(row, column int) {
+		paramValueView.SetText(ssmParamsListTable.GetSeletedParameter())
+	})
 
-	ssmParamsListTable.SetSelectionChangedFunc(selectionFunc)
+	ssmParamHistoryTable.SetSelectionChangedFunc(func(row, column int) {
+		paramValueView.SetText(ssmParamHistoryTable.GetSeletedHistory())
+	})
+
 	const expandItemViewSize = 25
 	const itemsTableSize = 75
 
 	var tabView = core.NewTabView(app, logger).
-		AddAndSwitchToTab("Param Value", paramValueView.TextView, 0, 1, true).
+		AddAndSwitchToTab("Parameters", ssmParamsListTable, 0, 1, true).
 		AddTab("Param History", ssmParamHistoryTable, 0, 1, true)
 
 	var mainPage = core.NewResizableView(
-		tabView, expandItemViewSize,
-		ssmParamsListTable, itemsTableSize,
+		paramValueView.TextView, expandItemViewSize,
+		tabView, itemsTableSize,
 		tview.FlexRow,
 	)
 	var serviceView = core.NewServicePageView(app, logger)
@@ -62,6 +72,7 @@ func NewSystemManagerDetailsPageView(
 		ServicePageView:          serviceView,
 		SSMParametersListTable:   ssmParamsListTable,
 		SSMParameterHistoryTable: ssmParamHistoryTable,
+		TabView:                  tabView,
 		app:                      app,
 		api:                      api,
 	}
@@ -74,8 +85,8 @@ func NewSystemManagerDetailsPageView(
 
 	view.InitViewNavigation(
 		[][]core.View{
+			{paramValueView.TextView},
 			{tabView.GetTabsList(), tabView.GetTabDisplayView()},
-			{ssmParamsListTable},
 		},
 	)
 	view.initInputCapture()
@@ -87,6 +98,7 @@ func (inst *SystemManagerDetailsPageView) initInputCapture() {
 	inst.SSMParametersListTable.SetSelectedFunc(func(row, column int) {
 		inst.SSMParameterHistoryTable.SetSeletedParameter(inst.SSMParametersListTable.GetSeletedParameter())
 		inst.SSMParameterHistoryTable.RefreshHistory(true)
+		inst.TabView.SwitchToTab("Param History")
 	})
 }
 
@@ -110,7 +122,7 @@ func NewSystemManagerHomeView(
 	var serviceRootView = core.NewServiceRootView(string(SYSTEMS_MANAGER), app, &config, logger)
 
 	serviceRootView.
-		AddAndSwitchToPage("SystemManagers", systemManagersDetailsView, true)
+		AddAndSwitchToPage("Parameter Store", systemManagersDetailsView, true)
 
 	serviceRootView.InitPageNavigation()
 

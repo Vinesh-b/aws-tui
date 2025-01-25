@@ -85,6 +85,8 @@ func (inst *SSMParameterHistoryTable) populateTable(data []types.ParameterHistor
 	}
 
 	inst.SetData(tableData, privateData, 0)
+	inst.GetTable().SetSelectable(true, true)
+	inst.GetTable().SetFixed(1, 1)
 }
 
 func (inst *SSMParameterHistoryTable) FilterByName(name string) {
