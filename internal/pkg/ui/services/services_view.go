@@ -2,6 +2,8 @@ package services
 
 import (
 	"aws-tui/internal/pkg/ui/core"
+	"log"
+
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -25,7 +27,20 @@ const (
 	DEBUG_LOGS ViewId = "Debug Logs"
 )
 
-func ServicesHomeView() *tview.List {
+type ServiceListItem struct {
+	MainText      string
+	SecondaryText string
+	Shortcut      rune
+	SelectedFunc  func()
+}
+
+type ServicesHomeView struct {
+	*core.SearchableView
+	filteredList     *tview.List
+	serviceListItems []ServiceListItem
+}
+
+func NewServicesHomeView(app *tview.Application, logger *log.Logger) *ServicesHomeView {
 	var servicesList = tview.NewList().
 		SetSecondaryTextColor(tcell.ColorGrey).
 		SetSelectedTextColor(core.TertiaryTextColor).
@@ -33,6 +48,12 @@ func ServicesHomeView() *tview.List {
 		SetSelectedBackgroundColor(tcell.ColorGrey)
 
 	servicesList.SetBorderPadding(0, 0, 1, 1)
+
+	var view = &ServicesHomeView{
+		SearchableView:   core.NewSearchableView(servicesList, app),
+		filteredList:     servicesList,
+		serviceListItems: []ServiceListItem{},
+	}
 
 	servicesList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		var currentIdx = servicesList.GetCurrentItem()
@@ -50,76 +71,46 @@ func ServicesHomeView() *tview.List {
 				return nil
 			}
 		}
-
 		return event
 	})
 
-	servicesList.
-		AddItem(
-			string(LAMBDA),
-			"󰘧 View lambdas and logs",
-			rune('1'), nil,
-		).
-		AddItem(
-			string(CLOUDWATCH_LOGS_GROUPS),
-			" View Logs for all services",
-			rune('2'), nil,
-		).
-		AddItem(
-			string(CLOUDWATCH_LOGS_INSIGHTS),
-			"󰺮 Query and filter logs",
-			rune('3'), nil,
-		).
-		AddItem(
-			string(CLOUDWATCH_ALARMS),
-			"󰞏 View metric alarms",
-			rune('4'), nil,
-		).
-		AddItem(
-			string(CLOUDWATCH_METRICS),
-			" View metrics",
-			rune('5'), nil,
-		).
-		AddItem(
-			string(DYNAMODB),
-			" View and search DynamoDB tables",
-			rune('6'), nil,
-		).
-		AddItem(
-			string(S3BUCKETS),
-			"󱐖 View S3 buckets and objects",
-			rune('7'), nil,
-		).
-		AddItem(
-			string(CLOUDFORMATION),
-			" View Stacks",
-			rune('8'), nil,
-		).
-		AddItem(
-			string(STATE_MACHINES),
-			"󱁊 View State Machines",
-			rune('9'), nil,
-		).
-		AddItem(
-			string(SYSTEMS_MANAGER),
-			"󱁊 View Systems Manager",
-			rune('S'), nil,
-		).
-		AddItem(
-			string(HELP),
-			"󰘥 View help docs on how to use this app",
-			rune('?'), nil,
-		).
-		AddItem(
-			string(SETTINGS),
-			" Configire and tweak the app",
-			rune('s'), nil,
-		).
-		AddItem(
-			string(DEBUG_LOGS),
-			" View debug logs",
-			rune('0'), nil,
+	view.SetSearchChangedFunc(func(search string) {
+		servicesList.Clear()
+
+		if len(search) == 0 {
+			for _, item := range view.serviceListItems {
+				servicesList.AddItem(
+					item.MainText, item.SecondaryText, item.Shortcut, item.SelectedFunc,
+				)
+			}
+			return
+		}
+
+		var filteredItems = core.FuzzySearch(search, view.serviceListItems,
+			func(listItem ServiceListItem) string {
+				return listItem.MainText + " " + listItem.SecondaryText
+			},
 		)
 
-	return servicesList
+		for _, item := range filteredItems {
+			servicesList.AddItem(
+				item.MainText, item.SecondaryText, item.Shortcut, item.SelectedFunc,
+			)
+		}
+		return
+	})
+
+	return view
+}
+
+func (inst *ServicesHomeView) AddItem(
+	mainText string, secondaryText string, shortcut rune, selected func(),
+) {
+	inst.filteredList.AddItem(mainText, secondaryText, shortcut, selected)
+	inst.serviceListItems = append(inst.serviceListItems, ServiceListItem{
+		MainText:      mainText,
+		SecondaryText: secondaryText,
+		Shortcut:      shortcut,
+		SelectedFunc:  selected,
+	})
 }

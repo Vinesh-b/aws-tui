@@ -17,12 +17,27 @@ const (
 	FLOATING_SERVICE_LIST        = "FloatingServices"
 )
 
+type EmptyPlaceholderView struct {
+	*tview.Box
+}
+
+func (inst *EmptyPlaceholderView) GetLastFocusedView() tview.Primitive {
+	return inst.Box
+}
+
 type DebugLogView struct {
 	*tview.TextView
 }
 
 func (inst *DebugLogView) GetLastFocusedView() tview.Primitive {
 	return inst.TextView
+}
+
+type ServiceItem struct {
+	MainText      string
+	SecondaryText string
+	Shortcut      rune
+	ServicePage   core.ServicePage
 }
 
 func RenderUI(config aws.Config, version string) {
@@ -40,20 +55,46 @@ func RenderUI(config aws.Config, version string) {
 
 	config.Logger = logging.StandardLogger{Logger: inAppLogger}
 
-	var serviceViews = map[services.ViewId]core.ServicePage{
-		services.LAMBDA:                   services.NewLambdaHomeView(app, config, inAppLogger),
-		services.CLOUDWATCH_LOGS_GROUPS:   services.NewLogsHomeView(app, config, inAppLogger),
-		services.CLOUDWATCH_LOGS_INSIGHTS: services.NewLogsInsightsHomeView(app, config, inAppLogger),
-		services.CLOUDWATCH_ALARMS:        services.NewAlarmsHomeView(app, config, inAppLogger),
-		services.CLOUDWATCH_METRICS:       services.NewMetricsHomeView(app, config, inAppLogger),
-		services.CLOUDFORMATION:           services.NewStacksHomeView(app, config, inAppLogger),
-		services.DYNAMODB:                 services.NewDynamoDBHomeView(app, config, inAppLogger),
-		services.S3BUCKETS:                services.NewS3bucketsHomeView(app, config, inAppLogger),
-		services.STATE_MACHINES:           services.NewStepFunctionsHomeView(app, config, inAppLogger),
-		services.SYSTEMS_MANAGER:          services.NewSystemManagerHomeView(app, config, inAppLogger),
-
-		services.HELP:       services.NewHelpHomeView(app, config, inAppLogger),
-		services.DEBUG_LOGS: errorTextArea,
+	var serviceViews = []ServiceItem{
+		{"󰘧 " + string(services.LAMBDA), "Lambdas and logs", rune('1'),
+			services.NewLambdaHomeView(app, config, inAppLogger),
+		},
+		{"󰺮 " + string(services.CLOUDWATCH_LOGS_INSIGHTS), "Query and filter logs", rune('2'),
+			services.NewLogsInsightsHomeView(app, config, inAppLogger),
+		},
+		{"󰆼 " + string(services.DYNAMODB), "View and search DynamoDB tables", rune('3'),
+			services.NewDynamoDBHomeView(app, config, inAppLogger),
+		},
+		{"󱁊 " + string(services.STATE_MACHINES), "Step Functions and executions", rune('4'),
+			services.NewStepFunctionsHomeView(app, config, inAppLogger),
+		},
+		{"󱐕 " + string(services.S3BUCKETS), "S3 buckets and objects", rune('5'),
+			services.NewS3bucketsHomeView(app, config, inAppLogger),
+		},
+		{"󰙵 " + string(services.SYSTEMS_MANAGER), "Application parameters", rune('6'),
+			services.NewSystemManagerHomeView(app, config, inAppLogger),
+		},
+		{" " + string(services.CLOUDFORMATION), "Cloud formation stacks", rune('󰯉'),
+			services.NewStacksHomeView(app, config, inAppLogger),
+		},
+		{"󰞏 " + string(services.CLOUDWATCH_ALARMS), "Metric alarms", rune('󰯉'),
+			services.NewAlarmsHomeView(app, config, inAppLogger),
+		},
+		{" " + string(services.CLOUDWATCH_METRICS), "View metrics", rune('󰯉'),
+			services.NewMetricsHomeView(app, config, inAppLogger),
+		},
+		{" " + string(services.CLOUDWATCH_LOGS_GROUPS), "Logs groups and streams", rune('󰯉'),
+			services.NewLogsHomeView(app, config, inAppLogger),
+		},
+		{"󰘥 " + string(services.HELP), "Help docs on how to use this app", rune('?'),
+			services.NewHelpHomeView(app, config, inAppLogger),
+		},
+		{" " + string(services.SETTINGS), "Configure and tweak the app", rune('s'),
+			&EmptyPlaceholderView{Box: tview.NewBox()},
+		},
+		{" " + string(services.DEBUG_LOGS), "View debug logs", rune('0'),
+			errorTextArea,
+		},
 	}
 
 	errorTextArea.
@@ -61,7 +102,7 @@ func RenderUI(config aws.Config, version string) {
 		SetTitle("Logs").
 		SetTitleAlign(tview.AlignLeft)
 
-	var servicesList = services.ServicesHomeView()
+	var servicesList = services.NewServicesHomeView(app, inAppLogger)
 	var flexLanding = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(servicesList, 0, 1, true).
 		AddItem(tview.NewTextView().
@@ -72,9 +113,17 @@ func RenderUI(config aws.Config, version string) {
 	flexLanding.SetBorder(true)
 
 	var pages = tview.NewPages()
+	var serviceListHidden = false
 
-	for id, view := range serviceViews {
-		pages.AddPage(string(id), view, true, true)
+	for _, item := range serviceViews {
+		var name = item.MainText
+		pages.AddPage(name, item.ServicePage, true, true)
+		servicesList.AddItem(name, item.SecondaryText, item.Shortcut, func() {
+			pages.SwitchToPage(name)
+			app.SetFocus(item.ServicePage.GetLastFocusedView())
+
+			serviceListHidden = true
+		})
 	}
 
 	pages.
@@ -83,15 +132,6 @@ func RenderUI(config aws.Config, version string) {
 			true, true,
 		).
 		AddAndSwitchToPage(HOME_PAGE, flexLanding, true)
-
-	var serviceListHidden = false
-	servicesList.SetSelectedFunc(func(i int, serviceName string, _ string, r rune) {
-		var view = serviceViews[services.ViewId(serviceName)]
-		pages.SwitchToPage(serviceName)
-		app.SetFocus(view.GetLastFocusedView())
-
-		serviceListHidden = true
-	})
 
 	var lastFocus = app.GetFocus()
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
