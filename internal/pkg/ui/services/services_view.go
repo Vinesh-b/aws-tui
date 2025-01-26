@@ -114,3 +114,7 @@ func (inst *ServicesHomeView) AddItem(
 		SelectedFunc:  selected,
 	})
 }
+
+func (inst *ServicesHomeView) IsEscapable() bool {
+	return !inst.SearchableView.IsEscapable()
+}

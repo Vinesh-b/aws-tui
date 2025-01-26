@@ -18,7 +18,7 @@ type SearchableView struct {
 	HighlightSearch bool
 
 	searchInput       *tview.InputField
-	showSearch        bool
+	isSearchHidden    bool
 	searchDoneHandler func(key tcell.Key)
 	app               *tview.Application
 	logger            *log.Logger
@@ -39,7 +39,7 @@ func NewSearchableView(
 		HighlightSearch: false,
 
 		searchInput:       floatingSearch.InputField,
-		showSearch:        true,
+		isSearchHidden:    true,
 		searchDoneHandler: func(key tcell.Key) {},
 		app:               app,
 	}
@@ -47,13 +47,13 @@ func NewSearchableView(
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case APP_KEY_BINDINGS.Find:
-			if view.showSearch {
+			if view.isSearchHidden {
 				view.ShowPage(SEARCH_PAGE_NAME)
 				view.app.SetFocus(view.searchInput)
 			} else {
 				view.HidePage(SEARCH_PAGE_NAME)
 			}
-			view.showSearch = !view.showSearch
+			view.isSearchHidden = !view.isSearchHidden
 			return nil
 		}
 		return event
@@ -71,7 +71,7 @@ func (inst *SearchableView) SetSearchInputCapture(capture func(event *tcell.Even
 		switch event.Key() {
 		case APP_KEY_BINDINGS.Escape:
 			inst.HidePage(SEARCH_PAGE_NAME)
-			inst.showSearch = true
+			inst.isSearchHidden = true
 			return nil
 		}
 
@@ -83,9 +83,9 @@ func (inst *SearchableView) SetSearchDoneFunc(handler func(key tcell.Key)) {
 	var default_func = func(key tcell.Key) {
 		switch key {
 		case APP_KEY_BINDINGS.Done:
-			if !inst.showSearch {
+			if !inst.isSearchHidden {
 				inst.HidePage(SEARCH_PAGE_NAME)
-				inst.showSearch = !inst.showSearch
+				inst.isSearchHidden = !inst.isSearchHidden
 			}
 		}
 		return
@@ -110,4 +110,8 @@ func (inst *SearchableView) GetSearchText() string {
 func (inst *SearchableView) SetSearchText(text string) {
 	inst.searchInput.SetText(text)
 	inst.searchDoneHandler(APP_KEY_BINDINGS.Done)
+}
+
+func (inst *SearchableView) IsEscapable() bool {
+	return !inst.isSearchHidden
 }
