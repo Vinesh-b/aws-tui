@@ -98,7 +98,7 @@ func (inst *DynamoDBTablesTable) SetSelectionChangedFunc(handler func(row int, c
 func (inst *DynamoDBTablesTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
 	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
-		case core.APP_KEY_BINDINGS.Reset:
+		case core.APP_KEY_BINDINGS.Reset, core.APP_KEY_BINDINGS.LoadMoreData:
 			inst.RefreshTables(true)
 		}
 		return capture(event)

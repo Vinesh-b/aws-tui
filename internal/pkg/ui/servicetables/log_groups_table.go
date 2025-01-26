@@ -49,7 +49,7 @@ func NewLogGroupsTable(
 	view.SetSelectedFunc(func(row, column int) {})
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
-		case core.APP_KEY_BINDINGS.Reset:
+		case core.APP_KEY_BINDINGS.Reset, core.APP_KEY_BINDINGS.LoadMoreData:
 			view.RefreshLogGroups(true)
 		}
 		return event

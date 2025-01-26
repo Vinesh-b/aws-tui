@@ -142,7 +142,7 @@ func (inst *LambdaListTable) SetSelectionChangedFunc(handler func(row int, colum
 func (inst *LambdaListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
 	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
-		case core.APP_KEY_BINDINGS.Reset:
+		case core.APP_KEY_BINDINGS.Reset, core.APP_KEY_BINDINGS.LoadMoreData:
 			inst.RefreshLambdas(true)
 		}
 		return capture(event)

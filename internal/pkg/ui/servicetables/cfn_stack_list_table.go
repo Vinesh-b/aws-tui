@@ -134,7 +134,7 @@ func (inst *StackListTable) SetSelectionChangedFunc(handler func(row int, column
 func (inst *StackListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
 	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
-		case core.APP_KEY_BINDINGS.Reset:
+		case core.APP_KEY_BINDINGS.Reset, core.APP_KEY_BINDINGS.LoadMoreData:
 			inst.RefreshStacks(true)
 		}
 		return capture(event)
