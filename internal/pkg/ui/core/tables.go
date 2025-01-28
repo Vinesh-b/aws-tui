@@ -91,6 +91,7 @@ type SelectableTable[T any] struct {
 	privateData          []T
 	privateColumn        int
 	searchPositions      []CellPosition
+	helpView             *HelpView
 	ErrorMessageCallback func(text string, a ...any)
 }
 
@@ -109,8 +110,48 @@ func NewSelectableTable[T any](title string, headings TableRow, app *tview.Appli
 		privateData:          nil,
 		privateColumn:        -1,
 		searchPositions:      []CellPosition{},
+		helpView:             NewHelpView(),
 		ErrorMessageCallback: func(text string, a ...any) {},
 	}
+
+	view.helpView.
+		AddItem("Ctrl-F", "Search table", nil).
+		AddItem("r", "Reset table", nil).
+		AddItem("n", "Load more data", nil)
+
+	var floatingHelpView = FloatingView("Available actions", view.helpView, 70, 0)
+	view.SearchableView.Pages.AddPage("HELP", floatingHelpView, true, false)
+
+	var helpViewHidden = true
+	var toggleHelpView = func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case APP_KEY_BINDINGS.Escape:
+			if !helpViewHidden {
+				view.SearchableView.Pages.HidePage("HELP")
+				return nil
+			}
+		}
+
+		switch event.Rune() {
+		case APP_KEY_BINDINGS.Help:
+			if helpViewHidden {
+				view.SearchableView.Pages.ShowPage("HELP")
+				view.app.SetFocus(view.helpView)
+			} else {
+				view.SearchableView.Pages.HidePage("HELP")
+			}
+			helpViewHidden = !helpViewHidden
+			return nil
+		}
+		return event
+	}
+
+	view.SearchableView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event = toggleHelpView(event); event == nil {
+			return nil
+		}
+		return event
+	})
 
 	view.SetTitle(title).
 		SetTitleAlign(tview.AlignLeft).
@@ -326,7 +367,9 @@ func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventK
 		}
 
 		if inst.HighlightSearch {
-			event = highlight_search(event)
+			if event = highlight_search(event); event == nil {
+				return nil
+			}
 		}
 
 		return capture(event)

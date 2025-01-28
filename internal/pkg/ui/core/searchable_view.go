@@ -66,6 +66,31 @@ func NewSearchableView(
 	return view
 }
 
+func (inst *SearchableView) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
+	var searchToggle = func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case APP_KEY_BINDINGS.Find:
+			if inst.isSearchHidden {
+				inst.ShowPage(SEARCH_PAGE_NAME)
+				inst.app.SetFocus(inst.searchInput)
+			} else {
+				inst.HidePage(SEARCH_PAGE_NAME)
+			}
+			inst.isSearchHidden = !inst.isSearchHidden
+			return nil
+		}
+		return event
+	}
+
+	inst.Pages.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event = searchToggle(event); event == nil {
+			return nil
+		}
+
+		return capture(event)
+	})
+}
+
 func (inst *SearchableView) SetSearchInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
 	inst.searchInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
