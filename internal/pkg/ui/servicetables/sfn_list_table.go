@@ -133,6 +133,10 @@ func (inst *StateMachinesListTable) SetInputCapture(capture func(event *tcell.Ev
 	})
 }
 
+func (inst *StateMachinesListTable) GetSeletedFunctionName() string {
+	return aws.ToString(inst.selectedFunction.Name)
+}
+
 func (inst *StateMachinesListTable) GetSeletedFunctionArn() string {
 	return aws.ToString(inst.selectedFunction.StateMachineArn)
 }

@@ -79,14 +79,21 @@ func NewStateMachinesDetailsPageView(
 
 func (inst *StateMachinesDetailsPageView) initInputCapture() {
 	inst.stateMachinesTable.SetSelectedFunc(func(row, column int) {
-		var selectedFunc = inst.stateMachinesTable.GetSeletedFunctionArn()
-		inst.stateMachineExecutionsTable.SetSeletedFunctionArn(selectedFunc)
-		inst.stateMachineDetailsTable.RefreshDetails(selectedFunc)
-		if smType := inst.stateMachinesTable.GetSeletedFunctionType(); smType == "STANDARD" {
-			inst.stateMachineExecutionsTable.RefreshExecutions(true)
+		var smTable = inst.stateMachinesTable
+		var smExeTable = inst.stateMachineExecutionsTable
+		var smDetTable = inst.stateMachineDetailsTable
+
+		var selectedFunc = smTable.GetSeletedFunctionArn()
+		var selectedFuncName = smTable.GetSeletedFunctionName()
+		smExeTable.SetSeletedFunctionArn(selectedFunc)
+		smExeTable.SetTitleExtra(selectedFuncName)
+		smDetTable.RefreshDetails(selectedFunc)
+
+		if smType := smTable.GetSeletedFunctionType(); smType == "STANDARD" {
+			smExeTable.RefreshExecutions(true)
 		} else {
-			var group = inst.stateMachineDetailsTable.GetSelectedSmLogGroup()
-			inst.stateMachineExecutionsTable.RefreshExpressExecutions(group, true)
+			var group = smDetTable.GetSelectedSmLogGroup()
+			smExeTable.RefreshExpressExecutions(group, true)
 		}
 	})
 }
