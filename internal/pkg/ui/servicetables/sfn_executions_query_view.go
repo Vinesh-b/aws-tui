@@ -22,16 +22,16 @@ type SfnExecutionsQuery struct {
 
 type SfnExecutionsQueryInputView struct {
 	*tview.Flex
-	DoneButton   *tview.Button
-	CancelButton *tview.Button
+	DoneButton   *core.Button
+	CancelButton *core.Button
 
 	logger            *log.Logger
 	app               *tview.Application
 	viewNavigation    *core.ViewNavigation1D
-	statusDropDown    *tview.DropDown
-	executionArnInput *tview.InputField
-	startDateInput    *tview.InputField
-	endDateInput      *tview.InputField
+	statusDropDown    *core.DropDown
+	executionArnInput *core.InputField
+	startDateInput    *core.InputField
+	endDateInput      *core.InputField
 	query             SfnExecutionsQuery
 }
 
@@ -39,16 +39,16 @@ func NewSfnExecutionsQueryInputView(app *tview.Application, logger *log.Logger) 
 	var flex = tview.NewFlex().SetDirection(tview.FlexRow)
 	var view = &SfnExecutionsQueryInputView{
 		Flex:         flex,
-		DoneButton:   tview.NewButton("Done"),
-		CancelButton: tview.NewButton("Cancel"),
+		DoneButton:   core.NewButton("Done"),
+		CancelButton: core.NewButton("Cancel"),
 
 		logger:            logger,
 		app:               app,
 		viewNavigation:    core.NewViewNavigation1D(flex, nil, app),
-		statusDropDown:    tview.NewDropDown(),
-		executionArnInput: tview.NewInputField(),
-		startDateInput:    tview.NewInputField(),
-		endDateInput:      tview.NewInputField(),
+		statusDropDown:    core.NewDropDown(),
+		executionArnInput: core.NewInputField(),
+		startDateInput:    core.NewInputField(),
+		endDateInput:      core.NewInputField(),
 	}
 
 	var separator = tview.NewBox()
@@ -85,24 +85,13 @@ func NewSfnExecutionsQueryInputView(app *tview.Application, logger *log.Logger) 
 	var dateTimelayout = "2006-01-02 15:04:05"
 	view.startDateInput.
 		SetPlaceholder(dateTimelayout).
-		SetPlaceholderTextColor(core.PlaceHolderTextColor).
 		SetText(timeNow.Add(time.Duration(-3 * time.Hour)).Format(time.DateTime)).
 		SetLabel("Start Time   ")
 
 	view.endDateInput.
 		SetPlaceholder(dateTimelayout).
-		SetPlaceholderTextColor(core.PlaceHolderTextColor).
 		SetText(timeNow.Format(time.DateTime)).
 		SetLabel("End Time     ")
-
-	view.statusDropDown.SetListStyles(
-		tcell.Style{}.
-			Foreground(core.TextColour).
-			Background(core.ContrastBackgroundColor),
-		tcell.Style{}.
-			Foreground(core.MoreContrastBackgroundColor).
-			Background(core.TextColour),
-	)
 
 	view.statusDropDown.
 		SetLabel("Status       ").
