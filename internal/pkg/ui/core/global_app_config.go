@@ -18,6 +18,13 @@ var (
 	// Grey (Default)
 	ContrastBackgroundColor     tcell.Color = tcell.NewHexColor(0x303030)
 	MoreContrastBackgroundColor tcell.Color = tcell.NewHexColor(0x404040)
+
+	OnFocusStyle = tcell.Style{}.
+			Foreground(BackgroundColor).
+			Background(TertiaryTextColor)
+
+	OnBlurStyle = tcell.Style{}.
+			Foreground(TextColour)
 )
 
 func ResetGlobalStyle() {

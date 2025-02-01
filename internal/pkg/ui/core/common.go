@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/rivo/tview"
 )
@@ -129,4 +130,69 @@ func FuzzySearch[T any](search string, values []T, handler func(val T) string) [
 	}
 
 	return found
+}
+
+type DropDown struct {
+	*tview.DropDown
+}
+
+func NewDropDown() *DropDown {
+	var view = &DropDown{
+		DropDown: tview.NewDropDown(),
+	}
+
+	view.DropDown.
+		SetListStyles(OnBlurStyle, OnFocusStyle).
+		SetFieldWidth(500).
+		SetBlurFunc(func() {
+			var fg, bg, _ = OnBlurStyle.Decompose()
+			view.DropDown.SetLabelColor(fg)
+			view.DropDown.SetBackgroundColor(bg)
+		}).
+		SetFocusFunc(func() {
+			var fg, bg, _ = OnFocusStyle.Decompose()
+			view.DropDown.SetLabelColor(fg)
+			view.DropDown.SetBackgroundColor(bg)
+		})
+
+	return view
+}
+
+type InputField struct {
+	*tview.InputField
+}
+
+func NewInputField() *InputField {
+	var view = &InputField{
+		InputField: tview.NewInputField(),
+	}
+
+	view.InputField.
+		SetPlaceholderTextColor(PlaceHolderTextColor).
+		SetBlurFunc(func() {
+			view.InputField.SetLabelStyle(OnBlurStyle)
+		}).
+		SetFocusFunc(func() {
+			view.InputField.SetLabelStyle(OnFocusStyle)
+		})
+
+	return view
+}
+
+type Button struct {
+	*tview.Button
+}
+
+func NewButton(label string) *Button {
+	var view = &Button{
+		Button: tview.NewButton(label),
+	}
+
+	view.Button.
+		SetActivatedStyle(OnFocusStyle).
+		SetStyle(tcell.Style{}.
+			Background(ContrastBackgroundColor).
+			Foreground(TextColour),
+		)
+	return view
 }
