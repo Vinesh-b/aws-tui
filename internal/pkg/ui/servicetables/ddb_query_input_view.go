@@ -530,6 +530,7 @@ type DynamoDBScanInputView struct {
 	tableName                string
 	indexes                  []string
 	selectedIndex            string
+	tabNavigator             *core.ViewNavigation1D
 }
 
 func NewDynamoDBScanInputView(app *tview.Application, logger *log.Logger) *DynamoDBScanInputView {
@@ -565,6 +566,26 @@ func NewDynamoDBScanInputView(app *tview.Application, logger *log.Logger) *Dynam
 		1, 0, true,
 	)
 
+	var fiv0 = filterInputViews[0].tabNavigator.GetOrderedViews()
+	var fiv1 = filterInputViews[1].tabNavigator.GetOrderedViews()
+	var fiv2 = filterInputViews[2].tabNavigator.GetOrderedViews()
+
+	var orderdViews = []core.View{projAttrInput}
+	orderdViews = append(orderdViews, fiv0...)
+	orderdViews = append(orderdViews, fiv1...)
+	orderdViews = append(orderdViews, fiv2...)
+	orderdViews = append(orderdViews,
+		[]core.View{
+			doneButton,
+			cancelButton,
+		}...,
+	)
+
+	var tabNavigator = core.NewViewNavigation1D(wrapper,
+		orderdViews,
+		app,
+	)
+
 	return &DynamoDBScanInputView{
 		Flex:             wrapper,
 		ScanDoneButton:   doneButton,
@@ -577,6 +598,7 @@ func NewDynamoDBScanInputView(app *tview.Application, logger *log.Logger) *Dynam
 		tableName:                "",
 		indexes:                  nil,
 		selectedIndex:            "",
+		tabNavigator:             tabNavigator,
 	}
 }
 
@@ -697,7 +719,8 @@ func NewDynamoDBTableSearchView(
 			if view.queryViewHidden {
 				pages.ShowPage(QUERY_PAGE_NAME)
 				pages.HidePage(SCAN_PAGE_NAME)
-				view.app.SetFocus(queryView)
+				var last = queryView.tabNavigator.GetLastFocusedView()
+				view.app.SetFocus(last)
 				view.scanViewHidden = true
 			} else {
 				pages.HidePage(QUERY_PAGE_NAME)
@@ -708,7 +731,8 @@ func NewDynamoDBTableSearchView(
 			if view.scanViewHidden {
 				pages.HidePage(QUERY_PAGE_NAME)
 				pages.ShowPage(SCAN_PAGE_NAME)
-				view.app.SetFocus(scanView)
+				var last = scanView.tabNavigator.GetLastFocusedView()
+				view.app.SetFocus(last)
 				view.queryViewHidden = true
 			} else {
 				pages.HidePage(SCAN_PAGE_NAME)

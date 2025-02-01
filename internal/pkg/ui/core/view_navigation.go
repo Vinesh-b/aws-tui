@@ -22,7 +22,7 @@ func NewViewNavigation1D(
 		rootView:     rootView,
 		orderedViews: orderedViews,
 		app:          app,
-		viewIdx:      len(orderedViews),
+		viewIdx:      0,
 		numViews:     len(orderedViews),
 		keyForward:   APP_KEY_BINDINGS.FormFocusNext,
 		keyBack:      APP_KEY_BINDINGS.FormFocusPrev,

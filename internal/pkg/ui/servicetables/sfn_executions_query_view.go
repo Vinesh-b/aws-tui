@@ -169,7 +169,8 @@ func NewSfnExecutionsQuerySearchView(
 		case core.APP_KEY_BINDINGS.Find:
 			if view.queryViewHidden {
 				view.ShowPage("QUERY")
-				view.app.SetFocus(queryView)
+				var last = view.queryView.viewNavigation.GetLastFocusedView()
+				view.app.SetFocus(last)
 			} else {
 				view.HidePage("QUERY")
 			}

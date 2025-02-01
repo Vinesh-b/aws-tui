@@ -178,7 +178,8 @@ func NewInsightsQuerySearchView(
 		case core.APP_KEY_BINDINGS.Find:
 			if view.queryViewHidden {
 				view.ShowPage("QUERY")
-				view.app.SetFocus(view.queryView)
+				var last = view.queryView.viewNavigation.GetLastFocusedView()
+				view.app.SetFocus(last)
 			} else {
 				view.HidePage("QUERY")
 			}
