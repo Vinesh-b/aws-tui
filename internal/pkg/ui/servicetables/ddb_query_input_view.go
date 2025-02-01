@@ -113,14 +113,14 @@ func DynamoDBTypeOpMap() map[DynamoDBDataType][]DynamoDBCondition {
 
 type DynamoDBQueryInputView struct {
 	*tview.Flex
-	QueryDoneButton   *tview.Button
-	QueryCancelButton *tview.Button
+	QueryDoneButton   *core.Button
+	QueryCancelButton *core.Button
 
 	logger              *log.Logger
 	filterView          *FilterInputView
-	pkInput             *tview.InputField
-	skInput             *tview.InputField
-	skComparatorInput   *tview.InputField
+	pkInput             *core.InputField
+	skInput             *core.InputField
+	skComparatorInput   *core.InputField
 	projectedAttributes []string
 	selectedIndex       string
 	tableName           string
@@ -131,12 +131,16 @@ type DynamoDBQueryInputView struct {
 }
 
 func NewDynamoDBQueryInputView(app *tview.Application, logger *log.Logger) *DynamoDBQueryInputView {
-	var pkInput = tview.NewInputField().SetLabel("PK ").SetFieldWidth(0)
-	var skInput = tview.NewInputField().SetLabel("SK ").SetFieldWidth(0)
-	var skComparitorInput = tview.NewInputField().SetLabel("Comparator ").SetFieldWidth(8)
+	var pkInput = core.NewInputField()
+	var skInput = core.NewInputField()
+	var skComparitorInput = core.NewInputField()
 	var filterInputView = NewFilterInputView(app, logger)
-	var doneButton = tview.NewButton("Done")
-	var cancelButton = tview.NewButton("Cancel")
+	var doneButton = core.NewButton("Done")
+	var cancelButton = core.NewButton("Cancel")
+
+	pkInput.SetLabel("PK ").SetFieldWidth(0)
+	skInput.SetLabel("SK ").SetFieldWidth(0)
+	skComparitorInput.SetLabel("Comparator ").SetFieldWidth(8)
 
 	var wrapper = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(pkInput, 1, 0, true).
@@ -284,11 +288,11 @@ type FilterInput struct {
 
 type FilterInputView struct {
 	*tview.Flex
-	AttributeNameInput *tview.InputField
-	AttributeTypeInput *tview.InputField
-	Condition          *tview.InputField
-	Value1             *tview.InputField
-	Value2             *tview.InputField
+	AttributeNameInput *core.InputField
+	AttributeTypeInput *core.InputField
+	Condition          *core.InputField
+	Value1             *core.InputField
+	Value2             *core.InputField
 
 	filterInput  FilterInput
 	tabNavigator *core.ViewNavigation1D
@@ -296,11 +300,17 @@ type FilterInputView struct {
 }
 
 func NewFilterInputView(app *tview.Application, logger *log.Logger) *FilterInputView {
-	var attrNameInput = tview.NewInputField().SetLabel("Attribute ")
-	var attrTypeInput = tview.NewInputField().SetLabel("Type ")
-	var conditionInput = tview.NewInputField().SetLabel("Condition ")
-	var value1Input = tview.NewInputField().SetLabel("Value ")
-	var value2Input = tview.NewInputField().SetLabel("Value ")
+	var attrNameInput = core.NewInputField()
+	var attrTypeInput = core.NewInputField()
+	var conditionInput = core.NewInputField()
+	var value1Input = core.NewInputField()
+	var value2Input = core.NewInputField()
+
+	attrNameInput.SetLabel("Attribute ")
+	attrTypeInput.SetLabel("Type ")
+	conditionInput.SetLabel("Condition ")
+	value1Input.SetLabel("Value ")
+	value2Input.SetLabel("Value ")
 
 	var spacerView = tview.NewBox()
 	var line2View = tview.NewFlex().SetDirection(tview.FlexColumn).
@@ -510,12 +520,12 @@ func (inst *FilterInputView) GenerateFilterCondition() (expression.ConditionBuil
 
 type DynamoDBScanInputView struct {
 	*tview.Flex
-	ScanDoneButton   *tview.Button
-	ScanCancelButton *tview.Button
+	ScanDoneButton   *core.Button
+	ScanCancelButton *core.Button
 
 	logger                   *log.Logger
 	filterInputViews         [3]*FilterInputView
-	projectedAttributesInput *tview.InputField
+	projectedAttributesInput *core.InputField
 	projectedAttributes      []string
 	tableName                string
 	indexes                  []string
@@ -530,9 +540,10 @@ func NewDynamoDBScanInputView(app *tview.Application, logger *log.Logger) *Dynam
 	}
 
 	var separater = tview.NewBox()
-	var doneButton = tview.NewButton("Done")
-	var cancelButton = tview.NewButton("Cancel")
-	var projAttrInput = tview.NewInputField().
+	var doneButton = core.NewButton("Done")
+	var cancelButton = core.NewButton("Cancel")
+	var projAttrInput = core.NewInputField()
+	projAttrInput.
 		SetLabel("Attribute Projection ").
 		SetPlaceholder("id,timestamp,name")
 
