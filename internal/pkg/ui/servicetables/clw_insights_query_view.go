@@ -19,15 +19,15 @@ type InsightsQuery struct {
 
 type InsightsQueryInputView struct {
 	*tview.Flex
-	DoneButton   *tview.Button
-	CancelButton *tview.Button
+	DoneButton   *core.Button
+	CancelButton *core.Button
 
 	logger         *log.Logger
 	app            *tview.Application
 	viewNavigation *core.ViewNavigation1D
 	queryTextArea  *tview.TextArea
-	startDateInput *tview.InputField
-	endDateInput   *tview.InputField
+	startDateInput *core.InputField
+	endDateInput   *core.InputField
 	query          InsightsQuery
 }
 
@@ -35,15 +35,15 @@ func NewInsightsQueryInputView(app *tview.Application, logger *log.Logger) *Insi
 	var flex = tview.NewFlex().SetDirection(tview.FlexRow)
 	var view = &InsightsQueryInputView{
 		Flex:         flex,
-		DoneButton:   tview.NewButton("Done"),
-		CancelButton: tview.NewButton("Cancel"),
+		DoneButton:   core.NewButton("Done"),
+		CancelButton: core.NewButton("Cancel"),
 
 		logger:         logger,
 		app:            app,
 		viewNavigation: core.NewViewNavigation1D(flex, nil, app),
 		queryTextArea:  tview.NewTextArea(),
-		startDateInput: tview.NewInputField(),
-		endDateInput:   tview.NewInputField(),
+		startDateInput: core.NewInputField(),
+		endDateInput:   core.NewInputField(),
 	}
 
 	var separator = tview.NewBox()
