@@ -278,6 +278,23 @@ func (inst *DynamoDBQueryInputView) SetTableIndexes(indexes []string) {
 	inst.indexes = indexes
 }
 
+type FloatingDDBQueryInputView struct {
+	*tview.Flex
+	Input *DynamoDBQueryInputView
+}
+
+func NewFloatingDDBQueryInputView(app *tview.Application, logger *log.Logger) *FloatingDDBQueryInputView {
+	var queryView = NewDynamoDBQueryInputView(app, logger)
+	return &FloatingDDBQueryInputView{
+		Flex:  core.FloatingView("Query", queryView, 70, 10),
+		Input: queryView,
+	}
+}
+
+func (inst *FloatingDDBQueryInputView) GetLastFocusedView() tview.Primitive {
+	return inst.Input.tabNavigator.GetLastFocusedView()
+}
+
 type FilterInput struct {
 	AttributeName string
 	AttributeType DynamoDBDataType
@@ -654,94 +671,19 @@ func (inst *DynamoDBScanInputView) SetTableIndexes(indexes []string) {
 	inst.indexes = indexes
 }
 
-const (
-	QUERY_PAGE_NAME = "QUERY"
-	SCAN_PAGE_NAME  = "SCAN"
-	MAIN_PAGE_NAME  = "MAIN_PAGE"
-)
-
-type DynamoDBTableSearchView struct {
+type FloatingDDBScanInputView struct {
 	*tview.Flex
-	*DynamoDBQueryInputView
-	*DynamoDBScanInputView
-	MainPage tview.Primitive
-
-	queryViewHidden bool
-	scanViewHidden  bool
-	pages           *tview.Pages
-	app             *tview.Application
-	logger          *log.Logger
+	Input *DynamoDBScanInputView
 }
 
-func NewDynamoDBTableSearchView(
-	mainPage tview.Primitive,
-	app *tview.Application,
-	logger *log.Logger,
-) *DynamoDBTableSearchView {
-	var queryView = NewDynamoDBQueryInputView(app, logger)
-	var floatingQuery = core.FloatingView("Query", queryView, 70, 10)
+func NewFloatingDDBScanInputView(app *tview.Application, logger *log.Logger) *FloatingDDBScanInputView {
 	var scanView = NewDynamoDBScanInputView(app, logger)
-	var floatingScan = core.FloatingView("Scan", scanView, 70, 14)
-
-	var pages = tview.NewPages().
-		AddPage("MAIN_PAGE", mainPage, true, true).
-		AddPage(QUERY_PAGE_NAME, floatingQuery, true, false).
-		AddPage(SCAN_PAGE_NAME, floatingScan, true, false)
-
-	var view = &DynamoDBTableSearchView{
-		Flex:                   tview.NewFlex().AddItem(pages, 0, 1, true),
-		DynamoDBQueryInputView: queryView,
-		DynamoDBScanInputView:  scanView,
-		MainPage:               mainPage,
-
-		queryViewHidden: true,
-		scanViewHidden:  true,
-		pages:           pages,
-		app:             app,
+	return &FloatingDDBScanInputView{
+		Flex:  core.FloatingView("Scan", scanView, 70, 10),
+		Input: scanView,
 	}
+}
 
-	view.QueryCancelButton.SetSelectedFunc(func() {
-		pages.HidePage(QUERY_PAGE_NAME)
-		view.queryViewHidden = true
-	})
-
-	view.pages.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case core.APP_KEY_BINDINGS.Escape:
-			if view.scanViewHidden == false || view.queryViewHidden == false {
-				pages.HidePage(QUERY_PAGE_NAME)
-				pages.HidePage(SCAN_PAGE_NAME)
-				view.queryViewHidden = true
-				view.scanViewHidden = true
-				return nil
-			}
-		case core.APP_KEY_BINDINGS.TableQuery:
-			if view.queryViewHidden {
-				pages.ShowPage(QUERY_PAGE_NAME)
-				pages.HidePage(SCAN_PAGE_NAME)
-				var last = queryView.tabNavigator.GetLastFocusedView()
-				view.app.SetFocus(last)
-				view.scanViewHidden = true
-			} else {
-				pages.HidePage(QUERY_PAGE_NAME)
-			}
-			view.queryViewHidden = !view.queryViewHidden
-			return nil
-		case core.APP_KEY_BINDINGS.TableScan:
-			if view.scanViewHidden {
-				pages.HidePage(QUERY_PAGE_NAME)
-				pages.ShowPage(SCAN_PAGE_NAME)
-				var last = scanView.tabNavigator.GetLastFocusedView()
-				view.app.SetFocus(last)
-				view.queryViewHidden = true
-			} else {
-				pages.HidePage(SCAN_PAGE_NAME)
-			}
-			view.scanViewHidden = !view.scanViewHidden
-			return nil
-		}
-		return event
-	})
-
-	return view
+func (inst *FloatingDDBScanInputView) GetLastFocusedView() tview.Primitive {
+	return inst.Input.tabNavigator.GetLastFocusedView()
 }

@@ -21,14 +21,20 @@ const (
 	DDBTableQuery
 )
 
+const (
+	QUERY_PAGE_NAME = "QUERY"
+	SCAN_PAGE_NAME  = "SCAN"
+)
+
 type DynamoDBGenericTable struct {
 	*core.SelectableTable[map[string]any]
-	*DynamoDBTableSearchView
 	rootView             core.View
 	table                *tview.Table
 	ErrorMessageCallback func(text string, a ...any)
 	data                 []map[string]any
 	tableDescription     *types.TableDescription
+	scanInputView        *FloatingDDBScanInputView
+	queryInputView       *FloatingDDBQueryInputView
 	selectedTable        string
 	pkQueryString        string
 	skQueryString        string
@@ -51,25 +57,31 @@ func NewDynamoDBGenericTable(
 	logger *log.Logger,
 ) *DynamoDBGenericTable {
 	var selectableTable = core.NewSelectableTable[map[string]any]("", nil, app)
-	var searchView = NewDynamoDBTableSearchView(selectableTable, app, logger)
+
+	var queryView = NewFloatingDDBQueryInputView(app, logger)
+	var scanView = NewFloatingDDBScanInputView(app, logger)
+
+	selectableTable.AddKeyToggleOverlay(QUERY_PAGE_NAME, queryView, core.APP_KEY_BINDINGS.TableQuery)
+	selectableTable.AddKeyToggleOverlay(SCAN_PAGE_NAME, scanView, core.APP_KEY_BINDINGS.TableScan)
 
 	var table = &DynamoDBGenericTable{
-		SelectableTable:         selectableTable,
-		DynamoDBTableSearchView: searchView,
-		rootView:                selectableTable.Box,
-		table:                   selectableTable.GetTable(),
-		ErrorMessageCallback:    func(text string, a ...any) {},
-		data:                    []map[string]any{},
-		attributeIdxMap:         map[string]int{},
-		selectedTable:           "",
-		pkQueryString:           "",
-		skQueryString:           "",
-		searchIndexName:         "",
-		lastTableOp:             DDBTableScan,
-		lastSelectedRowIdx:      0,
-		logger:                  logger,
-		app:                     app,
-		api:                     api,
+		SelectableTable:      selectableTable,
+		rootView:             selectableTable.Box,
+		table:                selectableTable.GetTable(),
+		ErrorMessageCallback: func(text string, a ...any) {},
+		data:                 []map[string]any{},
+		attributeIdxMap:      map[string]int{},
+		scanInputView:        scanView,
+		queryInputView:       queryView,
+		selectedTable:        "",
+		pkQueryString:        "",
+		skQueryString:        "",
+		searchIndexName:      "",
+		lastTableOp:          DDBTableScan,
+		lastSelectedRowIdx:   0,
+		logger:               logger,
+		app:                  app,
+		api:                  api,
 	}
 
 	table.HighlightSearch = true
@@ -85,11 +97,11 @@ func NewDynamoDBGenericTable(
 		return event
 	})
 
-	table.QueryDoneButton.SetSelectedFunc(func() {
-		table.SetPartitionKeyName(table.pkName)
-		table.SetSortKeyName(table.skName)
+	queryView.Input.QueryDoneButton.SetSelectedFunc(func() {
+		queryView.Input.SetPartitionKeyName(table.pkName)
+		queryView.Input.SetSortKeyName(table.skName)
 
-		var expr, err = table.GenerateQueryExpression()
+		var expr, err = queryView.Input.GenerateQueryExpression()
 		if err != nil {
 			table.logger.Println(err.Error())
 			table.ErrorMessageCallback(err.Error())
@@ -98,8 +110,8 @@ func NewDynamoDBGenericTable(
 		table.ExecuteSearch(DDBTableQuery, expr, true)
 	})
 
-	table.ScanDoneButton.SetSelectedFunc(func() {
-		var expr, err = table.GenerateScanExpression()
+	scanView.Input.ScanDoneButton.SetSelectedFunc(func() {
+		var expr, err = scanView.Input.GenerateScanExpression()
 		if err != nil {
 			table.logger.Println(err.Error())
 			table.ErrorMessageCallback(err.Error())
@@ -225,8 +237,8 @@ func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expre
 }
 
 func (inst *DynamoDBGenericTable) SetSelectedTable(tableName string) {
-	inst.DynamoDBQueryInputView.SetSelectedTable(tableName)
-	inst.DynamoDBScanInputView.SetSelectedTable(tableName)
+	inst.queryInputView.Input.SetSelectedTable(tableName)
+	inst.scanInputView.Input.SetSelectedTable(tableName)
 	inst.selectedTable = tableName
 }
 
