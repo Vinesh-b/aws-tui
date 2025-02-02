@@ -118,6 +118,12 @@ func NewSelectableTable[T any](title string, headings TableRow, app *tview.Appli
 		AddItem("Esc", "Hide current floating view", nil).
 		AddItem("r", "Reset table", nil).
 		AddItem("n", "Load more data", nil).
+		AddItem("k", "Move up one row", nil).
+		AddItem("j", "Move down one row", nil).
+		AddItem("g", "Go to first item", nil).
+		AddItem("G", "Go to last item", nil).
+		AddItem("pgup", "Go up a page", nil).
+		AddItem("pgdn", "Go down a page", nil).
 		AddItem("Ctrl-F", "Search table", nil)
 
 	view.AddRuneToggleOverlay("HELP", view.HelpView, '?')
