@@ -101,9 +101,6 @@ func (inst *LambdaDetailsPageView) initInputCapture() {
 		inst.LambdaDetailsTable.RefreshDetails(selectedLambda)
 		inst.LambdaEnvVarsTable.RefreshDetails(selectedLambda)
 		inst.LambdaVpcConfTable.RefreshDetails(selectedLambda)
-		var logGroup = inst.LambdaListTable.GetSeletedLambdaLogGroup()
-		inst.LogStreamsTable.SetSeletedLogGroup(logGroup)
-		inst.LambdaTagsTable.ClearDetails()
 	})
 }
 
@@ -223,13 +220,13 @@ func (inst *LambdaInvokePageView) Invoke() {
 		data, err = inst.api.InvokeLambda(inst.selectedLambda, payload)
 		if err != nil {
 			inst.responseOutput.ErrorMessageCallback(err.Error())
-            return
+			return
 		}
 
 		logResults, err = base64.StdEncoding.DecodeString(aws.ToString(data.LogResult))
 		if err != nil {
 			inst.logResults.ErrorMessageCallback(err.Error())
-            return
+			return
 		}
 
 		responseOutput = data.Payload
@@ -280,17 +277,19 @@ func NewLambdaHomeView(
 	serviceRootView.InitPageNavigation()
 	var lambdasListTable = lambdasDetailsView.LambdaListTable
 	var logStreamsTable = lambdasDetailsView.LogStreamsTable
+	var lambdaTagsTable = lambdasDetailsView.LambdaTagsTable
 	var logEventsTable = logEventsView.LogEventsTable
 
 	var lambdaSelectedFunc = func(_, _ int) {
 		var logGroup = lambdasListTable.GetSeletedLambdaLogGroup()
 		logStreamsTable.SetSeletedLogGroup(logGroup)
 		logStreamsTable.SetLogStreamSearchPrefix("")
+		logStreamsTable.RefreshStreams(true)
 
 		var selectedLambda = lambdasListTable.GetSeletedLambda()
-		lambdasDetailsView.LambdaTagsTable.RefreshDetails(selectedLambda)
-		logStreamsTable.RefreshStreams(true)
-		lambdaInvokeView.SetSelectedLambda(aws.ToString(selectedLambda.FunctionName))
+		var lambdaName = aws.ToString(selectedLambda.FunctionName)
+		lambdaTagsTable.RefreshDetails(selectedLambda)
+		lambdaInvokeView.SetSelectedLambda(lambdaName)
 	}
 
 	lambdasListTable.SetSelectedFunc(lambdaSelectedFunc)

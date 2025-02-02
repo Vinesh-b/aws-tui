@@ -65,6 +65,7 @@ func (inst *LambdaDetailsTable) populateLambdaDetailsTable() {
 		{"Role", aws.ToString(inst.data.Role)},
 	}
 
+	inst.SetTitleExtra(aws.ToString(inst.data.FunctionName))
 	inst.SetData(tableData)
 	inst.Select(0, 0)
 	inst.ScrollToBeginning()

@@ -57,6 +57,7 @@ func (inst *LambdaVpcConfigTable) populateLambdaVpcConfigTable() {
 		}
 	}
 
+	inst.SetTitleExtra(aws.ToString(inst.data.FunctionName))
 	inst.SetData(tableData)
 	inst.Select(0, 0)
 	inst.ScrollToBeginning()

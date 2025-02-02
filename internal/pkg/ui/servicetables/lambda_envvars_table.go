@@ -7,6 +7,7 @@ import (
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 
 	"github.com/rivo/tview"
@@ -50,6 +51,7 @@ func (inst *LambdaEnvVarsTable) populateLambdaEnvVarsTable() {
 		})
 	}
 
+	inst.SetTitleExtra(aws.ToString(inst.data.FunctionName))
 	inst.SetData(tableData)
 	inst.Select(0, 0)
 	inst.ScrollToBeginning()

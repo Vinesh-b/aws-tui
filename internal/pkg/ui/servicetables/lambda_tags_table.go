@@ -50,6 +50,7 @@ func (inst *LambdaTagsTable) populateLambdaTagsTable() {
 		return tableData[i][0] < tableData[j][0]
 	})
 
+	inst.SetTitleExtra(aws.ToString(inst.data.FunctionName))
 	inst.SetData(tableData)
 	inst.Select(0, 0)
 	inst.ScrollToBeginning()
