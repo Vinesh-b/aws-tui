@@ -28,15 +28,15 @@ const sfnExecutionArnCol = 0
 
 type StateMachineExecutionsTable struct {
 	*core.SelectableTable[ExecutionItem]
-	queryView           *FloatingSfnExecutionsQueryInputView
-	selectedFunctionArn string
-	data                []ExecutionItem
-	filtered            []ExecutionItem
-	selectedExecution   ExecutionItem
-	logger              *log.Logger
-	app                 *tview.Application
-	api                 *awsapi.StateMachineApi
-	cwlApi              *awsapi.CloudWatchLogsApi
+	queryView         *FloatingSfnExecutionsQueryInputView
+	selectedFunction  types.StateMachineListItem
+	data              []ExecutionItem
+	filtered          []ExecutionItem
+	selectedExecution ExecutionItem
+	logger            *log.Logger
+	app               *tview.Application
+	api               *awsapi.StateMachineApi
+	cwlApi            *awsapi.CloudWatchLogsApi
 }
 
 func NewStateMachineExecutionsTable(
@@ -60,15 +60,15 @@ func NewStateMachineExecutionsTable(
 	selectableTable.AddKeyToggleOverlay("QUERY", searchView, core.APP_KEY_BINDINGS.TableQuery)
 
 	var table = &StateMachineExecutionsTable{
-		queryView:           searchView,
-		SelectableTable:     selectableTable,
-		selectedFunctionArn: "",
-		selectedExecution:   ExecutionItem{ExecutionListItem: &types.ExecutionListItem{}},
-		data:                nil,
-		logger:              logger,
-		app:                 app,
-		api:                 api,
-		cwlApi:              cwlApi,
+		queryView:         searchView,
+		SelectableTable:   selectableTable,
+		selectedFunction:  types.StateMachineListItem{},
+		selectedExecution: ExecutionItem{ExecutionListItem: &types.ExecutionListItem{}},
+		data:              nil,
+		logger:            logger,
+		app:               app,
+		api:               api,
+		cwlApi:            cwlApi,
 	}
 
 	var endTime = time.Now()
@@ -87,10 +87,15 @@ func NewStateMachineExecutionsTable(
 			var startTime = endTime.Add(-24 * 1 * time.Hour)
 			table.queryView.Input.SetDefaultTimes(startTime, endTime)
 
-			if table.selectedExecution.StateMachineType == "STANDARD" {
+			switch table.selectedFunction.Type {
+			case types.StateMachineTypeStandard:
 				table.RefreshExecutions(true)
-			} else {
+			case types.StateMachineTypeExpress:
 				table.RefreshExpressExecutions(aws.ToString(table.selectedExecution.logGroup), true)
+			default:
+				table.ErrorMessageCallback(
+					"Unsupported type: %s", table.selectedExecution.StateMachineType,
+				)
 			}
 		case core.APP_KEY_BINDINGS.LoadMoreData:
 			table.RefreshExecutions(false)
@@ -99,10 +104,15 @@ func NewStateMachineExecutionsTable(
 	})
 
 	table.queryView.Input.DoneButton.SetSelectedFunc(func() {
-		if table.selectedExecution.StateMachineType == "STANDARD" {
+		switch table.selectedFunction.Type {
+		case types.StateMachineTypeStandard:
 			table.RefreshExecutions(true)
-		} else {
+		case types.StateMachineTypeExpress:
 			table.RefreshExpressExecutions(aws.ToString(table.selectedExecution.logGroup), true)
+		default:
+			table.ErrorMessageCallback(
+				"Unsupported type: %s", table.selectedExecution.StateMachineType,
+			)
 		}
 	})
 
@@ -126,6 +136,7 @@ func (inst *StateMachineExecutionsTable) populateExecutionsTable(force bool) {
 		return
 	}
 
+	inst.SetTitleExtra(aws.ToString(inst.selectedFunction.Name))
 	inst.SetData(tableData, inst.data, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
 }
@@ -283,9 +294,10 @@ func (inst *StateMachineExecutionsTable) RefreshExecutions(reset bool) {
 	}
 
 	dataLoader.AsyncLoadData(func() {
-		if len(inst.selectedFunctionArn) > 0 {
+		var selectedFunctionArn = aws.ToString(inst.selectedFunction.StateMachineArn)
+		if len(selectedFunctionArn) > 0 {
 			var data, err = inst.api.ListExecutions(
-				inst.selectedFunctionArn,
+				selectedFunctionArn,
 				query.startTime,
 				query.endTime,
 				reset,
@@ -330,6 +342,6 @@ func (inst *StateMachineExecutionsTable) GetSeletedExecutionArn() string {
 	return aws.ToString(inst.selectedExecution.ExecutionArn)
 }
 
-func (inst *StateMachineExecutionsTable) SetSeletedFunctionArn(functionArn string) {
-	inst.selectedFunctionArn = functionArn
+func (inst *StateMachineExecutionsTable) SetSeletedFunction(function types.StateMachineListItem) {
+	inst.selectedFunction = function
 }

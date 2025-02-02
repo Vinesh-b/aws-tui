@@ -12,6 +12,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
+	"github.com/aws/aws-sdk-go-v2/service/sfn/types"
 
 	"github.com/rivo/tview"
 )
@@ -99,7 +100,7 @@ func (inst *StateMachineDetailsTable) ClearDetails() {
 	})
 }
 
-func (inst *StateMachineDetailsTable) RefreshDetails(stateMachineArn string) {
+func (inst *StateMachineDetailsTable) RefreshDetails(stateMachine types.StateMachineListItem) {
 ChanFlushLoop:
 	for {
 		select {
@@ -112,12 +113,12 @@ ChanFlushLoop:
 		}
 	}
 
-	inst.selectedStateMachineArn = stateMachineArn
+	inst.selectedStateMachineArn = aws.ToString(stateMachine.StateMachineArn)
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		var err error
-		inst.data, err = inst.api.DescribeStateMachine(stateMachineArn)
+		inst.data, err = inst.api.DescribeStateMachine(inst.selectedStateMachineArn)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 			return

@@ -8,6 +8,7 @@ import (
 	tables "aws-tui/internal/pkg/ui/servicetables"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/sfn/types"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -83,15 +84,14 @@ func (inst *StateMachinesDetailsPageView) initInputCapture() {
 		var smExeTable = inst.stateMachineExecutionsTable
 		var smDetTable = inst.stateMachineDetailsTable
 
-		var selectedFunc = smTable.GetSeletedFunctionArn()
-		var selectedFuncName = smTable.GetSeletedFunctionName()
-		smExeTable.SetSeletedFunctionArn(selectedFunc)
-		smExeTable.SetTitleExtra(selectedFuncName)
+		var selectedFunc = smTable.GetSeletedFunction()
+		smExeTable.SetSeletedFunction(selectedFunc)
 		smDetTable.RefreshDetails(selectedFunc)
 
-		if smType := smTable.GetSeletedFunctionType(); smType == "STANDARD" {
+		switch smTable.GetSeletedFunctionType() {
+		case types.StateMachineTypeStandard:
 			smExeTable.RefreshExecutions(true)
-		} else {
+		case types.StateMachineTypeExpress:
 			var group = smDetTable.GetSelectedSmLogGroup()
 			smExeTable.RefreshExpressExecutions(group, true)
 		}
@@ -217,9 +217,6 @@ func NewStepFunctionsHomeView(
 		AddPage("Exection Details", SfnExeDetailsView, true, true)
 
 	serviceRootView.InitPageNavigation()
-
-	SfnDetailsView.stateMachinesTable.SetSelectedFunc(func(row, column int) {
-	})
 
 	SfnDetailsView.stateMachineExecutionsTable.SetSelectedFunc(func(row, column int) {
 		var selectedExecution = SfnDetailsView.
