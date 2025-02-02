@@ -22,6 +22,12 @@ func NewHelpView() *HelpView {
 	SetTableHeading(table, "Description", 1)
 	table.GetCell(0, 1).SetExpansion(1)
 
+	table.SetSelectedFunc(func(row, column int) {
+		if handlerPtr := GetPrivateData[*func()](table.GetCell(row, 0)); handlerPtr != nil {
+			(*handlerPtr)()
+		}
+	})
+
 	var flex = tview.NewFlex().
 		SetDirection(tview.FlexRow).
 		AddItem(table, 0, 1, true)
@@ -34,22 +40,25 @@ func NewHelpView() *HelpView {
 
 func (inst *HelpView) AddItem(shortcut string, descirption string, handler func()) *HelpView {
 	var rows = inst.table.GetRowCount()
-	inst.table.SetCell(rows, 0, NewTableCell[any](shortcut, nil))
-	inst.table.SetCell(rows, 1, NewTableCell[any](descirption, nil))
+	if handler == nil {
+		handler = func() {}
+	}
+	inst.table.SetCell(rows, 0, NewTableCell(shortcut, &handler))
+	inst.table.SetCell(rows, 1, NewTableCell[*func()](descirption, nil))
 
 	return inst
 }
 
 type FloatingHelpView struct {
 	*tview.Flex
-	HelpView *HelpView
+	View *HelpView
 }
 
 func NewFloatingHelpView() *FloatingHelpView {
 	var helpView = NewHelpView()
 	return &FloatingHelpView{
-		Flex:     FloatingView("Available actions", helpView, 70, 0),
-		HelpView: helpView,
+		Flex: FloatingView("Available actions", helpView, 70, 0),
+		View: helpView,
 	}
 }
 

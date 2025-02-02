@@ -91,7 +91,7 @@ type SelectableTable[T any] struct {
 	privateData          []T
 	privateColumn        int
 	searchPositions      []CellPosition
-	helpView             *FloatingHelpView
+	HelpView             *FloatingHelpView
 	ErrorMessageCallback func(text string, a ...any)
 }
 
@@ -110,16 +110,17 @@ func NewSelectableTable[T any](title string, headings TableRow, app *tview.Appli
 		privateData:          nil,
 		privateColumn:        -1,
 		searchPositions:      []CellPosition{},
-		helpView:             NewFloatingHelpView(),
+		HelpView:             NewFloatingHelpView(),
 		ErrorMessageCallback: func(text string, a ...any) {},
 	}
 
-	view.helpView.HelpView.
-		AddItem("Ctrl-F", "Search table", nil).
+	view.HelpView.View.
+		AddItem("Esc", "Hide current floating view", nil).
 		AddItem("r", "Reset table", nil).
-		AddItem("n", "Load more data", nil)
+		AddItem("n", "Load more data", nil).
+		AddItem("Ctrl-F", "Search table", nil)
 
-	view.AddRuneToggleOverlay("HELP", view.helpView, '?')
+	view.AddRuneToggleOverlay("HELP", view.HelpView, '?')
 
 	view.SetTitle(title).
 		SetTitleAlign(tview.AlignLeft).

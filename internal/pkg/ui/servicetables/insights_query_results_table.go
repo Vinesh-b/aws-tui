@@ -155,6 +155,13 @@ func NewInsightsQueryResultsTable(
 		view.StopQuery()
 	})
 
+	view.HelpView.View.
+		AddItem("f", "Jump to next search result", nil).
+		AddItem("F", "Jump to previous search result", nil).
+		AddItem("Ctrl-Q", "Toggle log query view", func() {
+			view.ToggleOverlay("QUERY", false)
+		})
+
 	return view
 }
 
