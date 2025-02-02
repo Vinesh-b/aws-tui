@@ -13,6 +13,7 @@ import (
 type SearchableTextView struct {
 	*SearchableView
 	ErrorMessageCallback func(text string, a ...any)
+	HelpView             *FloatingHelpView
 	textArea             *tview.TextArea
 	lineCount            int
 	searchPositions      [][]int
@@ -27,6 +28,7 @@ func NewSearchableTextView(title string, app *tview.Application) *SearchableText
 	var view = &SearchableTextView{
 		SearchableView:       searchableView,
 		ErrorMessageCallback: func(text string, a ...any) {},
+		HelpView:             NewFloatingHelpView(),
 		textArea:             textArea,
 		lineCount:            0,
 		searchPositions:      nil,
@@ -136,6 +138,19 @@ func NewSearchableTextView(title string, app *tview.Application) *SearchableText
 			}
 		}
 	})
+
+	view.AddRuneToggleOverlay("HELP", view.HelpView, '?')
+	view.HelpView.View.
+		AddItem("Ctrl-F", "Search Text", nil).
+		AddItem("f", "Jump to next search result", nil).
+		AddItem("F", "Jump to previous search result", nil).
+		AddItem("k,j,h,l", "Move Up, Down, Left, Right", nil).
+		AddItem("w", "Move forward one word", nil).
+		AddItem("b", "Move back one word", nil).
+		AddItem("u", "Move page up", nil).
+		AddItem("d", "Move page down", nil).
+		AddItem("Shift + Move key", "Select Text", nil).
+		AddItem("y", "Copy selected Text", nil)
 
 	return view
 }
