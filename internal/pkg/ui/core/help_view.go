@@ -39,3 +39,20 @@ func (inst *HelpView) AddItem(shortcut string, descirption string, handler func(
 
 	return inst
 }
+
+type FloatingHelpView struct {
+	*tview.Flex
+	HelpView *HelpView
+}
+
+func NewFloatingHelpView() *FloatingHelpView {
+	var helpView = NewHelpView()
+	return &FloatingHelpView{
+		Flex:     FloatingView("Available actions", helpView, 70, 0),
+		HelpView: helpView,
+	}
+}
+
+func (inst *FloatingHelpView) GetLastFocusedView() tview.Primitive {
+	return inst
+}

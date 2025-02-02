@@ -3,6 +3,7 @@ package core
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"regexp"
 	"sort"
 	"time"
@@ -240,4 +241,168 @@ func (inst *DateTimeInputField) ValidateInput() (time.Time, error) {
 
 func (inst *DateTimeInputField) SetTextTime(datetime time.Time) {
 	inst.SetText(datetime.Format(inst.layout))
+}
+
+type OverlayView interface {
+	tview.Primitive
+	GetLastFocusedView() tview.Primitive
+}
+
+type OverlayInfo struct {
+	Id               string
+	View             OverlayView
+	IsHidden         bool
+	ToggleRune       rune
+	ToggleKey        tcell.Key
+	InputCaptureFunc func(event *tcell.EventKey) *tcell.EventKey
+}
+
+type BaseView struct {
+	*tview.Pages
+	app          *tview.Application
+	logger       *log.Logger
+	mainPageView tview.Primitive
+	overlays     map[string]*OverlayInfo
+}
+
+func NewBaseView(app *tview.Application, logger *log.Logger) *BaseView {
+	var view = &BaseView{
+		Pages:    tview.NewPages(),
+		app:      app,
+		logger:   logger,
+		overlays: map[string]*OverlayInfo{},
+	}
+
+	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		for _, id := range view.GetPageNames(false) {
+			var overlay, ok = view.overlays[id]
+            if !ok {
+                continue
+            }
+
+			if e := overlay.InputCaptureFunc(event); e == nil {
+				return nil
+			} else {
+				event = e
+			}
+		}
+
+		return event
+	})
+
+	return view
+}
+
+func (inst *BaseView) SetMainView(view tview.Primitive) *BaseView {
+	inst.mainPageView = view
+	inst.AddAndSwitchToPage("MAIN_PAGE", view, true)
+	inst.SendToBack("MAIN_PAGE")
+	return inst
+}
+
+// This will overwrite the input capture handler of the view passed in.
+func (inst *BaseView) AddRuneToggleOverlay(id string, view OverlayView, viewToggle rune) *BaseView {
+	inst.AddPage(id, view, true, false)
+	var overlay = &OverlayInfo{
+		Id:         id,
+		View:       view,
+		IsHidden:   true,
+		ToggleRune: viewToggle,
+		ToggleKey:  -1,
+	}
+
+	overlay.InputCaptureFunc = func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case APP_KEY_BINDINGS.Escape:
+			if overlay.IsHidden == false {
+				inst.HidePage(overlay.Id)
+				overlay.IsHidden = true
+				return nil
+			}
+		}
+
+		switch event.Rune() {
+		case overlay.ToggleRune:
+			if overlay.IsHidden {
+				inst.SendToFront(overlay.Id)
+				inst.ShowPage(overlay.Id)
+				inst.app.SetFocus(view.GetLastFocusedView())
+			} else {
+				inst.HidePage(overlay.Id)
+			}
+			overlay.IsHidden = !overlay.IsHidden
+			return nil
+		}
+		return event
+	}
+
+	inst.overlays[id] = overlay
+
+	return inst
+}
+
+// This will overwrite the input capture handler of the view passed in.
+func (inst *BaseView) AddKeyToggleOverlay(id string, view OverlayView, viewToggle tcell.Key) *BaseView {
+	inst.AddPage(id, view, true, false)
+	var overlay = &OverlayInfo{
+		Id:         id,
+		View:       view,
+		IsHidden:   true,
+		ToggleRune: 0,
+		ToggleKey:  viewToggle,
+	}
+
+	overlay.InputCaptureFunc = func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case APP_KEY_BINDINGS.Escape:
+			if overlay.IsHidden == false {
+				inst.HidePage(overlay.Id)
+				overlay.IsHidden = true
+				return nil
+			}
+		case overlay.ToggleKey:
+			if overlay.IsHidden {
+				inst.SendToFront(overlay.Id)
+				inst.ShowPage(overlay.Id)
+				inst.app.SetFocus(view.GetLastFocusedView())
+			} else {
+				inst.HidePage(overlay.Id)
+			}
+			overlay.IsHidden = !overlay.IsHidden
+			return nil
+		}
+		return event
+	}
+
+	inst.overlays[id] = overlay
+
+	return inst
+}
+
+func (inst *BaseView) HideAllOverlays() {
+	for _, overlay := range inst.overlays {
+		inst.HidePage(overlay.Id)
+		overlay.IsHidden = true
+	}
+}
+
+func (inst *BaseView) IsOverlayHidden(id string) bool {
+	var overlay, ok = inst.overlays[id]
+	if ok {
+		return overlay.IsHidden
+	}
+	return true
+}
+
+func (inst *BaseView) ToggleOverlay(id string, hide bool) {
+	var overlay, ok = inst.overlays[id]
+	if ok {
+		overlay.IsHidden = hide
+		if hide {
+			inst.HidePage(overlay.Id)
+		} else {
+			inst.ShowPage(overlay.Id)
+			inst.app.SetFocus(overlay.View.GetLastFocusedView())
+		}
+	}
 }

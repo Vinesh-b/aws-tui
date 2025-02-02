@@ -127,8 +127,8 @@ func NewFloatingSearchDateTimeView(
 }
 
 type FloatingSearchView struct {
+	*tview.Flex
 	InputField *tview.InputField
-	RootView   *tview.Flex
 }
 
 func NewFloatingSearchView(label string, width int, height int) *FloatingSearchView {
@@ -137,7 +137,11 @@ func NewFloatingSearchView(label string, width int, height int) *FloatingSearchV
 		SetFieldWidth(0)
 
 	return &FloatingSearchView{
+		Flex:       FloatingView("", inputField, width, height),
 		InputField: inputField,
-		RootView:   FloatingView("", inputField, width, height),
 	}
+}
+
+func (inst *FloatingSearchView) GetLastFocusedView() tview.Primitive {
+	return inst
 }
