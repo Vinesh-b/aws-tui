@@ -17,7 +17,7 @@ import (
 	"github.com/rivo/tview"
 )
 
-type StateMachineDetailsTable struct {
+type SfnDetailsTable struct {
 	*core.DetailsTable
 	data                    *sfn.DescribeStateMachineOutput
 	selectedStateMachineArn string
@@ -28,12 +28,12 @@ type StateMachineDetailsTable struct {
 	api                     *awsapi.StateMachineApi
 }
 
-func NewStateMachineDetailsTable(
+func NewSfnDetailsTable(
 	app *tview.Application,
 	api *awsapi.StateMachineApi,
 	logger *log.Logger,
-) *StateMachineDetailsTable {
-	var table = &StateMachineDetailsTable{
+) *SfnDetailsTable {
+	var table = &SfnDetailsTable{
 		DetailsTable:            core.NewDetailsTable("State Machine Details"),
 		data:                    nil,
 		logGroups:               []string{},
@@ -44,12 +44,12 @@ func NewStateMachineDetailsTable(
 		api:                     api,
 	}
 
-	table.populateStateMachineDetailsTableTable()
+	table.populateTable()
 
 	return table
 }
 
-func (inst *StateMachineDetailsTable) populateStateMachineDetailsTableTable() {
+func (inst *SfnDetailsTable) populateTable() {
 	var tableData []core.TableRow
 	if inst.data != nil {
 		tableData = []core.TableRow{
@@ -89,18 +89,18 @@ func (inst *StateMachineDetailsTable) populateStateMachineDetailsTableTable() {
 	inst.ScrollToBeginning()
 }
 
-func (inst *StateMachineDetailsTable) ClearDetails() {
+func (inst *SfnDetailsTable) ClearDetails() {
 	inst.data = nil
 	inst.logGroups = nil
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 	dataLoader.AsyncLoadData(func() {})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateStateMachineDetailsTableTable()
+		inst.populateTable()
 	})
 }
 
-func (inst *StateMachineDetailsTable) RefreshDetails(stateMachine types.StateMachineListItem) {
+func (inst *SfnDetailsTable) RefreshDetails(stateMachine types.StateMachineListItem) {
 ChanFlushLoop:
 	for {
 		select {
@@ -145,11 +145,11 @@ ChanFlushLoop:
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateStateMachineDetailsTableTable()
+		inst.populateTable()
 	})
 }
 
-func (inst *StateMachineDetailsTable) GetSelectedSmLogGroup() string {
+func (inst *SfnDetailsTable) GetSelectedSmLogGroup() string {
 	var logGroups []string
 	var timeoutCtx, cancelFunc = context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFunc()

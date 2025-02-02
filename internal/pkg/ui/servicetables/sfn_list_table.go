@@ -16,7 +16,7 @@ import (
 
 const sfnFunctionNameCol = 0
 
-type StateMachinesListTable struct {
+type SfnListTable struct {
 	*core.SelectableTable[types.StateMachineListItem]
 	selectedFunction types.StateMachineListItem
 	data             []types.StateMachineListItem
@@ -26,13 +26,13 @@ type StateMachinesListTable struct {
 	api              *awsapi.StateMachineApi
 }
 
-func NewStateMachinesListTable(
+func NewSfnListTable(
 	app *tview.Application,
 	api *awsapi.StateMachineApi,
 	logger *log.Logger,
-) *StateMachinesListTable {
+) *SfnListTable {
 
-	var table = &StateMachinesListTable{
+	var table = &SfnListTable{
 		SelectableTable: core.NewSelectableTable[types.StateMachineListItem](
 			"State Machines",
 			core.TableRow{
@@ -49,7 +49,7 @@ func NewStateMachinesListTable(
 		api:    api,
 	}
 
-	table.populateStateMachinesTable(table.data)
+	table.populateTable(table.data)
 	table.SetSelectionChangedFunc(func(row, column int) {})
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
 	table.SetSearchDoneFunc(func(key tcell.Key) {
@@ -63,7 +63,7 @@ func NewStateMachinesListTable(
 	return table
 }
 
-func (inst *StateMachinesListTable) populateStateMachinesTable(data []types.StateMachineListItem) {
+func (inst *SfnListTable) populateTable(data []types.StateMachineListItem) {
 	var tableData []core.TableRow
 	for _, row := range data {
 		tableData = append(tableData, core.TableRow{
@@ -77,7 +77,7 @@ func (inst *StateMachinesListTable) populateStateMachinesTable(data []types.Stat
 	inst.GetCell(0, 0).SetExpansion(1)
 }
 
-func (inst *StateMachinesListTable) FilterByName(name string) {
+func (inst *SfnListTable) FilterByName(name string) {
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
 	dataLoader.AsyncLoadData(func() {
@@ -90,11 +90,11 @@ func (inst *StateMachinesListTable) FilterByName(name string) {
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateStateMachinesTable(inst.filtered)
+		inst.populateTable(inst.filtered)
 	})
 }
 
-func (inst *StateMachinesListTable) RefreshStateMachines(reset bool) {
+func (inst *SfnListTable) RefreshStateMachines(reset bool) {
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 
 	dataLoader.AsyncLoadData(func() {
@@ -111,18 +111,18 @@ func (inst *StateMachinesListTable) RefreshStateMachines(reset bool) {
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateStateMachinesTable(inst.data)
+		inst.populateTable(inst.data)
 	})
 }
 
-func (inst *StateMachinesListTable) SetSelectionChangedFunc(handler func(row int, column int)) {
+func (inst *SfnListTable) SetSelectionChangedFunc(handler func(row int, column int)) {
 	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
 		inst.selectedFunction = inst.GetPrivateData(row, 0)
 		handler(row, column)
 	})
 }
 
-func (inst *StateMachinesListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
+func (inst *SfnListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
 	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset, core.APP_KEY_BINDINGS.LoadMoreData:
@@ -133,18 +133,18 @@ func (inst *StateMachinesListTable) SetInputCapture(capture func(event *tcell.Ev
 	})
 }
 
-func (inst *StateMachinesListTable) GetSeletedFunction() types.StateMachineListItem {
+func (inst *SfnListTable) GetSeletedFunction() types.StateMachineListItem {
 	return inst.selectedFunction
 }
 
-func (inst *StateMachinesListTable) GetSeletedFunctionName() string {
+func (inst *SfnListTable) GetSeletedFunctionName() string {
 	return aws.ToString(inst.selectedFunction.Name)
 }
 
-func (inst *StateMachinesListTable) GetSeletedFunctionArn() string {
+func (inst *SfnListTable) GetSeletedFunctionArn() string {
 	return aws.ToString(inst.selectedFunction.StateMachineArn)
 }
 
-func (inst *StateMachinesListTable) GetSeletedFunctionType() types.StateMachineType {
+func (inst *SfnListTable) GetSeletedFunctionType() types.StateMachineType {
 	return inst.selectedFunction.Type
 }

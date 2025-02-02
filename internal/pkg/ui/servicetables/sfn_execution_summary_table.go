@@ -14,7 +14,7 @@ import (
 	"github.com/rivo/tview"
 )
 
-type StateMachineExecutionSummaryTable struct {
+type SfnExecutionSummaryTable struct {
 	*core.DetailsTable
 	selectedExecutionArn string
 
@@ -24,13 +24,13 @@ type StateMachineExecutionSummaryTable struct {
 	api    *awsapi.StateMachineApi
 }
 
-func NewStateMachineExecutionSummaryTable(
+func NewSfnExecutionSummaryTable(
 	app *tview.Application,
 	api *awsapi.StateMachineApi,
 	logger *log.Logger,
-) *StateMachineExecutionSummaryTable {
+) *SfnExecutionSummaryTable {
 
-	var table = &StateMachineExecutionSummaryTable{
+	var table = &SfnExecutionSummaryTable{
 		DetailsTable:         core.NewDetailsTable("Execution Summary"),
 		selectedExecutionArn: "",
 
@@ -52,7 +52,7 @@ func NewStateMachineExecutionSummaryTable(
 	return table
 }
 
-func (inst *StateMachineExecutionSummaryTable) populateTable() {
+func (inst *SfnExecutionSummaryTable) populateTable() {
 	var tableData []core.TableRow
 	if inst.data != nil {
 		tableData = []core.TableRow{
@@ -70,7 +70,7 @@ func (inst *StateMachineExecutionSummaryTable) populateTable() {
 	inst.ScrollToBeginning()
 }
 
-func (inst *StateMachineExecutionSummaryTable) RefreshExecutionDetails(executionArn string, force bool) {
+func (inst *SfnExecutionSummaryTable) RefreshExecutionDetails(executionArn string, force bool) {
 	inst.selectedExecutionArn = executionArn
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 

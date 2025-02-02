@@ -26,7 +26,7 @@ type ExecutionItem struct {
 
 const sfnExecutionArnCol = 0
 
-type StateMachineExecutionsTable struct {
+type SfnExecutionsTable struct {
 	*core.SelectableTable[ExecutionItem]
 	queryView         *FloatingSfnExecutionsQueryInputView
 	selectedFunction  types.StateMachineListItem
@@ -39,12 +39,12 @@ type StateMachineExecutionsTable struct {
 	cwlApi            *awsapi.CloudWatchLogsApi
 }
 
-func NewStateMachineExecutionsTable(
+func NewSfnExecutionsTable(
 	app *tview.Application,
 	api *awsapi.StateMachineApi,
 	cwlApi *awsapi.CloudWatchLogsApi,
 	logger *log.Logger,
-) *StateMachineExecutionsTable {
+) *SfnExecutionsTable {
 	var selectableTable = core.NewSelectableTable[ExecutionItem](
 		"Executions",
 		core.TableRow{
@@ -59,7 +59,7 @@ func NewStateMachineExecutionsTable(
 	var searchView = NewFloatingSfnExecutionsQueryInputView(app, logger)
 	selectableTable.AddKeyToggleOverlay("QUERY", searchView, core.APP_KEY_BINDINGS.TableQuery)
 
-	var table = &StateMachineExecutionsTable{
+	var table = &SfnExecutionsTable{
 		queryView:         searchView,
 		SelectableTable:   selectableTable,
 		selectedFunction:  types.StateMachineListItem{},
@@ -76,7 +76,7 @@ func NewStateMachineExecutionsTable(
 	table.queryView.Input.SetDefaultTimes(startTime, endTime)
 
 	table.HighlightSearch = true
-	table.populateExecutionsTable(true)
+	table.populateTable(true)
 	table.SetSelectedFunc(func(row, column int) {})
 	table.SetSelectionChangedFunc(func(row, column int) {})
 
@@ -119,7 +119,7 @@ func NewStateMachineExecutionsTable(
 	return table
 }
 
-func (inst *StateMachineExecutionsTable) populateExecutionsTable(force bool) {
+func (inst *SfnExecutionsTable) populateTable(force bool) {
 	var tableData []core.TableRow
 
 	for _, row := range inst.data {
@@ -141,14 +141,14 @@ func (inst *StateMachineExecutionsTable) populateExecutionsTable(force bool) {
 	inst.GetCell(0, 0).SetExpansion(1)
 }
 
-func (inst *StateMachineExecutionsTable) SetSelectedFunc(handler func(row int, column int)) {
+func (inst *SfnExecutionsTable) SetSelectedFunc(handler func(row int, column int)) {
 	inst.SelectableTable.SetSelectedFunc(func(row, column int) {
 		inst.selectedExecution = inst.GetPrivateData(row, sfnExecutionArnCol)
 		handler(row, column)
 	})
 }
 
-func (inst *StateMachineExecutionsTable) FilterByExecutionId(
+func (inst *SfnExecutionsTable) FilterByExecutionId(
 	data []ExecutionItem, executionArn string,
 ) []ExecutionItem {
 	if len(executionArn) == 0 {
@@ -165,7 +165,7 @@ func (inst *StateMachineExecutionsTable) FilterByExecutionId(
 	return result
 }
 
-func (inst *StateMachineExecutionsTable) FilterByStatus(
+func (inst *SfnExecutionsTable) FilterByStatus(
 	data []ExecutionItem, status string,
 ) []ExecutionItem {
 	if status == "ALL" {
@@ -181,7 +181,7 @@ func (inst *StateMachineExecutionsTable) FilterByStatus(
 	return result
 }
 
-func (inst *StateMachineExecutionsTable) RefreshExpressExecutions(logGroup string, reset bool) {
+func (inst *SfnExecutionsTable) RefreshExpressExecutions(logGroup string, reset bool) {
 	inst.selectedExecution.logGroup = &logGroup
 	var query, err = inst.queryView.Input.GenerateQuery()
 	if err != nil {
@@ -281,11 +281,11 @@ func (inst *StateMachineExecutionsTable) RefreshExpressExecutions(logGroup strin
 	})
 
 	dataLoader.AsyncUpdateView(inst.SelectableTable.Box, func() {
-		inst.populateExecutionsTable(reset)
+		inst.populateTable(reset)
 	})
 }
 
-func (inst *StateMachineExecutionsTable) RefreshExecutions(reset bool) {
+func (inst *SfnExecutionsTable) RefreshExecutions(reset bool) {
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
 	var query, err = inst.queryView.Input.GenerateQuery()
 	if err != nil {
@@ -322,11 +322,11 @@ func (inst *StateMachineExecutionsTable) RefreshExecutions(reset bool) {
 	})
 
 	dataLoader.AsyncUpdateView(inst.SelectableTable.Box, func() {
-		inst.populateExecutionsTable(reset)
+		inst.populateTable(reset)
 	})
 }
 
-func (inst *StateMachineExecutionsTable) SetSelectionChangedFunc(handler func(row int, column int)) {
+func (inst *SfnExecutionsTable) SetSelectionChangedFunc(handler func(row int, column int)) {
 	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
 		inst.selectedExecution = inst.GetPrivateData(row, sfnExecutionArnCol)
 
@@ -334,14 +334,14 @@ func (inst *StateMachineExecutionsTable) SetSelectionChangedFunc(handler func(ro
 	})
 }
 
-func (inst *StateMachineExecutionsTable) GetSeletedExecution() ExecutionItem {
+func (inst *SfnExecutionsTable) GetSeletedExecution() ExecutionItem {
 	return inst.selectedExecution
 }
 
-func (inst *StateMachineExecutionsTable) GetSeletedExecutionArn() string {
+func (inst *SfnExecutionsTable) GetSeletedExecutionArn() string {
 	return aws.ToString(inst.selectedExecution.ExecutionArn)
 }
 
-func (inst *StateMachineExecutionsTable) SetSeletedFunction(function types.StateMachineListItem) {
+func (inst *SfnExecutionsTable) SetSeletedFunction(function types.StateMachineListItem) {
 	inst.selectedFunction = function
 }

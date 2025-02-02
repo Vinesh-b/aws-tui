@@ -14,26 +14,26 @@ import (
 	"github.com/rivo/tview"
 )
 
-type StateMachinesDetailsPageView struct {
+type SfnDetailsPageView struct {
 	*core.ServicePageView
-	selectedStateMachine        string
-	stateMachinesTable          *tables.StateMachinesListTable
-	stateMachineExecutionsTable *tables.StateMachineExecutionsTable
-	stateMachineDetailsTable    *tables.StateMachineDetailsTable
-	app                         *tview.Application
-	api                         *awsapi.StateMachineApi
+	selectedStateMachine string
+	sfnListTable         *tables.SfnListTable
+	sfnExecutionsTable   *tables.SfnExecutionsTable
+	sfnDetailsTable      *tables.SfnDetailsTable
+	app                  *tview.Application
+	api                  *awsapi.StateMachineApi
 }
 
-func NewStateMachinesDetailsPageView(
-	stateMachinesList *tables.StateMachinesListTable,
-	stateMachineExecutions *tables.StateMachineExecutionsTable,
-	stateMachineDetailsTable *tables.StateMachineDetailsTable,
+func NewSfnDetailsPageView(
+	sfnListTable *tables.SfnListTable,
+	sfnExecutionsTable *tables.SfnExecutionsTable,
+	stateMachineDetailsTable *tables.SfnDetailsTable,
 	app *tview.Application,
 	api *awsapi.StateMachineApi,
 	logger *log.Logger,
-) *StateMachinesDetailsPageView {
+) *SfnDetailsPageView {
 	var tabView = core.NewTabView(app, logger).
-		AddAndSwitchToTab("Executions", stateMachineExecutions, 0, 1, true).
+		AddAndSwitchToTab("Executions", sfnExecutionsTable, 0, 1, true).
 		AddTab("Details", stateMachineDetailsTable, 0, 1, true)
 
 	const detailsViewSize = 4000
@@ -41,7 +41,7 @@ func NewStateMachinesDetailsPageView(
 
 	var mainPage = core.NewResizableView(
 		tabView, detailsViewSize,
-		stateMachinesList, tableViewSize,
+		sfnListTable, tableViewSize,
 		tview.FlexRow,
 	)
 
@@ -51,7 +51,7 @@ func NewStateMachinesDetailsPageView(
 	serviceView.InitViewNavigation(
 		[][]core.View{
 			{tabView.GetTabsList(), tabView.GetTabDisplayView()},
-			{stateMachinesList},
+			{sfnListTable},
 		},
 	)
 
@@ -59,18 +59,18 @@ func NewStateMachinesDetailsPageView(
 		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
 	}
 
-	stateMachinesList.ErrorMessageCallback = errorHandler
-	stateMachineExecutions.ErrorMessageCallback = errorHandler
+	sfnListTable.ErrorMessageCallback = errorHandler
+	sfnExecutionsTable.ErrorMessageCallback = errorHandler
 	stateMachineDetailsTable.ErrorMessageCallback = errorHandler
 
-	var detailsView = &StateMachinesDetailsPageView{
-		ServicePageView:             serviceView,
-		selectedStateMachine:        "",
-		stateMachinesTable:          stateMachinesList,
-		stateMachineExecutionsTable: stateMachineExecutions,
-		stateMachineDetailsTable:    stateMachineDetailsTable,
-		app:                         app,
-		api:                         api,
+	var detailsView = &SfnDetailsPageView{
+		ServicePageView:      serviceView,
+		selectedStateMachine: "",
+		sfnListTable:         sfnListTable,
+		sfnExecutionsTable:   sfnExecutionsTable,
+		sfnDetailsTable:      stateMachineDetailsTable,
+		app:                  app,
+		api:                  api,
 	}
 
 	detailsView.initInputCapture()
@@ -78,11 +78,11 @@ func NewStateMachinesDetailsPageView(
 	return detailsView
 }
 
-func (inst *StateMachinesDetailsPageView) initInputCapture() {
-	inst.stateMachinesTable.SetSelectedFunc(func(row, column int) {
-		var smTable = inst.stateMachinesTable
-		var smExeTable = inst.stateMachineExecutionsTable
-		var smDetTable = inst.stateMachineDetailsTable
+func (inst *SfnDetailsPageView) initInputCapture() {
+	inst.sfnListTable.SetSelectedFunc(func(row, column int) {
+		var smTable = inst.sfnListTable
+		var smExeTable = inst.sfnExecutionsTable
+		var smDetTable = inst.sfnDetailsTable
 
 		var selectedFunc = smTable.GetSeletedFunction()
 		smExeTable.SetSeletedFunction(selectedFunc)
@@ -98,23 +98,23 @@ func (inst *StateMachinesDetailsPageView) initInputCapture() {
 	})
 }
 
-type StateMachineExectionDetailsPageView struct {
+type SfnExectionDetailsPageView struct {
 	*core.ServicePageView
 	selectedExection string
-	summaryTable     *tables.StateMachineExecutionSummaryTable
-	detailsTable     *tables.StateMachineExecutionDetailsTable
+	summaryTable     *tables.SfnExecutionSummaryTable
+	detailsTable     *tables.SfnExecutionDetailsTable
 	searchInput      *tview.InputField
 	app              *tview.Application
 	api              *awsapi.StateMachineApi
 }
 
-func NewStateMachineExectionDetailsPage(
-	executionSummary *tables.StateMachineExecutionSummaryTable,
-	executionDetails *tables.StateMachineExecutionDetailsTable,
+func NewSfnExectionDetailsPage(
+	executionSummary *tables.SfnExecutionSummaryTable,
+	executionDetails *tables.SfnExecutionDetailsTable,
 	app *tview.Application,
 	api *awsapi.StateMachineApi,
 	logger *log.Logger,
-) *StateMachineExectionDetailsPageView {
+) *SfnExectionDetailsPageView {
 
 	var inputOutputExpandedView = core.JsonTextView[string]{
 		TextView: core.NewSearchableTextView("", app),
@@ -170,7 +170,7 @@ func NewStateMachineExectionDetailsPage(
 	executionSummary.ErrorMessageCallback = errorHandler
 	executionDetails.ErrorMessageCallback = errorHandler
 
-	var detailsView = &StateMachineExectionDetailsPageView{
+	var detailsView = &SfnExectionDetailsPageView{
 		ServicePageView:  serviceView,
 		selectedExection: "",
 		summaryTable:     executionSummary,
@@ -183,7 +183,7 @@ func NewStateMachineExectionDetailsPage(
 	return detailsView
 }
 
-func (inst *StateMachineExectionDetailsPageView) initInputCapture() {
+func (inst *SfnExectionDetailsPageView) initInputCapture() {
 }
 
 func NewStepFunctionsHomeView(
@@ -198,15 +198,15 @@ func NewStepFunctionsHomeView(
 		api    = awsapi.NewStateMachineApi(config, logger)
 		cwlApi = awsapi.NewCloudWatchLogsApi(config, logger)
 
-		SfnDetailsView = NewStateMachinesDetailsPageView(
-			tables.NewStateMachinesListTable(app, api, logger),
-			tables.NewStateMachineExecutionsTable(app, api, cwlApi, logger),
-			tables.NewStateMachineDetailsTable(app, api, logger),
+		SfnDetailsView = NewSfnDetailsPageView(
+			tables.NewSfnListTable(app, api, logger),
+			tables.NewSfnExecutionsTable(app, api, cwlApi, logger),
+			tables.NewSfnDetailsTable(app, api, logger),
 			app, api, logger)
 
-		SfnExeDetailsView = NewStateMachineExectionDetailsPage(
-			tables.NewStateMachineExecutionSummaryTable(app, api, logger),
-			tables.NewStateMachineExecutionDetailsTable(app, api, cwlApi, logger),
+		SfnExeDetailsView = NewSfnExectionDetailsPage(
+			tables.NewSfnExecutionSummaryTable(app, api, logger),
+			tables.NewSfnExecutionDetailsTable(app, api, cwlApi, logger),
 			app, api, logger)
 	)
 
@@ -218,15 +218,15 @@ func NewStepFunctionsHomeView(
 
 	serviceRootView.InitPageNavigation()
 
-	SfnDetailsView.stateMachineExecutionsTable.SetSelectedFunc(func(row, column int) {
+	SfnDetailsView.sfnExecutionsTable.SetSelectedFunc(func(row, column int) {
 		var selectedExecution = SfnDetailsView.
-			stateMachineExecutionsTable.GetSeletedExecutionArn()
-		var sfType = SfnDetailsView.stateMachinesTable.GetSeletedFunctionType()
+			sfnExecutionsTable.GetSeletedExecutionArn()
+		var sfType = SfnDetailsView.sfnListTable.GetSeletedFunctionType()
 
 		if len(selectedExecution) > 0 {
 			if sfType == "EXPRESS" {
 				var execution = SfnDetailsView.
-					stateMachineExecutionsTable.GetSeletedExecution()
+					sfnExecutionsTable.GetSeletedExecution()
 				SfnExeDetailsView.detailsTable.RefreshExpressExecutionDetails(execution, true)
 			} else {
 				SfnExeDetailsView.summaryTable.RefreshExecutionDetails(selectedExecution, true)
