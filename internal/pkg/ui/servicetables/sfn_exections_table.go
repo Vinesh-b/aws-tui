@@ -28,7 +28,7 @@ const sfnExecutionArnCol = 0
 
 type StateMachineExecutionsTable struct {
 	*core.SelectableTable[ExecutionItem]
-	*SfnExecutionsQuerySearchView
+	queryView           *FloatingSfnExecutionsQueryInputView
 	selectedFunctionArn string
 	data                []ExecutionItem
 	filtered            []ExecutionItem
@@ -55,24 +55,27 @@ func NewStateMachineExecutionsTable(
 		},
 		app,
 	)
-	var searchView = NewSfnExecutionsQuerySearchView(selectableTable, app, logger)
+
+	var searchView = NewFloatingSfnExecutionsQueryInputView(app, logger)
+	selectableTable.AddKeyToggleOverlay("QUERY", searchView, core.APP_KEY_BINDINGS.TableQuery)
 
 	var table = &StateMachineExecutionsTable{
-		SfnExecutionsQuerySearchView: searchView,
-		SelectableTable:              selectableTable,
-		selectedFunctionArn:          "",
-		selectedExecution:            ExecutionItem{ExecutionListItem: &types.ExecutionListItem{}},
-		data:                         nil,
-		logger:                       logger,
-		app:                          app,
-		api:                          api,
-		cwlApi:                       cwlApi,
+		queryView:           searchView,
+		SelectableTable:     selectableTable,
+		selectedFunctionArn: "",
+		selectedExecution:   ExecutionItem{ExecutionListItem: &types.ExecutionListItem{}},
+		data:                nil,
+		logger:              logger,
+		app:                 app,
+		api:                 api,
+		cwlApi:              cwlApi,
 	}
 
 	var endTime = time.Now()
 	var startTime = endTime.Add(-24 * 1 * time.Hour)
-	table.queryView.SetDefaultTimes(startTime, endTime)
+	table.queryView.Input.SetDefaultTimes(startTime, endTime)
 
+	table.HighlightSearch = true
 	table.populateExecutionsTable(true)
 	table.SetSelectedFunc(func(row, column int) {})
 	table.SetSelectionChangedFunc(func(row, column int) {})
@@ -82,7 +85,7 @@ func NewStateMachineExecutionsTable(
 		case core.APP_KEY_BINDINGS.Reset:
 			var endTime = time.Now()
 			var startTime = endTime.Add(-24 * 1 * time.Hour)
-			table.queryView.SetDefaultTimes(startTime, endTime)
+			table.queryView.Input.SetDefaultTimes(startTime, endTime)
 
 			if table.selectedExecution.StateMachineType == "STANDARD" {
 				table.RefreshExecutions(true)
@@ -95,7 +98,7 @@ func NewStateMachineExecutionsTable(
 		return event
 	})
 
-	table.queryView.DoneButton.SetSelectedFunc(func() {
+	table.queryView.Input.DoneButton.SetSelectedFunc(func() {
 		if table.selectedExecution.StateMachineType == "STANDARD" {
 			table.RefreshExecutions(true)
 		} else {
@@ -169,7 +172,7 @@ func (inst *StateMachineExecutionsTable) FilterByStatus(
 
 func (inst *StateMachineExecutionsTable) RefreshExpressExecutions(logGroup string, reset bool) {
 	inst.selectedExecution.logGroup = &logGroup
-	var query, err = inst.queryView.GenerateQuery()
+	var query, err = inst.queryView.Input.GenerateQuery()
 	if err != nil {
 		inst.ErrorMessageCallback(err.Error())
 		return
@@ -273,7 +276,7 @@ func (inst *StateMachineExecutionsTable) RefreshExpressExecutions(logGroup strin
 
 func (inst *StateMachineExecutionsTable) RefreshExecutions(reset bool) {
 	var dataLoader = core.NewUiDataLoader(inst.app, 10)
-	var query, err = inst.queryView.GenerateQuery()
+	var query, err = inst.queryView.Input.GenerateQuery()
 	if err != nil {
 		inst.ErrorMessageCallback(err.Error())
 		return

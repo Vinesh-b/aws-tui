@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/sfn/types"
-	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -122,65 +121,22 @@ func (inst *SfnExecutionsQueryInputView) GenerateQuery() (SfnExecutionsQuery, er
 	return inst.query, err
 }
 
-type SfnExecutionsQuerySearchView struct {
-	*tview.Pages
-	MainPage tview.Primitive
-
-	queryView       *SfnExecutionsQueryInputView
-	app             *tview.Application
-	logger          *log.Logger
-	queryViewHidden bool
+type FloatingSfnExecutionsQueryInputView struct {
+	*tview.Flex
+	Input *SfnExecutionsQueryInputView
 }
 
-func NewSfnExecutionsQuerySearchView(
-	mainPage tview.Primitive,
+func NewFloatingSfnExecutionsQueryInputView(
 	app *tview.Application,
 	logger *log.Logger,
-) *SfnExecutionsQuerySearchView {
+) *FloatingSfnExecutionsQueryInputView {
 	var queryView = NewSfnExecutionsQueryInputView(app, logger)
-	var floatingQuery = core.FloatingView("Query", queryView, 55, 8)
-
-	var queryPageId = "QUERY"
-
-	var pages = tview.NewPages().
-		AddPage("MAIN_PAGE", mainPage, true, true).
-		AddPage(queryPageId, floatingQuery, true, false)
-
-	var view = &SfnExecutionsQuerySearchView{
-		Pages:    pages,
-		MainPage: mainPage,
-
-		queryView:       queryView,
-		queryViewHidden: true,
-		app:             app,
+	return &FloatingSfnExecutionsQueryInputView{
+		Flex:  core.FloatingView("Query", queryView, 55, 8),
+		Input: queryView,
 	}
+}
 
-	view.queryView.CancelButton.SetSelectedFunc(func() {
-		pages.HidePage(QUERY_PAGE_NAME)
-		view.queryViewHidden = true
-	})
-
-	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case core.APP_KEY_BINDINGS.Escape:
-			if view.queryViewHidden == false {
-				view.HidePage(queryPageId)
-				view.queryViewHidden = true
-				return nil
-			}
-		case core.APP_KEY_BINDINGS.Find:
-			if view.queryViewHidden {
-				view.ShowPage(queryPageId)
-				var last = view.queryView.viewNavigation.GetLastFocusedView()
-				view.app.SetFocus(last)
-			} else {
-				view.HidePage(queryPageId)
-			}
-			view.queryViewHidden = !view.queryViewHidden
-			return nil
-		}
-		return event
-	})
-
-	return view
+func (inst *FloatingSfnExecutionsQueryInputView) GetLastFocusedView() tview.Primitive {
+	return inst.Input.viewNavigation.GetLastFocusedView()
 }
