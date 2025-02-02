@@ -99,7 +99,7 @@ const LogRecordPtrCol = 0
 
 type InsightsQueryResultsTable struct {
 	*core.SelectableTable[string]
-	*InsightsQuerySearchView
+	queryView            *FloatingInsightsQueryInputView
 	rootView             core.View
 	table                *tview.Table
 	data                 [][]types.ResultField
@@ -118,25 +118,28 @@ func NewInsightsQueryResultsTable(
 	logger *log.Logger,
 ) *InsightsQueryResultsTable {
 	var selectableTable = core.NewSelectableTable[string]("", nil, app)
-	var searchView = NewInsightsQuerySearchView(selectableTable, app, logger)
+	var queryView = NewFloatingInsightsQueryInputView(app, logger)
+	selectableTable.AddKeyToggleOverlay("QUERY", queryView, core.APP_KEY_BINDINGS.TableQuery)
 
 	var view = &InsightsQueryResultsTable{
-		SelectableTable:         selectableTable,
-		InsightsQuerySearchView: searchView,
-		rootView:                selectableTable.Box,
-		table:                   selectableTable.GetTable(),
-		data:                    nil,
-		queryId:                 "",
-		selectedLogGroups:       nil,
-		headingIdxMap:           map[string]int{},
-		logger:                  logger,
-		app:                     app,
-		api:                     api,
-		ErrorMessageCallback:    func(text string, a ...any) {},
+		SelectableTable:      selectableTable,
+		queryView:            queryView,
+		rootView:             selectableTable.Box,
+		table:                selectableTable.GetTable(),
+		data:                 nil,
+		queryId:              "",
+		selectedLogGroups:    nil,
+		headingIdxMap:        map[string]int{},
+		logger:               logger,
+		app:                  app,
+		api:                  api,
+		ErrorMessageCallback: func(text string, a ...any) {},
 	}
 
+	view.HighlightSearch = true
 	view.populateQueryResultsTable()
-	view.table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	view.SetSelectionChangedFunc(func(row, column int) {})
+	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			view.RefreshResults()
@@ -144,11 +147,11 @@ func NewInsightsQueryResultsTable(
 		return event
 	})
 
-	view.queryView.DoneButton.SetSelectedFunc(func() {
+	view.queryView.Input.DoneButton.SetSelectedFunc(func() {
 		view.ExecuteQuery()
 	})
 
-	view.queryView.CancelButton.SetSelectedFunc(func() {
+	view.queryView.Input.CancelButton.SetSelectedFunc(func() {
 		view.StopQuery()
 	})
 
@@ -249,7 +252,7 @@ func (inst *InsightsQueryResultsTable) RefreshResults() {
 }
 
 func (inst *InsightsQueryResultsTable) ExecuteQuery() {
-	var query, err = inst.queryView.GenerateQuery()
+	var query, err = inst.queryView.Input.GenerateQuery()
 	if err != nil {
 		inst.ErrorMessageCallback(err.Error())
 		return

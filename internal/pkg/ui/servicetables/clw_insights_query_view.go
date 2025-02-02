@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/atotto/clipboard"
-	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -128,61 +127,22 @@ func (inst *InsightsQueryInputView) GenerateQuery() (InsightsQuery, error) {
 	return inst.query, err
 }
 
-type InsightsQuerySearchView struct {
-	*tview.Pages
-	MainPage tview.Primitive
-
-	queryView       *InsightsQueryInputView
-	app             *tview.Application
-	logger          *log.Logger
-	queryViewHidden bool
+type FloatingInsightsQueryInputView struct {
+	*tview.Flex
+	Input *InsightsQueryInputView
 }
 
-func NewInsightsQuerySearchView(
-	mainPage tview.Primitive,
-	app *tview.Application,
-	logger *log.Logger,
-) *InsightsQuerySearchView {
-	var queryView = NewInsightsQueryInputView(app, logger)
-	var floatingQuery = core.FloatingView("Query", queryView, 0, 14)
+func NewFloatingInsightsQueryInputView(
+	app *tview.Application, logger *log.Logger,
+) *FloatingInsightsQueryInputView {
+	var input = NewInsightsQueryInputView(app, logger)
 
-	var pages = tview.NewPages().
-		AddPage("MAIN_PAGE", mainPage, true, true).
-		AddPage("QUERY", floatingQuery, true, false)
-
-	var view = &InsightsQuerySearchView{
-		Pages:    pages,
-		MainPage: mainPage,
-
-		queryView:       queryView,
-		queryViewHidden: true,
-		app:             app,
+	return &FloatingInsightsQueryInputView{
+		Flex:  core.FloatingView("Query", input, 0, 14),
+		Input: input,
 	}
+}
 
-	view.queryView.CancelButton.SetSelectedFunc(func() {
-		pages.HidePage(QUERY_PAGE_NAME)
-		view.queryViewHidden = true
-	})
-
-	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case core.APP_KEY_BINDINGS.Escape:
-			view.HidePage("QUERY")
-			view.queryViewHidden = true
-			return nil
-		case core.APP_KEY_BINDINGS.Find:
-			if view.queryViewHidden {
-				view.ShowPage("QUERY")
-				var last = view.queryView.viewNavigation.GetLastFocusedView()
-				view.app.SetFocus(last)
-			} else {
-				view.HidePage("QUERY")
-			}
-			view.queryViewHidden = !view.queryViewHidden
-			return nil
-		}
-		return event
-	})
-
-	return view
+func (inst *FloatingInsightsQueryInputView) GetLastFocusedView() tview.Primitive {
+	return inst.Input.viewNavigation.GetLastFocusedView()
 }
