@@ -26,8 +26,8 @@ type InsightsQueryInputView struct {
 	app            *tview.Application
 	viewNavigation *core.ViewNavigation1D
 	queryTextArea  *tview.TextArea
-	startDateInput *core.InputField
-	endDateInput   *core.InputField
+	startDateInput *core.DateTimeInputField
+	endDateInput   *core.DateTimeInputField
 	query          InsightsQuery
 }
 
@@ -42,8 +42,8 @@ func NewInsightsQueryInputView(app *tview.Application, logger *log.Logger) *Insi
 		app:            app,
 		viewNavigation: core.NewViewNavigation1D(flex, nil, app),
 		queryTextArea:  tview.NewTextArea(),
-		startDateInput: core.NewInputField(),
-		endDateInput:   core.NewInputField(),
+		startDateInput: core.NewDateTimeInputField(),
+		endDateInput:   core.NewDateTimeInputField(),
 	}
 
 	var separator = tview.NewBox()
@@ -89,18 +89,14 @@ func NewInsightsQueryInputView(app *tview.Application, logger *log.Logger) *Insi
 			return res
 		},
 	)
+	view.queryTextArea.SetSelectedStyle(core.OnFocusStyle)
 
 	var timeNow = time.Now()
-	var dateTimelayout = "2006-01-02 15:04:05"
 	view.startDateInput.
-		SetPlaceholder(dateTimelayout).
-		SetPlaceholderTextColor(core.PlaceHolderTextColor).
 		SetText(timeNow.Add(time.Duration(-3 * time.Hour)).Format(time.DateTime)).
 		SetLabel("Start Time ")
 
 	view.endDateInput.
-		SetPlaceholder(dateTimelayout).
-		SetPlaceholderTextColor(core.PlaceHolderTextColor).
 		SetText(timeNow.Format(time.DateTime)).
 		SetLabel("End Time ")
 
@@ -116,11 +112,10 @@ func (inst *InsightsQueryInputView) GenerateQuery() (InsightsQuery, error) {
 	var err error = nil
 	var empty = InsightsQuery{}
 
-	var layout = "2006-01-02 15:04:05"
-	if inst.query.startTime, err = time.Parse(layout, inst.startDateInput.GetText()); err != nil {
+	if inst.query.startTime, err = inst.startDateInput.ValidateInput(); err != nil {
 		return empty, err
 	}
-	if inst.query.endTime, err = time.Parse(layout, inst.endDateInput.GetText()); err != nil {
+	if inst.query.endTime, err = inst.endDateInput.ValidateInput(); err != nil {
 		return empty, err
 	}
 

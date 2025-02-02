@@ -3,7 +3,9 @@ package core
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/lithammer/fuzzysearch/fuzzy"
@@ -195,4 +197,47 @@ func NewButton(label string) *Button {
 			Foreground(TextColour),
 		)
 	return view
+}
+
+type DateTimeInputField struct {
+	*tview.InputField
+	layout string
+}
+
+func NewDateTimeInputField() *DateTimeInputField {
+	var view = &DateTimeInputField{
+		InputField: tview.NewInputField(),
+		layout:     "2006-01-02 15:04:05",
+	}
+
+	view.InputField.
+		SetPlaceholderTextColor(PlaceHolderTextColor).
+		SetPlaceholder(view.layout).
+		SetBlurFunc(func() {
+			view.InputField.SetLabelStyle(OnBlurStyle)
+		}).
+		SetFocusFunc(func() {
+			view.InputField.SetLabelStyle(OnFocusStyle)
+		})
+
+	var pattern = regexp.MustCompile(`\d|-|\s|:`)
+
+	view.InputField.SetAcceptanceFunc(func(textToCheck string, lastChar rune) bool {
+		if len(textToCheck) == 0 || len(textToCheck) > len(view.layout) {
+			return false
+		}
+
+		return pattern.Match([]byte{byte(lastChar)})
+	})
+
+	return view
+}
+
+func (inst *DateTimeInputField) ValidateInput() (time.Time, error) {
+	var input = inst.GetText()
+	return time.Parse(inst.layout, input)
+}
+
+func (inst *DateTimeInputField) SetTextTime(datetime time.Time) {
+	inst.SetText(datetime.Format(inst.layout))
 }

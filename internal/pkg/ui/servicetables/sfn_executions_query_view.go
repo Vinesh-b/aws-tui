@@ -11,8 +11,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-const dateTimelayout = "2006-01-02 15:04:05"
-
 type SfnExecutionsQuery struct {
 	executionArn string
 	status       string
@@ -30,8 +28,8 @@ type SfnExecutionsQueryInputView struct {
 	viewNavigation    *core.ViewNavigation1D
 	statusDropDown    *core.DropDown
 	executionArnInput *core.InputField
-	startDateInput    *core.InputField
-	endDateInput      *core.InputField
+	startDateInput    *core.DateTimeInputField
+	endDateInput      *core.DateTimeInputField
 	query             SfnExecutionsQuery
 }
 
@@ -47,8 +45,8 @@ func NewSfnExecutionsQueryInputView(app *tview.Application, logger *log.Logger) 
 		viewNavigation:    core.NewViewNavigation1D(flex, nil, app),
 		statusDropDown:    core.NewDropDown(),
 		executionArnInput: core.NewInputField(),
-		startDateInput:    core.NewInputField(),
-		endDateInput:      core.NewInputField(),
+		startDateInput:    core.NewDateTimeInputField(),
+		endDateInput:      core.NewDateTimeInputField(),
 	}
 
 	var separator = tview.NewBox()
@@ -82,14 +80,11 @@ func NewSfnExecutionsQueryInputView(app *tview.Application, logger *log.Logger) 
 		SetLabel("Execution Id ")
 
 	var timeNow = time.Now()
-	var dateTimelayout = "2006-01-02 15:04:05"
 	view.startDateInput.
-		SetPlaceholder(dateTimelayout).
 		SetText(timeNow.Add(time.Duration(-3 * time.Hour)).Format(time.DateTime)).
 		SetLabel("Start Time   ")
 
 	view.endDateInput.
-		SetPlaceholder(dateTimelayout).
 		SetText(timeNow.Format(time.DateTime)).
 		SetLabel("End Time     ")
 
@@ -107,19 +102,18 @@ func NewSfnExecutionsQueryInputView(app *tview.Application, logger *log.Logger) 
 }
 
 func (inst *SfnExecutionsQueryInputView) SetDefaultTimes(startTime time.Time, endTime time.Time) {
-	inst.startDateInput.SetText(startTime.Format(dateTimelayout))
-	inst.endDateInput.SetText(endTime.Format(dateTimelayout))
+	inst.startDateInput.SetTextTime(startTime)
+	inst.endDateInput.SetTextTime(endTime)
 }
 
 func (inst *SfnExecutionsQueryInputView) GenerateQuery() (SfnExecutionsQuery, error) {
 	var err error = nil
 	var empty = SfnExecutionsQuery{}
 
-	var layout = "2006-01-02 15:04:05"
-	if inst.query.startTime, err = time.Parse(layout, inst.startDateInput.GetText()); err != nil {
+	if inst.query.startTime, err = inst.startDateInput.ValidateInput(); err != nil {
 		return empty, err
 	}
-	if inst.query.endTime, err = time.Parse(layout, inst.endDateInput.GetText()); err != nil {
+	if inst.query.endTime, err = inst.endDateInput.ValidateInput(); err != nil {
 		return empty, err
 	}
 
