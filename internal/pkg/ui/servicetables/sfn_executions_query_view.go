@@ -140,9 +140,11 @@ func NewSfnExecutionsQuerySearchView(
 	var queryView = NewSfnExecutionsQueryInputView(app, logger)
 	var floatingQuery = core.FloatingView("Query", queryView, 55, 8)
 
+	var queryPageId = "QUERY"
+
 	var pages = tview.NewPages().
 		AddPage("MAIN_PAGE", mainPage, true, true).
-		AddPage("QUERY", floatingQuery, true, false)
+		AddPage(queryPageId, floatingQuery, true, false)
 
 	var view = &SfnExecutionsQuerySearchView{
 		Pages:    pages,
@@ -162,17 +164,17 @@ func NewSfnExecutionsQuerySearchView(
 		switch event.Key() {
 		case core.APP_KEY_BINDINGS.Escape:
 			if view.queryViewHidden == false {
-				view.HidePage("QUERY")
+				view.HidePage(queryPageId)
 				view.queryViewHidden = true
 				return nil
 			}
 		case core.APP_KEY_BINDINGS.Find:
 			if view.queryViewHidden {
-				view.ShowPage("QUERY")
+				view.ShowPage(queryPageId)
 				var last = view.queryView.viewNavigation.GetLastFocusedView()
 				view.app.SetFocus(last)
 			} else {
-				view.HidePage("QUERY")
+				view.HidePage(queryPageId)
 			}
 			view.queryViewHidden = !view.queryViewHidden
 			return nil
