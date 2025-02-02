@@ -170,7 +170,7 @@ func (inst *InsightsQueryResultsTable) populateQueryResultsTable() {
 		Clear().
 		SetFixed(1, 0)
 
-	var tableTitle = fmt.Sprintf("Query Results (%d)", len(inst.data))
+	var tableTitle = fmt.Sprintf("Query Results ❬%d❭", len(inst.data))
 	inst.rootView.SetTitle(tableTitle)
 
 	var headingIdx = 0

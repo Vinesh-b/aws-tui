@@ -139,9 +139,9 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 
 	var tableTitle = ""
 	if len(inst.titleExtra) == 0 {
-		tableTitle = fmt.Sprintf("%s (%d)", inst.title, len(data))
+		tableTitle = fmt.Sprintf("%s ❬%d❭", inst.title, len(data))
 	} else {
-		tableTitle = fmt.Sprintf("%s (%d) [%s]", inst.title, len(data), inst.titleExtra)
+		tableTitle = fmt.Sprintf("%s ❬%d❭ ❬%s❭", inst.title, len(data), inst.titleExtra)
 	}
 	inst.SetTitle(tableTitle)
 
@@ -219,9 +219,9 @@ func (inst *SelectableTable[T]) ExtendData(data []TableRow, privateData []T) err
 	// Don't count the headings row in the title
 	var tableTitle = ""
 	if len(inst.titleExtra) == 0 {
-		tableTitle = fmt.Sprintf("%s (%d)", inst.title, totalRowCount)
+		tableTitle = fmt.Sprintf("%s ❬%d❭", inst.title, totalRowCount)
 	} else {
-		tableTitle = fmt.Sprintf("%s (%d) [%s]", inst.title, totalRowCount, inst.titleExtra)
+		tableTitle = fmt.Sprintf("%s ❬%d❭ ❬%s❭", inst.title, totalRowCount, inst.titleExtra)
 	}
 	inst.SetTitle(tableTitle)
 
@@ -406,6 +406,7 @@ type DetailsTable struct {
 	*tview.Flex
 	table                *tview.Table
 	title                string
+	titleExtra           string
 	data                 []TableRow
 	ErrorMessageCallback func(text string, a ...any)
 }
@@ -422,6 +423,7 @@ func NewDetailsTable(title string) *DetailsTable {
 		Flex:                 tview.NewFlex(),
 		table:                table,
 		title:                title,
+		titleExtra:           "",
 		data:                 nil,
 		ErrorMessageCallback: func(text string, a ...any) {},
 	}
@@ -447,7 +449,12 @@ func (inst *DetailsTable) SetData(data []TableRow) error {
 		}
 	}
 	inst.table.Clear()
-	inst.SetTitle(inst.title)
+
+	var tableTitle = inst.title
+	if len(inst.titleExtra) > 0 {
+		tableTitle = fmt.Sprintf("%s ❬%s❭", inst.title, inst.titleExtra)
+	}
+	inst.SetTitle(tableTitle)
 
 	for rowIdx, rowData := range data {
 		for colIdx, cellData := range rowData {
@@ -491,6 +498,10 @@ func (inst *DetailsTable) GetCell(row int, column int) *tview.TableCell {
 func (inst *DetailsTable) ScrollToBeginning() *DetailsTable {
 	inst.table.ScrollToBeginning()
 	return inst
+}
+
+func (inst *DetailsTable) SetTitleExtra(extra string) {
+	inst.titleExtra = extra
 }
 
 func searchTextInTable[T any](table *tview.Table, searchCols []int, search string) []CellPosition {

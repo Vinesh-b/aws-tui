@@ -130,7 +130,7 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 
 	inst.table.Clear()
 	var clampedName = core.ClampStringLen(inst.tableDescription.TableName, 100)
-	var tableTitle = fmt.Sprintf("%s (%d)", clampedName, len(inst.data))
+	var tableTitle = fmt.Sprintf("%s ❬%d❭", clampedName, len(inst.data))
 	inst.rootView.SetTitle(tableTitle)
 
 	if !extend {
