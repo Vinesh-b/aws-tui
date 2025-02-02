@@ -160,6 +160,12 @@ func NewSfnExecutionsQuerySearchView(
 
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
+		case core.APP_KEY_BINDINGS.Escape:
+			if view.queryViewHidden == false {
+				view.HidePage("QUERY")
+				view.queryViewHidden = true
+				return nil
+			}
 		case core.APP_KEY_BINDINGS.Find:
 			if view.queryViewHidden {
 				view.ShowPage("QUERY")
