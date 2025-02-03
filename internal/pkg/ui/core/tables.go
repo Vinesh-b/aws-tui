@@ -4,7 +4,6 @@ import (
 	"aws-tui/internal/pkg/errors"
 	"encoding/csv"
 	"os"
-	"os/user"
 	"path"
 
 	"fmt"
