@@ -57,7 +57,7 @@ type FloatingHelpView struct {
 func NewFloatingHelpView() *FloatingHelpView {
 	var helpView = NewHelpView()
 	return &FloatingHelpView{
-		Flex: FloatingView("Available actions", helpView, 70, 0),
+		Flex: FloatingViewRelative("Available actions", helpView, 50, 70),
 		View: helpView,
 	}
 }
