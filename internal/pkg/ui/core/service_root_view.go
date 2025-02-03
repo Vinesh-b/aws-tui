@@ -13,7 +13,8 @@ import (
 const SERVICE_PAGES_LIST = "SERVICE_PAGES_LIST"
 
 type ServiceRootView struct {
-	*tview.Flex
+	*BaseView
+	layout          *tview.Flex
 	pages           *tview.Pages
 	paginatorView   PaginatorView
 	pageIndex       int
@@ -35,7 +36,8 @@ func NewServiceRootView(
 	var paginatorView = CreatePaginatorView(serviceName, app, config, logger)
 
 	var view = &ServiceRootView{
-		Flex:            tview.NewFlex().SetDirection(tview.FlexRow),
+		BaseView:        NewBaseView(app, logger),
+		layout:          tview.NewFlex().SetDirection(tview.FlexRow),
 		pages:           tview.NewPages(),
 		paginatorView:   paginatorView,
 		pageIndex:       0,
@@ -84,7 +86,7 @@ func NewServiceRootView(
 		true, false,
 	)
 
-	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	view.layout.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case APP_KEY_BINDINGS.Escape:
 			if !view.pagesListHidden {
@@ -107,9 +109,11 @@ func NewServiceRootView(
 		return event
 	})
 
-	view.
+	view.layout.
 		AddItem(view.pages, 0, 1, true).
 		AddItem(paginatorView, 2, 0, false)
+
+	view.SetMainView(view.layout)
 
 	return view
 }
