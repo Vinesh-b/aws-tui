@@ -59,6 +59,7 @@ type KeyBindings struct {
 	Reset                   rune
 	LoadMoreData            rune
 	ClearTable              tcell.Key
+	SaveTable               tcell.Key
 	Done                    tcell.Key
 	Find                    tcell.Key
 	PageChangeModKey        tcell.ModMask
@@ -105,6 +106,7 @@ var APP_KEY_BINDINGS = KeyBindings{
 	Reset:                   'r',
 	LoadMoreData:            'n',
 	ClearTable:              tcell.KeyCtrlX,
+	SaveTable:               tcell.KeyCtrlD,
 	Done:                    tcell.KeyEnter,
 	Find:                    tcell.KeyCtrlF,
 	PageChangeModKey:        tcell.ModAlt,

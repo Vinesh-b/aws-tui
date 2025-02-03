@@ -4,6 +4,8 @@ import (
 	"aws-tui/internal/pkg/errors"
 	"encoding/csv"
 	"os"
+	"os/user"
+	"path"
 
 	"fmt"
 	"log"
@@ -92,6 +94,7 @@ type SelectableTable[T any] struct {
 	privateColumn        int
 	searchPositions      []CellPosition
 	HelpView             *FloatingHelpView
+	SaveFileView         *FloatingWriteToFileView
 	ErrorMessageCallback func(text string, a ...any)
 }
 
@@ -111,11 +114,13 @@ func NewSelectableTable[T any](title string, headings TableRow, app *tview.Appli
 		privateColumn:        -1,
 		searchPositions:      []CellPosition{},
 		HelpView:             NewFloatingHelpView(),
+		SaveFileView:         NewFloatingWriteToFileView(app, nil),
 		ErrorMessageCallback: func(text string, a ...any) {},
 	}
 
 	view.HelpView.View.
 		AddItem("Esc", "Hide current floating view", nil).
+		AddItem("?", "Help for selected view", nil).
 		AddItem("r", "Reset table", nil).
 		AddItem("n", "Load more data", nil).
 		AddItem("k", "Move up one row", nil).
@@ -124,9 +129,24 @@ func NewSelectableTable[T any](title string, headings TableRow, app *tview.Appli
 		AddItem("G", "Go to last item", nil).
 		AddItem("pgup", "Go up a page", nil).
 		AddItem("pgdn", "Go down a page", nil).
+		AddItem("Ctrl-D", "Open save table view", nil).
 		AddItem("Ctrl-F", "Search table", nil)
 
-	view.AddRuneToggleOverlay("HELP", view.HelpView, '?')
+	view.
+		AddRuneToggleOverlay("HELP", view.HelpView, APP_KEY_BINDINGS.Help).
+		AddKeyToggleOverlay("DOWNLOAD", view.SaveFileView, APP_KEY_BINDINGS.SaveTable)
+
+	view.SaveFileView.Input.SetOnSaveFunc(func(filename string) {
+		if err := view.DumpTableToCsv(filename); err != nil {
+			view.SaveFileView.Input.SetStatusMessage(err.Error())
+		} else {
+			view.SaveFileView.Input.SetStatusMessage("File Saved")
+		}
+	})
+
+	view.SaveFileView.Input.SetOnCloseFunc(func() {
+		view.ToggleOverlay("DOWNLOAD", true)
+	})
 
 	view.SetTitle(title).
 		SetTitleAlign(tview.AlignLeft).
@@ -284,6 +304,7 @@ func (inst *SelectableTable[T]) GetPrivateData(row int, column int) T {
 }
 
 func (inst *SelectableTable[T]) DumpTableToCsv(filename string) error {
+	filename = path.Clean(filename)
 	var file, err = os.Create(filename)
 	if err != nil {
 		return err
@@ -298,7 +319,7 @@ func (inst *SelectableTable[T]) DumpTableToCsv(filename string) error {
 	for r := range inst.table.GetRowCount() {
 		var rowdata = []string{}
 		for c := range inst.table.GetColumnCount() {
-			var text = GetCellText[string](inst.table.GetCell(r, c))
+			var text = GetCellText[T](inst.table.GetCell(r, c))
 			rowdata = append(rowdata, text)
 		}
 		csvWriter.Write(rowdata)

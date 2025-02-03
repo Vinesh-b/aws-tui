@@ -276,9 +276,9 @@ func NewBaseView(app *tview.Application, logger *log.Logger) *BaseView {
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		for _, id := range view.GetPageNames(false) {
 			var overlay, ok = view.overlays[id]
-            if !ok {
-                continue
-            }
+			if !ok {
+				continue
+			}
 
 			if e := overlay.InputCaptureFunc(event); e == nil {
 				return nil
@@ -405,4 +405,101 @@ func (inst *BaseView) ToggleOverlay(id string, hide bool) {
 			inst.app.SetFocus(overlay.View.GetLastFocusedView())
 		}
 	}
+}
+
+type WriteToFileView struct {
+	*tview.Flex
+	inputField   *InputField
+	message      *tview.TextView
+	saveButton   *Button
+	closeButton  *Button
+	tabNavigator *ViewNavigation1D
+	app          *tview.Application
+	logger       *log.Logger
+}
+
+func NewWriteToFileView(app *tview.Application, logger *log.Logger) *WriteToFileView {
+	var layout = tview.NewFlex()
+	var saveButton = NewButton("Save")
+	var closeButton = NewButton("Close")
+	var message = tview.NewTextView().SetLabel("Status ")
+	var filePathInput = NewInputField()
+	filePathInput.
+		SetLabel("File Path ").
+		SetText("./table-dump.csv")
+
+	layout.
+		SetDirection(tview.FlexRow).
+		AddItem(filePathInput, 1, 0, true).
+		AddItem(message, 0, 1, false).
+		AddItem(
+			tview.NewFlex().SetDirection(tview.FlexColumn).
+				AddItem(saveButton, 0, 1, true).
+				AddItem(closeButton, 0, 1, true),
+			1, 0, true,
+		)
+
+	var navigator = NewViewNavigation1D(layout,
+		[]View{
+			filePathInput,
+			saveButton,
+			closeButton,
+		},
+		app,
+	)
+
+	return &WriteToFileView{
+		Flex:         layout,
+		inputField:   filePathInput,
+		message:      message,
+		saveButton:   saveButton,
+		closeButton:  closeButton,
+		tabNavigator: navigator,
+		app:          app,
+		logger:       logger,
+	}
+}
+
+func (inst *WriteToFileView) GetInputFlePath() string {
+	return inst.inputField.GetText()
+}
+
+func (inst *WriteToFileView) SetOnSaveFunc(handler func(filename string)) {
+	inst.saveButton.SetSelectedFunc(func() {
+		inst.message.SetText("Saving...")
+		handler(inst.GetInputFlePath())
+	})
+}
+
+func (inst *WriteToFileView) SetOnCloseFunc(handler func()) {
+	inst.closeButton.SetSelectedFunc(func() {
+		inst.message.SetText("")
+		handler()
+	})
+}
+
+func (inst *WriteToFileView) SetStatusMessage(msg string) {
+	inst.message.SetText(msg)
+}
+
+func (inst *WriteToFileView) GetLastFocusedView() tview.Primitive {
+	return inst.tabNavigator.GetLastFocusedView()
+}
+
+type FloatingWriteToFileView struct {
+	*tview.Flex
+	Input *WriteToFileView
+}
+
+func NewFloatingWriteToFileView(app *tview.Application, logger *log.Logger) *FloatingWriteToFileView {
+	var input = NewWriteToFileView(app, logger)
+
+	return &FloatingWriteToFileView{
+		Flex:  FloatingView("Save", input, 70, 8),
+		Input: input,
+	}
+}
+
+func (inst *FloatingWriteToFileView) GetLastFocusedView() tview.Primitive {
+	return inst.Input.GetLastFocusedView()
 }
