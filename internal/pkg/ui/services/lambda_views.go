@@ -3,7 +3,6 @@ package services
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"log"
 
 	"aws-tui/internal/pkg/awsapi"
@@ -112,8 +111,6 @@ type LambdaInvokePageView struct {
 	logResults     *core.SearchableTextView
 	payloadInput   *core.TextArea
 	responseOutput *core.SearchableTextView
-	title          string
-	titleExtra     string
 	app            *tview.Application
 	api            *awsapi.LambdaApi
 }
@@ -133,6 +130,8 @@ func NewLambdaInvokePageView(
 		AddItem(invokeButton, 0, 1, false).
 		AddItem(formatButton, 0, 1, false)
 	buttonsView.SetBorder(true)
+
+	payloadInput.SetTitleExtra("NO LAMBDA SELECTED")
 
 	var serviceView = core.NewServicePageView(app, logger)
 	serviceView.MainPage.
@@ -165,8 +164,6 @@ func NewLambdaInvokePageView(
 		payloadInput:    payloadInput,
 		logResults:      logResults,
 		responseOutput:  responseOutput,
-		title:           "Payload",
-		titleExtra:      "",
 		app:             app,
 		api:             api,
 	}
@@ -194,12 +191,7 @@ func (inst *LambdaInvokePageView) loadResponse(text string) {
 
 func (inst *LambdaInvokePageView) SetSelectedLambda(name string) {
 	inst.selectedLambda = name
-	inst.titleExtra = name
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
-	dataLoader.AsyncLoadData(func() {})
-	dataLoader.AsyncUpdateView(inst.payloadInput, func() {
-		inst.payloadInput.SetTitle(fmt.Sprintf("%s [%s]", inst.title, inst.titleExtra))
-	})
+	inst.payloadInput.SetTitleExtra(name)
 }
 
 func (inst *LambdaInvokePageView) Invoke() {
@@ -238,6 +230,24 @@ func (inst *LambdaInvokePageView) Invoke() {
 	})
 }
 
+type FloatingLambdaInvoke struct {
+	*tview.Flex
+	Input *LambdaInvokePageView
+}
+
+func NewFloatingLambdaInvoke(
+	input *LambdaInvokePageView,
+) *FloatingLambdaInvoke {
+	return &FloatingLambdaInvoke{
+		Flex:  core.FloatingViewRelative("Invoke", input, 90, 90),
+		Input: input,
+	}
+}
+
+func (inst *FloatingLambdaInvoke) GetLastFocusedView() tview.Primitive {
+	return inst.Input.GetLastFocusedView()
+}
+
 func NewLambdaHomeView(
 	app *tview.Application,
 	config aws.Config,
@@ -271,8 +281,12 @@ func NewLambdaHomeView(
 
 	serviceRootView.
 		AddAndSwitchToPage("Lambdas", lambdasDetailsView, true).
-		AddPage("Log Events", logEventsView, true, true).
-		AddPage("Invoke", lambdaInvokeView, true, true)
+		AddPage("Log Events", logEventsView, true, true)
+
+	serviceRootView.AddRuneToggleOverlay(
+		"INVOKE", NewFloatingLambdaInvoke(lambdaInvokeView),
+		'i', false,
+	)
 
 	serviceRootView.InitPageNavigation()
 	var lambdasListTable = lambdasDetailsView.LambdaListTable
