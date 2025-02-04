@@ -252,8 +252,9 @@ type OverlayInfo struct {
 	Id               string
 	View             OverlayView
 	IsHidden         bool
-	ToggleRune       rune
-	ToggleKey        tcell.Key
+	KeyRune          rune
+	Keybinding       tcell.Key
+	Toggle           bool
 	InputCaptureFunc func(event *tcell.EventKey) *tcell.EventKey
 }
 
@@ -301,37 +302,35 @@ func (inst *BaseView) SetMainView(view tview.Primitive) *BaseView {
 }
 
 // This will overwrite the input capture handler of the view passed in.
-func (inst *BaseView) AddRuneToggleOverlay(id string, view OverlayView, viewToggle rune) *BaseView {
+func (inst *BaseView) AddRuneToggleOverlay(id string, view OverlayView, keybinding rune, toggle bool) *BaseView {
 	inst.AddPage(id, view, true, false)
 	var overlay = &OverlayInfo{
 		Id:         id,
 		View:       view,
 		IsHidden:   true,
-		ToggleRune: viewToggle,
-		ToggleKey:  -1,
+		KeyRune:    keybinding,
+		Keybinding: -1,
+		Toggle:     toggle,
 	}
 
 	overlay.InputCaptureFunc = func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case APP_KEY_BINDINGS.Escape:
 			if overlay.IsHidden == false {
-				inst.HidePage(overlay.Id)
-				overlay.IsHidden = true
+				inst.hideOverlay(overlay)
 				return nil
 			}
 		}
 
 		switch event.Rune() {
-		case overlay.ToggleRune:
-			if overlay.IsHidden {
-				inst.SendToFront(overlay.Id)
-				inst.ShowPage(overlay.Id)
-				inst.app.SetFocus(view.GetLastFocusedView())
-			} else {
-				inst.HidePage(overlay.Id)
+		case overlay.KeyRune:
+			if overlay.IsHidden && inst.IsAnOverlayVisible() == false {
+				inst.showOverlay(overlay)
+				return nil
+			} else if overlay.Toggle && !overlay.IsHidden {
+				inst.hideOverlay(overlay)
+				return nil
 			}
-			overlay.IsHidden = !overlay.IsHidden
-			return nil
 		}
 		return event
 	}
@@ -342,34 +341,32 @@ func (inst *BaseView) AddRuneToggleOverlay(id string, view OverlayView, viewTogg
 }
 
 // This will overwrite the input capture handler of the view passed in.
-func (inst *BaseView) AddKeyToggleOverlay(id string, view OverlayView, viewToggle tcell.Key) *BaseView {
+func (inst *BaseView) AddKeyToggleOverlay(id string, view OverlayView, keybinding tcell.Key, toggle bool) *BaseView {
 	inst.AddPage(id, view, true, false)
 	var overlay = &OverlayInfo{
 		Id:         id,
 		View:       view,
 		IsHidden:   true,
-		ToggleRune: 0,
-		ToggleKey:  viewToggle,
+		KeyRune:    0,
+		Keybinding: keybinding,
+		Toggle:     toggle,
 	}
 
 	overlay.InputCaptureFunc = func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case APP_KEY_BINDINGS.Escape:
 			if overlay.IsHidden == false {
-				inst.HidePage(overlay.Id)
-				overlay.IsHidden = true
+				inst.hideOverlay(overlay)
 				return nil
 			}
-		case overlay.ToggleKey:
-			if overlay.IsHidden {
-				inst.SendToFront(overlay.Id)
-				inst.ShowPage(overlay.Id)
-				inst.app.SetFocus(view.GetLastFocusedView())
-			} else {
-				inst.HidePage(overlay.Id)
+		case overlay.Keybinding:
+			if overlay.IsHidden && inst.IsAnOverlayVisible() == false {
+				inst.showOverlay(overlay)
+				return nil
+			} else if overlay.Toggle && !overlay.IsHidden {
+				inst.hideOverlay(overlay)
+				return nil
 			}
-			overlay.IsHidden = !overlay.IsHidden
-			return nil
 		}
 		return event
 	}
@@ -379,10 +376,18 @@ func (inst *BaseView) AddKeyToggleOverlay(id string, view OverlayView, viewToggl
 	return inst
 }
 
+func (inst *BaseView) IsAnOverlayVisible() bool {
+	for _, overlay := range inst.overlays {
+		if overlay.IsHidden == false {
+			return true
+		}
+	}
+	return false
+}
+
 func (inst *BaseView) HideAllOverlays() {
 	for _, overlay := range inst.overlays {
-		inst.HidePage(overlay.Id)
-		overlay.IsHidden = true
+		inst.hideOverlay(overlay)
 	}
 }
 
@@ -397,14 +402,25 @@ func (inst *BaseView) IsOverlayHidden(id string) bool {
 func (inst *BaseView) ToggleOverlay(id string, hide bool) {
 	var overlay, ok = inst.overlays[id]
 	if ok {
-		overlay.IsHidden = hide
 		if hide {
-			inst.HidePage(overlay.Id)
+			inst.hideOverlay(overlay)
 		} else {
-			inst.ShowPage(overlay.Id)
-			inst.app.SetFocus(overlay.View.GetLastFocusedView())
+			inst.HideAllOverlays()
+			inst.showOverlay(overlay)
 		}
 	}
+}
+
+func (inst *BaseView) showOverlay(overlay *OverlayInfo) {
+	inst.SendToFront(overlay.Id)
+	inst.ShowPage(overlay.Id)
+	inst.app.SetFocus(overlay.View.GetLastFocusedView())
+	overlay.IsHidden = false
+}
+
+func (inst *BaseView) hideOverlay(overlay *OverlayInfo) {
+	inst.HidePage(overlay.Id)
+	overlay.IsHidden = true
 }
 
 type WriteToFileView struct {
