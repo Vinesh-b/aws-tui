@@ -57,7 +57,7 @@ func NewSfnExecutionsTable(
 	)
 
 	var searchView = NewFloatingSfnExecutionsQueryInputView(app, logger)
-	selectableTable.AddKeyToggleOverlay("QUERY", searchView, core.APP_KEY_BINDINGS.TableQuery)
+	selectableTable.AddRuneToggleOverlay("QUERY", searchView, core.APP_KEY_BINDINGS.TableQuery, false)
 
 	var table = &SfnExecutionsTable{
 		queryView:         searchView,
@@ -115,6 +115,11 @@ func NewSfnExecutionsTable(
 			)
 		}
 	})
+
+	table.HelpView.View.
+		AddItem("f", "Jump to next search result", nil).
+		AddItem("F", "Jump to previous search result", nil).
+		AddItem("q", "To show query view", nil)
 
 	return table
 }

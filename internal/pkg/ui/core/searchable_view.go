@@ -36,7 +36,7 @@ func NewSearchableView(
 	}
 
 	view.SetMainView(mainPage)
-	view.AddKeyToggleOverlay(SEARCH_OVERLAY_NAME, floatingSearch, APP_KEY_BINDINGS.Find)
+	view.AddKeyToggleOverlay(SEARCH_OVERLAY_NAME, floatingSearch, APP_KEY_BINDINGS.Find, true)
 	view.SetSearchInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
 	view.SetSearchDoneFunc(func(key tcell.Key) {})
 

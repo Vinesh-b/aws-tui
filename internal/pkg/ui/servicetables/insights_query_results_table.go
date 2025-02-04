@@ -119,7 +119,7 @@ func NewInsightsQueryResultsTable(
 ) *InsightsQueryResultsTable {
 	var selectableTable = core.NewSelectableTable[string]("", nil, app)
 	var queryView = NewFloatingInsightsQueryInputView(app, logger)
-	selectableTable.AddKeyToggleOverlay("QUERY", queryView, core.APP_KEY_BINDINGS.TableQuery)
+	selectableTable.AddRuneToggleOverlay("QUERY", queryView, core.APP_KEY_BINDINGS.TableQuery, false)
 
 	var view = &InsightsQueryResultsTable{
 		SelectableTable:      selectableTable,
@@ -158,7 +158,7 @@ func NewInsightsQueryResultsTable(
 	view.HelpView.View.
 		AddItem("f", "Jump to next search result", nil).
 		AddItem("F", "Jump to previous search result", nil).
-		AddItem("Ctrl-Q", "Toggle log query view", func() {
+		AddItem("q", "To show query view", func() {
 			view.ToggleOverlay("QUERY", false)
 		})
 

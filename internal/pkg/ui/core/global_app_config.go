@@ -59,7 +59,7 @@ type KeyBindings struct {
 	Reset                   rune
 	LoadMoreData            rune
 	ClearTable              tcell.Key
-	SaveTable               tcell.Key
+	SaveTable               rune
 	Done                    tcell.Key
 	Find                    tcell.Key
 	PageChangeModKey        tcell.ModMask
@@ -77,8 +77,8 @@ type KeyBindings struct {
 	PrevSearch              rune
 	FormFocusNext           tcell.Key
 	FormFocusPrev           tcell.Key
-	TableScan               tcell.Key
-	TableQuery              tcell.Key
+	TableScan               rune
+	TableQuery              rune
 	TextViewCopy            rune
 	TextViewUp              rune
 	TextViewDown            rune
@@ -106,7 +106,7 @@ var APP_KEY_BINDINGS = KeyBindings{
 	Reset:                   'r',
 	LoadMoreData:            'n',
 	ClearTable:              tcell.KeyCtrlX,
-	SaveTable:               tcell.KeyCtrlD,
+	SaveTable:               'd',
 	Done:                    tcell.KeyEnter,
 	Find:                    tcell.KeyCtrlF,
 	PageChangeModKey:        tcell.ModAlt,
@@ -125,8 +125,8 @@ var APP_KEY_BINDINGS = KeyBindings{
 	PrevSearch:              'F',
 	FormFocusNext:           tcell.KeyTab,
 	FormFocusPrev:           tcell.KeyBacktab,
-	TableScan:               tcell.KeyCtrlS,
-	TableQuery:              tcell.KeyCtrlQ,
+	TableScan:               's',
+	TableQuery:              'q',
 	TextViewCopy:            'y',
 	TextViewPageUp:          'u',
 	TextViewPageDown:        'd',

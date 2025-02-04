@@ -61,8 +61,8 @@ func NewDynamoDBGenericTable(
 	var queryView = NewFloatingDDBQueryInputView(app, logger)
 	var scanView = NewFloatingDDBScanInputView(app, logger)
 
-	selectableTable.AddKeyToggleOverlay(QUERY_PAGE_NAME, queryView, core.APP_KEY_BINDINGS.TableQuery)
-	selectableTable.AddKeyToggleOverlay(SCAN_PAGE_NAME, scanView, core.APP_KEY_BINDINGS.TableScan)
+	selectableTable.AddRuneToggleOverlay(QUERY_PAGE_NAME, queryView, core.APP_KEY_BINDINGS.TableQuery, false)
+	selectableTable.AddRuneToggleOverlay(SCAN_PAGE_NAME, scanView, core.APP_KEY_BINDINGS.TableScan, false)
 
 	var table = &DynamoDBGenericTable{
 		SelectableTable:      selectableTable,
@@ -119,6 +119,12 @@ func NewDynamoDBGenericTable(
 		}
 		table.ExecuteSearch(DDBTableScan, expr, true)
 	})
+
+	table.HelpView.View.
+		AddItem("f", "Jump to next search result", nil).
+		AddItem("F", "Jump to previous search result", nil).
+		AddItem("q", "To show query view", nil).
+		AddItem("s", "To show scan view", nil)
 
 	return table
 }

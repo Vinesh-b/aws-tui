@@ -139,7 +139,7 @@ func NewSearchableTextView(title string, app *tview.Application) *SearchableText
 		}
 	})
 
-	view.AddRuneToggleOverlay("HELP", view.HelpView, '?')
+	view.AddRuneToggleOverlay("HELP", view.HelpView, '?', true)
 	view.HelpView.View.
 		AddItem("Ctrl-F", "Search Text", nil).
 		AddItem("f", "Jump to next search result", nil).
