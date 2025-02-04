@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/atotto/clipboard"
 	"github.com/gdamore/tcell/v2"
@@ -13,6 +14,7 @@ type TextArea struct {
 	ErrorMessageCallback func(text string, a ...any)
 	lineCount            int
 	title                string
+	titleExtra           string
 }
 
 func NewTextArea(title string) *TextArea {
@@ -22,6 +24,7 @@ func NewTextArea(title string) *TextArea {
 		ErrorMessageCallback: func(text string, a ...any) {},
 		lineCount:            0,
 		title:                title,
+		titleExtra:           "",
 	}
 
 	view.
@@ -42,6 +45,11 @@ func NewTextArea(title string) *TextArea {
 		SetBorder(true)
 
 	return view
+}
+
+func (inst *TextArea) SetTitleExtra(text string) {
+	inst.titleExtra = text
+	inst.SetTitle(fmt.Sprintf("%s ❬%s❭", inst.title, inst.titleExtra))
 }
 
 func (inst *TextArea) FormatAsJson() {
