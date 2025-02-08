@@ -331,7 +331,9 @@ func (inst *BaseView) SetMainView(view tview.Primitive) *BaseView {
 }
 
 // This will overwrite the input capture handler of the view passed in.
-func (inst *BaseView) AddRuneToggleOverlay(id string, view OverlayView, keybinding rune, toggle bool) *BaseView {
+func (inst *BaseView) AddRuneToggleOverlay(
+	id string, view OverlayView, keybinding rune, toggle bool,
+) *BaseView {
 	inst.AddPage(id, view, true, false)
 	var overlay = &OverlayInfo{
 		Id:         id,
@@ -370,7 +372,9 @@ func (inst *BaseView) AddRuneToggleOverlay(id string, view OverlayView, keybindi
 }
 
 // This will overwrite the input capture handler of the view passed in.
-func (inst *BaseView) AddKeyToggleOverlay(id string, view OverlayView, keybinding tcell.Key, toggle bool) *BaseView {
+func (inst *BaseView) AddKeyToggleOverlay(
+	id string, view OverlayView, keybinding tcell.Key, toggle bool,
+) *BaseView {
 	inst.AddPage(id, view, true, false)
 	var overlay = &OverlayInfo{
 		Id:         id,
