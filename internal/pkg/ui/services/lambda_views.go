@@ -273,9 +273,9 @@ func NewLambdaHomeView(appCtx *core.AppContext) core.ServicePage {
 		AddAndSwitchToPage("Lambdas", lambdasDetailsView, true).
 		AddPage("Log Events", logEventsView, true, true)
 
-	serviceRootView.AddRuneToggleOverlay(
+	serviceRootView.AddKeyToggleOverlay(
 		"INVOKE", NewFloatingLambdaInvoke(lambdaInvokeView),
-		'i', false,
+		tcell.KeyCtrlX, false,
 	)
 
 	serviceRootView.InitPageNavigation()
