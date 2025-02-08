@@ -112,7 +112,7 @@ type InsightsQueryResultsTable struct {
 func NewInsightsQueryResultsTable(
 	serviceViewCtx *core.ServiceContext[awsapi.CloudWatchLogsApi],
 ) *InsightsQueryResultsTable {
-	var selectableTable = core.NewSelectableTable[string]("", nil, serviceViewCtx.AppContext)
+	var selectableTable = core.NewSelectableTable[string]("Query Results", nil, serviceViewCtx.AppContext)
 	var queryView = NewFloatingInsightsQueryInputView(serviceViewCtx.AppContext)
 	selectableTable.AddRuneToggleOverlay("QUERY", queryView, core.APP_KEY_BINDINGS.TableQuery, false)
 
@@ -163,9 +163,6 @@ func (inst *InsightsQueryResultsTable) populateQueryResultsTable() {
 		Clear().
 		SetFixed(1, 0)
 
-	var tableTitle = fmt.Sprintf("Query Results ❬%d❭", len(inst.data))
-	inst.rootView.SetTitle(tableTitle)
-
 	var headingIdx = 0
 	inst.headingIdxMap = map[string]int{}
 	for rowIdx, rowData := range inst.data {
@@ -206,6 +203,8 @@ func (inst *InsightsQueryResultsTable) populateQueryResultsTable() {
 	inst.table.SetSelectable(true, true).SetSelectedStyle(
 		tcell.Style{}.Background(core.MoreContrastBackgroundColor),
 	)
+
+	inst.RefreshTitle(len(inst.data))
 
 	inst.table.Select(1, 0)
 	inst.table.ScrollToBeginning()

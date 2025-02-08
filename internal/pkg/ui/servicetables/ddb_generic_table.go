@@ -51,7 +51,7 @@ type DynamoDBGenericTable struct {
 func NewDynamoDBGenericTable(
 	serviceContext *core.ServiceContext[awsapi.DynamoDBApi],
 ) *DynamoDBGenericTable {
-	var selectableTable = core.NewSelectableTable[map[string]any]("", nil, serviceContext.AppContext)
+	var selectableTable = core.NewSelectableTable[map[string]any]("Results", nil, serviceContext.AppContext)
 
 	var queryView = NewFloatingDDBQueryInputView(serviceContext.AppContext)
 	var scanView = NewFloatingDDBScanInputView(serviceContext.AppContext)
@@ -128,9 +128,6 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 	}
 
 	inst.table.Clear()
-	var clampedName = core.ClampStringLen(inst.tableDescription.TableName, 100)
-	var tableTitle = fmt.Sprintf("%s ❬%d❭", clampedName, len(inst.data))
-	inst.rootView.SetTitle(tableTitle)
 
 	if !extend {
 		inst.attributeIdxMap = make(map[string]int)
@@ -186,6 +183,10 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 	inst.table.SetSelectable(true, true).SetSelectedStyle(
 		tcell.Style{}.Background(core.MoreContrastBackgroundColor),
 	)
+
+	var clampedName = core.ClampStringLen(inst.tableDescription.TableName, 100)
+	inst.SetTitleExtra(clampedName)
+	inst.RefreshTitle(len(inst.data))
 
 	inst.table.Select(inst.lastSelectedRowIdx, 0)
 }

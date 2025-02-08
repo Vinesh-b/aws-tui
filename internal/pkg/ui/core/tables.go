@@ -92,6 +92,7 @@ type SelectableTable[T any] struct {
 	privateData          []T
 	privateColumn        int
 	searchPositions      []CellPosition
+	currentSearchIdx     int
 	HelpView             *FloatingHelpView
 	SaveFileView         *FloatingWriteToFileView
 	ErrorMessageCallback func(text string, a ...any)
@@ -112,6 +113,7 @@ func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppConte
 		privateData:          nil,
 		privateColumn:        -1,
 		searchPositions:      []CellPosition{},
+		currentSearchIdx:     0,
 		HelpView:             NewFloatingHelpView(),
 		SaveFileView:         NewFloatingWriteToFileView(appCtx),
 		ErrorMessageCallback: func(text string, a ...any) {},
@@ -158,17 +160,37 @@ func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppConte
 	return view
 }
 
+func (inst *SelectableTable[T]) RefreshTitle(rowcount int) {
+	var tableTitle = ""
+
+	if rowcount == 0 {
+		rowcount = len(inst.data)
+	}
+
+	if len(inst.titleExtra) == 0 {
+		tableTitle = fmt.Sprintf("%s ❬%d❭", inst.title, rowcount)
+	} else {
+		tableTitle = fmt.Sprintf("%s ❬%d❭ ❬%s❭", inst.title, rowcount, inst.titleExtra)
+	}
+
+	if searchText := inst.GetSearchText(); len(searchText) > 0 {
+		tableTitle = fmt.Sprintf(
+			"%s ❬%s: %d/%d❭",
+			tableTitle,
+			searchText,
+			inst.currentSearchIdx+1,
+			len(inst.searchPositions),
+		)
+	}
+
+	inst.SetTitle(tableTitle)
+}
+
 func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privateDataCol int) error {
 	inst.data = data
 	inst.table.Clear()
 
-	var tableTitle = ""
-	if len(inst.titleExtra) == 0 {
-		tableTitle = fmt.Sprintf("%s ❬%d❭", inst.title, len(data))
-	} else {
-		tableTitle = fmt.Sprintf("%s ❬%d❭ ❬%s❭", inst.title, len(data), inst.titleExtra)
-	}
-	inst.SetTitle(tableTitle)
+	inst.RefreshTitle(0)
 
 	inst.table.SetSelectable(true, false).SetSelectedStyle(
 		tcell.Style{}.Background(MoreContrastBackgroundColor),
@@ -237,20 +259,12 @@ func (inst *SelectableTable[T]) ExtendData(data []TableRow, privateData []T) err
 		)
 	}
 
+	inst.data = append(inst.data, data...)
+
+	inst.RefreshTitle(0)
+
 	var table = inst.table
 	var rows = table.GetRowCount()
-	var totalRowCount = len(data) + len(inst.data)
-
-	// Don't count the headings row in the title
-	var tableTitle = ""
-	if len(inst.titleExtra) == 0 {
-		tableTitle = fmt.Sprintf("%s ❬%d❭", inst.title, totalRowCount)
-	} else {
-		tableTitle = fmt.Sprintf("%s ❬%d❭ ❬%s❭", inst.title, totalRowCount, inst.titleExtra)
-	}
-	inst.SetTitle(tableTitle)
-
-	inst.data = append(inst.data, data...)
 
 	for rowIdx, rowData := range data {
 		for colIdx, cellText := range rowData {
@@ -332,22 +346,22 @@ func (inst *SelectableTable[T]) DumpTableToCsv(filename string) error {
 }
 
 func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
-	var nextSearch = 0
-
 	var highlight_search = func(event *tcell.EventKey) *tcell.EventKey {
 		var searchCount = len(inst.searchPositions)
 		if searchCount > 0 {
 			switch event.Rune() {
 			case APP_KEY_BINDINGS.NextSearch:
-				nextSearch = (nextSearch + 1) % searchCount
+				inst.currentSearchIdx = (inst.currentSearchIdx + 1) % searchCount
 			case APP_KEY_BINDINGS.PrevSearch:
-				nextSearch = (nextSearch - 1 + searchCount) % searchCount
+				inst.currentSearchIdx = (inst.currentSearchIdx - 1 + searchCount) % searchCount
 			default:
 				return event
 			}
 
-			var pos = inst.searchPositions[nextSearch]
+			var pos = inst.searchPositions[inst.currentSearchIdx]
 			inst.table.Select(pos.row, pos.col)
+
+			inst.RefreshTitle(0)
 		}
 
 		return event
