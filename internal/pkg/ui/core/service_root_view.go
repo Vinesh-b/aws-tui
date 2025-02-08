@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"slices"
 
 	"github.com/gdamore/tcell/v2"
@@ -104,9 +103,11 @@ func NewServiceRootView(
 		return event
 	})
 
+	paginatorView.SetBorder(true)
+
 	view.layout.
 		AddItem(view.pages, 0, 1, true).
-		AddItem(paginatorView, 2, 0, false)
+		AddItem(paginatorView, 3, 0, false)
 
 	view.SetMainView(view.layout)
 
@@ -127,10 +128,8 @@ func (inst *ServiceRootView) switchToPage(name string) {
 	)
 
 	inst.pageIndex = max(idx, 0)
-	inst.paginatorView.PageNameView.SetText(name)
-	inst.paginatorView.PageCounterView.SetText(
-		fmt.Sprintf("<%d/%d>", inst.pageIndex+1, numPages),
-	)
+	inst.paginatorView.SetPageName(name)
+	inst.paginatorView.SetPageCount(numPages, inst.pageIndex+1)
 }
 
 func (inst *ServiceRootView) ChangePage(pageIdx int, focusView tview.Primitive) {

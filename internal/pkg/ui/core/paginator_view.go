@@ -11,8 +11,9 @@ import (
 
 type PaginatorView struct {
 	*tview.Flex
-	PageCounterView *tview.TextView
-	PageNameView    *tview.TextView
+	pageCounterText string
+	pageName        string
+	serviceName     string
 	appCtx          *AppContext
 }
 
@@ -41,11 +42,16 @@ func CreatePaginatorView(service string, appContext *AppContext) PaginatorView {
 			profileName = "unset"
 		}
 
+		var accountId = creds.AccountID
+		if len(accountId) == 0 {
+			accountId = "unset"
+		}
+
 		if creds.CanExpire == false {
 			app.QueueUpdateDraw(func() {
 				sessionDetailsView.SetText(fmt.Sprintf(
-					"Profile: %s | Account Id: %s | Session duration: Never",
-					profileName, creds.AccountID,
+					"Profile: %s | Account Id: %s | Session duration: Inf",
+					profileName, accountId,
 				))
 			})
 			return
@@ -57,7 +63,7 @@ func CreatePaginatorView(service string, appContext *AppContext) PaginatorView {
 				sessionDetailsView.SetText(fmt.Sprintf(
 					"Profile: %s | Account Id: %s | Session duration: %s",
 					profileName,
-					creds.AccountID,
+					accountId,
 					remainingTime.String(),
 				))
 			})
@@ -67,39 +73,42 @@ func CreatePaginatorView(service string, appContext *AppContext) PaginatorView {
 			sessionDetailsView.SetText(fmt.Sprintf(
 				"Profile: %s | Account Id: %s | Session duration: Expired",
 				profileName,
-				creds.AccountID,
+				accountId,
 			))
 		})
 	}()
 
-	var pageCount = tview.NewTextView().
-		SetTextAlign(tview.AlignRight).
-		SetTextColor(TertiaryTextColor)
-
-	var pageName = tview.NewTextView().
-		SetTextAlign(tview.AlignCenter).
-		SetTextColor(TertiaryTextColor)
-
-	var serviceName = tview.NewTextView().
-		SetTextAlign(tview.AlignLeft).
-		SetTextColor(TertiaryTextColor).
-		SetText(service)
-
-	var servicePageInfo = tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(serviceName, 0, 1, false).
-		AddItem(pageName, 0, 1, false).
-		AddItem(pageCount, 0, 1, false)
-
 	var rootView = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(servicePageInfo, 1, 0, false).
 		AddItem(sessionDetailsView, 1, 0, false)
 
 	rootView.SetBorderPadding(0, 0, 1, 1)
 
 	return PaginatorView{
 		Flex:            rootView,
-		PageCounterView: pageCount,
-		PageNameView:    pageName,
+		pageCounterText: "",
+		pageName:        "",
+		serviceName:     service,
 		appCtx:          appContext,
 	}
+}
+
+func (inst *PaginatorView) RefreshTitle() {
+	inst.SetTitle(fmt.Sprintf("❬%s❭ ❬%s❭ ❬%s❭",
+		inst.serviceName, inst.pageName, inst.pageCounterText,
+	))
+	inst.SetTitleAlign(tview.AlignLeft)
+}
+
+func (inst *PaginatorView) SetServiceName(text string) {
+	inst.serviceName = text
+}
+
+func (inst *PaginatorView) SetPageName(text string) {
+	inst.pageName = text
+	inst.RefreshTitle()
+}
+
+func (inst *PaginatorView) SetPageCount(total int, current int) {
+	inst.pageCounterText = fmt.Sprintf("%d/%d", current, total)
+	inst.RefreshTitle()
 }
