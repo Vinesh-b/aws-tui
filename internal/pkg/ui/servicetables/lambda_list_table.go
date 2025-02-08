@@ -1,8 +1,6 @@
 package servicetables
 
 import (
-	"log"
-
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 
@@ -10,7 +8,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 type LambdaListTable struct {
@@ -18,15 +15,11 @@ type LambdaListTable struct {
 	data           []types.FunctionConfiguration
 	filtered       []types.FunctionConfiguration
 	selectedLambda types.FunctionConfiguration
-	logger         *log.Logger
-	app            *tview.Application
-	api            *awsapi.LambdaApi
+	serviceCtx     *core.ServiceContext[awsapi.LambdaApi]
 }
 
 func NewLambdasListTable(
-	app *tview.Application,
-	api *awsapi.LambdaApi,
-	logger *log.Logger,
+	serviceCtx *core.ServiceContext[awsapi.LambdaApi],
 ) *LambdaListTable {
 
 	var view = &LambdaListTable{
@@ -36,13 +29,11 @@ func NewLambdasListTable(
 				"Name",
 				"LastModified",
 			},
-			app,
+			serviceCtx.AppContext,
 		),
 		data:           nil,
 		selectedLambda: types.FunctionConfiguration{},
-		logger:         logger,
-		app:            app,
-		api:            api,
+		serviceCtx:     serviceCtx,
 	}
 
 	view.populateLambdasTable(view.data)
@@ -81,7 +72,7 @@ func (inst *LambdaListTable) populateLambdasTable(data []types.FunctionConfigura
 }
 
 func (inst *LambdaListTable) FilterByName(name string) {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		inst.filtered = core.FuzzySearch(
@@ -99,10 +90,10 @@ func (inst *LambdaListTable) FilterByName(name string) {
 }
 
 func (inst *LambdaListTable) RefreshLambdas(reset bool) {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.api.ListLambdas(reset)
+		var data, err = inst.serviceCtx.Api.ListLambdas(reset)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gdamore/tcell/v2"
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/rivo/tview"
@@ -34,6 +35,36 @@ func TryFormatToJson(text string) (string, bool) {
 	return string(jsonBytes), true
 }
 
+type AppContext struct {
+	App    *tview.Application
+	Config *aws.Config
+	Logger *log.Logger
+}
+
+func NewAppContext(
+	app *tview.Application, config *aws.Config, logger *log.Logger,
+) *AppContext {
+	return &AppContext{
+		App:    app,
+		Config: config,
+		Logger: logger,
+	}
+}
+
+type ServiceContext[AwsApi any] struct {
+	*AppContext
+	Api *AwsApi
+}
+
+func NewServiceViewContext[AwsApi any](
+	appContext *AppContext, api *AwsApi,
+) *ServiceContext[AwsApi] {
+	return &ServiceContext[AwsApi]{
+		AppContext: appContext,
+		Api:        api,
+	}
+}
+
 type PrivateDataTable[T any, U any] interface {
 	GetPrivateData(row int, column int) T
 	SetSelectionChangedFunc(handler func(row int, column int)) U
@@ -42,11 +73,11 @@ type PrivateDataTable[T any, U any] interface {
 }
 
 func CreateJsonTableDataView[T any, U any](
-	app *tview.Application,
+	appCtx *AppContext,
 	table PrivateDataTable[T, U],
 	fixedColIdx int,
 ) *SearchableTextView {
-	var expandedView = NewSearchableTextView("Message", app)
+	var expandedView = NewSearchableTextView("Message", appCtx)
 
 	table.SetSelectionChangedFunc(func(row, column int) {
 		var col = column
@@ -260,18 +291,16 @@ type OverlayInfo struct {
 
 type BaseView struct {
 	*tview.Pages
-	app          *tview.Application
-	logger       *log.Logger
 	mainPageView tview.Primitive
 	overlays     map[string]*OverlayInfo
+	appCtx       *AppContext
 }
 
-func NewBaseView(app *tview.Application, logger *log.Logger) *BaseView {
+func NewBaseView(appContext *AppContext) *BaseView {
 	var view = &BaseView{
 		Pages:    tview.NewPages(),
-		app:      app,
-		logger:   logger,
 		overlays: map[string]*OverlayInfo{},
+		appCtx:   appContext,
 	}
 
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -414,7 +443,7 @@ func (inst *BaseView) ToggleOverlay(id string, hide bool) {
 func (inst *BaseView) showOverlay(overlay *OverlayInfo) {
 	inst.SendToFront(overlay.Id)
 	inst.ShowPage(overlay.Id)
-	inst.app.SetFocus(overlay.View.GetLastFocusedView())
+	inst.appCtx.App.SetFocus(overlay.View.GetLastFocusedView())
 	overlay.IsHidden = false
 }
 
@@ -430,11 +459,10 @@ type WriteToFileView struct {
 	saveButton   *Button
 	closeButton  *Button
 	tabNavigator *ViewNavigation1D
-	app          *tview.Application
-	logger       *log.Logger
+	appCtx       *AppContext
 }
 
-func NewWriteToFileView(app *tview.Application, logger *log.Logger) *WriteToFileView {
+func NewWriteToFileView(appContext *AppContext) *WriteToFileView {
 	var layout = tview.NewFlex()
 	var saveButton = NewButton("Save")
 	var closeButton = NewButton("Close")
@@ -461,7 +489,7 @@ func NewWriteToFileView(app *tview.Application, logger *log.Logger) *WriteToFile
 			saveButton,
 			closeButton,
 		},
-		app,
+		appContext.App,
 	)
 
 	return &WriteToFileView{
@@ -471,8 +499,7 @@ func NewWriteToFileView(app *tview.Application, logger *log.Logger) *WriteToFile
 		saveButton:   saveButton,
 		closeButton:  closeButton,
 		tabNavigator: navigator,
-		app:          app,
-		logger:       logger,
+		appCtx:       appContext,
 	}
 }
 
@@ -507,8 +534,8 @@ type FloatingWriteToFileView struct {
 	Input *WriteToFileView
 }
 
-func NewFloatingWriteToFileView(app *tview.Application, logger *log.Logger) *FloatingWriteToFileView {
-	var input = NewWriteToFileView(app, logger)
+func NewFloatingWriteToFileView(appContext *AppContext) *FloatingWriteToFileView {
+	var input = NewWriteToFileView(appContext)
 
 	return &FloatingWriteToFileView{
 		Flex:  FloatingView("Save", input, 70, 8),

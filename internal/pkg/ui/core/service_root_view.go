@@ -2,10 +2,8 @@ package core
 
 import (
 	"fmt"
-	"log"
 	"slices"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -23,20 +21,17 @@ type ServiceRootView struct {
 	lastFocusedView tview.Primitive
 	pagesListHidden bool
 	pageList        *tview.List
-	app             *tview.Application
+	appCtx          *AppContext
 }
 
 func NewServiceRootView(
 	serviceName string,
-	app *tview.Application,
-	config *aws.Config,
-	logger *log.Logger,
-
+	appContext *AppContext,
 ) *ServiceRootView {
-	var paginatorView = CreatePaginatorView(serviceName, app, config, logger)
+	var paginatorView = CreatePaginatorView(serviceName, appContext)
 
 	var view = &ServiceRootView{
-		BaseView:        NewBaseView(app, logger),
+		BaseView:        NewBaseView(appContext),
 		layout:          tview.NewFlex().SetDirection(tview.FlexRow),
 		pages:           tview.NewPages(),
 		paginatorView:   paginatorView,
@@ -46,7 +41,7 @@ func NewServiceRootView(
 		lastFocusedView: nil,
 		pagesListHidden: true,
 		pageList:        tview.NewList(),
-		app:             app,
+		appCtx:          appContext,
 	}
 
 	view.pageList.
@@ -91,17 +86,17 @@ func NewServiceRootView(
 		case APP_KEY_BINDINGS.Escape:
 			if !view.pagesListHidden {
 				view.pages.HidePage(SERVICE_PAGES_LIST)
-				app.SetFocus(view.lastFocusedView)
+				appContext.App.SetFocus(view.lastFocusedView)
 				view.pagesListHidden = true
 				return nil
 			}
 		case APP_KEY_BINDINGS.ToggleServicePages:
 			if view.pagesListHidden {
 				view.pages.ShowPage(SERVICE_PAGES_LIST)
-				app.SetFocus(view.pageList)
+				appContext.App.SetFocus(view.pageList)
 			} else {
 				view.pages.HidePage(SERVICE_PAGES_LIST)
-				app.SetFocus(view.lastFocusedView)
+				appContext.App.SetFocus(view.lastFocusedView)
 			}
 			view.pagesListHidden = !view.pagesListHidden
 			return nil
@@ -122,7 +117,7 @@ func (inst *ServiceRootView) switchToPage(name string) {
 	inst.pages.SwitchToPage(name)
 	if page, ok := inst.pageViewMap[name]; ok {
 		inst.lastFocusedView = page.GetLastFocusedView()
-		inst.app.SetFocus(inst.lastFocusedView)
+		inst.appCtx.App.SetFocus(inst.lastFocusedView)
 	}
 
 	var numPages = len(inst.orderedPages)

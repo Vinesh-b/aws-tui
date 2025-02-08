@@ -2,7 +2,6 @@ package servicetables
 
 import (
 	"encoding/json"
-	"log"
 	"sort"
 	"strings"
 	"time"
@@ -14,8 +13,6 @@ import (
 	cwlTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/gdamore/tcell/v2"
-
-	"github.com/rivo/tview"
 )
 
 type ExecutionItem struct {
@@ -33,17 +30,15 @@ type SfnExecutionsTable struct {
 	data              []ExecutionItem
 	filtered          []ExecutionItem
 	selectedExecution ExecutionItem
-	logger            *log.Logger
-	app               *tview.Application
+	appCtx            *core.AppContext
 	api               *awsapi.StateMachineApi
 	cwlApi            *awsapi.CloudWatchLogsApi
 }
 
 func NewSfnExecutionsTable(
-	app *tview.Application,
+	appCtx *core.AppContext,
 	api *awsapi.StateMachineApi,
 	cwlApi *awsapi.CloudWatchLogsApi,
-	logger *log.Logger,
 ) *SfnExecutionsTable {
 	var selectableTable = core.NewSelectableTable[ExecutionItem](
 		"Executions",
@@ -53,10 +48,10 @@ func NewSfnExecutionsTable(
 			"Start Date",
 			"Stop Date",
 		},
-		app,
+		appCtx,
 	)
 
-	var searchView = NewFloatingSfnExecutionsQueryInputView(app, logger)
+	var searchView = NewFloatingSfnExecutionsQueryInputView(appCtx)
 	selectableTable.AddRuneToggleOverlay("QUERY", searchView, core.APP_KEY_BINDINGS.TableQuery, false)
 
 	var table = &SfnExecutionsTable{
@@ -65,8 +60,7 @@ func NewSfnExecutionsTable(
 		selectedFunction:  types.StateMachineListItem{},
 		selectedExecution: ExecutionItem{ExecutionListItem: &types.ExecutionListItem{}},
 		data:              nil,
-		logger:            logger,
-		app:               app,
+		appCtx:            appCtx,
 		api:               api,
 		cwlApi:            cwlApi,
 	}
@@ -200,12 +194,12 @@ func (inst *SfnExecutionsTable) RefreshExpressExecutions(logGroup string, reset 
 		endTime:   query.endTime,
 	}
 
-	var insightsQueryRunner = NewInsightsQueryRunner(inst.app, inst.cwlApi)
+	var insightsQueryRunner = NewInsightsQueryRunner(inst.appCtx.App, inst.cwlApi)
 	insightsQueryRunner.ErrorMessageCallback = inst.ErrorMessageCallback
 
 	var resultsChan = make(chan [][]cwlTypes.ResultField)
 
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.appCtx.App, 10)
 	dataLoader.AsyncLoadData(func() {
 		insightsQueryRunner.ExecuteInsightsQuery(insightsQuery, []string{logGroup}, resultsChan)
 		var insightsResults = <-resultsChan
@@ -291,7 +285,7 @@ func (inst *SfnExecutionsTable) RefreshExpressExecutions(logGroup string, reset 
 }
 
 func (inst *SfnExecutionsTable) RefreshExecutions(reset bool) {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.appCtx.App, 10)
 	var query, err = inst.queryView.Input.GenerateQuery()
 	if err != nil {
 		inst.ErrorMessageCallback(err.Error())

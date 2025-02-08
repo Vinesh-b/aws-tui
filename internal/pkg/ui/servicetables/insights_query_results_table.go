@@ -4,7 +4,6 @@ import (
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -106,19 +105,15 @@ type InsightsQueryResultsTable struct {
 	queryId              string
 	selectedLogGroups    []string
 	headingIdxMap        map[string]int
-	logger               *log.Logger
-	app                  *tview.Application
-	api                  *awsapi.CloudWatchLogsApi
+	serviceCtx           *core.ServiceContext[awsapi.CloudWatchLogsApi]
 	ErrorMessageCallback func(text string, a ...any)
 }
 
 func NewInsightsQueryResultsTable(
-	app *tview.Application,
-	api *awsapi.CloudWatchLogsApi,
-	logger *log.Logger,
+	serviceViewCtx *core.ServiceContext[awsapi.CloudWatchLogsApi],
 ) *InsightsQueryResultsTable {
-	var selectableTable = core.NewSelectableTable[string]("", nil, app)
-	var queryView = NewFloatingInsightsQueryInputView(app, logger)
+	var selectableTable = core.NewSelectableTable[string]("", nil, serviceViewCtx.AppContext)
+	var queryView = NewFloatingInsightsQueryInputView(serviceViewCtx.AppContext)
 	selectableTable.AddRuneToggleOverlay("QUERY", queryView, core.APP_KEY_BINDINGS.TableQuery, false)
 
 	var view = &InsightsQueryResultsTable{
@@ -130,9 +125,7 @@ func NewInsightsQueryResultsTable(
 		queryId:              "",
 		selectedLogGroups:    nil,
 		headingIdxMap:        map[string]int{},
-		logger:               logger,
-		app:                  app,
-		api:                  api,
+		serviceCtx:           serviceViewCtx,
 		ErrorMessageCallback: func(text string, a ...any) {},
 	}
 
@@ -219,7 +212,7 @@ func (inst *InsightsQueryResultsTable) populateQueryResultsTable() {
 }
 
 func (inst *InsightsQueryResultsTable) RefreshResults() {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		var results [][]types.ResultField
@@ -230,7 +223,7 @@ func (inst *InsightsQueryResultsTable) RefreshResults() {
 				break
 			}
 
-			results, status, err = inst.api.GetInightsQueryResults(inst.queryId)
+			results, status, err = inst.serviceCtx.Api.GetInightsQueryResults(inst.queryId)
 
 			switch status {
 			case types.QueryStatusRunning, types.QueryStatusScheduled:
@@ -273,14 +266,14 @@ func (inst *InsightsQueryResultsTable) ExecuteQuery() {
 	var queryIdChan = make(chan string, 1)
 	go func() {
 		if len(inst.queryId) > 0 {
-			var _, err = inst.api.StopInightsQuery(inst.queryId)
+			var _, err = inst.serviceCtx.Api.StopInightsQuery(inst.queryId)
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
 			}
 			inst.SetQueryId("")
 		}
 
-		var res, err = inst.api.StartInightsQuery(
+		var res, err = inst.serviceCtx.Api.StartInightsQuery(
 			inst.selectedLogGroups,
 			query.startTime,
 			query.endTime,
@@ -305,7 +298,7 @@ func (inst *InsightsQueryResultsTable) StopQuery() {
 			stopSuccess <- true
 			return
 		}
-		var res, err = inst.api.StopInightsQuery(inst.queryId)
+		var res, err = inst.serviceCtx.Api.StopInightsQuery(inst.queryId)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

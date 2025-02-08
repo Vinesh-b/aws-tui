@@ -97,13 +97,13 @@ type SelectableTable[T any] struct {
 	ErrorMessageCallback func(text string, a ...any)
 }
 
-func NewSelectableTable[T any](title string, headings TableRow, app *tview.Application) *SelectableTable[T] {
+func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppContext) *SelectableTable[T] {
 	var table = tview.NewTable().
 		SetBorders(false).
 		SetFixed(1, len(headings)-1)
 
 	var view = &SelectableTable[T]{
-		SearchableView:       NewSearchableView(table, app),
+		SearchableView:       NewSearchableView(table, appCtx),
 		table:                table,
 		title:                title,
 		titleExtra:           "",
@@ -113,7 +113,7 @@ func NewSelectableTable[T any](title string, headings TableRow, app *tview.Appli
 		privateColumn:        -1,
 		searchPositions:      []CellPosition{},
 		HelpView:             NewFloatingHelpView(),
-		SaveFileView:         NewFloatingWriteToFileView(app, nil),
+		SaveFileView:         NewFloatingWriteToFileView(appCtx),
 		ErrorMessageCallback: func(text string, a ...any) {},
 	}
 

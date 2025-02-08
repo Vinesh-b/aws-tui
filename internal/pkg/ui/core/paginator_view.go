@@ -3,11 +3,9 @@ package core
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/rivo/tview"
 )
 
@@ -15,17 +13,18 @@ type PaginatorView struct {
 	*tview.Flex
 	PageCounterView *tview.TextView
 	PageNameView    *tview.TextView
+	appCtx          *AppContext
 }
 
-func CreatePaginatorView(
-	service string, app *tview.Application, config *aws.Config, logger *log.Logger,
-) PaginatorView {
+func CreatePaginatorView(service string, appContext *AppContext) PaginatorView {
 	var sessionDetailsView = tview.NewTextView().
 		SetTextAlign(tview.AlignLeft).
 		SetTextColor(TertiaryTextColor)
 
 	go func() {
-		var creds, err = config.Credentials.Retrieve(context.Background())
+		var creds, err = appContext.Config.Credentials.Retrieve(context.Background())
+		var logger = appContext.Logger
+		var app = appContext.App
 
 		if err != nil {
 			logger.Print(err.Error())
@@ -101,5 +100,6 @@ func CreatePaginatorView(
 		Flex:            rootView,
 		PageCounterView: pageCount,
 		PageNameView:    pageName,
+		appCtx:          appContext,
 	}
 }

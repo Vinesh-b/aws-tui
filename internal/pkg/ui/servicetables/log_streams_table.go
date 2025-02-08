@@ -3,7 +3,6 @@ package servicetables
 import (
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
-	"log"
 	"slices"
 	"time"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 type LogStreamsTable struct {
@@ -20,15 +18,11 @@ type LogStreamsTable struct {
 	selectedLogGroup   string
 	searchStreamPrefix string
 	data               []types.LogStream
-	logger             *log.Logger
-	app                *tview.Application
-	api                *awsapi.CloudWatchLogsApi
+	serviceCtx         *core.ServiceContext[awsapi.CloudWatchLogsApi]
 }
 
 func NewLogStreamsTable(
-	app *tview.Application,
-	api *awsapi.CloudWatchLogsApi,
-	logger *log.Logger,
+	serviceContext *core.ServiceContext[awsapi.CloudWatchLogsApi],
 ) *LogStreamsTable {
 
 	var view = &LogStreamsTable{
@@ -38,15 +32,13 @@ func NewLogStreamsTable(
 				"Name",
 				"LastEventTimestamp",
 			},
-			app,
+			serviceContext.AppContext,
 		),
 		selectedLogStream:  "",
 		selectedLogGroup:   "",
 		searchStreamPrefix: "",
 		data:               nil,
-		logger:             logger,
-		app:                app,
-		api:                api,
+		serviceCtx:         serviceContext,
 	}
 
 	view.populateLogStreamsTable(false)
@@ -56,7 +48,7 @@ func NewLogStreamsTable(
 		case core.APP_KEY_BINDINGS.Done:
 			view.SetLogStreamSearchPrefix(view.GetSearchText())
 			view.RefreshStreams(true)
-			view.app.SetFocus(view)
+			view.serviceCtx.App.SetFocus(view)
 		}
 	})
 
@@ -92,11 +84,11 @@ func (inst *LogStreamsTable) populateLogStreamsTable(extend bool) {
 }
 
 func (inst *LogStreamsTable) RefreshStreams(force bool) {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		var err error = nil
-		inst.data, err = inst.api.ListLogStreams(
+		inst.data, err = inst.serviceCtx.Api.ListLogStreams(
 			inst.selectedLogGroup,
 			inst.searchStreamPrefix,
 			force,

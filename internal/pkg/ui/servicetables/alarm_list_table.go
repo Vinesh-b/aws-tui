@@ -1,8 +1,6 @@
 package servicetables
 
 import (
-	"log"
-
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 
@@ -10,7 +8,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 type AlarmListTable struct {
@@ -18,15 +15,11 @@ type AlarmListTable struct {
 	selectedAlarm types.MetricAlarm
 	data          []types.MetricAlarm
 	filtered      []types.MetricAlarm
-	logger        *log.Logger
-	app           *tview.Application
-	api           *awsapi.CloudWatchAlarmsApi
+	serviceCtx    *core.ServiceContext[awsapi.CloudWatchAlarmsApi]
 }
 
 func NewAlarmListTable(
-	app *tview.Application,
-	api *awsapi.CloudWatchAlarmsApi,
-	logger *log.Logger,
+	serviceContext *core.ServiceContext[awsapi.CloudWatchAlarmsApi],
 ) *AlarmListTable {
 
 	var view = &AlarmListTable{
@@ -36,13 +29,11 @@ func NewAlarmListTable(
 				"Name",
 				"State",
 			},
-			app,
+			serviceContext.AppContext,
 		),
 		data:          nil,
 		selectedAlarm: types.MetricAlarm{},
-		logger:        logger,
-		app:           app,
-		api:           api,
+		serviceCtx:    serviceContext,
 	}
 
 	view.populateAlarmsTable(view.data)
@@ -89,7 +80,7 @@ func (inst *AlarmListTable) populateAlarmsTable(data []types.MetricAlarm) {
 }
 
 func (inst *AlarmListTable) FilterbyName(name string) {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		inst.filtered = core.FuzzySearch(
@@ -107,10 +98,10 @@ func (inst *AlarmListTable) FilterbyName(name string) {
 }
 
 func (inst *AlarmListTable) RefreshAlarms(reset bool) {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.api.ListAlarms(reset)
+		var data, err = inst.serviceCtx.Api.ListAlarms(reset)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

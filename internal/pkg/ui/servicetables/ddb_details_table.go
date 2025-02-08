@@ -2,7 +2,6 @@ package servicetables
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"aws-tui/internal/pkg/awsapi"
@@ -12,31 +11,23 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 type DynamoDBDetailsTable struct {
 	*core.DetailsTable
-	data *types.TableDescription
-
+	data          *types.TableDescription
 	selectedTable string
-	logger        *log.Logger
-	app           *tview.Application
-	api           *awsapi.DynamoDBApi
+	serviceCtx    *core.ServiceContext[awsapi.DynamoDBApi]
 }
 
 func NewDynamoDBDetailsTable(
-	app *tview.Application,
-	api *awsapi.DynamoDBApi,
-	logger *log.Logger,
+	serviceContext *core.ServiceContext[awsapi.DynamoDBApi],
 ) *DynamoDBDetailsTable {
 	var table = &DynamoDBDetailsTable{
 		DetailsTable:  core.NewDetailsTable("Table Details"),
 		data:          nil,
 		selectedTable: "",
-		logger:        logger,
-		app:           app,
-		api:           api,
+		serviceCtx:    serviceContext,
 	}
 
 	table.populateDetailsTable()
@@ -88,11 +79,11 @@ func (inst *DynamoDBDetailsTable) populateDetailsTable() {
 }
 
 func (inst *DynamoDBDetailsTable) RefreshDetails() {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		var err error = nil
-		inst.data, err = inst.api.DescribeTable(inst.selectedTable)
+		inst.data, err = inst.serviceCtx.Api.DescribeTable(inst.selectedTable)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

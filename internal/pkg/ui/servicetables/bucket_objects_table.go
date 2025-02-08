@@ -2,7 +2,6 @@ package servicetables
 
 import (
 	"fmt"
-	"log"
 	"path/filepath"
 	"slices"
 	"time"
@@ -14,7 +13,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 type BucketObjectsTable struct {
@@ -27,15 +25,11 @@ type BucketObjectsTable struct {
 	filtered             []types.Object
 	dirs                 []types.CommonPrefix
 	filteredDirs         []types.CommonPrefix
-	logger               *log.Logger
-	app                  *tview.Application
-	api                  *awsapi.S3BucketsApi
+	serviceCtx           *core.ServiceContext[awsapi.S3BucketsApi]
 }
 
 func NewBucketObjectsTable(
-	app *tview.Application,
-	api *awsapi.S3BucketsApi,
-	logger *log.Logger,
+	serviceViewCtx *core.ServiceContext[awsapi.S3BucketsApi],
 ) *BucketObjectsTable {
 	var view = &BucketObjectsTable{
 		SelectableTable: core.NewSelectableTable[types.Object](
@@ -45,7 +39,7 @@ func NewBucketObjectsTable(
 				"Size",
 				"LastModified",
 			},
-			app,
+			serviceViewCtx.AppContext,
 		),
 		ErrorMessageCallback: func(text string, a ...any) {},
 		selectedObject:       types.Object{},
@@ -55,9 +49,7 @@ func NewBucketObjectsTable(
 		filtered:             nil,
 		dirs:                 nil,
 		filteredDirs:         nil,
-		logger:               logger,
-		app:                  app,
-		api:                  api,
+		serviceCtx:           serviceViewCtx,
 	}
 
 	view.populateS3ObjectsTable(nil, nil)
@@ -119,7 +111,7 @@ func (inst *BucketObjectsTable) populateS3ObjectsTable(
 }
 
 func (inst *BucketObjectsTable) FilterByName(name string) {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		inst.filtered = core.FuzzySearch(
@@ -144,10 +136,10 @@ func (inst *BucketObjectsTable) FilterByName(name string) {
 }
 
 func (inst *BucketObjectsTable) RefreshObjects(force bool) {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		var objects, commonPrefixes, err = inst.api.ListObjects(
+		var objects, commonPrefixes, err = inst.serviceCtx.Api.ListObjects(
 			inst.selectedBucket, aws.ToString(inst.selectedObject.Key), force,
 		)
 
@@ -187,7 +179,7 @@ func (inst *BucketObjectsTable) SetSelectedFunc(handler func(row, column int)) {
 			inst.selectedDir = prefix
 			inst.RefreshObjects(true)
 		} else {
-			inst.api.DownloadFile(inst.selectedBucket, prefix, filepath.Base(prefix))
+			inst.serviceCtx.Api.DownloadFile(inst.selectedBucket, prefix, filepath.Base(prefix))
 		}
 
 		handler(row, column)

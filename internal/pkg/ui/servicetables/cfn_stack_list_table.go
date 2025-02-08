@@ -1,7 +1,6 @@
 package servicetables
 
 import (
-	"log"
 	"time"
 
 	"aws-tui/internal/pkg/awsapi"
@@ -11,7 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 type StackListTable struct {
@@ -19,15 +17,11 @@ type StackListTable struct {
 	data          []types.StackSummary
 	filtered      []types.StackSummary
 	selectedStack types.StackSummary
-	logger        *log.Logger
-	app           *tview.Application
-	api           *awsapi.CloudFormationApi
+	serviceCtx    *core.ServiceContext[awsapi.CloudFormationApi]
 }
 
 func NewStackListTable(
-	app *tview.Application,
-	api *awsapi.CloudFormationApi,
-	logger *log.Logger,
+	serviceContext *core.ServiceContext[awsapi.CloudFormationApi],
 ) *StackListTable {
 
 	var view = &StackListTable{
@@ -38,12 +32,10 @@ func NewStackListTable(
 				"Status",
 				"LastUpdated",
 			},
-			app,
+			serviceContext.AppContext,
 		),
-		data:   nil,
-		logger: logger,
-		app:    app,
-		api:    api,
+		data:       nil,
+		serviceCtx: serviceContext,
 	}
 
 	view.populateStacksTable(view.data)
@@ -84,7 +76,7 @@ func (inst *StackListTable) populateStacksTable(data []types.StackSummary) {
 }
 
 func (inst *StackListTable) FilterByName(name string) {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		inst.filtered = core.FuzzySearch(
@@ -102,10 +94,10 @@ func (inst *StackListTable) FilterByName(name string) {
 }
 
 func (inst *StackListTable) RefreshStacks(reset bool) {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.api.ListStacks(reset)
+		var data, err = inst.serviceCtx.Api.ListStacks(reset)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

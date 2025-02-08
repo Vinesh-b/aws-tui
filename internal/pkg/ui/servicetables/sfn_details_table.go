@@ -3,7 +3,6 @@ package servicetables
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
@@ -13,8 +12,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	"github.com/aws/aws-sdk-go-v2/service/sfn/types"
-
-	"github.com/rivo/tview"
 )
 
 type SfnDetailsTable struct {
@@ -23,15 +20,11 @@ type SfnDetailsTable struct {
 	selectedStateMachineArn string
 	logGroups               []string
 	logGroupsChan           chan []string
-	logger                  *log.Logger
-	app                     *tview.Application
-	api                     *awsapi.StateMachineApi
+	serviceCtx              *core.ServiceContext[awsapi.StateMachineApi]
 }
 
 func NewSfnDetailsTable(
-	app *tview.Application,
-	api *awsapi.StateMachineApi,
-	logger *log.Logger,
+	serviceViewCtx *core.ServiceContext[awsapi.StateMachineApi],
 ) *SfnDetailsTable {
 	var table = &SfnDetailsTable{
 		DetailsTable:            core.NewDetailsTable("State Machine Details"),
@@ -39,9 +32,7 @@ func NewSfnDetailsTable(
 		logGroups:               []string{},
 		logGroupsChan:           make(chan []string),
 		selectedStateMachineArn: "",
-		logger:                  logger,
-		app:                     app,
-		api:                     api,
+		serviceCtx:              serviceViewCtx,
 	}
 
 	table.populateTable()
@@ -92,7 +83,7 @@ func (inst *SfnDetailsTable) populateTable() {
 func (inst *SfnDetailsTable) ClearDetails() {
 	inst.data = nil
 	inst.logGroups = nil
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 	dataLoader.AsyncLoadData(func() {})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
@@ -114,11 +105,11 @@ ChanFlushLoop:
 	}
 
 	inst.selectedStateMachineArn = aws.ToString(stateMachine.StateMachineArn)
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		var err error
-		inst.data, err = inst.api.DescribeStateMachine(inst.selectedStateMachineArn)
+		inst.data, err = inst.serviceCtx.Api.DescribeStateMachine(inst.selectedStateMachineArn)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 			return

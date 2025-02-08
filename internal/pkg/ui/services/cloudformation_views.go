@@ -1,13 +1,9 @@
 package services
 
 import (
-	"log"
-
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 	tables "aws-tui/internal/pkg/ui/servicetables"
-
-	"github.com/aws/aws-sdk-go-v2/aws"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -17,16 +13,13 @@ type CloudFormationDetailsPageView struct {
 	*core.ServicePageView
 	stackListTable    *tables.StackListTable
 	stackDetailsTable *tables.StackDetailsTable
-	app               *tview.Application
-	api               *awsapi.CloudFormationApi
+	serviceCtx        *core.ServiceContext[awsapi.CloudFormationApi]
 }
 
 func NewStacksDetailsPageView(
 	stackListTable *tables.StackListTable,
 	stackDetailsTable *tables.StackDetailsTable,
-	app *tview.Application,
-	api *awsapi.CloudFormationApi,
-	logger *log.Logger,
+	serviceContext *core.ServiceContext[awsapi.CloudFormationApi],
 ) *CloudFormationDetailsPageView {
 	const stackDetailsSize = 5000
 	const stackTablesSize = 3000
@@ -37,7 +30,7 @@ func NewStacksDetailsPageView(
 		tview.FlexRow,
 	)
 
-	var serviceView = core.NewServicePageView(app, logger)
+	var serviceView = core.NewServicePageView(serviceContext.AppContext)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
@@ -58,8 +51,7 @@ func NewStacksDetailsPageView(
 		ServicePageView:   serviceView,
 		stackListTable:    stackListTable,
 		stackDetailsTable: stackDetailsTable,
-		app:               app,
-		api:               api,
+		serviceCtx:        serviceContext,
 	}
 }
 
@@ -74,15 +66,12 @@ type CloudFormationStackEventsPageView struct {
 	stackEventsTable *tables.StackEventsTable
 	selectedStack    string
 	searchPositions  []int
-	app              *tview.Application
-	api              *awsapi.CloudFormationApi
+	serviceCtx       *core.ServiceContext[awsapi.CloudFormationApi]
 }
 
 func NewStackEventsPageView(
 	stackEventsTable *tables.StackEventsTable,
-	app *tview.Application,
-	api *awsapi.CloudFormationApi,
-	logger *log.Logger,
+	serviceContext *core.ServiceContext[awsapi.CloudFormationApi],
 ) *CloudFormationStackEventsPageView {
 	var expandedMsgView = tview.NewTextArea()
 	expandedMsgView.
@@ -104,7 +93,7 @@ func NewStackEventsPageView(
 		tview.FlexRow,
 	)
 
-	var serviceView = core.NewServicePageView(app, logger)
+	var serviceView = core.NewServicePageView(serviceContext.AppContext)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
@@ -122,8 +111,7 @@ func NewStackEventsPageView(
 		ServicePageView:  serviceView,
 		stackEventsTable: stackEventsTable,
 		selectedStack:    "",
-		app:              app,
-		api:              api,
+		serviceCtx:       serviceContext,
 	}
 }
 
@@ -139,28 +127,26 @@ func (inst *CloudFormationStackEventsPageView) InitInputCapture() {
 	})
 }
 
-func NewStacksHomeView(
-	app *tview.Application,
-	config aws.Config,
-	logger *log.Logger,
-) core.ServicePage {
+func NewStacksHomeView(appCtx *core.AppContext) core.ServicePage {
 	core.ChangeColourScheme(tcell.NewHexColor(0x660033))
 	defer core.ResetGlobalStyle()
 
 	var (
-		api               = awsapi.NewCloudFormationApi(config, logger)
+		api        = awsapi.NewCloudFormationApi(*appCtx.Config, appCtx.Logger)
+		serviceCtx = core.NewServiceViewContext(appCtx, api)
+
 		stacksDetailsView = NewStacksDetailsPageView(
-			tables.NewStackListTable(app, api, logger),
-			tables.NewStackDetailsTable(app, api, logger),
-			app, api, logger,
+			tables.NewStackListTable(serviceCtx),
+			tables.NewStackDetailsTable(serviceCtx),
+			serviceCtx,
 		)
 		stackEventsView = NewStackEventsPageView(
-			tables.NewStackEventsTable(app, api, logger),
-			app, api, logger,
+			tables.NewStackEventsTable(serviceCtx),
+			serviceCtx,
 		)
 	)
 
-	var serviceRootView = core.NewServiceRootView(string(CLOUDFORMATION), app, &config, logger)
+	var serviceRootView = core.NewServiceRootView(string(CLOUDFORMATION), appCtx)
 
 	serviceRootView.
 		AddAndSwitchToPage("Stacks", stacksDetailsView, true).

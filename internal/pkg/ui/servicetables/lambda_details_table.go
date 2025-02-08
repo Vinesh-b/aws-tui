@@ -2,36 +2,27 @@ package servicetables
 
 import (
 	"fmt"
-	"log"
 
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
-
-	"github.com/rivo/tview"
 )
 
 type LambdaDetailsTable struct {
 	*core.DetailsTable
-	data   types.FunctionConfiguration
-	logger *log.Logger
-	app    *tview.Application
-	api    *awsapi.LambdaApi
+	data       types.FunctionConfiguration
+	serviceCtx *core.ServiceContext[awsapi.LambdaApi]
 }
 
 func NewLambdaDetailsTable(
-	app *tview.Application,
-	api *awsapi.LambdaApi,
-	logger *log.Logger,
+	serviceCtx *core.ServiceContext[awsapi.LambdaApi],
 ) *LambdaDetailsTable {
 	var table = &LambdaDetailsTable{
 		DetailsTable: core.NewDetailsTable("Lambda Details"),
 		data:         types.FunctionConfiguration{},
-		logger:       logger,
-		app:          app,
-		api:          api,
+		serviceCtx:   serviceCtx,
 	}
 
 	table.populateLambdaDetailsTable()
@@ -74,7 +65,7 @@ func (inst *LambdaDetailsTable) populateLambdaDetailsTable() {
 func (inst *LambdaDetailsTable) RefreshDetails(config types.FunctionConfiguration) {
 	inst.data = config
 
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {})
 

@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -41,25 +40,20 @@ type ServicePageView struct {
 	errorView      *MessagePromptView
 	infoView       *MessagePromptView
 	lastFocusView  tview.Primitive
-	app            *tview.Application
-	logger         *log.Logger
+	appCtx         *AppContext
 }
 
-func NewServicePageView(
-	app *tview.Application,
-	logger *log.Logger,
-) *ServicePageView {
+func NewServicePageView(appCtx *AppContext) *ServicePageView {
 	var flex = tview.NewFlex()
-	var viewNav = NewViewNavigation2D(flex, nil, app)
+	var viewNav = NewViewNavigation2D(flex, nil, appCtx.App)
 
 	var view = &ServicePageView{
 		MainPage:       flex,
 		Pages:          tview.NewPages(),
-		errorView:      NewMessagePromptView(app),
-		infoView:       NewMessagePromptView(app),
+		errorView:      NewMessagePromptView(appCtx.App),
+		infoView:       NewMessagePromptView(appCtx.App),
 		viewNavigation: viewNav,
-		app:            app,
-		logger:         logger,
+		appCtx:         appCtx,
 	}
 
 	view.MainPage.SetDirection(tview.FlexRow)
@@ -73,12 +67,12 @@ func NewServicePageView(
 
 	view.errorView.SetSelectedFunc(func() {
 		view.Pages.HidePage(string(ErrorPrompt))
-		view.app.SetFocus(view.GetLastFocusedView())
+		view.appCtx.App.SetFocus(view.GetLastFocusedView())
 	})
 
 	view.infoView.SetSelectedFunc(func() {
 		view.Pages.HidePage(string(InfoPrompt))
-		view.app.SetFocus(view.GetLastFocusedView())
+		view.appCtx.App.SetFocus(view.GetLastFocusedView())
 	})
 
 	return view
@@ -102,13 +96,13 @@ func (inst *ServicePageView) DisplayMessage(messageType MessagePromptType, text 
 	case ErrorPrompt:
 		view = inst.errorView
 	default:
-		inst.logger.Print(message)
+		inst.appCtx.Logger.Print(message)
 		return
 	}
 
 	inst.Pages.ShowPage(string(messageType))
 	view.SetText(message)
-	inst.app.SetFocus(view)
+	inst.appCtx.App.SetFocus(view)
 }
 
 func (inst *ServicePageView) GetLastFocusedView() tview.Primitive {

@@ -1,8 +1,6 @@
 package services
 
 import (
-	"log"
-
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 	tables "aws-tui/internal/pkg/ui/servicetables"
@@ -19,20 +17,16 @@ type SystemManagerDetailsPageView struct {
 	SSMParametersListTable   *tables.SSMParametersListTable
 	SSMParameterHistoryTable *tables.SSMParameterHistoryTable
 	TabView                  *core.TabView
-
-	app *tview.Application
-	api *awsapi.SystemsManagerApi
+	serviceCtx               *core.ServiceContext[awsapi.SystemsManagerApi]
 }
 
 func NewSystemManagerDetailsPageView(
 	ssmParamsListTable *tables.SSMParametersListTable,
 	ssmParamHistoryTable *tables.SSMParameterHistoryTable,
-	app *tview.Application,
-	api *awsapi.SystemsManagerApi,
-	logger *log.Logger,
+	serviceViewCtx *core.ServiceContext[awsapi.SystemsManagerApi],
 ) *SystemManagerDetailsPageView {
 	var paramValueView = core.JsonTextView[any]{
-		TextView: core.NewSearchableTextView("", app),
+		TextView: core.NewSearchableTextView("", serviceViewCtx.AppContext),
 		ExtractTextFunc: func(data any) string {
 			switch data.(type) {
 			case types.Parameter:
@@ -56,7 +50,7 @@ func NewSystemManagerDetailsPageView(
 	const expandItemViewSize = 25
 	const itemsTableSize = 75
 
-	var tabView = core.NewTabView(app, logger).
+	var tabView = core.NewTabView(serviceViewCtx.AppContext).
 		AddAndSwitchToTab("Parameters", ssmParamsListTable, 0, 1, true).
 		AddTab("Param History", ssmParamHistoryTable, 0, 1, true)
 
@@ -65,7 +59,7 @@ func NewSystemManagerDetailsPageView(
 		tabView, itemsTableSize,
 		tview.FlexRow,
 	)
-	var serviceView = core.NewServicePageView(app, logger)
+	var serviceView = core.NewServicePageView(serviceViewCtx.AppContext)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	var view = &SystemManagerDetailsPageView{
@@ -73,8 +67,7 @@ func NewSystemManagerDetailsPageView(
 		SSMParametersListTable:   ssmParamsListTable,
 		SSMParameterHistoryTable: ssmParamHistoryTable,
 		TabView:                  tabView,
-		app:                      app,
-		api:                      api,
+		serviceCtx:               serviceViewCtx,
 	}
 
 	var errorHandler = func(text string, a ...any) {
@@ -102,24 +95,22 @@ func (inst *SystemManagerDetailsPageView) initInputCapture() {
 	})
 }
 
-func NewSystemManagerHomeView(
-	app *tview.Application,
-	config aws.Config,
-	logger *log.Logger,
-) core.ServicePage {
+func NewSystemManagerHomeView(appCtx *core.AppContext) core.ServicePage {
 	core.ChangeColourScheme(tcell.NewHexColor(0xFF5AAD))
 	defer core.ResetGlobalStyle()
 
 	var (
-		api                       = awsapi.NewSystemsManagerApi(config, logger)
+		api        = awsapi.NewSystemsManagerApi(*appCtx.Config, appCtx.Logger)
+		serviceCtx = core.NewServiceViewContext(appCtx, api)
+
 		systemManagersDetailsView = NewSystemManagerDetailsPageView(
-			tables.NewSSMParametersListTable(app, api, logger),
-			tables.NewSSMParameterHistoryTable(app, api, logger),
-			app, api, logger,
+			tables.NewSSMParametersListTable(serviceCtx),
+			tables.NewSSMParameterHistoryTable(serviceCtx),
+			serviceCtx,
 		)
 	)
 
-	var serviceRootView = core.NewServiceRootView(string(SYSTEMS_MANAGER), app, &config, logger)
+	var serviceRootView = core.NewServiceRootView(string(SYSTEMS_MANAGER), appCtx)
 
 	serviceRootView.
 		AddAndSwitchToPage("Parameter Store", systemManagersDetailsView, true)

@@ -1,11 +1,8 @@
 package services
 
 import (
-	"log"
-
 	"aws-tui/internal/pkg/ui/core"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -18,11 +15,7 @@ func (inst *HelpView) GetLastFocusedView() tview.Primitive {
 	return inst.TextView
 }
 
-func NewHelpHomeView(
-	app *tview.Application,
-	config aws.Config,
-	logger *log.Logger,
-) core.ServicePage {
+func NewHelpHomeView(appCtx *core.AppContext) core.ServicePage {
 	core.ChangeColourScheme(tcell.NewHexColor(0x005555))
 	defer core.ResetGlobalStyle()
 
@@ -61,7 +54,7 @@ Text Area:
 		SetTitleAlign(tview.AlignLeft).
 		SetBorder(true)
 
-	var serviceRootView = core.NewServiceRootView(string(HELP), app, &config, logger)
+	var serviceRootView = core.NewServiceRootView(string(HELP), appCtx)
 
 	serviceRootView.AddAndSwitchToPage("Help Home", helpNavigation, true)
 

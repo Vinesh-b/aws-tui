@@ -2,7 +2,6 @@ package servicetables
 
 import (
 	"aws-tui/internal/pkg/ui/core"
-	"log"
 	"strings"
 	"time"
 
@@ -21,8 +20,7 @@ type InsightsQueryInputView struct {
 	DoneButton   *core.Button
 	CancelButton *core.Button
 
-	logger         *log.Logger
-	app            *tview.Application
+	appCtx         *core.AppContext
 	viewNavigation *core.ViewNavigation1D
 	queryTextArea  *tview.TextArea
 	startDateInput *core.DateTimeInputField
@@ -30,16 +28,15 @@ type InsightsQueryInputView struct {
 	query          InsightsQuery
 }
 
-func NewInsightsQueryInputView(app *tview.Application, logger *log.Logger) *InsightsQueryInputView {
+func NewInsightsQueryInputView(appContext *core.AppContext) *InsightsQueryInputView {
 	var flex = tview.NewFlex().SetDirection(tview.FlexRow)
 	var view = &InsightsQueryInputView{
 		Flex:         flex,
 		DoneButton:   core.NewButton("Done"),
 		CancelButton: core.NewButton("Cancel"),
 
-		logger:         logger,
-		app:            app,
-		viewNavigation: core.NewViewNavigation1D(flex, nil, app),
+		appCtx:         appContext,
+		viewNavigation: core.NewViewNavigation1D(flex, nil, appContext.App),
 		queryTextArea:  tview.NewTextArea(),
 		startDateInput: core.NewDateTimeInputField(),
 		endDateInput:   core.NewDateTimeInputField(),
@@ -133,9 +130,9 @@ type FloatingInsightsQueryInputView struct {
 }
 
 func NewFloatingInsightsQueryInputView(
-	app *tview.Application, logger *log.Logger,
+	appContext *core.AppContext,
 ) *FloatingInsightsQueryInputView {
-	var input = NewInsightsQueryInputView(app, logger)
+	var input = NewInsightsQueryInputView(appContext)
 
 	return &FloatingInsightsQueryInputView{
 		Flex:  core.FloatingView("Query", input, 0, 14),

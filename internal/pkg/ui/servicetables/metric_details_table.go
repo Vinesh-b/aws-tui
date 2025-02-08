@@ -1,36 +1,26 @@
 package servicetables
 
 import (
-	"log"
-
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
-
-	"github.com/rivo/tview"
 )
 
 type MetricDetailsTable struct {
 	*core.DetailsTable
-	data   types.Metric
-	logger *log.Logger
-	app    *tview.Application
-	api    *awsapi.CloudWatchMetricsApi
+	data       types.Metric
+	serviceCtx *core.ServiceContext[awsapi.CloudWatchMetricsApi]
 }
 
 func NewMetricDetailsTable(
-	app *tview.Application,
-	api *awsapi.CloudWatchMetricsApi,
-	logger *log.Logger,
+	serviceViewCtx *core.ServiceContext[awsapi.CloudWatchMetricsApi],
 ) *MetricDetailsTable {
 	var view = &MetricDetailsTable{
 		DetailsTable: core.NewDetailsTable("Metric Details"),
 		data:         types.Metric{},
-		logger:       logger,
-		app:          app,
-		api:          api,
+		serviceCtx:   serviceViewCtx,
 	}
 
 	return view
@@ -59,7 +49,7 @@ func (inst *MetricDetailsTable) populateMetricDetailsTable() {
 
 func (inst *MetricDetailsTable) RefreshDetails(metric types.Metric, reset bool) {
 	inst.data = metric
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {})
 

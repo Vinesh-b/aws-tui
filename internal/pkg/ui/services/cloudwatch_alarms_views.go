@@ -1,13 +1,9 @@
 package services
 
 import (
-	"log"
-
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 	tables "aws-tui/internal/pkg/ui/servicetables"
-
-	"github.com/aws/aws-sdk-go-v2/aws"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -18,17 +14,14 @@ type AlarmsDetailsPageView struct {
 	AlarmsTable  *tables.AlarmListTable
 	HistoryTable *tables.AlarmHistoryTable
 	DetailsTable *tables.AlarmDetailsTable
-	app          *tview.Application
-	api          *awsapi.CloudWatchAlarmsApi
+	serviceCtx   *core.ServiceContext[awsapi.CloudWatchAlarmsApi]
 }
 
 func NewAlarmsDetailsPageView(
 	alarmListTable *tables.AlarmListTable,
 	alarmHistoryTable *tables.AlarmHistoryTable,
 	alarmDetailsTable *tables.AlarmDetailsTable,
-	app *tview.Application,
-	api *awsapi.CloudWatchAlarmsApi,
-	logger *log.Logger,
+	serviceContext *core.ServiceContext[awsapi.CloudWatchAlarmsApi],
 ) *AlarmsDetailsPageView {
 	const alarmsTableSize = 3500
 	const alarmHistorySize = 3000
@@ -43,7 +36,7 @@ func NewAlarmsDetailsPageView(
 		AddItem(alarmDetailsTable, 14, 0, false).
 		AddItem(resizableView, 0, 1, true)
 
-	var serviceView = core.NewServicePageView(app, logger)
+	var serviceView = core.NewServicePageView(serviceContext.AppContext)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, false)
 
 	serviceView.InitViewNavigation(
@@ -67,8 +60,7 @@ func NewAlarmsDetailsPageView(
 		AlarmsTable:     alarmListTable,
 		DetailsTable:    alarmDetailsTable,
 		HistoryTable:    alarmHistoryTable,
-		app:             app,
-		api:             api,
+		serviceCtx:      serviceContext,
 	}
 
 }
@@ -97,24 +89,22 @@ func (inst *AlarmsDetailsPageView) InitInputCapture() {
 	})
 }
 
-func NewAlarmsHomeView(
-	app *tview.Application,
-	config aws.Config,
-	logger *log.Logger,
-) core.ServicePage {
+func NewAlarmsHomeView(appCtx *core.AppContext) core.ServicePage {
 	core.ChangeColourScheme(tcell.NewHexColor(0x660000))
 	defer core.ResetGlobalStyle()
 
-	var api = awsapi.NewCloudWatchAlarmsApi(config, logger)
+	var api = awsapi.NewCloudWatchAlarmsApi(*appCtx.Config, appCtx.Logger)
+	var serviceCtx = core.NewServiceViewContext(appCtx, api)
+
 	var alarmsDetailsView = NewAlarmsDetailsPageView(
-		tables.NewAlarmListTable(app, api, logger),
-		tables.NewAlarmHistoryTable(app, api, logger),
-		tables.NewAlarmDetailsTable(app, api, logger),
-		app, api, logger,
+		tables.NewAlarmListTable(serviceCtx),
+		tables.NewAlarmHistoryTable(serviceCtx),
+		tables.NewAlarmDetailsTable(serviceCtx),
+		serviceCtx,
 	)
 	alarmsDetailsView.InitInputCapture()
 
-	var serviceRootView = core.NewServiceRootView(string(CLOUDWATCH_ALARMS), app, &config, logger)
+	var serviceRootView = core.NewServiceRootView(string(CLOUDWATCH_ALARMS), appCtx)
 
 	serviceRootView.AddAndSwitchToPage("Alarms", alarmsDetailsView, true)
 

@@ -1,7 +1,6 @@
 package servicetables
 
 import (
-	"log"
 	"time"
 
 	"aws-tui/internal/pkg/awsapi"
@@ -10,22 +9,17 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 type BucketListTable struct {
 	*core.SelectableTable[any]
 	selectedBucket string
 	data           []types.Bucket
-	logger         *log.Logger
-	app            *tview.Application
-	api            *awsapi.S3BucketsApi
+	serviceCtx     *core.ServiceContext[awsapi.S3BucketsApi]
 }
 
 func NewBucketListTable(
-	app *tview.Application,
-	api *awsapi.S3BucketsApi,
-	logger *log.Logger,
+	serviceViewCtx *core.ServiceContext[awsapi.S3BucketsApi],
 ) *BucketListTable {
 
 	var view = &BucketListTable{
@@ -35,12 +29,10 @@ func NewBucketListTable(
 				"Name",
 				"CreationDate",
 			},
-			app,
+			serviceViewCtx.AppContext,
 		),
-		data:   nil,
-		logger: logger,
-		app:    app,
-		api:    api,
+		data:       nil,
+		serviceCtx: serviceViewCtx,
 	}
 
 	view.populateS3BucketsTable()
@@ -66,14 +58,14 @@ func (inst *BucketListTable) populateS3BucketsTable() {
 
 func (inst *BucketListTable) RefreshBuckets(force bool) {
 	var search = inst.GetSearchText()
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		if len(search) > 0 {
-			inst.data = inst.api.FilterByName(search)
+			inst.data = inst.serviceCtx.Api.FilterByName(search)
 		} else {
 			var err error = nil
-			inst.data, err = inst.api.ListBuckets(force)
+			inst.data, err = inst.serviceCtx.Api.ListBuckets(force)
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
 			}

@@ -1,8 +1,6 @@
 package servicetables
 
 import (
-	"log"
-
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 
@@ -10,7 +8,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 type MetricListTable struct {
@@ -19,15 +16,11 @@ type MetricListTable struct {
 	currentSearch  string
 	data           []types.Metric
 	filtered       []types.Metric
-	logger         *log.Logger
-	app            *tview.Application
-	api            *awsapi.CloudWatchMetricsApi
+	serviceCtx     *core.ServiceContext[awsapi.CloudWatchMetricsApi]
 }
 
 func NewMetricsTable(
-	app *tview.Application,
-	api *awsapi.CloudWatchMetricsApi,
-	logger *log.Logger,
+	serviceViewCtx *core.ServiceContext[awsapi.CloudWatchMetricsApi],
 ) *MetricListTable {
 	var view = &MetricListTable{
 		SelectableTable: core.NewSelectableTable[types.Metric](
@@ -36,14 +29,12 @@ func NewMetricsTable(
 				"Namespace",
 				"Name",
 			},
-			app,
+			serviceViewCtx.AppContext,
 		),
 		selectedMetric: types.Metric{},
 		currentSearch:  "",
 		data:           nil,
-		logger:         logger,
-		app:            app,
-		api:            api,
+		serviceCtx:     serviceViewCtx,
 	}
 
 	view.populateMetricsTable(view.data)
@@ -79,7 +70,7 @@ func (inst *MetricListTable) populateMetricsTable(data []types.Metric) {
 }
 
 func (inst *MetricListTable) FilterByName(name string) {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		inst.filtered = core.FuzzySearch(
@@ -97,10 +88,10 @@ func (inst *MetricListTable) FilterByName(name string) {
 }
 
 func (inst *MetricListTable) RefreshMetrics(reset bool) {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.api.ListMetrics(nil, "", "", reset)
+		var data, err = inst.serviceCtx.Api.ListMetrics(nil, "", "", reset)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

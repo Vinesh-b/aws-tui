@@ -1,13 +1,9 @@
 package services
 
 import (
-	"log"
-
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 	tables "aws-tui/internal/pkg/ui/servicetables"
-
-	"github.com/aws/aws-sdk-go-v2/aws"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -19,18 +15,17 @@ type LogEventsPageView struct {
 	ExpandedLogsTextArea *core.SearchableTextView
 	selectedLogGroup     string
 	selectedLogStream    string
-	app                  *tview.Application
-	api                  *awsapi.CloudWatchLogsApi
+	serviceCtx           *core.ServiceContext[awsapi.CloudWatchLogsApi]
 }
 
 func NewLogEventsPageView(
 	logEventsTable *tables.LogEventsTable,
-	app *tview.Application,
-	api *awsapi.CloudWatchLogsApi,
-	logger *log.Logger,
+	serviceViewCtx *core.ServiceContext[awsapi.CloudWatchLogsApi],
 ) *LogEventsPageView {
 
-	var expandedLogsView = core.CreateJsonTableDataView(app, logEventsTable, 1)
+	var expandedLogsView = core.CreateJsonTableDataView(
+		serviceViewCtx.AppContext, logEventsTable, 1,
+	)
 
 	const expandedLogsSize = 7
 	const logTableSize = 13
@@ -41,7 +36,7 @@ func NewLogEventsPageView(
 		tview.FlexRow,
 	)
 
-	var serviceView = core.NewServicePageView(app, logger)
+	var serviceView = core.NewServicePageView(serviceViewCtx.AppContext)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
@@ -61,8 +56,7 @@ func NewLogEventsPageView(
 		ExpandedLogsTextArea: expandedLogsView,
 		selectedLogGroup:     "",
 		selectedLogStream:    "",
-		app:                  app,
-		api:                  api,
+		serviceCtx:           serviceViewCtx,
 	}
 }
 
@@ -72,19 +66,16 @@ type LogStreamsPageView struct {
 	*core.ServicePageView
 	LogStreamsTable       *tables.LogStreamsTable
 	LogStreamDetailsTable *tables.LogStreamDetailsTable
-	app                   *tview.Application
-	api                   *awsapi.CloudWatchLogsApi
+	serviceCtx            *core.ServiceContext[awsapi.CloudWatchLogsApi]
 }
 
 func NewLogStreamsPageView(
 	logStreamDetailsTable *tables.LogStreamDetailsTable,
 	logStreamsTable *tables.LogStreamsTable,
-	app *tview.Application,
-	api *awsapi.CloudWatchLogsApi,
-	logger *log.Logger,
+	serviceCtx *core.ServiceContext[awsapi.CloudWatchLogsApi],
 ) *LogStreamsPageView {
 
-	var serviceView = core.NewServicePageView(app, logger)
+	var serviceView = core.NewServicePageView(serviceCtx.AppContext)
 	serviceView.MainPage.
 		AddItem(logStreamDetailsTable, 8, 0, true).
 		AddItem(logStreamsTable, 0, 1, true)
@@ -104,8 +95,7 @@ func NewLogStreamsPageView(
 		ServicePageView:       serviceView,
 		LogStreamsTable:       logStreamsTable,
 		LogStreamDetailsTable: logStreamDetailsTable,
-		app:                   app,
-		api:                   api,
+		serviceCtx:            serviceCtx,
 	}
 }
 
@@ -121,19 +111,16 @@ type LogGroupsPageView struct {
 	LogGroupsTable       *tables.LogGroupsTable
 	LogGroupDetailsTable *tables.LogGroupDetailsTable
 	selectedLogGroup     string
-	app                  *tview.Application
-	api                  *awsapi.CloudWatchLogsApi
+	serviceCtx           *core.ServiceContext[awsapi.CloudWatchLogsApi]
 }
 
 func NewLogGroupsPageView(
 	logGroupDetailsTable *tables.LogGroupDetailsTable,
 	logGroupsTable *tables.LogGroupsTable,
-	app *tview.Application,
-	api *awsapi.CloudWatchLogsApi,
-	logger *log.Logger,
+	serviceCtx *core.ServiceContext[awsapi.CloudWatchLogsApi],
 ) *LogGroupsPageView {
 
-	var serviceView = core.NewServicePageView(app, logger)
+	var serviceView = core.NewServicePageView(serviceCtx.AppContext)
 	serviceView.MainPage.
 		AddItem(logGroupDetailsTable, 8, 0, true).
 		AddItem(logGroupsTable, 0, 1, true)
@@ -154,8 +141,7 @@ func NewLogGroupsPageView(
 		LogGroupsTable:       logGroupsTable,
 		LogGroupDetailsTable: logGroupDetailsTable,
 		selectedLogGroup:     "",
-		app:                  app,
-		api:                  api,
+		serviceCtx:           serviceCtx,
 	}
 }
 
@@ -166,31 +152,29 @@ func (inst *LogGroupsPageView) InitInputCapture() {
 	})
 }
 
-func NewLogsHomeView(
-	app *tview.Application,
-	config aws.Config,
-	logger *log.Logger,
-) core.ServicePage {
+func NewLogsHomeView(appCtx *core.AppContext) core.ServicePage {
 	core.ChangeColourScheme(tcell.NewHexColor(0xBB00DD))
 	defer core.ResetGlobalStyle()
 
-	var api = awsapi.NewCloudWatchLogsApi(config, logger)
+	var api = awsapi.NewCloudWatchLogsApi(*appCtx.Config, appCtx.Logger)
+	var serviceCtx = core.NewServiceViewContext(appCtx, api)
+
 	var logEventsView = NewLogEventsPageView(
-		tables.NewLogEventsTable(app, api, logger),
-		app, api, logger,
+		tables.NewLogEventsTable(serviceCtx),
+		serviceCtx,
 	)
 	var logStreamsView = NewLogStreamsPageView(
-		tables.NewLogStreamDetailsTable(app, api, logger),
-		tables.NewLogStreamsTable(app, api, logger),
-		app, api, logger,
+		tables.NewLogStreamDetailsTable(serviceCtx),
+		tables.NewLogStreamsTable(serviceCtx),
+		serviceCtx,
 	)
 	var logGroupsView = NewLogGroupsPageView(
-		tables.NewLogGroupDetailsTable(app, api, logger),
-		tables.NewLogGroupsTable(app, api, logger),
-		app, api, logger,
+		tables.NewLogGroupDetailsTable(serviceCtx),
+		tables.NewLogGroupsTable(serviceCtx),
+		serviceCtx,
 	)
 
-	var serviceRootView = core.NewServiceRootView(string(CLOUDWATCH_LOGS_GROUPS), app, &config, logger)
+	var serviceRootView = core.NewServiceRootView(string(CLOUDWATCH_LOGS_GROUPS), appCtx)
 
 	serviceRootView.
 		AddAndSwitchToPage("Groups", logGroupsView, true).

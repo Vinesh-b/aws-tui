@@ -1,13 +1,10 @@
 package services
 
 import (
-	"log"
-
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 	tables "aws-tui/internal/pkg/ui/servicetables"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sfn/types"
 
 	"github.com/gdamore/tcell/v2"
@@ -20,19 +17,16 @@ type SfnDetailsPageView struct {
 	sfnListTable         *tables.SfnListTable
 	sfnExecutionsTable   *tables.SfnExecutionsTable
 	sfnDetailsTable      *tables.SfnDetailsTable
-	app                  *tview.Application
-	api                  *awsapi.StateMachineApi
+	serviceCtx           *core.ServiceContext[awsapi.StateMachineApi]
 }
 
 func NewSfnDetailsPageView(
 	sfnListTable *tables.SfnListTable,
 	sfnExecutionsTable *tables.SfnExecutionsTable,
 	stateMachineDetailsTable *tables.SfnDetailsTable,
-	app *tview.Application,
-	api *awsapi.StateMachineApi,
-	logger *log.Logger,
+	serviceViewCtx *core.ServiceContext[awsapi.StateMachineApi],
 ) *SfnDetailsPageView {
-	var tabView = core.NewTabView(app, logger).
+	var tabView = core.NewTabView(serviceViewCtx.AppContext).
 		AddAndSwitchToTab("Executions", sfnExecutionsTable, 0, 1, true).
 		AddTab("Details", stateMachineDetailsTable, 0, 1, true)
 
@@ -45,7 +39,7 @@ func NewSfnDetailsPageView(
 		tview.FlexRow,
 	)
 
-	var serviceView = core.NewServicePageView(app, logger)
+	var serviceView = core.NewServicePageView(serviceViewCtx.AppContext)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
@@ -69,8 +63,7 @@ func NewSfnDetailsPageView(
 		sfnListTable:         sfnListTable,
 		sfnExecutionsTable:   sfnExecutionsTable,
 		sfnDetailsTable:      stateMachineDetailsTable,
-		app:                  app,
-		api:                  api,
+		serviceCtx:           serviceViewCtx,
 	}
 
 	detailsView.initInputCapture()
@@ -104,20 +97,17 @@ type SfnExectionDetailsPageView struct {
 	summaryTable     *tables.SfnExecutionSummaryTable
 	detailsTable     *tables.SfnExecutionDetailsTable
 	searchInput      *tview.InputField
-	app              *tview.Application
-	api              *awsapi.StateMachineApi
+	serviceCtx       *core.ServiceContext[awsapi.StateMachineApi]
 }
 
 func NewSfnExectionDetailsPage(
 	executionSummary *tables.SfnExecutionSummaryTable,
 	executionDetails *tables.SfnExecutionDetailsTable,
-	app *tview.Application,
-	api *awsapi.StateMachineApi,
-	logger *log.Logger,
+	serviceViewCtx *core.ServiceContext[awsapi.StateMachineApi],
 ) *SfnExectionDetailsPageView {
 
 	var inputOutputExpandedView = core.JsonTextView[string]{
-		TextView: core.NewSearchableTextView("", app),
+		TextView: core.NewSearchableTextView("", serviceViewCtx.AppContext),
 		ExtractTextFunc: func(data string) string {
 			return data
 		},
@@ -139,7 +129,7 @@ func NewSfnExectionDetailsPage(
 	executionDetails.SetSelectedFunc(selectionFunc)
 	executionDetails.SetSelectionChangedFunc(selectionFunc)
 
-	var tabView = core.NewTabView(app, logger).
+	var tabView = core.NewTabView(serviceViewCtx.AppContext).
 		AddAndSwitchToTab("Input/Output", inputOutputExpandedView.TextView, 0, 1, true).
 		AddTab("Summary", executionSummary, 0, 1, true)
 
@@ -152,7 +142,7 @@ func NewSfnExectionDetailsPage(
 		tview.FlexRow,
 	)
 
-	var serviceView = core.NewServicePageView(app, logger)
+	var serviceView = core.NewServicePageView(serviceViewCtx.AppContext)
 	serviceView.MainPage.
 		AddItem(resizableView, 0, 1, false)
 
@@ -175,8 +165,7 @@ func NewSfnExectionDetailsPage(
 		selectedExection: "",
 		summaryTable:     executionSummary,
 		detailsTable:     executionDetails,
-		app:              app,
-		api:              api,
+		serviceCtx:       serviceViewCtx,
 	}
 	detailsView.initInputCapture()
 
@@ -186,31 +175,31 @@ func NewSfnExectionDetailsPage(
 func (inst *SfnExectionDetailsPageView) initInputCapture() {
 }
 
-func NewStepFunctionsHomeView(
-	app *tview.Application,
-	config aws.Config,
-	logger *log.Logger,
-) core.ServicePage {
+func NewStepFunctionsHomeView(appCtx *core.AppContext) core.ServicePage {
 	core.ChangeColourScheme(tcell.NewHexColor(0xFF3399))
 	defer core.ResetGlobalStyle()
 
 	var (
-		api    = awsapi.NewStateMachineApi(config, logger)
-		cwlApi = awsapi.NewCloudWatchLogsApi(config, logger)
+		api        = awsapi.NewStateMachineApi(*appCtx.Config, appCtx.Logger)
+		serviceCtx = core.NewServiceViewContext(appCtx, api)
+
+		cwlApi = awsapi.NewCloudWatchLogsApi(*appCtx.Config, appCtx.Logger)
 
 		SfnDetailsView = NewSfnDetailsPageView(
-			tables.NewSfnListTable(app, api, logger),
-			tables.NewSfnExecutionsTable(app, api, cwlApi, logger),
-			tables.NewSfnDetailsTable(app, api, logger),
-			app, api, logger)
+			tables.NewSfnListTable(serviceCtx),
+			tables.NewSfnExecutionsTable(serviceCtx.AppContext, api, cwlApi),
+			tables.NewSfnDetailsTable(serviceCtx),
+			serviceCtx,
+		)
 
 		SfnExeDetailsView = NewSfnExectionDetailsPage(
-			tables.NewSfnExecutionSummaryTable(app, api, logger),
-			tables.NewSfnExecutionDetailsTable(app, api, cwlApi, logger),
-			app, api, logger)
+			tables.NewSfnExecutionSummaryTable(serviceCtx),
+			tables.NewSfnExecutionDetailsTable(serviceCtx.AppContext, api, cwlApi),
+			serviceCtx,
+		)
 	)
 
-	var serviceRootView = core.NewServiceRootView(string(STATE_MACHINES), app, &config, logger)
+	var serviceRootView = core.NewServiceRootView(string(STATE_MACHINES), appCtx)
 
 	serviceRootView.
 		AddAndSwitchToPage("StateMachines", SfnDetailsView, true).

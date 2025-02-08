@@ -1,7 +1,6 @@
 package servicetables
 
 import (
-	"log"
 	"time"
 
 	"aws-tui/internal/pkg/awsapi"
@@ -11,7 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 const logMsgCol = 1
@@ -21,15 +19,11 @@ type LogEventsTable struct {
 	data              []types.OutputLogEvent
 	selectedLogGroup  string
 	selectedLogStream string
-	logger            *log.Logger
-	app               *tview.Application
-	api               *awsapi.CloudWatchLogsApi
+	serviceCtx        *core.ServiceContext[awsapi.CloudWatchLogsApi]
 }
 
 func NewLogEventsTable(
-	app *tview.Application,
-	api *awsapi.CloudWatchLogsApi,
-	logger *log.Logger,
+	serviceContext *core.ServiceContext[awsapi.CloudWatchLogsApi],
 ) *LogEventsTable {
 
 	var view = &LogEventsTable{
@@ -39,14 +33,12 @@ func NewLogEventsTable(
 				"Timestamp",
 				"Message",
 			},
-			app,
+			serviceContext.AppContext,
 		),
 		data:              nil,
 		selectedLogGroup:  "",
 		selectedLogStream: "",
-		logger:            logger,
-		app:               app,
-		api:               api,
+		serviceCtx:        serviceContext,
 	}
 
 	view.HighlightSearch = true
@@ -85,11 +77,11 @@ func (inst *LogEventsTable) populateLogEventsTable(reset bool) {
 }
 
 func (inst *LogEventsTable) RefreshLogEvents(reset bool) {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		var err error = nil
-		inst.data, err = inst.api.ListLogEvents(
+		inst.data, err = inst.serviceCtx.Api.ListLogEvents(
 			inst.selectedLogGroup,
 			inst.selectedLogStream,
 			reset,

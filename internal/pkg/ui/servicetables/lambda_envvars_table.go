@@ -1,7 +1,6 @@
 package servicetables
 
 import (
-	"log"
 	"sort"
 
 	"aws-tui/internal/pkg/awsapi"
@@ -9,29 +8,21 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
-
-	"github.com/rivo/tview"
 )
 
 type LambdaEnvVarsTable struct {
 	*core.DetailsTable
-	data   types.FunctionConfiguration
-	logger *log.Logger
-	app    *tview.Application
-	api    *awsapi.LambdaApi
+	data       types.FunctionConfiguration
+	serviceCtx *core.ServiceContext[awsapi.LambdaApi]
 }
 
 func NewLambdaEnvVarsTable(
-	app *tview.Application,
-	api *awsapi.LambdaApi,
-	logger *log.Logger,
+	serviceCtx *core.ServiceContext[awsapi.LambdaApi],
 ) *LambdaEnvVarsTable {
 	var table = &LambdaEnvVarsTable{
 		DetailsTable: core.NewDetailsTable("Environment Variables"),
 		data:         types.FunctionConfiguration{},
-		logger:       logger,
-		app:          app,
-		api:          api,
+		serviceCtx:   serviceCtx,
 	}
 
 	table.populateLambdaEnvVarsTable()
@@ -60,7 +51,7 @@ func (inst *LambdaEnvVarsTable) populateLambdaEnvVarsTable() {
 func (inst *LambdaEnvVarsTable) RefreshDetails(config types.FunctionConfiguration) {
 	inst.data = config
 
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {})
 

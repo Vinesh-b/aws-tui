@@ -2,7 +2,6 @@ package services
 
 import (
 	"aws-tui/internal/pkg/ui/core"
-	"log"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -40,7 +39,7 @@ type ServicesHomeView struct {
 	serviceListItems []ServiceListItem
 }
 
-func NewServicesHomeView(app *tview.Application, logger *log.Logger) *ServicesHomeView {
+func NewServicesHomeView(appContext *core.AppContext) *ServicesHomeView {
 	var servicesList = tview.NewList().
 		SetSecondaryTextColor(tcell.ColorGrey).
 		SetSelectedTextColor(core.TertiaryTextColor).
@@ -50,7 +49,7 @@ func NewServicesHomeView(app *tview.Application, logger *log.Logger) *ServicesHo
 	servicesList.SetBorderPadding(0, 0, 1, 1)
 
 	var view = &ServicesHomeView{
-		SearchableView:   core.NewSearchableView(servicesList, app),
+		SearchableView:   core.NewSearchableView(servicesList, appContext),
 		filteredList:     servicesList,
 		serviceListItems: []ServiceListItem{},
 	}

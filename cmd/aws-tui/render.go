@@ -51,43 +51,44 @@ func RenderUI(config aws.Config, version string) {
 			log.Default().Prefix(),
 			log.Default().Flags(),
 		)
+		appContext = core.NewAppContext(app, &config, inAppLogger)
 	)
 
 	config.Logger = logging.StandardLogger{Logger: inAppLogger}
 
 	var serviceViews = []ServiceItem{
 		{"󰘧 " + string(services.LAMBDA), "Lambdas and logs", rune('1'),
-			services.NewLambdaHomeView(app, config, inAppLogger),
+			services.NewLambdaHomeView(appContext),
 		},
 		{"󰺮 " + string(services.CLOUDWATCH_LOGS_INSIGHTS), "Query and filter logs", rune('2'),
-			services.NewLogsInsightsHomeView(app, config, inAppLogger),
+			services.NewLogsInsightsHomeView(appContext),
 		},
 		{"󰆼 " + string(services.DYNAMODB), "View and search DynamoDB tables", rune('3'),
-			services.NewDynamoDBHomeView(app, config, inAppLogger),
+			services.NewDynamoDBHomeView(appContext),
 		},
 		{"󱁊 " + string(services.STATE_MACHINES), "Step Functions and executions", rune('4'),
-			services.NewStepFunctionsHomeView(app, config, inAppLogger),
+			services.NewStepFunctionsHomeView(appContext),
 		},
 		{"󱐕 " + string(services.S3BUCKETS), "S3 buckets and objects", rune('5'),
-			services.NewS3bucketsHomeView(app, config, inAppLogger),
+			services.NewS3bucketsHomeView(appContext),
 		},
 		{"󰙵 " + string(services.SYSTEMS_MANAGER), "Application parameters", rune('6'),
-			services.NewSystemManagerHomeView(app, config, inAppLogger),
+			services.NewSystemManagerHomeView(appContext),
 		},
 		{" " + string(services.CLOUDFORMATION), "Cloud formation stacks", rune('󰯉'),
-			services.NewStacksHomeView(app, config, inAppLogger),
+			services.NewStacksHomeView(appContext),
 		},
 		{"󰞏 " + string(services.CLOUDWATCH_ALARMS), "Metric alarms", rune('󰯉'),
-			services.NewAlarmsHomeView(app, config, inAppLogger),
+			services.NewAlarmsHomeView(appContext),
 		},
 		{" " + string(services.CLOUDWATCH_METRICS), "View metrics", rune('󰯉'),
-			services.NewMetricsHomeView(app, config, inAppLogger),
+			services.NewMetricsHomeView(appContext),
 		},
 		{" " + string(services.CLOUDWATCH_LOGS_GROUPS), "Logs groups and streams", rune('󰯉'),
-			services.NewLogsHomeView(app, config, inAppLogger),
+			services.NewLogsHomeView(appContext),
 		},
 		{"󰘥 " + string(services.HELP), "Help docs on how to use this app", rune('?'),
-			services.NewHelpHomeView(app, config, inAppLogger),
+			services.NewHelpHomeView(appContext),
 		},
 		{" " + string(services.SETTINGS), "Configure and tweak the app", rune('s'),
 			&EmptyPlaceholderView{Box: tview.NewBox()},
@@ -102,7 +103,7 @@ func RenderUI(config aws.Config, version string) {
 		SetTitle("Logs").
 		SetTitleAlign(tview.AlignLeft)
 
-	var servicesList = services.NewServicesHomeView(app, inAppLogger)
+	var servicesList = services.NewServicesHomeView(appContext)
 	var flexLanding = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(servicesList, 0, 1, true).
 		AddItem(tview.NewTextView().

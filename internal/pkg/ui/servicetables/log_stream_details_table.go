@@ -1,7 +1,6 @@
 package servicetables
 
 import (
-	"log"
 	"time"
 
 	"aws-tui/internal/pkg/awsapi"
@@ -9,29 +8,21 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
-
-	"github.com/rivo/tview"
 )
 
 type LogStreamDetailsTable struct {
 	*core.DetailsTable
-	data   types.LogStream
-	logger *log.Logger
-	app    *tview.Application
-	api    *awsapi.CloudWatchLogsApi
+	data       types.LogStream
+	serviceCtx *core.ServiceContext[awsapi.CloudWatchLogsApi]
 }
 
 func NewLogStreamDetailsTable(
-	app *tview.Application,
-	api *awsapi.CloudWatchLogsApi,
-	logger *log.Logger,
+	serviceContext *core.ServiceContext[awsapi.CloudWatchLogsApi],
 ) *LogStreamDetailsTable {
 	var table = &LogStreamDetailsTable{
 		DetailsTable: core.NewDetailsTable("Log Stream Details"),
 		data:         types.LogStream{},
-		logger:       logger,
-		app:          app,
-		api:          api,
+		serviceCtx:   serviceContext,
 	}
 
 	table.populateDetailsTable()
@@ -66,7 +57,7 @@ func (inst *LogStreamDetailsTable) populateDetailsTable() {
 
 func (inst *LogStreamDetailsTable) RefreshDetails(logStream types.LogStream) {
 	inst.data = logStream
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {})
 

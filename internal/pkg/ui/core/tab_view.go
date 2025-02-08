@@ -1,8 +1,6 @@
 package core
 
 import (
-	"log"
-
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -13,19 +11,17 @@ type TabView struct {
 	pages      *tview.Pages
 	pageIdxMap map[string]int
 	tabs       map[string]*ServicePageView
-	app        *tview.Application
-	logger     *log.Logger
+	appCtx     *AppContext
 }
 
-func NewTabView(app *tview.Application, logger *log.Logger) *TabView {
+func NewTabView(appCtx *AppContext) *TabView {
 	var view = &TabView{
 		Flex:       tview.NewFlex(),
 		list:       tview.NewList(),
 		pages:      tview.NewPages(),
 		pageIdxMap: map[string]int{},
 		tabs:       map[string]*ServicePageView{},
-		app:        app,
-		logger:     logger,
+		appCtx:     appCtx,
 	}
 
 	view.list.
@@ -75,7 +71,7 @@ func (inst *TabView) GetTabsList() *tview.List {
 func (inst *TabView) AddTab(
 	name string, view tview.Primitive, fixedSize int, proportion int, focus bool,
 ) *TabView {
-	var servicePage = NewServicePageView(inst.app, inst.logger)
+	var servicePage = NewServicePageView(inst.appCtx)
 	servicePage.MainPage.AddItem(view, fixedSize, proportion, focus)
 	inst.pages.AddPage(name, servicePage, true, false)
 	inst.tabs[name] = servicePage

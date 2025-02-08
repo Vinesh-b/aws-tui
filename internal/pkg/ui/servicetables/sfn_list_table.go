@@ -11,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sfn/types"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 const sfnFunctionNameCol = 0
@@ -22,14 +21,11 @@ type SfnListTable struct {
 	data             []types.StateMachineListItem
 	filtered         []types.StateMachineListItem
 	logger           *log.Logger
-	app              *tview.Application
-	api              *awsapi.StateMachineApi
+	serviceCtx       *core.ServiceContext[awsapi.StateMachineApi]
 }
 
 func NewSfnListTable(
-	app *tview.Application,
-	api *awsapi.StateMachineApi,
-	logger *log.Logger,
+	serviceViewCtx *core.ServiceContext[awsapi.StateMachineApi],
 ) *SfnListTable {
 
 	var table = &SfnListTable{
@@ -40,13 +36,11 @@ func NewSfnListTable(
 				"Type",
 				"Creation Date",
 			},
-			app,
+			serviceViewCtx.AppContext,
 		),
 
-		data:   nil,
-		logger: logger,
-		app:    app,
-		api:    api,
+		data:       nil,
+		serviceCtx: serviceViewCtx,
 	}
 
 	table.populateTable(table.data)
@@ -78,7 +72,7 @@ func (inst *SfnListTable) populateTable(data []types.StateMachineListItem) {
 }
 
 func (inst *SfnListTable) FilterByName(name string) {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		inst.filtered = core.FuzzySearch(name,
@@ -95,10 +89,10 @@ func (inst *SfnListTable) FilterByName(name string) {
 }
 
 func (inst *SfnListTable) RefreshStateMachines(reset bool) {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.api.ListStateMachines(reset)
+		var data, err = inst.serviceCtx.Api.ListStateMachines(reset)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

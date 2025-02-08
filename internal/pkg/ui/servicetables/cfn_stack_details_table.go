@@ -1,7 +1,6 @@
 package servicetables
 
 import (
-	"log"
 	"time"
 
 	"aws-tui/internal/pkg/awsapi"
@@ -11,30 +10,23 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 type StackDetailsTable struct {
 	*core.DetailsTable
 	data          types.StackSummary
 	selectedStack types.StackSummary
-	logger        *log.Logger
-	app           *tview.Application
-	api           *awsapi.CloudFormationApi
+	serviceCtx    *core.ServiceContext[awsapi.CloudFormationApi]
 }
 
 func NewStackDetailsTable(
-	app *tview.Application,
-	api *awsapi.CloudFormationApi,
-	logger *log.Logger,
+	serviceContext *core.ServiceContext[awsapi.CloudFormationApi],
 ) *StackDetailsTable {
 
 	var view = &StackDetailsTable{
 		DetailsTable: core.NewDetailsTable("Stack Details"),
 		data:         types.StackSummary{},
-		logger:       logger,
-		app:          app,
-		api:          api,
+		serviceCtx:   serviceContext,
 	}
 
 	view.populateStackDetailsTable()
@@ -71,7 +63,7 @@ func (inst *StackDetailsTable) populateStackDetailsTable() {
 
 func (inst *StackDetailsTable) RefreshDetails(data types.StackSummary) {
 	inst.data = data
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {})
 

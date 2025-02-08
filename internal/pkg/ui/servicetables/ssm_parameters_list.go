@@ -2,7 +2,6 @@ package servicetables
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"aws-tui/internal/pkg/awsapi"
@@ -12,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 type SSMParametersListTable struct {
@@ -20,15 +18,11 @@ type SSMParametersListTable struct {
 	data              []types.Parameter
 	filtered          []types.Parameter
 	selectedParameter types.Parameter
-	logger            *log.Logger
-	app               *tview.Application
-	api               *awsapi.SystemsManagerApi
+	serviceCtx        *core.ServiceContext[awsapi.SystemsManagerApi]
 }
 
 func NewSSMParametersListTable(
-	app *tview.Application,
-	api *awsapi.SystemsManagerApi,
-	logger *log.Logger,
+	serviceViewCtx *core.ServiceContext[awsapi.SystemsManagerApi],
 ) *SSMParametersListTable {
 
 	var view = &SSMParametersListTable{
@@ -40,13 +34,11 @@ func NewSSMParametersListTable(
 				"Version",
 				"LastModified",
 			},
-			app,
+			serviceViewCtx.AppContext,
 		),
 		data:              nil,
 		selectedParameter: types.Parameter{},
-		logger:            logger,
-		app:               app,
-		api:               api,
+		serviceCtx:        serviceViewCtx,
 	}
 
 	view.populateParametersTable(view.data)
@@ -87,7 +79,7 @@ func (inst *SSMParametersListTable) populateParametersTable(data []types.Paramet
 }
 
 func (inst *SSMParametersListTable) FilterByName(name string) {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		inst.filtered = core.FuzzySearch(
@@ -105,10 +97,10 @@ func (inst *SSMParametersListTable) FilterByName(name string) {
 }
 
 func (inst *SSMParametersListTable) RefreshParameters(path string, reset bool) {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.api.GetParametersByPath(path, reset)
+		var data, err = inst.serviceCtx.Api.GetParametersByPath(path, reset)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

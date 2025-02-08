@@ -4,7 +4,6 @@ import (
 	"aws-tui/internal/pkg/errors"
 	"aws-tui/internal/pkg/ui/core"
 	"fmt"
-	"log"
 	"slices"
 	"strconv"
 	"strings"
@@ -116,7 +115,7 @@ type DynamoDBQueryInputView struct {
 	QueryDoneButton   *core.Button
 	QueryCancelButton *core.Button
 
-	logger              *log.Logger
+	appCtx              *core.AppContext
 	filterView          *FilterInputView
 	pkInput             *core.InputField
 	skInput             *core.InputField
@@ -130,11 +129,11 @@ type DynamoDBQueryInputView struct {
 	tabNavigator        *core.ViewNavigation1D
 }
 
-func NewDynamoDBQueryInputView(app *tview.Application, logger *log.Logger) *DynamoDBQueryInputView {
+func NewDynamoDBQueryInputView(appContext *core.AppContext) *DynamoDBQueryInputView {
 	var pkInput = core.NewInputField()
 	var skInput = core.NewInputField()
 	var skComparitorInput = core.NewInputField()
-	var filterInputView = NewFilterInputView(app, logger)
+	var filterInputView = NewFilterInputView(appContext)
 	var doneButton = core.NewButton("Done")
 	var cancelButton = core.NewButton("Cancel")
 
@@ -172,7 +171,7 @@ func NewDynamoDBQueryInputView(app *tview.Application, logger *log.Logger) *Dyna
 			doneButton,
 			cancelButton,
 		},
-		app,
+		appContext.App,
 	)
 
 	return &DynamoDBQueryInputView{
@@ -180,7 +179,7 @@ func NewDynamoDBQueryInputView(app *tview.Application, logger *log.Logger) *Dyna
 		QueryDoneButton:   doneButton,
 		QueryCancelButton: cancelButton,
 
-		logger:            logger,
+		appCtx:            appContext,
 		pkInput:           pkInput,
 		skInput:           skInput,
 		skComparatorInput: skComparitorInput,
@@ -256,7 +255,7 @@ func (inst *DynamoDBQueryInputView) GenerateQueryExpression() (expression.Expres
 		WithKeyCondition(keyCond).
 		Build()
 	if err != nil {
-		inst.logger.Printf("Failed to build expression for query: %v\n", err)
+		inst.appCtx.Logger.Printf("Failed to build expression for query: %v\n", err)
 	}
 
 	return expr, err
@@ -283,8 +282,8 @@ type FloatingDDBQueryInputView struct {
 	Input *DynamoDBQueryInputView
 }
 
-func NewFloatingDDBQueryInputView(app *tview.Application, logger *log.Logger) *FloatingDDBQueryInputView {
-	var queryView = NewDynamoDBQueryInputView(app, logger)
+func NewFloatingDDBQueryInputView(appContext *core.AppContext) *FloatingDDBQueryInputView {
+	var queryView = NewDynamoDBQueryInputView(appContext)
 	return &FloatingDDBQueryInputView{
 		Flex:  core.FloatingView("Query", queryView, 70, 10),
 		Input: queryView,
@@ -313,10 +312,10 @@ type FilterInputView struct {
 
 	filterInput  FilterInput
 	tabNavigator *core.ViewNavigation1D
-	logger       *log.Logger
+	appCtx       *core.AppContext
 }
 
-func NewFilterInputView(app *tview.Application, logger *log.Logger) *FilterInputView {
+func NewFilterInputView(appContext *core.AppContext) *FilterInputView {
 	var attrNameInput = core.NewInputField()
 	var attrTypeInput = core.NewInputField()
 	var conditionInput = core.NewInputField()
@@ -349,7 +348,7 @@ func NewFilterInputView(app *tview.Application, logger *log.Logger) *FilterInput
 			attrTypeInput,
 			conditionInput,
 		},
-		app,
+		appContext.App,
 	)
 
 	conditionInput.SetDoneFunc(func(key tcell.Key) {
@@ -395,7 +394,7 @@ func NewFilterInputView(app *tview.Application, logger *log.Logger) *FilterInput
 		Value1:             value1Input,
 		Value2:             value2Input,
 
-		logger:       logger,
+		appCtx:       appContext,
 		tabNavigator: tabNavigator,
 	}
 }
@@ -540,7 +539,7 @@ type DynamoDBScanInputView struct {
 	ScanDoneButton   *core.Button
 	ScanCancelButton *core.Button
 
-	logger                   *log.Logger
+	appCtx                   *core.AppContext
 	filterInputViews         [3]*FilterInputView
 	projectedAttributesInput *core.InputField
 	projectedAttributes      []string
@@ -550,11 +549,11 @@ type DynamoDBScanInputView struct {
 	tabNavigator             *core.ViewNavigation1D
 }
 
-func NewDynamoDBScanInputView(app *tview.Application, logger *log.Logger) *DynamoDBScanInputView {
+func NewDynamoDBScanInputView(appContext *core.AppContext) *DynamoDBScanInputView {
 	var filterInputViews = [3]*FilterInputView{
-		NewFilterInputView(app, logger),
-		NewFilterInputView(app, logger),
-		NewFilterInputView(app, logger),
+		NewFilterInputView(appContext),
+		NewFilterInputView(appContext),
+		NewFilterInputView(appContext),
 	}
 
 	var separater = tview.NewBox()
@@ -600,7 +599,7 @@ func NewDynamoDBScanInputView(app *tview.Application, logger *log.Logger) *Dynam
 
 	var tabNavigator = core.NewViewNavigation1D(wrapper,
 		orderdViews,
-		app,
+		appContext.App,
 	)
 
 	return &DynamoDBScanInputView{
@@ -608,7 +607,7 @@ func NewDynamoDBScanInputView(app *tview.Application, logger *log.Logger) *Dynam
 		ScanDoneButton:   doneButton,
 		ScanCancelButton: cancelButton,
 
-		logger:                   logger,
+		appCtx:                   appContext,
 		filterInputViews:         filterInputViews,
 		projectedAttributesInput: projAttrInput,
 		projectedAttributes:      nil,
@@ -676,8 +675,8 @@ type FloatingDDBScanInputView struct {
 	Input *DynamoDBScanInputView
 }
 
-func NewFloatingDDBScanInputView(app *tview.Application, logger *log.Logger) *FloatingDDBScanInputView {
-	var scanView = NewDynamoDBScanInputView(app, logger)
+func NewFloatingDDBScanInputView(appContext *core.AppContext) *FloatingDDBScanInputView {
+	var scanView = NewDynamoDBScanInputView(appContext)
 	return &FloatingDDBScanInputView{
 		Flex:  core.FloatingView("Scan", scanView, 70, 10),
 		Input: scanView,

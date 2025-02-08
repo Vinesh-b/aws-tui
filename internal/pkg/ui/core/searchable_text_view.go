@@ -21,9 +21,9 @@ type SearchableTextView struct {
 	title                string
 }
 
-func NewSearchableTextView(title string, app *tview.Application) *SearchableTextView {
+func NewSearchableTextView(title string, appContext *AppContext) *SearchableTextView {
 	var textArea = tview.NewTextArea()
-	var searchableView = NewSearchableView(textArea, app)
+	var searchableView = NewSearchableView(textArea, appContext)
 
 	var view = &SearchableTextView{
 		SearchableView:       searchableView,

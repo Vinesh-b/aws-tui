@@ -1,8 +1,6 @@
 package core
 
 import (
-	"log"
-
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -17,22 +15,21 @@ type SearchableView struct {
 
 	searchInput       *tview.InputField
 	searchDoneHandler func(key tcell.Key)
-	app               *tview.Application
-	logger            *log.Logger
+	appCtx            *AppContext
 }
 
 func NewSearchableView(
 	mainPage tview.Primitive,
-	app *tview.Application,
+	appContext *AppContext,
 ) *SearchableView {
 	var floatingSearch = NewFloatingSearchView("Search", 0, 3)
 	var view = &SearchableView{
-		BaseView:        NewBaseView(app, nil),
+		BaseView:        NewBaseView(appContext),
 		HighlightSearch: false,
 
 		searchInput:       floatingSearch.InputField,
 		searchDoneHandler: func(key tcell.Key) {},
-		app:               app,
+		appCtx:            appContext,
 	}
 
 	view.SetMainView(mainPage)

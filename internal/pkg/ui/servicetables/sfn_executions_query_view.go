@@ -2,7 +2,6 @@ package servicetables
 
 import (
 	"aws-tui/internal/pkg/ui/core"
-	"log"
 	"strings"
 	"time"
 
@@ -22,8 +21,7 @@ type SfnExecutionsQueryInputView struct {
 	DoneButton   *core.Button
 	CancelButton *core.Button
 
-	logger            *log.Logger
-	app               *tview.Application
+	appCtx            *core.AppContext
 	viewNavigation    *core.ViewNavigation1D
 	statusDropDown    *core.DropDown
 	executionArnInput *core.InputField
@@ -32,16 +30,15 @@ type SfnExecutionsQueryInputView struct {
 	query             SfnExecutionsQuery
 }
 
-func NewSfnExecutionsQueryInputView(app *tview.Application, logger *log.Logger) *SfnExecutionsQueryInputView {
+func NewSfnExecutionsQueryInputView(appContext *core.AppContext) *SfnExecutionsQueryInputView {
 	var flex = tview.NewFlex().SetDirection(tview.FlexRow)
 	var view = &SfnExecutionsQueryInputView{
 		Flex:         flex,
 		DoneButton:   core.NewButton("Done"),
 		CancelButton: core.NewButton("Cancel"),
 
-		logger:            logger,
-		app:               app,
-		viewNavigation:    core.NewViewNavigation1D(flex, nil, app),
+		appCtx:            appContext,
+		viewNavigation:    core.NewViewNavigation1D(flex, nil, appContext.App),
 		statusDropDown:    core.NewDropDown(),
 		executionArnInput: core.NewInputField(),
 		startDateInput:    core.NewDateTimeInputField(),
@@ -127,10 +124,9 @@ type FloatingSfnExecutionsQueryInputView struct {
 }
 
 func NewFloatingSfnExecutionsQueryInputView(
-	app *tview.Application,
-	logger *log.Logger,
+	appContext *core.AppContext,
 ) *FloatingSfnExecutionsQueryInputView {
-	var queryView = NewSfnExecutionsQueryInputView(app, logger)
+	var queryView = NewSfnExecutionsQueryInputView(appContext)
 	return &FloatingSfnExecutionsQueryInputView{
 		Flex:  core.FloatingView("Query", queryView, 55, 8),
 		Input: queryView,

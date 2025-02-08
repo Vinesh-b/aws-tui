@@ -1,7 +1,6 @@
 package servicetables
 
 import (
-	"log"
 	"time"
 
 	"aws-tui/internal/pkg/awsapi"
@@ -11,33 +10,26 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 type SfnExecutionSummaryTable struct {
 	*core.DetailsTable
 	selectedExecutionArn string
 
-	data   *sfn.DescribeExecutionOutput
-	logger *log.Logger
-	app    *tview.Application
-	api    *awsapi.StateMachineApi
+	data       *sfn.DescribeExecutionOutput
+	serviceCtx *core.ServiceContext[awsapi.StateMachineApi]
 }
 
 func NewSfnExecutionSummaryTable(
-	app *tview.Application,
-	api *awsapi.StateMachineApi,
-	logger *log.Logger,
+	serviceViewCtx *core.ServiceContext[awsapi.StateMachineApi],
 ) *SfnExecutionSummaryTable {
 
 	var table = &SfnExecutionSummaryTable{
 		DetailsTable:         core.NewDetailsTable("Execution Summary"),
 		selectedExecutionArn: "",
 
-		data:   nil,
-		logger: logger,
-		app:    app,
-		api:    api,
+		data:       nil,
+		serviceCtx: serviceViewCtx,
 	}
 
 	table.populateTable()
@@ -72,11 +64,11 @@ func (inst *SfnExecutionSummaryTable) populateTable() {
 
 func (inst *SfnExecutionSummaryTable) RefreshExecutionDetails(executionArn string, force bool) {
 	inst.selectedExecutionArn = executionArn
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		var err error = nil
-		inst.data, err = inst.api.DescribeExecution(executionArn)
+		inst.data, err = inst.serviceCtx.Api.DescribeExecution(executionArn)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

@@ -1,13 +1,10 @@
 package services
 
 import (
-	"log"
-
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 	tables "aws-tui/internal/pkg/ui/servicetables"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
@@ -19,16 +16,13 @@ type DynamoDBDetailsPage struct {
 	*core.ServicePageView
 	TablesTable  *tables.DynamoDBTablesTable
 	DetailsTable *tables.DynamoDBDetailsTable
-	app          *tview.Application
-	api          *awsapi.DynamoDBApi
+	serviceCtx   *core.ServiceContext[awsapi.DynamoDBApi]
 }
 
 func NewDynamoDBDetailsPage(
 	detailsTable *tables.DynamoDBDetailsTable,
 	tablesTable *tables.DynamoDBTablesTable,
-	app *tview.Application,
-	api *awsapi.DynamoDBApi,
-	logger *log.Logger,
+	serviceContext *core.ServiceContext[awsapi.DynamoDBApi],
 ) *DynamoDBDetailsPage {
 	const detailsSize = 3000
 	const tablesSize = 5000
@@ -39,7 +33,7 @@ func NewDynamoDBDetailsPage(
 		tview.FlexRow,
 	)
 
-	var serviceView = core.NewServicePageView(app, logger)
+	var serviceView = core.NewServicePageView(serviceContext.AppContext)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
@@ -53,8 +47,7 @@ func NewDynamoDBDetailsPage(
 		ServicePageView: serviceView,
 		TablesTable:     tablesTable,
 		DetailsTable:    detailsTable,
-		app:             app,
-		api:             api,
+		serviceCtx:      serviceContext,
 	}
 }
 
@@ -63,9 +56,7 @@ func (inst *DynamoDBDetailsPage) InitInputCapture() {}
 type DynamoDBTableItemsPage struct {
 	*core.ServicePageView
 	ItemsTable       *tables.DynamoDBGenericTable
-	app              *tview.Application
-	api              *awsapi.DynamoDBApi
-	logger           *log.Logger
+	serviceCtx       *core.ServiceContext[awsapi.DynamoDBApi]
 	tableName        string
 	tableDescription *types.TableDescription
 	lastTableOp      tables.DDBTableOp
@@ -73,11 +64,11 @@ type DynamoDBTableItemsPage struct {
 
 func NewDynamoDBTableItemsPage(
 	itemsTable *tables.DynamoDBGenericTable,
-	app *tview.Application,
-	api *awsapi.DynamoDBApi,
-	logger *log.Logger,
+	serviceContext *core.ServiceContext[awsapi.DynamoDBApi],
 ) *DynamoDBTableItemsPage {
-	var expandItemView = core.CreateJsonTableDataView(app, itemsTable, -1)
+	var expandItemView = core.CreateJsonTableDataView(
+		serviceContext.AppContext, itemsTable, -1,
+	)
 
 	const expandItemViewSize = 3
 	const itemsTableSize = 7
@@ -88,7 +79,7 @@ func NewDynamoDBTableItemsPage(
 		tview.FlexRow,
 	)
 
-	var serviceView = core.NewServicePageView(app, logger)
+	var serviceView = core.NewServicePageView(serviceContext.AppContext)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
@@ -105,9 +96,7 @@ func NewDynamoDBTableItemsPage(
 	return &DynamoDBTableItemsPage{
 		ServicePageView:  serviceView,
 		ItemsTable:       itemsTable,
-		app:              app,
-		api:              api,
-		logger:           logger,
+		serviceCtx:       serviceContext,
 		tableDescription: nil,
 	}
 }
@@ -119,29 +108,26 @@ func (inst *DynamoDBTableItemsPage) SetTableName(tableName string) *DynamoDBTabl
 	return inst
 }
 
-func NewDynamoDBHomeView(
-	app *tview.Application,
-	config aws.Config,
-	logger *log.Logger,
-) core.ServicePage {
+func NewDynamoDBHomeView(appCtx *core.AppContext) core.ServicePage {
 	core.ChangeColourScheme(tcell.NewHexColor(0x003388))
 	defer core.ResetGlobalStyle()
 
 	var (
-		api = awsapi.NewDynamoDBApi(config, logger)
+		api        = awsapi.NewDynamoDBApi(*appCtx.Config, appCtx.Logger)
+		serviceCtx = core.NewServiceViewContext(appCtx, api)
 
 		ddbDetailsView = NewDynamoDBDetailsPage(
-			tables.NewDynamoDBDetailsTable(app, api, logger),
-			tables.NewDynamoDBTablesTable(app, api, logger),
-			app, api, logger,
+			tables.NewDynamoDBDetailsTable(serviceCtx),
+			tables.NewDynamoDBTablesTable(serviceCtx),
+			serviceCtx,
 		)
 		ddbItemsView = NewDynamoDBTableItemsPage(
-			tables.NewDynamoDBGenericTable(app, api, logger),
-			app, api, logger,
+			tables.NewDynamoDBGenericTable(serviceCtx),
+			serviceCtx,
 		)
 	)
 
-	var serviceRootView = core.NewServiceRootView(string(DYNAMODB), app, &config, logger)
+	var serviceRootView = core.NewServiceRootView(string(DYNAMODB), appCtx)
 
 	serviceRootView.
 		AddAndSwitchToPage("Tables", ddbDetailsView, true).

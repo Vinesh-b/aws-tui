@@ -8,7 +8,8 @@ import (
 
 func TestCreateJsonTableDataView(t *testing.T) {
 	var app = tview.NewApplication()
-	var table = NewSelectableTable[string]("test", TableRow{"col0"}, app)
+	var appCtx = NewAppContext(app, nil, nil)
+	var table = NewSelectableTable[string]("test", TableRow{"col0"}, appCtx)
 	var data = []TableRow{
 		{`Cell text 1`},
 		{`Cell text 2`},
@@ -23,7 +24,7 @@ func TestCreateJsonTableDataView(t *testing.T) {
 		t.Fatalf("Failed to set data: %v", err)
 	}
 
-	var jsonTableView = CreateJsonTableDataView(app, table, -1)
+	var jsonTableView = CreateJsonTableDataView(appCtx, table, -1)
 
 	table.Select(1, 0)
 	var formattedText = jsonTableView.GetText()

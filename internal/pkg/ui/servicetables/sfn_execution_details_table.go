@@ -3,7 +3,6 @@ package servicetables
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"slices"
 	"time"
 
@@ -16,7 +15,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sfn/types"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 type StateMachineStep struct {
@@ -43,17 +41,15 @@ type SfnExecutionDetailsTable struct {
 	ExecutionHistory     *sfn.GetExecutionHistoryOutput
 	selectedExecutionArn string
 	selectedState        StateDetails
-	logger               *log.Logger
-	app                  *tview.Application
+	appCtx               *core.AppContext
 	api                  *awsapi.StateMachineApi
 	cwlApi               *awsapi.CloudWatchLogsApi
 }
 
 func NewSfnExecutionDetailsTable(
-	app *tview.Application,
+	appCtx *core.AppContext,
 	api *awsapi.StateMachineApi,
 	cwlApi *awsapi.CloudWatchLogsApi,
-	logger *log.Logger,
 ) *SfnExecutionDetailsTable {
 
 	var view = &SfnExecutionDetailsTable{
@@ -68,14 +64,13 @@ func NewSfnExecutionDetailsTable(
 				"Duration",
 				"Errors",
 			},
-			app,
+			appCtx,
 		),
 		ExecutionHistory:     nil,
 		selectedExecutionArn: "",
 		selectedState:        StateDetails{},
 
-		logger: logger,
-		app:    app,
+		appCtx: appCtx,
 		api:    api,
 		cwlApi: cwlApi,
 	}
@@ -237,7 +232,7 @@ func (inst *SfnExecutionDetailsTable) populateTable() {
 
 func (inst *SfnExecutionDetailsTable) RefreshExecutionDetails(executionArn string, force bool) {
 	inst.selectedExecutionArn = executionArn
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.appCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		var err error = nil
@@ -265,12 +260,12 @@ func (inst *SfnExecutionDetailsTable) RefreshExpressExecutionDetails(executionIt
 		endTime:   aws.ToTime(executionItem.StopDate),
 	}
 
-	var insightsQueryRunner = NewInsightsQueryRunner(inst.app, inst.cwlApi)
+	var insightsQueryRunner = NewInsightsQueryRunner(inst.appCtx.App, inst.cwlApi)
 	insightsQueryRunner.ErrorMessageCallback = inst.ErrorMessageCallback
 
 	var resultsChan = make(chan [][]cwlTypes.ResultField)
 
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.appCtx.App, 10)
 	dataLoader.AsyncLoadData(func() {
 		insightsQueryRunner.ExecuteInsightsQuery(insightsQuery, []string{aws.ToString(executionItem.logGroup)}, resultsChan)
 		var insightsResults = <-resultsChan

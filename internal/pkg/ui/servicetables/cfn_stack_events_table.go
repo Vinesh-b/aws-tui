@@ -1,8 +1,6 @@
 package servicetables
 
 import (
-	"log"
-
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 
@@ -10,7 +8,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 type StackEventsTable struct {
@@ -18,15 +15,11 @@ type StackEventsTable struct {
 	selectedStack     types.StackEvent
 	selectedStackName string
 	data              []types.StackEvent
-	logger            *log.Logger
-	app               *tview.Application
-	api               *awsapi.CloudFormationApi
+	serviceCtx        *core.ServiceContext[awsapi.CloudFormationApi]
 }
 
 func NewStackEventsTable(
-	app *tview.Application,
-	api *awsapi.CloudFormationApi,
-	logger *log.Logger,
+	serviceContext *core.ServiceContext[awsapi.CloudFormationApi],
 ) *StackEventsTable {
 
 	var view = &StackEventsTable{
@@ -39,14 +32,12 @@ func NewStackEventsTable(
 				"Status",
 				"Reason",
 			},
-			app,
+			serviceContext.AppContext,
 		),
 		data:              nil,
 		selectedStack:     types.StackEvent{},
 		selectedStackName: "",
-		logger:            logger,
-		app:               app,
-		api:               api,
+		serviceCtx:        serviceContext,
 	}
 
 	view.HighlightSearch = true
@@ -79,12 +70,12 @@ func (inst *StackEventsTable) populateStackEventsTable(reset bool) {
 }
 
 func (inst *StackEventsTable) RefreshEvents(reset bool) {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		if len(inst.selectedStackName) > 0 {
 			var err error = nil
-			inst.data, err = inst.api.DescribeStackEvents(inst.selectedStackName, reset)
+			inst.data, err = inst.serviceCtx.Api.DescribeStackEvents(inst.selectedStackName, reset)
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
 			}

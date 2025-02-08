@@ -2,7 +2,6 @@ package servicetables
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"aws-tui/internal/pkg/awsapi"
@@ -12,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 type SSMParameterHistoryTable struct {
@@ -21,15 +19,11 @@ type SSMParameterHistoryTable struct {
 	filtered          []types.ParameterHistory
 	selectedHistory   types.ParameterHistory
 	selectedParameter types.Parameter
-	logger            *log.Logger
-	app               *tview.Application
-	api               *awsapi.SystemsManagerApi
+	serviceCtx        *core.ServiceContext[awsapi.SystemsManagerApi]
 }
 
 func NewSSMParameterHistoryTable(
-	app *tview.Application,
-	api *awsapi.SystemsManagerApi,
-	logger *log.Logger,
+	serviceViewCtx *core.ServiceContext[awsapi.SystemsManagerApi],
 ) *SSMParameterHistoryTable {
 
 	var view = &SSMParameterHistoryTable{
@@ -41,14 +35,12 @@ func NewSSMParameterHistoryTable(
 				"Value",
 				"LastModified",
 			},
-			app,
+			serviceViewCtx.AppContext,
 		),
 		data:              nil,
 		selectedHistory:   types.ParameterHistory{},
 		selectedParameter: types.Parameter{},
-		logger:            logger,
-		app:               app,
-		api:               api,
+		serviceCtx:        serviceViewCtx,
 	}
 
 	view.populateTable(view.data)
@@ -90,7 +82,7 @@ func (inst *SSMParameterHistoryTable) populateTable(data []types.ParameterHistor
 }
 
 func (inst *SSMParameterHistoryTable) FilterByName(name string) {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		inst.filtered = core.FuzzySearch(
@@ -109,10 +101,10 @@ func (inst *SSMParameterHistoryTable) FilterByName(name string) {
 
 func (inst *SSMParameterHistoryTable) RefreshHistory(reset bool) {
 	var paramName = aws.ToString(inst.selectedParameter.Name)
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.api.GetParameterHistory(paramName, reset)
+		var data, err = inst.serviceCtx.Api.GetParameterHistory(paramName, reset)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

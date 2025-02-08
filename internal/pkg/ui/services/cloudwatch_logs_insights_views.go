@@ -1,14 +1,11 @@
 package services
 
 import (
-	"log"
 	"strings"
 
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 	tables "aws-tui/internal/pkg/ui/servicetables"
-
-	"github.com/aws/aws-sdk-go-v2/aws"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -20,24 +17,22 @@ type LogGroupsSelectionPageView struct {
 	SeletedGroupsTable *tables.SelectedGroupsTable
 	SearchInput        *tview.InputField
 	selectedGroups     core.StringSet
-	app                *tview.Application
-	api                *awsapi.CloudWatchLogsApi
+	serviceCtx         *core.ServiceContext[awsapi.CloudWatchLogsApi]
 }
 
 func NewLogGroupsSelectionPageView(
 	selectedGroupsTable *tables.SelectedGroupsTable,
-	app *tview.Application,
-	api *awsapi.CloudWatchLogsApi,
-	logger *log.Logger,
+	serviceViewCtx *core.ServiceContext[awsapi.CloudWatchLogsApi],
 ) *LogGroupsSelectionPageView {
 
 	var logGroupsView = NewLogGroupsPageView(
-		tables.NewLogGroupDetailsTable(app, api, logger),
-		tables.NewLogGroupsTable(app, api, logger),
-		app, api, logger)
+		tables.NewLogGroupDetailsTable(serviceViewCtx),
+		tables.NewLogGroupsTable(serviceViewCtx),
+		serviceViewCtx,
+	)
 	logGroupsView.InitInputCapture()
 
-	var serviceView = core.NewServicePageView(app, logger)
+	var serviceView = core.NewServicePageView(serviceViewCtx.AppContext)
 	serviceView.MainPage.
 		AddItem(selectedGroupsTable, 0, 1, false).
 		AddItem(logGroupsView.LogGroupsTable, 0, 1, true)
@@ -54,8 +49,7 @@ func NewLogGroupsSelectionPageView(
 		SeletedGroupsTable: selectedGroupsTable,
 		LogGroupsTable:     logGroupsView.LogGroupsTable,
 		selectedGroups:     core.StringSet{},
-		app:                app,
-		api:                api,
+		serviceCtx:         serviceViewCtx,
 	}
 }
 
@@ -75,19 +69,16 @@ type InsightsQueryResultsPageView struct {
 	*core.ServicePageView
 	QueryResultsTable *tables.InsightsQueryResultsTable
 	ExpandedResult    *core.SearchableTextView
-	app               *tview.Application
-	api               *awsapi.CloudWatchLogsApi
 	selectedLogGroups *[]string
+	serviceCtx        *core.ServiceContext[awsapi.CloudWatchLogsApi]
 }
 
 func NewInsightsQueryResultsPageView(
 	insightsQueryResultsTable *tables.InsightsQueryResultsTable,
-	app *tview.Application,
-	api *awsapi.CloudWatchLogsApi,
-	logger *log.Logger,
+	serviceViewCtx *core.ServiceContext[awsapi.CloudWatchLogsApi],
 ) *InsightsQueryResultsPageView {
 	var expandedResultView = core.CreateJsonTableDataView(
-		app, insightsQueryResultsTable, -1,
+		serviceViewCtx.AppContext, insightsQueryResultsTable, -1,
 	)
 
 	const expandedLogsSize = 5
@@ -103,7 +94,7 @@ func NewInsightsQueryResultsPageView(
 	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(resizableView, 0, 1, true)
 
-	var serviceView = core.NewServicePageView(app, logger)
+	var serviceView = core.NewServicePageView(serviceViewCtx.AppContext)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
@@ -121,36 +112,33 @@ func NewInsightsQueryResultsPageView(
 		ServicePageView:   serviceView,
 		QueryResultsTable: insightsQueryResultsTable,
 		ExpandedResult:    expandedResultView,
-		app:               app,
-		api:               api,
+		serviceCtx:        serviceViewCtx,
 	}
 }
 
 func (inst *InsightsQueryResultsPageView) InitInputCapture() {}
 
-func NewLogsInsightsHomeView(
-	app *tview.Application,
-	config aws.Config,
-	logger *log.Logger,
-) core.ServicePage {
+func NewLogsInsightsHomeView(appCtx *core.AppContext) core.ServicePage {
 	core.ChangeColourScheme(tcell.NewHexColor(0xBB00DD))
 	defer core.ResetGlobalStyle()
 
-	var api = awsapi.NewCloudWatchLogsApi(config, logger)
+	var api = awsapi.NewCloudWatchLogsApi(*appCtx.Config, appCtx.Logger)
+	var serviceCtx = core.NewServiceViewContext(appCtx, api)
+
 	var insightsResultsView = NewInsightsQueryResultsPageView(
-		tables.NewInsightsQueryResultsTable(app, api, logger),
-		app, api, logger,
+		tables.NewInsightsQueryResultsTable(serviceCtx),
+		serviceCtx,
 	)
 	var groupSelectionView = NewLogGroupsSelectionPageView(
-		tables.NewSelectedGroupsTable(app, api, logger),
-		app, api, logger,
+		tables.NewSelectedGroupsTable(serviceCtx),
+		serviceCtx,
 	)
 	var logEventsView = NewLogEventsPageView(
-		tables.NewLogEventsTable(app, api, logger),
-		app, api, logger,
+		tables.NewLogEventsTable(serviceCtx),
+		serviceCtx,
 	)
 
-	var serviceRootView = core.NewServiceRootView(string(CLOUDWATCH_LOGS_INSIGHTS), app, &config, logger)
+	var serviceRootView = core.NewServiceRootView(string(CLOUDWATCH_LOGS_INSIGHTS), appCtx)
 
 	serviceRootView.
 		AddAndSwitchToPage("GroupsSelection", groupSelectionView, true).

@@ -3,7 +3,6 @@ package services
 import (
 	"encoding/base64"
 	"encoding/json"
-	"log"
 
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
@@ -25,9 +24,7 @@ type LambdaDetailsPageView struct {
 	LambdaVpcConfTable *tables.LambdaVpcConfigTable
 	LambdaTagsTable    *tables.LambdaTagsTable
 	LogStreamsTable    *tables.LogStreamsTable
-
-	app *tview.Application
-	api *awsapi.LambdaApi
+	serviceCtx         *core.ServiceContext[awsapi.LambdaApi]
 }
 
 func NewLambdaDetailsPageView(
@@ -37,11 +34,9 @@ func NewLambdaDetailsPageView(
 	lambdaVpcConfTable *tables.LambdaVpcConfigTable,
 	lambdaTagsTable *tables.LambdaTagsTable,
 	logStreamsTable *tables.LogStreamsTable,
-	app *tview.Application,
-	api *awsapi.LambdaApi,
-	logger *log.Logger,
+	serviceCtx *core.ServiceContext[awsapi.LambdaApi],
 ) *LambdaDetailsPageView {
-	var tabView = core.NewTabView(app, logger).
+	var tabView = core.NewTabView(serviceCtx.AppContext).
 		AddAndSwitchToTab("Details", lambdaDetailsTable, 0, 1, true).
 		AddTab("Log Streams", logStreamsTable, 0, 1, true).
 		AddTab("Environment Vars", lambdaEnvVarsTable, 0, 1, true).
@@ -56,7 +51,7 @@ func NewLambdaDetailsPageView(
 		lambdaListTable, tableViewSize,
 		tview.FlexRow,
 	)
-	var serviceView = core.NewServicePageView(app, logger)
+	var serviceView = core.NewServicePageView(serviceCtx.AppContext)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	var view = &LambdaDetailsPageView{
@@ -69,8 +64,7 @@ func NewLambdaDetailsPageView(
 		LambdaVpcConfTable: lambdaVpcConfTable,
 		LambdaTagsTable:    lambdaTagsTable,
 		LogStreamsTable:    logStreamsTable,
-		app:                app,
-		api:                api,
+		serviceCtx:         serviceCtx,
 	}
 
 	var errorHandler = func(text string, a ...any) {
@@ -111,18 +105,15 @@ type LambdaInvokePageView struct {
 	logResults     *core.SearchableTextView
 	payloadInput   *core.TextArea
 	responseOutput *core.SearchableTextView
-	app            *tview.Application
-	api            *awsapi.LambdaApi
+	serviceCtx     *core.ServiceContext[awsapi.LambdaApi]
 }
 
 func NewLambdaInvokePageView(
-	app *tview.Application,
-	api *awsapi.LambdaApi,
-	logger *log.Logger,
+	serviceCtx *core.ServiceContext[awsapi.LambdaApi],
 ) *LambdaInvokePageView {
 	var payloadInput = core.NewTextArea("Payload")
-	var logResults = core.NewSearchableTextView("Logs", app)
-	var responseOutput = core.NewSearchableTextView("Response", app)
+	var logResults = core.NewSearchableTextView("Logs", serviceCtx.AppContext)
+	var responseOutput = core.NewSearchableTextView("Response", serviceCtx.AppContext)
 	var invokeButton = tview.NewButton("Invoke")
 	var formatButton = tview.NewButton("Format Payload")
 	var buttonsView = tview.NewFlex().
@@ -133,7 +124,7 @@ func NewLambdaInvokePageView(
 
 	payloadInput.SetTitleExtra("NO LAMBDA SELECTED")
 
-	var serviceView = core.NewServicePageView(app, logger)
+	var serviceView = core.NewServicePageView(serviceCtx.AppContext)
 	serviceView.MainPage.
 		AddItem(payloadInput, 0, 4000, false).
 		AddItem(buttonsView, 3, 0, false).
@@ -164,8 +155,7 @@ func NewLambdaInvokePageView(
 		payloadInput:    payloadInput,
 		logResults:      logResults,
 		responseOutput:  responseOutput,
-		app:             app,
-		api:             api,
+		serviceCtx:      serviceCtx,
 	}
 
 	view.initInputCapture()
@@ -197,7 +187,7 @@ func (inst *LambdaInvokePageView) SetSelectedLambda(name string) {
 func (inst *LambdaInvokePageView) Invoke() {
 	var logResults = []byte{}
 	var responseOutput = []byte{}
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		var err error
@@ -209,7 +199,7 @@ func (inst *LambdaInvokePageView) Invoke() {
 		}
 
 		var data *lambda.InvokeOutput = nil
-		data, err = inst.api.InvokeLambda(inst.selectedLambda, payload)
+		data, err = inst.serviceCtx.Api.InvokeLambda(inst.selectedLambda, payload)
 		if err != nil {
 			inst.responseOutput.ErrorMessageCallback(err.Error())
 			return
@@ -248,36 +238,36 @@ func (inst *FloatingLambdaInvoke) GetLastFocusedView() tview.Primitive {
 	return inst.Input.GetLastFocusedView()
 }
 
-func NewLambdaHomeView(
-	app *tview.Application,
-	config aws.Config,
-	logger *log.Logger,
-) core.ServicePage {
+func NewLambdaHomeView(appCtx *core.AppContext) core.ServicePage {
 	core.ChangeColourScheme(tcell.NewHexColor(0xCC6600))
 	defer core.ResetGlobalStyle()
 
 	var (
-		api                = awsapi.NewLambdaApi(config, logger)
-		cwl_api            = awsapi.NewCloudWatchLogsApi(config, logger)
+		api       = awsapi.NewLambdaApi(*appCtx.Config, appCtx.Logger)
+		lambdaCtx = core.NewServiceViewContext(appCtx, api)
+
+		cwl_api   = awsapi.NewCloudWatchLogsApi(*appCtx.Config, appCtx.Logger)
+		cwLogsCtx = core.NewServiceViewContext(appCtx, cwl_api)
+
 		lambdasDetailsView = NewLambdaDetailsPageView(
-			tables.NewLambdasListTable(app, api, logger),
-			tables.NewLambdaDetailsTable(app, api, logger),
-			tables.NewLambdaEnvVarsTable(app, api, logger),
-			tables.NewLambdaVpcConfigTable(app, api, logger),
-			tables.NewLambdaTagsTable(app, api, logger),
-			tables.NewLogStreamsTable(app, cwl_api, logger),
-			app, api, logger,
+			tables.NewLambdasListTable(lambdaCtx),
+			tables.NewLambdaDetailsTable(lambdaCtx),
+			tables.NewLambdaEnvVarsTable(lambdaCtx),
+			tables.NewLambdaVpcConfigTable(lambdaCtx),
+			tables.NewLambdaTagsTable(lambdaCtx),
+			tables.NewLogStreamsTable(cwLogsCtx),
+			lambdaCtx,
 		)
 		logEventsView = NewLogEventsPageView(
-			tables.NewLogEventsTable(app, cwl_api, logger),
-			app, cwl_api, logger,
+			tables.NewLogEventsTable(cwLogsCtx),
+			cwLogsCtx,
 		)
 		lambdaInvokeView = NewLambdaInvokePageView(
-			app, api, logger,
+			lambdaCtx,
 		)
 	)
 
-	var serviceRootView = core.NewServiceRootView(string(LAMBDA), app, &config, logger)
+	var serviceRootView = core.NewServiceRootView(string(LAMBDA), appCtx)
 
 	serviceRootView.
 		AddAndSwitchToPage("Lambdas", lambdasDetailsView, true).

@@ -1,7 +1,6 @@
 package servicetables
 
 import (
-	"log"
 	"time"
 
 	"aws-tui/internal/pkg/awsapi"
@@ -11,22 +10,17 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 type AlarmHistoryTable struct {
 	*core.SelectableTable[any]
 	selectedAlarm string
 	data          []types.AlarmHistoryItem
-	logger        *log.Logger
-	app           *tview.Application
-	api           *awsapi.CloudWatchAlarmsApi
+	serviceCtx    *core.ServiceContext[awsapi.CloudWatchAlarmsApi]
 }
 
 func NewAlarmHistoryTable(
-	app *tview.Application,
-	api *awsapi.CloudWatchAlarmsApi,
-	logger *log.Logger,
+	serviceContext *core.ServiceContext[awsapi.CloudWatchAlarmsApi],
 ) *AlarmHistoryTable {
 
 	var view = &AlarmHistoryTable{
@@ -36,13 +30,11 @@ func NewAlarmHistoryTable(
 				"Timestamp",
 				"History",
 			},
-            app,
+			serviceContext.AppContext,
 		),
 		data:          nil,
 		selectedAlarm: "",
-		logger:        logger,
-		app:           app,
-		api:           api,
+		serviceCtx:    serviceContext,
 	}
 
 	view.populateAlarmHistoryTable(true)
@@ -75,11 +67,11 @@ func (inst *AlarmHistoryTable) populateAlarmHistoryTable(reset bool) {
 }
 
 func (inst *AlarmHistoryTable) RefreshHistory(force bool) {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		var err error = nil
-		inst.data, err = inst.api.ListAlarmHistory(inst.selectedAlarm, force)
+		inst.data, err = inst.serviceCtx.Api.ListAlarmHistory(inst.selectedAlarm, force)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

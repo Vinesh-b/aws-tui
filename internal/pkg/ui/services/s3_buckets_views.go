@@ -1,13 +1,9 @@
 package services
 
 import (
-	"log"
-
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 	tables "aws-tui/internal/pkg/ui/servicetables"
-
-	"github.com/aws/aws-sdk-go-v2/aws"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -17,16 +13,13 @@ type S3BucketsDetailsView struct {
 	*core.ServicePageView
 	bucketsTable *tables.BucketListTable
 	objectsTable *tables.BucketObjectsTable
-	app          *tview.Application
-	api          *awsapi.S3BucketsApi
+	serviceCtx   *core.ServiceContext[awsapi.S3BucketsApi]
 }
 
 func NewS3bucketsDetailsView(
 	bucketListTable *tables.BucketListTable,
 	bucketObjectsTable *tables.BucketObjectsTable,
-	app *tview.Application,
-	api *awsapi.S3BucketsApi,
-	logger *log.Logger,
+	serviceViewCtx *core.ServiceContext[awsapi.S3BucketsApi],
 ) *S3BucketsDetailsView {
 	const objectsTableSize = 4000
 	const bucketsTableSize = 3000
@@ -37,7 +30,7 @@ func NewS3bucketsDetailsView(
 		tview.FlexRow,
 	)
 
-	var serviceView = core.NewServicePageView(app, logger)
+	var serviceView = core.NewServicePageView(serviceViewCtx.AppContext)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
@@ -58,8 +51,7 @@ func NewS3bucketsDetailsView(
 		ServicePageView: serviceView,
 		bucketsTable:    bucketListTable,
 		objectsTable:    bucketObjectsTable,
-		app:             app,
-		api:             api,
+		serviceCtx:      serviceViewCtx,
 	}
 }
 
@@ -78,28 +70,26 @@ func (inst *S3BucketsDetailsView) InitInputCapture() {
 		var name = inst.bucketsTable.GetSeletedBucket()
 		inst.objectsTable.SetSelectedBucket(name)
 		inst.objectsTable.RefreshObjects(true)
-		inst.app.SetFocus(inst.objectsTable)
+		inst.serviceCtx.App.SetFocus(inst.objectsTable)
 	})
 }
 
-func NewS3bucketsHomeView(
-	app *tview.Application,
-	config aws.Config,
-	logger *log.Logger,
-) core.ServicePage {
+func NewS3bucketsHomeView(appCtx *core.AppContext) core.ServicePage {
 	core.ChangeColourScheme(tcell.NewHexColor(0x005500))
 	defer core.ResetGlobalStyle()
 
 	var (
-		api           = awsapi.NewS3BucketsApi(config, logger)
+		api        = awsapi.NewS3BucketsApi(*appCtx.Config, appCtx.Logger)
+		serviceCtx = core.NewServiceViewContext(appCtx, api)
+
 		s3DetailsView = NewS3bucketsDetailsView(
-			tables.NewBucketListTable(app, api, logger),
-			tables.NewBucketObjectsTable(app, api, logger),
-			app, api, logger,
+			tables.NewBucketListTable(serviceCtx),
+			tables.NewBucketObjectsTable(serviceCtx),
+			serviceCtx,
 		)
 	)
 
-	var serviceRootView = core.NewServiceRootView(string(S3BUCKETS), app, &config, logger)
+	var serviceRootView = core.NewServiceRootView(string(S3BUCKETS), appCtx)
 
 	serviceRootView.AddAndSwitchToPage("S3Buckets", s3DetailsView, true)
 

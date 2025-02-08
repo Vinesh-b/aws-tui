@@ -1,13 +1,9 @@
 package services
 
 import (
-	"log"
-
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 	tables "aws-tui/internal/pkg/ui/servicetables"
-
-	"github.com/aws/aws-sdk-go-v2/aws"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -17,16 +13,13 @@ type MetricDetailsView struct {
 	*core.ServicePageView
 	MetricListTable    *tables.MetricListTable
 	MetricDetailsTable *tables.MetricDetailsTable
-	app                *tview.Application
-	api                *awsapi.CloudWatchMetricsApi
+	serviceCtx         *core.ServiceContext[awsapi.CloudWatchMetricsApi]
 }
 
 func NewMetricsDetailsView(
 	metricListTable *tables.MetricListTable,
 	metricDetailsTable *tables.MetricDetailsTable,
-	app *tview.Application,
-	api *awsapi.CloudWatchMetricsApi,
-	logger *log.Logger,
+	serviceViewCtx *core.ServiceContext[awsapi.CloudWatchMetricsApi],
 ) *MetricDetailsView {
 	const metricsTableSize = 3500
 	const detailsTableSize = 3500
@@ -37,7 +30,7 @@ func NewMetricsDetailsView(
 		tview.FlexRow,
 	)
 
-	var serviceView = core.NewServicePageView(app, logger)
+	var serviceView = core.NewServicePageView(serviceViewCtx.AppContext)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	serviceView.InitViewNavigation(
@@ -58,8 +51,7 @@ func NewMetricsDetailsView(
 		ServicePageView:    serviceView,
 		MetricListTable:    metricListTable,
 		MetricDetailsTable: metricDetailsTable,
-		app:                app,
-		api:                api,
+		serviceCtx:         serviceViewCtx,
 	}
 }
 
@@ -69,23 +61,21 @@ func (inst *MetricDetailsView) InitInputCapture() {
 	})
 }
 
-func NewMetricsHomeView(
-	app *tview.Application,
-	config aws.Config,
-	logger *log.Logger,
-) core.ServicePage {
+func NewMetricsHomeView(appCtx *core.AppContext) core.ServicePage {
 	core.ChangeColourScheme(tcell.NewHexColor(0x660000))
 	defer core.ResetGlobalStyle()
 
-	var api = awsapi.NewCloudWatchMetricsApi(config, logger)
+	var api = awsapi.NewCloudWatchMetricsApi(*appCtx.Config, appCtx.Logger)
+	var serviceCtx = core.NewServiceViewContext(appCtx, api)
+
 	var metricsDetailsView = NewMetricsDetailsView(
-		tables.NewMetricsTable(app, api, logger),
-		tables.NewMetricDetailsTable(app, api, logger),
-		app, api, logger,
+		tables.NewMetricsTable(serviceCtx),
+		tables.NewMetricDetailsTable(serviceCtx),
+		serviceCtx,
 	)
 	metricsDetailsView.InitInputCapture()
 
-	var serviceRootView = core.NewServiceRootView(string(CLOUDWATCH_METRICS), app, &config, logger)
+	var serviceRootView = core.NewServiceRootView(string(CLOUDWATCH_METRICS), appCtx)
 
 	serviceRootView.AddAndSwitchToPage("Metrics", metricsDetailsView, true)
 

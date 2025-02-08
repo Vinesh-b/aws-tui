@@ -1,7 +1,6 @@
 package servicetables
 
 import (
-	"log"
 	"slices"
 
 	"aws-tui/internal/pkg/awsapi"
@@ -11,7 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 type LogGroupsTable struct {
@@ -19,15 +17,11 @@ type LogGroupsTable struct {
 	data             []types.LogGroup
 	filtered         []types.LogGroup
 	selectedLogGroup string
-	logger           *log.Logger
-	app              *tview.Application
-	api              *awsapi.CloudWatchLogsApi
+	serviceCtx       *core.ServiceContext[awsapi.CloudWatchLogsApi]
 }
 
 func NewLogGroupsTable(
-	app *tview.Application,
-	api *awsapi.CloudWatchLogsApi,
-	logger *log.Logger,
+	serviceContext *core.ServiceContext[awsapi.CloudWatchLogsApi],
 ) *LogGroupsTable {
 
 	var view = &LogGroupsTable{
@@ -36,13 +30,11 @@ func NewLogGroupsTable(
 			core.TableRow{
 				"Name",
 			},
-			app,
+			serviceContext.AppContext,
 		),
 		data:             nil,
 		selectedLogGroup: "",
-		logger:           logger,
-		app:              app,
-		api:              api,
+		serviceCtx:       serviceContext,
 	}
 
 	view.populateLogGroupsTable(view.data)
@@ -87,7 +79,7 @@ func (inst *LogGroupsTable) populateLogGroupsTable(data []types.LogGroup) {
 }
 
 func (inst *LogGroupsTable) FilterByName(name string) {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		inst.filtered = core.FuzzySearch(name, inst.data, func(v types.LogGroup) string {
@@ -101,10 +93,10 @@ func (inst *LogGroupsTable) FilterByName(name string) {
 }
 
 func (inst *LogGroupsTable) RefreshLogGroups(reset bool) {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.api.ListLogGroups(reset)
+		var data, err = inst.serviceCtx.Api.ListLogGroups(reset)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

@@ -2,7 +2,6 @@ package servicetables
 
 import (
 	"fmt"
-	"log"
 
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
@@ -39,9 +38,7 @@ type DynamoDBGenericTable struct {
 	pkQueryString        string
 	skQueryString        string
 	searchIndexName      string
-	logger               *log.Logger
-	app                  *tview.Application
-	api                  *awsapi.DynamoDBApi
+	serviceCtx           *core.ServiceContext[awsapi.DynamoDBApi]
 	attributeIdxMap      map[string]int
 	queryExpr            expression.Expression
 	pkName               string
@@ -52,14 +49,12 @@ type DynamoDBGenericTable struct {
 }
 
 func NewDynamoDBGenericTable(
-	app *tview.Application,
-	api *awsapi.DynamoDBApi,
-	logger *log.Logger,
+	serviceContext *core.ServiceContext[awsapi.DynamoDBApi],
 ) *DynamoDBGenericTable {
-	var selectableTable = core.NewSelectableTable[map[string]any]("", nil, app)
+	var selectableTable = core.NewSelectableTable[map[string]any]("", nil, serviceContext.AppContext)
 
-	var queryView = NewFloatingDDBQueryInputView(app, logger)
-	var scanView = NewFloatingDDBScanInputView(app, logger)
+	var queryView = NewFloatingDDBQueryInputView(serviceContext.AppContext)
+	var scanView = NewFloatingDDBScanInputView(serviceContext.AppContext)
 
 	selectableTable.AddRuneToggleOverlay(QUERY_PAGE_NAME, queryView, core.APP_KEY_BINDINGS.TableQuery, false)
 	selectableTable.AddRuneToggleOverlay(SCAN_PAGE_NAME, scanView, core.APP_KEY_BINDINGS.TableScan, false)
@@ -79,9 +74,7 @@ func NewDynamoDBGenericTable(
 		searchIndexName:      "",
 		lastTableOp:          DDBTableScan,
 		lastSelectedRowIdx:   0,
-		logger:               logger,
-		app:                  app,
-		api:                  api,
+		serviceCtx:           serviceContext,
 	}
 
 	table.HighlightSearch = true
@@ -103,7 +96,7 @@ func NewDynamoDBGenericTable(
 
 		var expr, err = queryView.Input.GenerateQueryExpression()
 		if err != nil {
-			table.logger.Println(err.Error())
+			table.serviceCtx.Logger.Println(err.Error())
 			table.ErrorMessageCallback(err.Error())
 			return
 		}
@@ -113,7 +106,7 @@ func NewDynamoDBGenericTable(
 	scanView.Input.ScanDoneButton.SetSelectedFunc(func() {
 		var expr, err = scanView.Input.GenerateScanExpression()
 		if err != nil {
-			table.logger.Println(err.Error())
+			table.serviceCtx.Logger.Println(err.Error())
 			table.ErrorMessageCallback(err.Error())
 			return
 		}
@@ -200,7 +193,7 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expression.Expression, reset bool) {
 	inst.lastTableOp = operation
 	inst.lastSearchExpr = expr
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		if len(inst.selectedTable) <= 0 {
@@ -210,7 +203,7 @@ func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expre
 
 		var err error = nil
 		if reset || inst.tableDescription == nil {
-			inst.tableDescription, err = inst.api.DescribeTable(inst.selectedTable)
+			inst.tableDescription, err = inst.serviceCtx.Api.DescribeTable(inst.selectedTable)
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
 				return
@@ -221,9 +214,9 @@ func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expre
 
 		switch operation {
 		case DDBTableScan:
-			data, err = inst.api.ScanTable(inst.selectedTable, expr, "", reset)
+			data, err = inst.serviceCtx.Api.ScanTable(inst.selectedTable, expr, "", reset)
 		case DDBTableQuery:
-			data, err = inst.api.QueryTable(inst.selectedTable, expr, "", reset)
+			data, err = inst.serviceCtx.Api.QueryTable(inst.selectedTable, expr, "", reset)
 		}
 
 		if !reset {

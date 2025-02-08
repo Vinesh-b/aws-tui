@@ -1,14 +1,12 @@
 package servicetables
 
 import (
-	"log"
 	"sort"
 
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 const logNameCol = 0
@@ -17,15 +15,11 @@ type SelectedGroupsTable struct {
 	*core.SelectableTable[string]
 	data          core.StringSet
 	selectedGroup string
-	logger        *log.Logger
-	app           *tview.Application
-	api           *awsapi.CloudWatchLogsApi
+	serviceCtx    *core.ServiceContext[awsapi.CloudWatchLogsApi]
 }
 
 func NewSelectedGroupsTable(
-	app *tview.Application,
-	api *awsapi.CloudWatchLogsApi,
-	logger *log.Logger,
+	serviceViewCtx *core.ServiceContext[awsapi.CloudWatchLogsApi],
 ) *SelectedGroupsTable {
 
 	var view = &SelectedGroupsTable{
@@ -34,13 +28,11 @@ func NewSelectedGroupsTable(
 			core.TableRow{
 				"Name",
 			},
-			app,
+			serviceViewCtx.AppContext,
 		),
 		data:          core.StringSet{},
 		selectedGroup: "",
-		logger:        logger,
-		app:           app,
-		api:           api,
+		serviceCtx:    serviceViewCtx,
 	}
 
 	view.HighlightSearch = true
@@ -53,7 +45,7 @@ func NewSelectedGroupsTable(
 			view.RefreshSelectedGroups()
 		case rune('u'):
 			var groupName = view.GetSelectedLogGroup()
-			logger.Printf("Removing: %v", groupName)
+			serviceViewCtx.Logger.Printf("Removing: %v", groupName)
 			view.RemoveLogGroup(groupName)
 			view.RefreshSelectedGroups()
 		}
@@ -90,7 +82,7 @@ func (inst *SelectedGroupsTable) populateSelectedGroupsTable() {
 }
 
 func (inst *SelectedGroupsTable) RefreshSelectedGroups() {
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {})
 

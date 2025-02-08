@@ -1,28 +1,21 @@
 package servicetables
 
 import (
-	"log"
-
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 type DynamoDBTablesTable struct {
 	*core.SelectableTable[any]
-	selectedTable string
 	data          []string
-	logger        *log.Logger
-	app           *tview.Application
-	api           *awsapi.DynamoDBApi
+	selectedTable string
+	serviceCtx    *core.ServiceContext[awsapi.DynamoDBApi]
 }
 
 func NewDynamoDBTablesTable(
-	app *tview.Application,
-	api *awsapi.DynamoDBApi,
-	logger *log.Logger,
+	serviceContext *core.ServiceContext[awsapi.DynamoDBApi],
 ) *DynamoDBTablesTable {
 
 	var table = &DynamoDBTablesTable{
@@ -31,12 +24,10 @@ func NewDynamoDBTablesTable(
 			core.TableRow{
 				"Name",
 			},
-			app,
+			serviceContext.AppContext,
 		),
-		data:   nil,
-		logger: logger,
-		app:    app,
-		api:    api,
+		data:       nil,
+		serviceCtx: serviceContext,
 	}
 
 	table.populateTablesTable()
@@ -66,14 +57,14 @@ func (inst *DynamoDBTablesTable) populateTablesTable() {
 
 func (inst *DynamoDBTablesTable) RefreshTables(force bool) {
 	var search = inst.GetSearchText()
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		if len(search) > 0 {
-			inst.data = inst.api.FilterByName(search)
+			inst.data = inst.serviceCtx.Api.FilterByName(search)
 		} else {
 			var err error = nil
-			inst.data, err = inst.api.ListTables(force)
+			inst.data, err = inst.serviceCtx.Api.ListTables(force)
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
 			}

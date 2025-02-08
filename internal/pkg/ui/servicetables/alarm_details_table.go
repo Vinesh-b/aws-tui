@@ -2,7 +2,6 @@ package servicetables
 
 import (
 	"fmt"
-	"log"
 
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
@@ -18,24 +17,18 @@ type AlarmDetailsTable struct {
 	ErrorMessageCallback func(text string, a ...any)
 	selectedAlarm        string
 	data                 types.MetricAlarm
-	logger               *log.Logger
-	app                  *tview.Application
-	api                  *awsapi.CloudWatchAlarmsApi
+	serviceCtx           *core.ServiceContext[awsapi.CloudWatchAlarmsApi]
 }
 
 func NewAlarmDetailsTable(
-	app *tview.Application,
-	api *awsapi.CloudWatchAlarmsApi,
-	logger *log.Logger,
+	serviceContext *core.ServiceContext[awsapi.CloudWatchAlarmsApi],
 ) *AlarmDetailsTable {
 	var view = &AlarmDetailsTable{
 		Grid:                 tview.NewGrid(),
 		ErrorMessageCallback: func(text string, a ...any) {},
 		data:                 types.MetricAlarm{},
 		selectedAlarm:        "",
-		logger:               logger,
-		app:                  app,
-		api:                  api,
+		serviceCtx:           serviceContext,
 	}
 	view.
 		Clear().
@@ -86,8 +79,8 @@ func (inst *AlarmDetailsTable) populateAlarmDetailsGrid() {
 }
 
 func (inst *AlarmDetailsTable) RefreshDetails(alarm types.MetricAlarm) {
-    inst.data = alarm
-	var dataLoader = core.NewUiDataLoader(inst.app, 10)
+	inst.data = alarm
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {})
 
