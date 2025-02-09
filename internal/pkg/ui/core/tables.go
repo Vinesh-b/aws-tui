@@ -485,6 +485,8 @@ func NewDetailsTable(title string) *DetailsTable {
 
 	view.AddItem(table, 0, 1, true)
 
+	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
+
 	return view
 }
 
@@ -512,14 +514,26 @@ func (inst *DetailsTable) SetData(data []TableRow) error {
 			if colIdx > 0 {
 				textColor = TertiaryTextColor
 			}
-			inst.table.SetCell(rowIdx, colIdx, tview.NewTableCell(cellData).
-				SetAlign(tview.AlignLeft).
+			inst.table.SetCell(rowIdx, colIdx, NewTableCell[any](cellData, nil).
 				SetTextColor(textColor),
 			)
 		}
 	}
 
 	return nil
+}
+
+func (inst *DetailsTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
+	inst.table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Rune() {
+		case APP_KEY_BINDINGS.TextCopy:
+			var row, col = inst.table.GetSelection()
+			var text = inst.GetCellText(row, col)
+			clipboard.WriteAll(text)
+			return nil
+		}
+		return capture(event)
+	})
 }
 
 func (inst *DetailsTable) SetSelectionChangedFunc(
@@ -543,6 +557,10 @@ func (inst *DetailsTable) Select(row int, column int) *DetailsTable {
 
 func (inst *DetailsTable) GetCell(row int, column int) *tview.TableCell {
 	return inst.table.GetCell(row, column)
+}
+
+func (inst *DetailsTable) GetCellText(row int, column int) string {
+	return GetCellText[any](inst.table.GetCell(row, column))
 }
 
 func (inst *DetailsTable) ScrollToBeginning() *DetailsTable {
