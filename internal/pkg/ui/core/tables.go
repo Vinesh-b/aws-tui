@@ -10,6 +10,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/atotto/clipboard"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -125,6 +126,7 @@ func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppConte
 		AddItem("r", "Reset table", nil).
 		AddItem("n", "Load more data", nil).
 		AddItem("d", "Save table to csv", nil).
+		AddItem("y", "Copy cell text to clipboard", nil).
 		AddItem("k", "Move up one row", nil).
 		AddItem("j", "Move down one row", nil).
 		AddItem("g", "Go to first item", nil).
@@ -192,7 +194,7 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 
 	inst.RefreshTitle(0)
 
-	inst.table.SetSelectable(true, false).SetSelectedStyle(
+	inst.table.SetSelectable(true, true).SetSelectedStyle(
 		tcell.Style{}.Background(MoreContrastBackgroundColor),
 	)
 
@@ -372,6 +374,14 @@ func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventK
 		case APP_KEY_BINDINGS.ClearTable:
 			inst.SetData(nil, nil, 0)
 			inst.privateColumn = -1
+			return nil
+		}
+
+		switch event.Rune() {
+		case APP_KEY_BINDINGS.TextCopy:
+			var row, col = inst.table.GetSelection()
+			var text = inst.GetCellText(row, col)
+			clipboard.WriteAll(text)
 			return nil
 		}
 

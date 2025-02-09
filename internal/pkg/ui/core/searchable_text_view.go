@@ -68,7 +68,7 @@ func NewSearchableTextView(title string, appContext *AppContext) *SearchableText
 		var updateSearch = false
 
 		switch event.Rune() {
-		case APP_KEY_BINDINGS.TextViewCopy:
+		case APP_KEY_BINDINGS.TextCopy:
 			return tcell.NewEventKey(tcell.KeyCtrlQ, 0, 0)
 		case APP_KEY_BINDINGS.MoveUpRune:
 			return tcell.NewEventKey(tcell.KeyUp, 0, 0)

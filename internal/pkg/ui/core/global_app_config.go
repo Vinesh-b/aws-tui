@@ -79,7 +79,7 @@ type KeyBindings struct {
 	FormFocusPrev           tcell.Key
 	TableScan               rune
 	TableQuery              rune
-	TextViewCopy            rune
+	TextCopy                rune
 	TextViewUp              rune
 	TextViewDown            rune
 	MoveLeftRune            rune
@@ -127,7 +127,7 @@ var APP_KEY_BINDINGS = KeyBindings{
 	FormFocusPrev:           tcell.KeyBacktab,
 	TableScan:               's',
 	TableQuery:              'q',
-	TextViewCopy:            'y',
+	TextCopy:                'y',
 	TextViewPageUp:          'u',
 	TextViewPageDown:        'd',
 	TextViewSelectPageUp:    'U',
