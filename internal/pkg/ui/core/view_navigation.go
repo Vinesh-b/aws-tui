@@ -28,13 +28,26 @@ func NewViewNavigation1D(
 		keyBack:      APP_KEY_BINDINGS.FormFocusPrev,
 	}
 
+	// Focus can be changed by a mouse selection bypassing the input capture handler
+	var currentFocus = func(views []View) int {
+		for idx, v := range views {
+			if v.HasFocus() {
+				return idx
+			}
+		}
+
+		return 0
+	}
+
 	view.rootView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case view.keyForward:
+			view.viewIdx = currentFocus(view.orderedViews)
 			view.viewIdx = (view.viewIdx + 1) % view.numViews
 			view.app.SetFocus(view.orderedViews[view.viewIdx])
 			return nil
 		case view.keyBack:
+			view.viewIdx = currentFocus(view.orderedViews)
 			view.viewIdx = (view.viewIdx - 1 + view.numViews) % view.numViews
 			view.app.SetFocus(view.orderedViews[view.viewIdx])
 			return nil
@@ -102,9 +115,27 @@ func NewViewNavigation2D(
 		view.numCol = len(orderedViews[0])
 	}
 
+	// Focus can be changed by a mouse selection bypassing the input capture handler
+	var currentFocus = func(views [][]View) (int, int) {
+		for r_idx, row := range views {
+			for c_idx, v := range row {
+				if v.HasFocus() {
+					return r_idx, c_idx
+				}
+			}
+		}
+
+		return 0, 0
+	}
+
 	view.rootView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if view.orderedViews == nil || len(view.orderedViews) == 0 {
 			return event
+		}
+
+		switch event.Key() {
+		case view.keyUp, view.keyDown, view.keyLeft, view.keyRight:
+			view.rowIdx, view.colIdx = currentFocus(view.orderedViews)
 		}
 
 		switch event.Key() {
