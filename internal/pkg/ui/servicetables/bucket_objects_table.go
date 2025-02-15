@@ -170,7 +170,7 @@ func (inst *BucketObjectsTable) RefreshObjects(force bool) {
 }
 
 func (inst *BucketObjectsTable) SetSelectedFunc(handler func(row, column int)) {
-	inst.GetTable().SetSelectedFunc(func(row, column int) {
+	inst.SelectableTable.SetSelectedFunc(func(row, column int) {
 		var prefix = aws.ToString(inst.selectedObject.Key)
 		var isDir = prefix == "" || prefix[len(prefix)-1] == '/'
 
@@ -187,14 +187,14 @@ func (inst *BucketObjectsTable) SetSelectedFunc(handler func(row, column int)) {
 }
 
 func (inst *BucketObjectsTable) SetSelectionChangedFunc(handler func(row int, column int)) {
-	inst.GetTable().SetSelectionChangedFunc(func(row, column int) {
+	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
 		inst.selectedObject = inst.GetPrivateData(row, 0)
 		handler(row, column)
 	})
 }
 
 func (inst *BucketObjectsTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
-	inst.GetTable().SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshObjects(true)
