@@ -105,22 +105,14 @@ func (inst *LogStreamsTable) RefreshStreams(force bool) {
 
 func (inst *LogStreamsTable) SetSelectionChangedFunc(handler func(row int, column int)) {
 	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
-		if row < 1 {
-			return
-		}
-
-		inst.selectedLogStream = inst.GetCell(row, 0).Text
+		inst.selectedLogStream = inst.GetCellText(row, 0)
 		handler(row, column)
 	})
 }
 
 func (inst *LogStreamsTable) SetSelectedFunc(handler func(row int, column int)) {
 	inst.SelectableTable.SetSelectedFunc(func(row, column int) {
-		if row < 1 {
-			return
-		}
-
-		inst.selectedLogStream = inst.GetCell(row, 0).Text
+		inst.selectedLogStream = inst.GetCellText(row, 0)
 		handler(row, column)
 	})
 }
