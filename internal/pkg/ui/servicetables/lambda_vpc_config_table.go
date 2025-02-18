@@ -18,7 +18,7 @@ func NewLambdaVpcConfigTable(
 	serviceCtx *core.ServiceContext[awsapi.LambdaApi],
 ) *LambdaVpcConfigTable {
 	var table = &LambdaVpcConfigTable{
-		DetailsTable: core.NewDetailsTable("VPC Config"),
+		DetailsTable: core.NewDetailsTable("VPC Config", serviceCtx.AppContext),
 		data:         types.FunctionConfiguration{},
 		serviceCtx:   serviceCtx,
 	}

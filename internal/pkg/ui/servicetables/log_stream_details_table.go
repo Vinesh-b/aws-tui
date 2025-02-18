@@ -20,7 +20,7 @@ func NewLogStreamDetailsTable(
 	serviceContext *core.ServiceContext[awsapi.CloudWatchLogsApi],
 ) *LogStreamDetailsTable {
 	var table = &LogStreamDetailsTable{
-		DetailsTable: core.NewDetailsTable("Log Stream Details"),
+		DetailsTable: core.NewDetailsTable("Log Stream Details", serviceContext.AppContext),
 		data:         types.LogStream{},
 		serviceCtx:   serviceContext,
 	}

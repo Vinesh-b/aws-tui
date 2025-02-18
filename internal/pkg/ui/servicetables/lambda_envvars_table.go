@@ -20,7 +20,7 @@ func NewLambdaEnvVarsTable(
 	serviceCtx *core.ServiceContext[awsapi.LambdaApi],
 ) *LambdaEnvVarsTable {
 	var table = &LambdaEnvVarsTable{
-		DetailsTable: core.NewDetailsTable("Environment Variables"),
+		DetailsTable: core.NewDetailsTable("Environment Variables", serviceCtx.AppContext),
 		data:         types.FunctionConfiguration{},
 		serviceCtx:   serviceCtx,
 	}

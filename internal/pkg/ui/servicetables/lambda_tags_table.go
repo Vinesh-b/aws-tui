@@ -21,7 +21,7 @@ func NewLambdaTagsTable(
 	serviceCtx *core.ServiceContext[awsapi.LambdaApi],
 ) *LambdaTagsTable {
 	var table = &LambdaTagsTable{
-		DetailsTable: core.NewDetailsTable("Tags"),
+		DetailsTable: core.NewDetailsTable("Tags", serviceCtx.AppContext),
 		data:         types.FunctionConfiguration{},
 		serviceCtx:   serviceCtx,
 	}

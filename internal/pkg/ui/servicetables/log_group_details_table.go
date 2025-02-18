@@ -21,7 +21,7 @@ func NewLogGroupDetailsTable(
 	serviceContext *core.ServiceContext[awsapi.CloudWatchLogsApi],
 ) *LogGroupDetailsTable {
 	var table = &LogGroupDetailsTable{
-		DetailsTable: core.NewDetailsTable("Log Group Details"),
+		DetailsTable: core.NewDetailsTable("Log Group Details", serviceContext.AppContext),
 		data:         types.LogGroup{},
 		serviceCtx:   serviceContext,
 	}

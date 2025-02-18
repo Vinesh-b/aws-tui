@@ -24,7 +24,7 @@ func NewDynamoDBDetailsTable(
 	serviceContext *core.ServiceContext[awsapi.DynamoDBApi],
 ) *DynamoDBDetailsTable {
 	var table = &DynamoDBDetailsTable{
-		DetailsTable:  core.NewDetailsTable("Table Details"),
+		DetailsTable:  core.NewDetailsTable("Table Details", serviceContext.AppContext),
 		data:          nil,
 		selectedTable: "",
 		serviceCtx:    serviceContext,

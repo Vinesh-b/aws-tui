@@ -307,7 +307,7 @@ func (inst *SelectableTable[T]) ExtendData(data []TableRow, privateData []T) err
 }
 
 func (inst *SelectableTable[T]) SearchTableText(searchCols []int, search string) []CellPosition {
-	return searchTextInTable[T](inst.table, searchCols, search)
+	return searchTextInTable[T](inst.table, inst.appCtx.Theme, searchCols, search)
 }
 
 func (inst *SelectableTable[T]) GetCellText(row int, column int) string {
@@ -455,6 +455,7 @@ func (inst *SelectableTable[T]) ScrollToBeginning() *SelectableTable[T] {
 
 type DetailsTable struct {
 	*tview.Flex
+	appCtx               *AppContext
 	table                *tview.Table
 	title                string
 	titleExtra           string
@@ -462,16 +463,17 @@ type DetailsTable struct {
 	ErrorMessageCallback func(text string, a ...any)
 }
 
-func NewDetailsTable(title string) *DetailsTable {
+func NewDetailsTable(title string, appCtx *AppContext) *DetailsTable {
 	var table = tview.NewTable().
 		SetBorders(false).
 		SetSelectable(true, true).
 		SetSelectedStyle(
-			tcell.Style{}.Background(MoreContrastBackgroundColor),
+			tcell.Style{}.Background(appCtx.Theme.MoreContrastBackgroundColor),
 		)
 
 	var view = &DetailsTable{
 		Flex:                 tview.NewFlex(),
+		appCtx:               appCtx,
 		table:                table,
 		title:                title,
 		titleExtra:           "",
@@ -511,9 +513,9 @@ func (inst *DetailsTable) SetData(data []TableRow) error {
 
 	for rowIdx, rowData := range data {
 		for colIdx, cellData := range rowData {
-			textColor := TextColour
+			textColor := inst.appCtx.Theme.PrimaryTextColour
 			if colIdx > 0 {
-				textColor = TertiaryTextColor
+				textColor = inst.appCtx.Theme.TertiaryTextColour
 			}
 			inst.table.SetCell(rowIdx, colIdx, NewTableCell[any](cellData, nil).
 				SetTextColor(textColor),
@@ -573,7 +575,7 @@ func (inst *DetailsTable) SetTitleExtra(extra string) {
 	inst.titleExtra = extra
 }
 
-func searchTextInTable[T any](table *tview.Table, searchCols []int, search string) []CellPosition {
+func searchTextInTable[T any](table *tview.Table, theme *AppTheme, searchCols []int, search string) []CellPosition {
 	var resultPositions = []CellPosition{}
 	if len(search) <= 0 {
 		return resultPositions
@@ -590,7 +592,7 @@ func searchTextInTable[T any](table *tview.Table, searchCols []int, search strin
 			var cell = table.GetCell(r, c)
 			var text = GetCellText[T](cell)
 			if strings.Contains(text, search) {
-				cell.SetTextColor(TertiaryTextColor)
+				cell.SetTextColor(theme.TertiaryTextColour)
 				resultPositions = append(resultPositions, CellPosition{r, c})
 			}
 		}
@@ -620,7 +622,7 @@ func highlightTableSearch[T any](
 
 	var foundPositions []CellPosition
 	if len(search) > 0 {
-		foundPositions = searchTextInTable[T](table, cols, search)
+		foundPositions = searchTextInTable[T](table, theme, cols, search)
 		if len(foundPositions) > 0 {
 			table.Select(foundPositions[0].row, foundPositions[0].col)
 		}

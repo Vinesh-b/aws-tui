@@ -24,7 +24,7 @@ func NewStackDetailsTable(
 ) *StackDetailsTable {
 
 	var view = &StackDetailsTable{
-		DetailsTable: core.NewDetailsTable("Stack Details"),
+		DetailsTable: core.NewDetailsTable("Stack Details", serviceContext.AppContext),
 		data:         types.StackSummary{},
 		serviceCtx:   serviceContext,
 	}

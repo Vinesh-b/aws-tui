@@ -24,15 +24,15 @@ type SfnDetailsTable struct {
 }
 
 func NewSfnDetailsTable(
-	serviceViewCtx *core.ServiceContext[awsapi.StateMachineApi],
+	serviceContext *core.ServiceContext[awsapi.StateMachineApi],
 ) *SfnDetailsTable {
 	var table = &SfnDetailsTable{
-		DetailsTable:            core.NewDetailsTable("State Machine Details"),
+		DetailsTable:            core.NewDetailsTable("State Machine Details", serviceContext.AppContext),
 		data:                    nil,
 		logGroups:               []string{},
 		logGroupsChan:           make(chan []string),
 		selectedStateMachineArn: "",
-		serviceCtx:              serviceViewCtx,
+		serviceCtx:              serviceContext,
 	}
 
 	table.populateTable()

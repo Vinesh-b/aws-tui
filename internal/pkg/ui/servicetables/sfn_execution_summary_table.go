@@ -21,15 +21,15 @@ type SfnExecutionSummaryTable struct {
 }
 
 func NewSfnExecutionSummaryTable(
-	serviceViewCtx *core.ServiceContext[awsapi.StateMachineApi],
+	serviceContext *core.ServiceContext[awsapi.StateMachineApi],
 ) *SfnExecutionSummaryTable {
 
 	var table = &SfnExecutionSummaryTable{
-		DetailsTable:         core.NewDetailsTable("Execution Summary"),
+		DetailsTable:         core.NewDetailsTable("Execution Summary", serviceContext.AppContext),
 		selectedExecutionArn: "",
 
 		data:       nil,
-		serviceCtx: serviceViewCtx,
+		serviceCtx: serviceContext,
 	}
 
 	table.populateTable()

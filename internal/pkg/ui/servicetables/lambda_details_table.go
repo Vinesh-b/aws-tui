@@ -20,7 +20,7 @@ func NewLambdaDetailsTable(
 	serviceCtx *core.ServiceContext[awsapi.LambdaApi],
 ) *LambdaDetailsTable {
 	var table = &LambdaDetailsTable{
-		DetailsTable: core.NewDetailsTable("Lambda Details"),
+		DetailsTable: core.NewDetailsTable("Lambda Details", serviceCtx.AppContext),
 		data:         types.FunctionConfiguration{},
 		serviceCtx:   serviceCtx,
 	}

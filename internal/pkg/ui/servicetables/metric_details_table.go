@@ -15,12 +15,12 @@ type MetricDetailsTable struct {
 }
 
 func NewMetricDetailsTable(
-	serviceViewCtx *core.ServiceContext[awsapi.CloudWatchMetricsApi],
+	serviceContext *core.ServiceContext[awsapi.CloudWatchMetricsApi],
 ) *MetricDetailsTable {
 	var view = &MetricDetailsTable{
-		DetailsTable: core.NewDetailsTable("Metric Details"),
+		DetailsTable: core.NewDetailsTable("Metric Details", serviceContext.AppContext),
 		data:         types.Metric{},
-		serviceCtx:   serviceViewCtx,
+		serviceCtx:   serviceContext,
 	}
 
 	return view
