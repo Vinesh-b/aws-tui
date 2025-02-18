@@ -16,8 +16,8 @@ func (inst *HelpView) GetLastFocusedView() tview.Primitive {
 }
 
 func NewHelpHomeView(appCtx *core.AppContext) core.ServicePage {
-	core.ChangeColourScheme(tcell.NewHexColor(0x005555))
-	defer core.ResetGlobalStyle()
+	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0x005555))
+	defer appCtx.Theme.ResetGlobalStyle()
 
 	var textView = tview.NewTextView()
 	var helpNavigation = &HelpView{TextView: textView}

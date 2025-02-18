@@ -176,8 +176,8 @@ func (inst *SfnExectionDetailsPageView) initInputCapture() {
 }
 
 func NewStepFunctionsHomeView(appCtx *core.AppContext) core.ServicePage {
-	core.ChangeColourScheme(tcell.NewHexColor(0xFF3399))
-	defer core.ResetGlobalStyle()
+	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0xFF3399))
+	defer appCtx.Theme.ResetGlobalStyle()
 
 	var (
 		api        = awsapi.NewStateMachineApi(*appCtx.Config, appCtx.Logger)

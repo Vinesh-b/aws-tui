@@ -153,8 +153,8 @@ func (inst *LogGroupsPageView) InitInputCapture() {
 }
 
 func NewLogsHomeView(appCtx *core.AppContext) core.ServicePage {
-	core.ChangeColourScheme(tcell.NewHexColor(0xBB00DD))
-	defer core.ResetGlobalStyle()
+	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0xBB00DD))
+	defer appCtx.Theme.ResetGlobalStyle()
 
 	var api = awsapi.NewCloudWatchLogsApi(*appCtx.Config, appCtx.Logger)
 	var serviceCtx = core.NewServiceViewContext(appCtx, api)

@@ -128,8 +128,8 @@ func (inst *CloudFormationStackEventsPageView) InitInputCapture() {
 }
 
 func NewStacksHomeView(appCtx *core.AppContext) core.ServicePage {
-	core.ChangeColourScheme(tcell.NewHexColor(0x660033))
-	defer core.ResetGlobalStyle()
+	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0x660033))
+	defer appCtx.Theme.ResetGlobalStyle()
 
 	var (
 		api        = awsapi.NewCloudFormationApi(*appCtx.Config, appCtx.Logger)

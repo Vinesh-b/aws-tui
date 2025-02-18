@@ -239,8 +239,8 @@ func (inst *FloatingLambdaInvoke) GetLastFocusedView() tview.Primitive {
 }
 
 func NewLambdaHomeView(appCtx *core.AppContext) core.ServicePage {
-	core.ChangeColourScheme(tcell.NewHexColor(0xCC6600))
-	defer core.ResetGlobalStyle()
+	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0xCC6600))
+	defer appCtx.Theme.ResetGlobalStyle()
 
 	var (
 		api       = awsapi.NewLambdaApi(*appCtx.Config, appCtx.Logger)

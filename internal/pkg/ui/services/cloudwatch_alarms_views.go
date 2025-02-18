@@ -90,8 +90,8 @@ func (inst *AlarmsDetailsPageView) InitInputCapture() {
 }
 
 func NewAlarmsHomeView(appCtx *core.AppContext) core.ServicePage {
-	core.ChangeColourScheme(tcell.NewHexColor(0x660000))
-	defer core.ResetGlobalStyle()
+	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0x660000))
+	defer appCtx.Theme.ResetGlobalStyle()
 
 	var api = awsapi.NewCloudWatchAlarmsApi(*appCtx.Config, appCtx.Logger)
 	var serviceCtx = core.NewServiceViewContext(appCtx, api)

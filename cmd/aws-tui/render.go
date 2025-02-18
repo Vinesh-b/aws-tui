@@ -41,7 +41,21 @@ type ServiceItem struct {
 }
 
 func RenderUI(config aws.Config, version string) {
-	core.ResetGlobalStyle()
+
+	var appTheme = core.AppTheme{
+		PrimaryTextColour:           tcell.NewHexColor(0xBFBFBF),
+		SecondaryTextColour:         tcell.NewHexColor(0xFFFFFF),
+		TertiaryTextColour:          tcell.NewHexColor(0xCC8B00),
+		TitleColour:                 tcell.NewHexColor(0x43B143),
+		BorderColour:                tcell.NewHexColor(0x404040),
+		InverseTextColour:           tcell.NewHexColor(0x404040),
+		BackgroundColour:            tcell.NewHexColor(0x212129),
+		ContrastBackgroundColor:     tcell.NewHexColor(0x303030),
+		MoreContrastBackgroundColor: tcell.NewHexColor(0x404040),
+		PlaceholderTextColour:       tcell.NewHexColor(0x717171),
+	}
+
+	appTheme.ResetGlobalStyle()
 
 	var (
 		app           = tview.NewApplication()
@@ -51,7 +65,7 @@ func RenderUI(config aws.Config, version string) {
 			log.Default().Prefix(),
 			log.Default().Flags(),
 		)
-		appContext = core.NewAppContext(app, &config, inAppLogger)
+		appContext = core.NewAppContext(app, &config, inAppLogger, &appTheme)
 	)
 
 	config.Logger = logging.StandardLogger{Logger: inAppLogger}

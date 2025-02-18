@@ -109,8 +109,8 @@ func (inst *DynamoDBTableItemsPage) SetTableName(tableName string) *DynamoDBTabl
 }
 
 func NewDynamoDBHomeView(appCtx *core.AppContext) core.ServicePage {
-	core.ChangeColourScheme(tcell.NewHexColor(0x003388))
-	defer core.ResetGlobalStyle()
+	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0x003388))
+	defer appCtx.Theme.ResetGlobalStyle()
 
 	var (
 		api        = awsapi.NewDynamoDBApi(*appCtx.Config, appCtx.Logger)

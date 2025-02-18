@@ -39,15 +39,17 @@ type AppContext struct {
 	App    *tview.Application
 	Config *aws.Config
 	Logger *log.Logger
+	Theme  *AppTheme
 }
 
 func NewAppContext(
-	app *tview.Application, config *aws.Config, logger *log.Logger,
+	app *tview.Application, config *aws.Config, logger *log.Logger, theme *AppTheme,
 ) *AppContext {
 	return &AppContext{
 		App:    app,
 		Config: config,
 		Logger: logger,
+		Theme:  theme,
 	}
 }
 

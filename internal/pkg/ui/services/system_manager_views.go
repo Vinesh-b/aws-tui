@@ -96,8 +96,8 @@ func (inst *SystemManagerDetailsPageView) initInputCapture() {
 }
 
 func NewSystemManagerHomeView(appCtx *core.AppContext) core.ServicePage {
-	core.ChangeColourScheme(tcell.NewHexColor(0xFF5AAD))
-	defer core.ResetGlobalStyle()
+	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0xFF5AAD))
+	defer appCtx.Theme.ResetGlobalStyle()
 
 	var (
 		api        = awsapi.NewSystemsManagerApi(*appCtx.Config, appCtx.Logger)

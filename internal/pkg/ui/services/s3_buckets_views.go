@@ -75,8 +75,8 @@ func (inst *S3BucketsDetailsView) InitInputCapture() {
 }
 
 func NewS3bucketsHomeView(appCtx *core.AppContext) core.ServicePage {
-	core.ChangeColourScheme(tcell.NewHexColor(0x005500))
-	defer core.ResetGlobalStyle()
+	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0x005500))
+	defer appCtx.Theme.ResetGlobalStyle()
 
 	var (
 		api        = awsapi.NewS3BucketsApi(*appCtx.Config, appCtx.Logger)

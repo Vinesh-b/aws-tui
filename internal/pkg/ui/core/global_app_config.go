@@ -27,25 +27,38 @@ var (
 			Foreground(TextColour)
 )
 
-func ResetGlobalStyle() {
+type AppTheme struct {
+	PrimaryTextColour           tcell.Color
+	SecondaryTextColour         tcell.Color
+	TertiaryTextColour          tcell.Color
+	TitleColour                 tcell.Color
+	BorderColour                tcell.Color
+	InverseTextColour           tcell.Color
+	BackgroundColour            tcell.Color
+	ContrastBackgroundColor     tcell.Color
+	MoreContrastBackgroundColor tcell.Color
+	PlaceholderTextColour       tcell.Color
+}
+
+func (inst *AppTheme) ResetGlobalStyle() {
 	tview.Borders.TopLeft = tview.BoxDrawingsLightArcDownAndRight
 	tview.Borders.TopRight = tview.BoxDrawingsLightArcDownAndLeft
 	tview.Borders.BottomLeft = tview.BoxDrawingsLightArcUpAndRight
 	tview.Borders.BottomRight = tview.BoxDrawingsLightArcUpAndLeft
 
-	tview.Styles.TitleColor = TitleColour
-	tview.Styles.BorderColor = MoreContrastBackgroundColor
-	tview.Styles.PrimaryTextColor = TextColour
-	tview.Styles.SecondaryTextColor = SecondaryTextColor
-	tview.Styles.TertiaryTextColor = TertiaryTextColor
-	tview.Styles.InverseTextColor = InverseTextColor
+	tview.Styles.TitleColor = inst.TitleColour
+	tview.Styles.BorderColor = inst.BorderColour
+	tview.Styles.PrimaryTextColor = inst.PrimaryTextColour
+	tview.Styles.SecondaryTextColor = inst.SecondaryTextColour
+	tview.Styles.TertiaryTextColor = inst.TertiaryTextColour
+	tview.Styles.InverseTextColor = inst.InverseTextColour
 	tview.Styles.PrimitiveBackgroundColor = tcell.ColorDefault
-	tview.Styles.ContrastBackgroundColor = ContrastBackgroundColor
-	tview.Styles.MoreContrastBackgroundColor = MoreContrastBackgroundColor
+	tview.Styles.ContrastBackgroundColor = inst.ContrastBackgroundColor
+	tview.Styles.MoreContrastBackgroundColor = inst.MoreContrastBackgroundColor
 }
 
-func ChangeColourScheme(colour tcell.Color) {
-	ResetGlobalStyle()
+func (inst *AppTheme) ChangeColourScheme(colour tcell.Color) {
+	inst.ResetGlobalStyle()
 
 	tview.Styles.BorderColor = colour
 	tview.Styles.MoreContrastBackgroundColor = colour
