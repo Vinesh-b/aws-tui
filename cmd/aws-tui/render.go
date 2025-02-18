@@ -49,7 +49,7 @@ func RenderUI(config aws.Config, version string) {
 		TitleColour:                 tcell.NewHexColor(0x43B143),
 		BorderColour:                tcell.NewHexColor(0x404040),
 		InverseTextColour:           tcell.NewHexColor(0x404040),
-		BackgroundColour:            tcell.NewHexColor(0x212129),
+		BackgroundColour:            tcell.ColorDefault,
 		ContrastBackgroundColor:     tcell.NewHexColor(0x303030),
 		MoreContrastBackgroundColor: tcell.NewHexColor(0x404040),
 		PlaceholderTextColour:       tcell.NewHexColor(0x717171),

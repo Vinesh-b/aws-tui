@@ -49,7 +49,7 @@ func (inst *AppTheme) ResetGlobalStyle() {
 	tview.Styles.SecondaryTextColor = inst.SecondaryTextColour
 	tview.Styles.TertiaryTextColor = inst.TertiaryTextColour
 	tview.Styles.InverseTextColor = inst.InverseTextColour
-	tview.Styles.PrimitiveBackgroundColor = tcell.ColorDefault
+	tview.Styles.PrimitiveBackgroundColor = inst.BackgroundColour
 	tview.Styles.ContrastBackgroundColor = inst.ContrastBackgroundColor
 	tview.Styles.MoreContrastBackgroundColor = inst.MoreContrastBackgroundColor
 }
