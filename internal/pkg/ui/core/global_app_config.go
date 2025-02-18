@@ -54,6 +54,16 @@ func (inst *AppTheme) ResetGlobalStyle() {
 	tview.Styles.MoreContrastBackgroundColor = inst.MoreContrastBackgroundColor
 }
 
+func (inst *AppTheme) GetFocusFormItemStyle() tcell.Style {
+	return tcell.Style{}.
+		Foreground(BackgroundColor).
+		Background(TertiaryTextColor)
+}
+
+func (inst *AppTheme) GetBlurFormItemStyle() tcell.Style {
+	return tcell.Style{}.Foreground(TextColour)
+}
+
 func (inst *AppTheme) ChangeColourScheme(colour tcell.Color) {
 	inst.ResetGlobalStyle()
 

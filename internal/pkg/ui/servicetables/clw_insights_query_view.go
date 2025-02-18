@@ -85,7 +85,7 @@ func NewInsightsQueryInputView(appContext *core.AppContext) *InsightsQueryInputV
 			return res
 		},
 	)
-	view.queryTextArea.SetSelectedStyle(core.OnFocusStyle)
+	view.queryTextArea.SetSelectedStyle(appContext.Theme.GetFocusFormItemStyle())
 
 	var timeNow = time.Now()
 	view.startDateInput.
