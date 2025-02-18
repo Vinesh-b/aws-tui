@@ -8,10 +8,7 @@ import (
 // Global theme colours
 var (
 	TextColour           tcell.Color = tcell.NewHexColor(0xBFBFBF)
-	SecondaryTextColor   tcell.Color = tcell.NewHexColor(0xFFFFFF)
 	TertiaryTextColor    tcell.Color = tcell.NewHexColor(0xCC8B00)
-	InverseTextColor     tcell.Color = tcell.NewHexColor(0x404040)
-	TitleColour          tcell.Color = tcell.NewHexColor(0x43B143)
 	BackgroundColor      tcell.Color = tcell.NewHexColor(0x212129)
 	PlaceHolderTextColor tcell.Color = tcell.NewHexColor(0x717171)
 

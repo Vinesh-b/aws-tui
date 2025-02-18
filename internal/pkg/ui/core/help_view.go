@@ -10,16 +10,16 @@ type HelpView struct {
 	table *tview.Table
 }
 
-func NewHelpView() *HelpView {
+func NewHelpView(appCtx *AppContext) *HelpView {
 	var table = tview.NewTable()
 	table.
 		SetSelectable(true, false).
 		SetSelectedStyle(
-			tcell.Style{}.Background(MoreContrastBackgroundColor),
+			tcell.Style{}.Background(appCtx.Theme.MoreContrastBackgroundColor),
 		)
 
-	SetTableHeading(table, "Shortcut", 0)
-	SetTableHeading(table, "Description", 1)
+	SetTableHeading(table, appCtx.Theme, "Shortcut", 0)
+	SetTableHeading(table, appCtx.Theme, "Description", 1)
 	table.GetCell(0, 1).SetExpansion(1)
 
 	table.SetSelectedFunc(func(row, column int) {
@@ -54,8 +54,8 @@ type FloatingHelpView struct {
 	View *HelpView
 }
 
-func NewFloatingHelpView() *FloatingHelpView {
-	var helpView = NewHelpView()
+func NewFloatingHelpView(appCtx *AppContext) *FloatingHelpView {
+	var helpView = NewHelpView(appCtx)
 	return &FloatingHelpView{
 		Flex: FloatingViewRelative("Available actions", helpView, 50, 70),
 		View: helpView,

@@ -27,8 +27,8 @@ func NewTabView(appCtx *AppContext) *TabView {
 	view.list.
 		ShowSecondaryText(false).
 		SetHighlightFullLine(true).
-		SetSelectedBackgroundColor(TextColour).
-		SetSelectedTextColor(InverseTextColor)
+		SetSelectedBackgroundColor(appCtx.Theme.PrimaryTextColour).
+		SetSelectedTextColor(appCtx.Theme.InverseTextColour)
 	view.list.
 		SetBorder(true).
 		SetTitle("Tabs").

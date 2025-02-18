@@ -42,7 +42,7 @@ type ServicesHomeView struct {
 func NewServicesHomeView(appContext *core.AppContext) *ServicesHomeView {
 	var servicesList = tview.NewList().
 		SetSecondaryTextColor(tcell.ColorGrey).
-		SetSelectedTextColor(core.TertiaryTextColor).
+		SetSelectedTextColor(appContext.Theme.TertiaryTextColour).
 		SetHighlightFullLine(true).
 		SetSelectedBackgroundColor(tcell.ColorGrey)
 

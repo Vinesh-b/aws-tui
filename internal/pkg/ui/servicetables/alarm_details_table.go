@@ -65,14 +65,14 @@ func (inst *AlarmDetailsTable) populateAlarmDetailsGrid() {
 			tview.NewTextView().
 				SetWrap(false).
 				SetText(row[0]).
-				SetTextColor(core.TertiaryTextColor),
+				SetTextColor(inst.serviceCtx.Theme.TertiaryTextColour),
 			idx, 0, 1, 1, 0, 0, false,
 		)
 		inst.AddItem(
 			tview.NewTextView().
 				SetWrap(true).
 				SetText(row[1]).
-				SetTextColor(core.TertiaryTextColor),
+				SetTextColor(inst.serviceCtx.Theme.TertiaryTextColour),
 			idx, 1, 1, 1, 0, 0, false,
 		)
 	}

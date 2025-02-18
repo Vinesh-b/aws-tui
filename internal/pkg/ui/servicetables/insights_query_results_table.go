@@ -197,11 +197,11 @@ func (inst *InsightsQueryResultsTable) populateQueryResultsTable() {
 	}
 
 	for heading, colIdx := range inst.headingIdxMap {
-		core.SetTableHeading(inst.table, heading, colIdx)
+		core.SetTableHeading(inst.table, inst.serviceCtx.Theme, heading, colIdx)
 	}
 
 	inst.table.SetSelectable(true, true).SetSelectedStyle(
-		tcell.Style{}.Background(core.MoreContrastBackgroundColor),
+		tcell.Style{}.Background(inst.serviceCtx.Theme.MoreContrastBackgroundColor),
 	)
 
 	inst.RefreshTitle(len(inst.data))

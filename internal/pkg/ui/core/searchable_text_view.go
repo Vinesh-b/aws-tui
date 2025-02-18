@@ -28,7 +28,7 @@ func NewSearchableTextView(title string, appContext *AppContext) *SearchableText
 	var view = &SearchableTextView{
 		SearchableView:       searchableView,
 		ErrorMessageCallback: func(text string, a ...any) {},
-		HelpView:             NewFloatingHelpView(),
+		HelpView:             NewFloatingHelpView(appContext),
 		textArea:             textArea,
 		lineCount:            0,
 		searchPositions:      nil,
@@ -45,7 +45,7 @@ func NewSearchableTextView(title string, appContext *AppContext) *SearchableText
 			},
 		).
 		SetSelectedStyle(
-			tcell.Style{}.Background(MoreContrastBackgroundColor),
+			tcell.Style{}.Background(appContext.Theme.MoreContrastBackgroundColor),
 		)
 
 	view.SearchableView.

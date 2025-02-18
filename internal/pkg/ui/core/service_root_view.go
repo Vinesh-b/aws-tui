@@ -46,8 +46,8 @@ func NewServiceRootView(
 	view.pageList.
 		ShowSecondaryText(false).
 		SetHighlightFullLine(true).
-		SetSelectedBackgroundColor(TextColour).
-		SetSelectedTextColor(InverseTextColor)
+		SetSelectedBackgroundColor(appContext.Theme.PrimaryTextColour).
+		SetSelectedTextColor(appContext.Theme.InverseTextColour)
 
 	view.pageList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		var currentIdx = view.pageList.GetCurrentItem()

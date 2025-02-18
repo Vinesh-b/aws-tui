@@ -177,11 +177,11 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 	}
 
 	for heading, colIdx := range inst.attributeIdxMap {
-		core.SetTableHeading(inst.table, heading, colIdx)
+		core.SetTableHeading(inst.table, inst.serviceCtx.Theme, heading, colIdx)
 	}
 
 	inst.table.SetSelectable(true, true).SetSelectedStyle(
-		tcell.Style{}.Background(core.MoreContrastBackgroundColor),
+		tcell.Style{}.Background(inst.serviceCtx.Theme.MoreContrastBackgroundColor),
 	)
 
 	var clampedName = core.ClampStringLen(inst.tableDescription.TableName, 100)

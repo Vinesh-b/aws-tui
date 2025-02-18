@@ -20,7 +20,7 @@ type PaginatorView struct {
 func CreatePaginatorView(service string, appContext *AppContext) PaginatorView {
 	var sessionDetailsView = tview.NewTextView().
 		SetTextAlign(tview.AlignLeft).
-		SetTextColor(TertiaryTextColor)
+		SetTextColor(appContext.Theme.TertiaryTextColour)
 
 	go func() {
 		var creds, err = appContext.Config.Credentials.Retrieve(context.Background())

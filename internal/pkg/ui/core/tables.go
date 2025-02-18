@@ -75,11 +75,11 @@ func GetCellText[T any](cell *tview.TableCell) string {
 	return ""
 }
 
-func SetTableHeading(table *tview.Table, heading string, column int) {
+func SetTableHeading(table *tview.Table, theme *AppTheme, heading string, column int) {
 	table.SetCell(0, column, NewTableCell[any](heading, nil).
-		SetTextColor(SecondaryTextColor).
+		SetTextColor(theme.SecondaryTextColour).
 		SetSelectable(false).
-		SetBackgroundColor(ContrastBackgroundColor),
+		SetBackgroundColor(theme.ContrastBackgroundColor),
 	)
 }
 
@@ -115,7 +115,7 @@ func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppConte
 		privateColumn:        -1,
 		searchPositions:      []CellPosition{},
 		currentSearchIdx:     0,
-		HelpView:             NewFloatingHelpView(),
+		HelpView:             NewFloatingHelpView(appCtx),
 		SaveFileView:         NewFloatingWriteToFileView(appCtx),
 		ErrorMessageCallback: func(text string, a ...any) {},
 	}
@@ -195,11 +195,11 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 	inst.RefreshTitle(0)
 
 	inst.table.SetSelectable(true, true).SetSelectedStyle(
-		tcell.Style{}.Background(MoreContrastBackgroundColor),
+		tcell.Style{}.Background(inst.appCtx.Theme.MoreContrastBackgroundColor),
 	)
 
 	for col, heading := range inst.headings {
-		SetTableHeading(inst.table, heading, col)
+		SetTableHeading(inst.table, inst.appCtx.Theme, heading, col)
 	}
 
 	if len(data) == 0 {
@@ -401,6 +401,7 @@ func (inst *SelectableTable[T]) SetSearchDoneFunc(handler func(key tcell.Key)) {
 		case APP_KEY_BINDINGS.Done:
 			inst.searchPositions = highlightTableSearch[T](
 				inst.table,
+				inst.appCtx.Theme,
 				inst.GetSearchText(),
 				[]int{},
 			)
@@ -598,23 +599,24 @@ func searchTextInTable[T any](table *tview.Table, searchCols []int, search strin
 	return resultPositions
 }
 
-func clearSearchHighlights(table *tview.Table) {
+func clearSearchHighlights(table *tview.Table, theme *AppTheme) {
 	var rows = table.GetRowCount()
 	var cols = table.GetColumnCount()
 
 	for r := 1; r < rows; r++ {
 		for c := range cols {
-			table.GetCell(r, c).SetTextColor(TextColour)
+			table.GetCell(r, c).SetTextColor(theme.PrimaryTextColour)
 		}
 	}
 }
 
 func highlightTableSearch[T any](
 	table *tview.Table,
+	theme *AppTheme,
 	search string,
 	cols []int,
 ) []CellPosition {
-	clearSearchHighlights(table)
+	clearSearchHighlights(table, theme)
 
 	var foundPositions []CellPosition
 	if len(search) > 0 {
