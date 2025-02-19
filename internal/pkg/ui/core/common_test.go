@@ -8,7 +8,7 @@ import (
 
 func TestCreateJsonTableDataView(t *testing.T) {
 	var app = tview.NewApplication()
-	var appCtx = NewAppContext(app, nil, nil)
+	var appCtx = NewAppContext(app, nil, nil, &AppTheme{})
 	var table = NewSelectableTable[string]("test", TableRow{"col0"}, appCtx)
 	var data = []TableRow{
 		{`Cell text 1`},
