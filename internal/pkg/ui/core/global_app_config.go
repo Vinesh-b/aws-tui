@@ -5,25 +5,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-// Global theme colours
-var (
-	TextColour           tcell.Color = tcell.NewHexColor(0xBFBFBF)
-	TertiaryTextColor    tcell.Color = tcell.NewHexColor(0xCC8B00)
-	BackgroundColor      tcell.Color = tcell.NewHexColor(0x212129)
-	PlaceHolderTextColor tcell.Color = tcell.NewHexColor(0x717171)
-
-	// Grey (Default)
-	ContrastBackgroundColor     tcell.Color = tcell.NewHexColor(0x303030)
-	MoreContrastBackgroundColor tcell.Color = tcell.NewHexColor(0x404040)
-
-	OnFocusStyle = tcell.Style{}.
-			Foreground(BackgroundColor).
-			Background(TertiaryTextColor)
-
-	OnBlurStyle = tcell.Style{}.
-			Foreground(TextColour)
-)
-
 type AppTheme struct {
 	PrimaryTextColour           tcell.Color
 	SecondaryTextColour         tcell.Color
@@ -56,12 +37,12 @@ func (inst *AppTheme) ResetGlobalStyle() {
 
 func (inst *AppTheme) GetFocusFormItemStyle() tcell.Style {
 	return tcell.Style{}.
-		Foreground(BackgroundColor).
-		Background(TertiaryTextColor)
+		Foreground(inst.InverseTextColour).
+		Background(inst.TertiaryTextColour)
 }
 
 func (inst *AppTheme) GetBlurFormItemStyle() tcell.Style {
-	return tcell.Style{}.Foreground(TextColour)
+	return tcell.Style{}.Foreground(inst.PrimaryTextColour)
 }
 
 func (inst *AppTheme) ChangeColourScheme(colour tcell.Color) {

@@ -12,16 +12,18 @@ import (
 type TextArea struct {
 	*tview.TextArea
 	ErrorMessageCallback func(text string, a ...any)
+	appTheme             *AppTheme
 	lineCount            int
 	title                string
 	titleExtra           string
 }
 
-func NewTextArea(title string) *TextArea {
+func NewTextArea(title string, appTheme *AppTheme) *TextArea {
 	var t = tview.NewTextArea()
 	var view = &TextArea{
 		TextArea:             t,
 		ErrorMessageCallback: func(text string, a ...any) {},
+		appTheme:             appTheme,
 		lineCount:            0,
 		title:                title,
 		titleExtra:           "",
@@ -36,7 +38,7 @@ func NewTextArea(title string) *TextArea {
 			},
 		).
 		SetSelectedStyle(
-			tcell.Style{}.Background(MoreContrastBackgroundColor),
+			tcell.Style{}.Background(appTheme.MoreContrastBackgroundColor),
 		)
 
 	view.

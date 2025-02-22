@@ -170,23 +170,27 @@ func FuzzySearch[T any](search string, values []T, handler func(val T) string) [
 
 type DropDown struct {
 	*tview.DropDown
+	appTheme *AppTheme
 }
 
-func NewDropDown() *DropDown {
+func NewDropDown(appTheme *AppTheme) *DropDown {
 	var view = &DropDown{
 		DropDown: tview.NewDropDown(),
+		appTheme: appTheme,
 	}
+	var blurStyle = appTheme.GetBlurFormItemStyle()
+	var focusStyle = appTheme.GetFocusFormItemStyle()
 
 	view.DropDown.
-		SetListStyles(OnBlurStyle, OnFocusStyle).
+		SetListStyles(blurStyle, focusStyle).
 		SetFieldWidth(500).
 		SetBlurFunc(func() {
-			var fg, bg, _ = OnBlurStyle.Decompose()
+			var fg, bg, _ = blurStyle.Decompose()
 			view.DropDown.SetLabelColor(fg)
 			view.DropDown.SetBackgroundColor(bg)
 		}).
 		SetFocusFunc(func() {
-			var fg, bg, _ = OnFocusStyle.Decompose()
+			var fg, bg, _ = focusStyle.Decompose()
 			view.DropDown.SetLabelColor(fg)
 			view.DropDown.SetBackgroundColor(bg)
 		})
@@ -196,20 +200,22 @@ func NewDropDown() *DropDown {
 
 type InputField struct {
 	*tview.InputField
+	appTheme *AppTheme
 }
 
-func NewInputField() *InputField {
+func NewInputField(appTheme *AppTheme) *InputField {
 	var view = &InputField{
 		InputField: tview.NewInputField(),
+		appTheme:   appTheme,
 	}
 
 	view.InputField.
-		SetPlaceholderTextColor(PlaceHolderTextColor).
+		SetPlaceholderTextColor(appTheme.PlaceholderTextColour).
 		SetBlurFunc(func() {
-			view.InputField.SetLabelStyle(OnBlurStyle)
+			view.InputField.SetLabelStyle(appTheme.GetBlurFormItemStyle())
 		}).
 		SetFocusFunc(func() {
-			view.InputField.SetLabelStyle(OnFocusStyle)
+			view.InputField.SetLabelStyle(appTheme.GetFocusFormItemStyle())
 		})
 
 	return view
@@ -237,23 +243,25 @@ func NewButton(label string, appTheme *AppTheme) *Button {
 
 type DateTimeInputField struct {
 	*tview.InputField
-	layout string
+	appTheme *AppTheme
+	layout   string
 }
 
-func NewDateTimeInputField() *DateTimeInputField {
+func NewDateTimeInputField(appTheme *AppTheme) *DateTimeInputField {
 	var view = &DateTimeInputField{
 		InputField: tview.NewInputField(),
+		appTheme:   appTheme,
 		layout:     "2006-01-02 15:04:05",
 	}
 
 	view.InputField.
-		SetPlaceholderTextColor(PlaceHolderTextColor).
+		SetPlaceholderTextColor(appTheme.PlaceholderTextColour).
 		SetPlaceholder(view.layout).
 		SetBlurFunc(func() {
-			view.InputField.SetLabelStyle(OnBlurStyle)
+			view.InputField.SetLabelStyle(appTheme.GetBlurFormItemStyle())
 		}).
 		SetFocusFunc(func() {
-			view.InputField.SetLabelStyle(OnFocusStyle)
+			view.InputField.SetLabelStyle(appTheme.GetFocusFormItemStyle())
 		})
 
 	var pattern = regexp.MustCompile(`\d|-|\s|:`)
@@ -475,7 +483,7 @@ func NewWriteToFileView(appContext *AppContext) *WriteToFileView {
 	var saveButton = NewButton("Save", appContext.Theme)
 	var closeButton = NewButton("Close", appContext.Theme)
 	var message = tview.NewTextView().SetLabel("Status ")
-	var filePathInput = NewInputField()
+	var filePathInput = NewInputField(appContext.Theme)
 	filePathInput.
 		SetLabel("File Path ").
 		SetText("./table-dump.csv")

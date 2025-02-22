@@ -39,10 +39,10 @@ func NewSfnExecutionsQueryInputView(appContext *core.AppContext) *SfnExecutionsQ
 
 		appCtx:            appContext,
 		viewNavigation:    core.NewViewNavigation1D(flex, nil, appContext.App),
-		statusDropDown:    core.NewDropDown(),
-		executionArnInput: core.NewInputField(),
-		startDateInput:    core.NewDateTimeInputField(),
-		endDateInput:      core.NewDateTimeInputField(),
+		statusDropDown:    core.NewDropDown(appContext.Theme),
+		executionArnInput: core.NewInputField(appContext.Theme),
+		startDateInput:    core.NewDateTimeInputField(appContext.Theme),
+		endDateInput:      core.NewDateTimeInputField(appContext.Theme),
 	}
 
 	var separator = tview.NewBox()

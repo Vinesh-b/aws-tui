@@ -38,8 +38,8 @@ func NewInsightsQueryInputView(appContext *core.AppContext) *InsightsQueryInputV
 		appCtx:         appContext,
 		viewNavigation: core.NewViewNavigation1D(flex, nil, appContext.App),
 		queryTextArea:  tview.NewTextArea(),
-		startDateInput: core.NewDateTimeInputField(),
-		endDateInput:   core.NewDateTimeInputField(),
+		startDateInput: core.NewDateTimeInputField(appContext.Theme),
+		endDateInput:   core.NewDateTimeInputField(appContext.Theme),
 	}
 
 	var separator = tview.NewBox()

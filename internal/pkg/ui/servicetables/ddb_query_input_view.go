@@ -130,9 +130,9 @@ type DynamoDBQueryInputView struct {
 }
 
 func NewDynamoDBQueryInputView(appContext *core.AppContext) *DynamoDBQueryInputView {
-	var pkInput = core.NewInputField()
-	var skInput = core.NewInputField()
-	var skComparitorInput = core.NewInputField()
+	var pkInput = core.NewInputField(appContext.Theme)
+	var skInput = core.NewInputField(appContext.Theme)
+	var skComparitorInput = core.NewInputField(appContext.Theme)
 	var filterInputView = NewFilterInputView(appContext)
 	var doneButton = core.NewButton("Done", appContext.Theme)
 	var cancelButton = core.NewButton("Cancel", appContext.Theme)
@@ -316,11 +316,11 @@ type FilterInputView struct {
 }
 
 func NewFilterInputView(appContext *core.AppContext) *FilterInputView {
-	var attrNameInput = core.NewInputField()
-	var attrTypeInput = core.NewInputField()
-	var conditionInput = core.NewInputField()
-	var value1Input = core.NewInputField()
-	var value2Input = core.NewInputField()
+	var attrNameInput = core.NewInputField(appContext.Theme)
+	var attrTypeInput = core.NewInputField(appContext.Theme)
+	var conditionInput = core.NewInputField(appContext.Theme)
+	var value1Input = core.NewInputField(appContext.Theme)
+	var value2Input = core.NewInputField(appContext.Theme)
 
 	attrNameInput.SetLabel("Attribute ")
 	attrTypeInput.SetLabel("Type ")
@@ -559,7 +559,7 @@ func NewDynamoDBScanInputView(appContext *core.AppContext) *DynamoDBScanInputVie
 	var separater = tview.NewBox()
 	var doneButton = core.NewButton("Done", appContext.Theme)
 	var cancelButton = core.NewButton("Cancel", appContext.Theme)
-	var projAttrInput = core.NewInputField()
+	var projAttrInput = core.NewInputField(appContext.Theme)
 	projAttrInput.
 		SetLabel("Attribute Projection ").
 		SetPlaceholder("id,timestamp,name")
