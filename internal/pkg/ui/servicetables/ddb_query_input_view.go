@@ -134,8 +134,8 @@ func NewDynamoDBQueryInputView(appContext *core.AppContext) *DynamoDBQueryInputV
 	var skInput = core.NewInputField()
 	var skComparitorInput = core.NewInputField()
 	var filterInputView = NewFilterInputView(appContext)
-	var doneButton = core.NewButton("Done")
-	var cancelButton = core.NewButton("Cancel")
+	var doneButton = core.NewButton("Done", appContext.Theme)
+	var cancelButton = core.NewButton("Cancel", appContext.Theme)
 
 	pkInput.SetLabel("PK ").SetFieldWidth(0)
 	skInput.SetLabel("SK ").SetFieldWidth(0)
@@ -557,8 +557,8 @@ func NewDynamoDBScanInputView(appContext *core.AppContext) *DynamoDBScanInputVie
 	}
 
 	var separater = tview.NewBox()
-	var doneButton = core.NewButton("Done")
-	var cancelButton = core.NewButton("Cancel")
+	var doneButton = core.NewButton("Done", appContext.Theme)
+	var cancelButton = core.NewButton("Cancel", appContext.Theme)
 	var projAttrInput = core.NewInputField()
 	projAttrInput.
 		SetLabel("Attribute Projection ").

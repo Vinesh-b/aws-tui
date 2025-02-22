@@ -217,18 +217,20 @@ func NewInputField() *InputField {
 
 type Button struct {
 	*tview.Button
+	appTheme *AppTheme
 }
 
-func NewButton(label string) *Button {
+func NewButton(label string, appTheme *AppTheme) *Button {
 	var view = &Button{
-		Button: tview.NewButton(label),
+		Button:   tview.NewButton(label),
+		appTheme: appTheme,
 	}
 
 	view.Button.
-		SetActivatedStyle(OnFocusStyle).
+		SetActivatedStyle(appTheme.GetFocusFormItemStyle()).
 		SetStyle(tcell.Style{}.
-			Background(ContrastBackgroundColor).
-			Foreground(TextColour),
+			Background(appTheme.ContrastBackgroundColor).
+			Foreground(appTheme.PrimaryTextColour),
 		)
 	return view
 }
@@ -470,8 +472,8 @@ type WriteToFileView struct {
 
 func NewWriteToFileView(appContext *AppContext) *WriteToFileView {
 	var layout = tview.NewFlex()
-	var saveButton = NewButton("Save")
-	var closeButton = NewButton("Close")
+	var saveButton = NewButton("Save", appContext.Theme)
+	var closeButton = NewButton("Close", appContext.Theme)
 	var message = tview.NewTextView().SetLabel("Status ")
 	var filePathInput = NewInputField()
 	filePathInput.

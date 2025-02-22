@@ -34,8 +34,8 @@ func NewSfnExecutionsQueryInputView(appContext *core.AppContext) *SfnExecutionsQ
 	var flex = tview.NewFlex().SetDirection(tview.FlexRow)
 	var view = &SfnExecutionsQueryInputView{
 		Flex:         flex,
-		DoneButton:   core.NewButton("Done"),
-		CancelButton: core.NewButton("Cancel"),
+		DoneButton:   core.NewButton("Done", appContext.Theme),
+		CancelButton: core.NewButton("Cancel", appContext.Theme),
 
 		appCtx:            appContext,
 		viewNavigation:    core.NewViewNavigation1D(flex, nil, appContext.App),
