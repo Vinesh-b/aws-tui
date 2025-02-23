@@ -200,8 +200,10 @@ func (inst *SfnExecutionsTable) RefreshExpressExecutions(logGroup string, reset 
 		return
 	}
 
+	var executionFilter = "| filter execution_arn like /" + query.executionArn + "/"
+
 	var insightsQuery = InsightsQuery{
-		query:     `fields @message | filter type=~"Execution"`,
+		query:     `fields @message | filter type=~"Execution"` + executionFilter,
 		startTime: query.startTime,
 		endTime:   query.endTime,
 	}
