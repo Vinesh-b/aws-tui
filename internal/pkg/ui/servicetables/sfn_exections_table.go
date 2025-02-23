@@ -138,6 +138,18 @@ func (inst *SfnExecutionsTable) populateTable(force bool) {
 	inst.SetTitleExtra(aws.ToString(inst.selectedFunction.Name))
 	inst.SetData(tableData, inst.data, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
+
+	// temp hack to colour successful and failed executions
+	var table = inst.GetTable()
+	var rows = table.GetRowCount()
+	for r := range rows {
+		var cell = table.GetCell(r, 1)
+		if cell.Text == "SUCCEEDED" {
+			cell.SetStyle(tcell.Style{}.Foreground(tcell.ColorForestGreen))
+		} else if cell.Text == "FAILED" {
+			cell.SetStyle(tcell.Style{}.Foreground(tcell.ColorIndianRed))
+		}
+	}
 }
 
 func (inst *SfnExecutionsTable) SetSelectedFunc(handler func(row int, column int)) {
