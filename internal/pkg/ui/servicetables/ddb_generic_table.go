@@ -198,7 +198,7 @@ func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expre
 
 	dataLoader.AsyncLoadData(func() {
 		if len(inst.selectedTable) <= 0 {
-			inst.data = make([]map[string]interface{}, 0)
+			inst.data = make([]map[string]any, 0)
 			return
 		}
 

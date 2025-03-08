@@ -87,8 +87,8 @@ func (inst *DynamoDBApi) ScanTable(
 	scanExpression expression.Expression,
 	indexName string,
 	force bool,
-) ([]map[string]interface{}, error) {
-	var items []map[string]interface{}
+) ([]map[string]any, error) {
+	var items []map[string]any
 
 	if len(tableName) == 0 {
 		return items, fmt.Errorf("Table name not set")
@@ -119,7 +119,7 @@ func (inst *DynamoDBApi) ScanTable(
 	if err != nil {
 		inst.logger.Printf("Scan failed: %s\n", err.Error())
 	} else {
-		var temp []map[string]interface{}
+		var temp []map[string]any
 		attributevalue.UnmarshalListOfMaps(output.Items, &temp)
 		items = append(items, temp...)
 	}
@@ -131,8 +131,8 @@ func (inst *DynamoDBApi) QueryTable(
 	queryExpression expression.Expression,
 	indexName string,
 	force bool,
-) ([]map[string]interface{}, error) {
-	var items []map[string]interface{}
+) ([]map[string]any, error) {
+	var items []map[string]any
 
 	if len(tableName) == 0 {
 		return items, fmt.Errorf("Table name not set")
@@ -165,7 +165,7 @@ func (inst *DynamoDBApi) QueryTable(
 		return items, err
 	}
 
-	var temp []map[string]interface{}
+	var temp []map[string]any
 	err = attributevalue.UnmarshalListOfMaps(output.Items, &temp)
 	if err != nil {
 		inst.logger.Println(err)

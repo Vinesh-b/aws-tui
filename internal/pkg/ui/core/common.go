@@ -24,7 +24,7 @@ func ClampStringLen(input *string, maxLen int) string {
 }
 
 func TryFormatToJson(text string) (string, bool) {
-	var anyJson map[string]interface{}
+	var anyJson map[string]any
 	var err = json.Unmarshal([]byte(text), &anyJson)
 	if err != nil {
 		return text, false
@@ -98,8 +98,8 @@ func CreateJsonTableDataView[T any, U any](
 				expandedView.SetSearchText(table.GetSearchText())
 				return
 			}
-		case map[string]interface{}:
-			anyJson = privateData.(map[string]interface{})
+		case map[string]any:
+			anyJson = privateData.(map[string]any)
 		default:
 			var text = fmt.Sprintf("%v", privateData)
 			expandedView.SetText(text, false)
@@ -121,7 +121,7 @@ type JsonTextView[T any] struct {
 }
 
 func (inst *JsonTextView[T]) SetText(data T) {
-	var anyJson map[string]interface{}
+	var anyJson map[string]any
 
 	var logText = inst.ExtractTextFunc(data)
 	var err = json.Unmarshal([]byte(logText), &anyJson)
