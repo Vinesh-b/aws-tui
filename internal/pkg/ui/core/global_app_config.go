@@ -62,7 +62,7 @@ type KeyBindings struct {
 	ClearTable              tcell.Key
 	SaveTable               rune
 	Done                    tcell.Key
-	Find                    tcell.Key
+	Find                   	rune
 	PageChangeModKey        tcell.ModMask
 	PageForward             rune
 	PageBack                rune
@@ -109,7 +109,7 @@ var APP_KEY_BINDINGS = KeyBindings{
 	ClearTable:              tcell.KeyCtrlX,
 	SaveTable:               'd',
 	Done:                    tcell.KeyEnter,
-	Find:                    tcell.KeyCtrlF,
+	Find:                    '/',
 	PageChangeModKey:        tcell.ModAlt,
 	PageForward:             ']',
 	PageBack:                '[',

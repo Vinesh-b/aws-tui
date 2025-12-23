@@ -133,7 +133,7 @@ func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppConte
 		AddItem("G", "Go to last item", nil).
 		AddItem("pgup", "Go up a page", nil).
 		AddItem("pgdn", "Go down a page", nil).
-		AddItem("Ctrl-F", "Search table", nil)
+		AddItem("/", "Search table", nil)
 
 	view.
 		AddRuneToggleOverlay("HELP", view.HelpView, APP_KEY_BINDINGS.Help, true).
