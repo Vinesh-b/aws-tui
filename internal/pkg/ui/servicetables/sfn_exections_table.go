@@ -47,6 +47,7 @@ func NewSfnExecutionsTable(
 			"Status",
 			"Start Date",
 			"Stop Date",
+			"Duration",
 		},
 		appCtx,
 	)
@@ -122,11 +123,14 @@ func (inst *SfnExecutionsTable) populateTable(force bool) {
 	var tableData []core.TableRow
 
 	for _, row := range inst.data {
+		var startTime = aws.ToTime(row.StartDate)
+		var endTime = aws.ToTime(row.StopDate)
 		tableData = append(tableData, core.TableRow{
 			aws.ToString(row.Name),
 			string(row.Status),
-			aws.ToTime(row.StartDate).Format(time.DateTime),
-			aws.ToTime(row.StopDate).Format(time.DateTime),
+			startTime.Format(time.DateTime),
+			endTime.Format(time.DateTime),
+			endTime.Sub(startTime).String(),
 		})
 	}
 
