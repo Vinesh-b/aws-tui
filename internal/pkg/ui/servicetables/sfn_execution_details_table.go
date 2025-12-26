@@ -37,10 +37,10 @@ type StateMachineStep struct {
 }
 
 type SfnExecutionDetailsTable struct {
-	*core.SelectableTable[StateDetails]
+	*core.SelectableTable[EventDetails]
 	ExecutionHistory     *sfn.GetExecutionHistoryOutput
 	selectedExecutionArn string
-	selectedState        StateDetails
+	selectedState        EventDetails
 	appCtx               *core.AppContext
 	api                  *awsapi.StateMachineApi
 	cwlApi               *awsapi.CloudWatchLogsApi
@@ -53,7 +53,7 @@ func NewSfnExecutionDetailsTable(
 ) *SfnExecutionDetailsTable {
 
 	var view = &SfnExecutionDetailsTable{
-		SelectableTable: core.NewSelectableTable[StateDetails](
+		SelectableTable: core.NewSelectableTable[EventDetails](
 			"Execution Details",
 			core.TableRow{
 				"Name",
@@ -68,7 +68,7 @@ func NewSfnExecutionDetailsTable(
 		),
 		ExecutionHistory:     nil,
 		selectedExecutionArn: "",
-		selectedState:        StateDetails{},
+		selectedState:        EventDetails{},
 
 		appCtx: appCtx,
 		api:    api,
@@ -87,7 +87,7 @@ func NewSfnExecutionDetailsTable(
 	return view
 }
 
-type StateDetails struct {
+type EventDetails struct {
 	Id           int64
 	Name         string
 	Type         string
@@ -101,8 +101,8 @@ type StateDetails struct {
 	ResourceType string
 }
 
-func (inst *SfnExecutionDetailsTable) parseExecutionHistory() []StateDetails {
-	var results []StateDetails
+func (inst *SfnExecutionDetailsTable) parseExecutionHistory() []EventDetails {
+	var results []EventDetails
 	if inst.ExecutionHistory == nil {
 		return results
 	}
@@ -110,12 +110,13 @@ func (inst *SfnExecutionDetailsTable) parseExecutionHistory() []StateDetails {
 	var executionStartTime time.Time
 	var taskStartTime time.Time
 	for _, row := range inst.ExecutionHistory.Events {
-		var stateDetails = StateDetails{
+		var stateDetails = EventDetails{
 			Id:        row.Id,
 			Type:      string(row.Type),
 			StartTime: aws.ToTime(row.Timestamp),
 			EndTime:   aws.ToTime(row.Timestamp),
 		}
+
 		switch row.Type {
 		case types.HistoryEventTypeExecutionStarted:
 			stateDetails.Input = aws.ToString(row.ExecutionStartedEventDetails.Input)
@@ -194,7 +195,7 @@ func (inst *SfnExecutionDetailsTable) parseExecutionHistory() []StateDetails {
 			types.HistoryEventTypeChoiceStateExited,
 			types.HistoryEventTypeSucceedStateExited:
 
-			var idx = slices.IndexFunc(results, func(d StateDetails) bool {
+			var idx = slices.IndexFunc(results, func(d EventDetails) bool {
 				return d.Name == aws.ToString(row.StateExitedEventDetails.Name)
 			})
 
