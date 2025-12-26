@@ -95,15 +95,15 @@ type SfnExectionDetailsPageView struct {
 	*core.ServicePageView
 	selectedExection string
 	summaryTable     *tables.SfnExecutionSummaryTable
-	detailsTable     *tables.SfnExecutionDetailsTable
+	detailsTable     *tables.SfnExecutionStatesTable
 	searchInput      *tview.InputField
 	serviceCtx       *core.ServiceContext[awsapi.StateMachineApi]
 }
 
 func NewSfnExectionDetailsPage(
 	executionSummary *tables.SfnExecutionSummaryTable,
-	executionDetails *tables.SfnExecutionDetailsTable,
 	executionStates *tables.SfnExecutionStatesTable,
+	executionStateEvents *tables.SfnExecutionStateEventsTable,
 	serviceViewCtx *core.ServiceContext[awsapi.StateMachineApi],
 ) *SfnExectionDetailsPageView {
 
@@ -114,38 +114,47 @@ func NewSfnExectionDetailsPage(
 		},
 	}
 
-	var selectionFunc = func(row, _ int) {
-		if input := executionStates.GetSelectedStepInput(); len(input) > 0 {
+	var stateSelectionFunc = func(row, _ int) {
+		executionStateEvents.RefreshExecutionState(executionStates.GetSelectedState())
+	}
+
+	executionStates.SetSelectedFunc(stateSelectionFunc)
+	executionStates.SetSelectionChangedFunc(stateSelectionFunc)
+
+	var eventSelectionFunc = func(row, _ int) {
+		if input := executionStateEvents.GetSelectedStepInput(); len(input) > 0 {
 			inputOutputExpandedView.SetTitle("Input")
 			inputOutputExpandedView.SetText(input)
-		} else if output := executionStates.GetSelectedStepOutput(); len(output) > 0 {
+		} else if output := executionStateEvents.GetSelectedStepOutput(); len(output) > 0 {
 			inputOutputExpandedView.SetTitle("Ouput")
 			inputOutputExpandedView.SetText(output)
 		} else {
 			inputOutputExpandedView.SetTitle("Errors")
-			inputOutputExpandedView.SetText(executionStates.GetSelectedStepErrorCause())
+			inputOutputExpandedView.SetText(executionStateEvents.GetSelectedStepErrorCause())
 		}
-
-		executionStates.RefreshExecutionState(executionDetails.GetPrivateData(row, 0))
 	}
 
-	executionDetails.SetSelectedFunc(selectionFunc)
-	executionDetails.SetSelectionChangedFunc(selectionFunc)
+	executionStateEvents.SetSelectedFunc(eventSelectionFunc)
+	executionStateEvents.SetSelectionChangedFunc(eventSelectionFunc)
 
 	var tabView = core.NewTabView(serviceViewCtx.AppContext).
 		AddAndSwitchToTab("Input/Output", inputOutputExpandedView.TextView, 0, 1, true).
-		AddTab("Summary", executionSummary, 0, 1, true).
-		AddTab("Events", executionStates, 0, 1, true)
+		AddTab("Summary", executionSummary, 0, 1, true)
 
 	const detailsViewSize = 10
 	const inputOutputViewSize = 10
 
-	var resizableView = core.NewResizableView(
-		tabView, inputOutputViewSize,
-		executionDetails, detailsViewSize,
-		tview.FlexRow,
+	var resizableStatesView = core.NewResizableView(
+		executionStates, detailsViewSize,
+		executionStateEvents, inputOutputViewSize,
+		tview.FlexColumn,
 	)
 
+	var resizableView = core.NewResizableView(
+		tabView, inputOutputViewSize,
+		resizableStatesView, detailsViewSize,
+		tview.FlexRow,
+	)
 	var serviceView = core.NewServicePageView(serviceViewCtx.AppContext)
 	serviceView.MainPage.
 		AddItem(resizableView, 0, 1, false)
@@ -153,7 +162,7 @@ func NewSfnExectionDetailsPage(
 	serviceView.InitViewNavigation(
 		[][]core.View{
 			{tabView.GetTabsList(), tabView.GetTabDisplayView()},
-			{executionDetails},
+			{executionStates, executionStateEvents},
 		},
 	)
 
@@ -162,13 +171,13 @@ func NewSfnExectionDetailsPage(
 	}
 
 	executionSummary.ErrorMessageCallback = errorHandler
-	executionDetails.ErrorMessageCallback = errorHandler
+	executionStates.ErrorMessageCallback = errorHandler
 
 	var detailsView = &SfnExectionDetailsPageView{
 		ServicePageView:  serviceView,
 		selectedExection: "",
 		summaryTable:     executionSummary,
-		detailsTable:     executionDetails,
+		detailsTable:     executionStates,
 		serviceCtx:       serviceViewCtx,
 	}
 	detailsView.initInputCapture()

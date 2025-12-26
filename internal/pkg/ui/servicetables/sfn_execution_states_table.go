@@ -36,7 +36,7 @@ type StateMachineStep struct {
 	} `json:"details"`
 }
 
-type SfnExecutionDetailsTable struct {
+type SfnExecutionStatesTable struct {
 	*core.SelectableTable[StateDetails]
 	ExecutionHistory     *sfn.GetExecutionHistoryOutput
 	States               []StateDetails
@@ -52,9 +52,9 @@ func NewSfnExecutionDetailsTable(
 	appCtx *core.AppContext,
 	api *awsapi.StateMachineApi,
 	cwlApi *awsapi.CloudWatchLogsApi,
-) *SfnExecutionDetailsTable {
+) *SfnExecutionStatesTable {
 
-	var view = &SfnExecutionDetailsTable{
+	var view = &SfnExecutionStatesTable{
 		SelectableTable: core.NewSelectableTable[StateDetails](
 			"Execution Details",
 			core.TableRow{
@@ -99,7 +99,7 @@ type EventDetails struct {
 	ResourceType string
 }
 
-func (inst *SfnExecutionDetailsTable) parseExecutionHistory() []EventDetails {
+func (inst *SfnExecutionStatesTable) parseExecutionHistory() []EventDetails {
 	var results []EventDetails
 	if inst.ExecutionHistory == nil {
 		return results
@@ -211,7 +211,7 @@ func (inst *SfnExecutionDetailsTable) parseExecutionHistory() []EventDetails {
 	return results
 }
 
-func (inst *SfnExecutionDetailsTable) populateTable() {
+func (inst *SfnExecutionStatesTable) populateTable() {
 	var tableData []core.TableRow
 
 	for _, row := range inst.States {
@@ -225,7 +225,7 @@ func (inst *SfnExecutionDetailsTable) populateTable() {
 	inst.SetData(tableData, inst.States, 0)
 }
 
-func (inst *SfnExecutionDetailsTable) RefreshExecutionDetails(executionArn string, force bool) {
+func (inst *SfnExecutionStatesTable) RefreshExecutionDetails(executionArn string, force bool) {
 	inst.selectedExecutionArn = executionArn
 	var dataLoader = core.NewUiDataLoader(inst.appCtx.App, 10)
 
@@ -244,7 +244,7 @@ func (inst *SfnExecutionDetailsTable) RefreshExecutionDetails(executionArn strin
 	})
 }
 
-func (inst *SfnExecutionDetailsTable) RefreshExpressExecutionDetails(executionItem ExecutionItem, force bool) {
+func (inst *SfnExecutionStatesTable) RefreshExpressExecutionDetails(executionItem ExecutionItem, force bool) {
 	inst.selectedExecutionArn = aws.ToString(executionItem.ExecutionArn)
 	var findExecutionDetailsQuery = fmt.Sprintf(
 		`fields @message | filter execution_arn="%s" | sort id asc | limit 1000`,
@@ -403,7 +403,7 @@ func (inst *SfnExecutionDetailsTable) RefreshExpressExecutionDetails(executionIt
 	})
 }
 
-func (inst *SfnExecutionDetailsTable) SetSelectionChangedFunc(handler func(row int, column int)) {
+func (inst *SfnExecutionStatesTable) SetSelectionChangedFunc(handler func(row int, column int)) {
 	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
 		if row < 1 {
 			return
@@ -413,7 +413,7 @@ func (inst *SfnExecutionDetailsTable) SetSelectionChangedFunc(handler func(row i
 	})
 }
 
-func (inst *SfnExecutionDetailsTable) parseStates() []StateDetails {
+func (inst *SfnExecutionStatesTable) parseStates() []StateDetails {
 	var results []StateDetails
 
 	var currentState *StateDetails = nil
@@ -438,4 +438,8 @@ func (inst *SfnExecutionDetailsTable) parseStates() []StateDetails {
 
 	inst.States = results
 	return results
+}
+
+func (inst *SfnExecutionStatesTable) GetSelectedState() StateDetails {
+	return inst.selectedState
 }
