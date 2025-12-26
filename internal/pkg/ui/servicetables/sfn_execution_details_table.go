@@ -37,10 +37,12 @@ type StateMachineStep struct {
 }
 
 type SfnExecutionDetailsTable struct {
-	*core.SelectableTable[EventDetails]
+	*core.SelectableTable[StateDetails]
 	ExecutionHistory     *sfn.GetExecutionHistoryOutput
+	States               []StateDetails
+	events               []EventDetails
 	selectedExecutionArn string
-	selectedState        EventDetails
+	selectedState        StateDetails
 	appCtx               *core.AppContext
 	api                  *awsapi.StateMachineApi
 	cwlApi               *awsapi.CloudWatchLogsApi
@@ -53,22 +55,17 @@ func NewSfnExecutionDetailsTable(
 ) *SfnExecutionDetailsTable {
 
 	var view = &SfnExecutionDetailsTable{
-		SelectableTable: core.NewSelectableTable[EventDetails](
+		SelectableTable: core.NewSelectableTable[StateDetails](
 			"Execution Details",
 			core.TableRow{
 				"Name",
 				"Type",
-				"Resource",
-				"Action",
-				"StartTime",
-				"Duration",
-				"Errors",
 			},
 			appCtx,
 		),
 		ExecutionHistory:     nil,
 		selectedExecutionArn: "",
-		selectedState:        EventDetails{},
+		selectedState:        StateDetails{},
 
 		appCtx: appCtx,
 		api:    api,
@@ -208,27 +205,22 @@ func (inst *SfnExecutionDetailsTable) parseExecutionHistory() []EventDetails {
 
 		results = append(results, stateDetails)
 	}
+	inst.events = results
 
 	return results
 }
 
 func (inst *SfnExecutionDetailsTable) populateTable() {
-	var results = inst.parseExecutionHistory()
 	var tableData []core.TableRow
 
-	for _, row := range results {
+	for _, row := range inst.States {
 		tableData = append(tableData, core.TableRow{
 			row.Name,
 			row.Type,
-			row.ResourceType,
-			row.Resource,
-			row.StartTime.Format(time.DateTime),
-			row.EndTime.Sub(row.StartTime).String(),
-			row.Errors,
 		})
 	}
 
-	inst.SetData(tableData, results, 0)
+	inst.SetData(tableData, inst.States, 0)
 }
 
 func (inst *SfnExecutionDetailsTable) RefreshExecutionDetails(executionArn string, force bool) {
@@ -244,6 +236,8 @@ func (inst *SfnExecutionDetailsTable) RefreshExecutionDetails(executionArn strin
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
+		inst.parseExecutionHistory()
+		inst.parseStates()
 		inst.populateTable()
 	})
 }
@@ -415,14 +409,24 @@ func (inst *SfnExecutionDetailsTable) SetSelectionChangedFunc(handler func(row i
 	})
 }
 
-func (inst *SfnExecutionDetailsTable) GetSelectedStepInput() string {
-	return inst.selectedState.Input
-}
+func (inst *SfnExecutionDetailsTable) parseStates() []StateDetails {
+	var results []StateDetails
 
-func (inst *SfnExecutionDetailsTable) GetSelectedStepOutput() string {
-	return inst.selectedState.Output
-}
+	var currentState *StateDetails = nil
+	for _, e := range inst.events {
+		if len(e.Name) > 0 {
+			results = append(results, StateDetails{})
+			currentState = &results[len(results)-1]
+			currentState.Name = e.Name
+			currentState.Id = e.Id
+			currentState.Type = e.Type
+		}
 
-func (inst *SfnExecutionDetailsTable) GetSelectedStepErrorCause() string {
-	return inst.selectedState.Casue
+		if currentState != nil {
+			currentState.Events = append(currentState.Events, e)
+		}
+	}
+	inst.States = results
+
+	return results
 }
