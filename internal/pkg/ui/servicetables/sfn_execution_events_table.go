@@ -10,7 +10,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-type SfnExecutionStatesTable struct {
+type SfnExecutionStateEventsTable struct {
 	*core.SelectableTable[EventDetails]
 	ExecutionHistory *sfn.GetExecutionHistoryOutput
 	State            StateDetails
@@ -31,9 +31,9 @@ type StateDetails struct {
 func NewSfnExecutionStatesTable(
 	appCtx *core.AppContext,
 	api *awsapi.StateMachineApi,
-) *SfnExecutionStatesTable {
+) *SfnExecutionStateEventsTable {
 
-	var view = &SfnExecutionStatesTable{
+	var view = &SfnExecutionStateEventsTable{
 		SelectableTable: core.NewSelectableTable[EventDetails](
 			"Execution State Events",
 			core.TableRow{
@@ -66,7 +66,7 @@ func NewSfnExecutionStatesTable(
 	return view
 }
 
-func (inst *SfnExecutionStatesTable) populateTable() {
+func (inst *SfnExecutionStateEventsTable) populateTable() {
 	var tableData []core.TableRow
 
 	for _, row := range inst.State.Events {
@@ -84,19 +84,12 @@ func (inst *SfnExecutionStatesTable) populateTable() {
 	inst.SetData(tableData, inst.State.Events, 0)
 }
 
-func (inst *SfnExecutionStatesTable) RefreshExecutionState(state StateDetails) {
-	var dataLoader = core.NewUiDataLoader(inst.appCtx.App, 10)
-
-	dataLoader.AsyncLoadData(func() {
-		inst.State = state
-	})
-
-	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateTable()
-	})
+func (inst *SfnExecutionStateEventsTable) RefreshExecutionState(state StateDetails) {
+	inst.State = state
+	inst.populateTable()
 }
 
-func (inst *SfnExecutionStatesTable) SetSelectionChangedFunc(handler func(row int, column int)) {
+func (inst *SfnExecutionStateEventsTable) SetSelectionChangedFunc(handler func(row int, column int)) {
 	inst.SelectableTable.SetSelectionChangedFunc(func(row, column int) {
 		if row < 1 {
 			return
@@ -106,14 +99,14 @@ func (inst *SfnExecutionStatesTable) SetSelectionChangedFunc(handler func(row in
 	})
 }
 
-func (inst *SfnExecutionStatesTable) GetSelectedStepInput() string {
-	return "{}"
+func (inst *SfnExecutionStateEventsTable) GetSelectedStepInput() string {
+	return inst.selectedEvent.Input
 }
 
-func (inst *SfnExecutionStatesTable) GetSelectedStepOutput() string {
+func (inst *SfnExecutionStateEventsTable) GetSelectedStepOutput() string {
 	return inst.selectedEvent.Output
 }
 
-func (inst *SfnExecutionStatesTable) GetSelectedStepErrorCause() string {
+func (inst *SfnExecutionStateEventsTable) GetSelectedStepErrorCause() string {
 	return inst.selectedEvent.Casue
 }
