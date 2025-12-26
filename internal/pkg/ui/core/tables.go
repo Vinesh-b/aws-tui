@@ -43,9 +43,9 @@ func GetPrivateData[T any](cell *tview.TableCell) T {
 	if privateData == nil {
 		return *new(T)
 	}
-	switch privateData.(type) {
+	switch pd := privateData.(type) {
 	case *CellData[T]:
-		var cellDataRef = privateData.(*CellData[T]).ref
+		var cellDataRef = pd.ref
 		if cellDataRef != nil {
 			return *cellDataRef
 		}
@@ -59,14 +59,14 @@ func GetCellText[T any](cell *tview.TableCell) string {
 	if privateData == nil {
 		return ""
 	}
-	switch privateData.(type) {
+	switch pd := privateData.(type) {
 	case *CellData[T]:
-		var cellDataText = privateData.(*CellData[T]).text
+		var cellDataText = pd.text
 		if cellDataText != nil {
 			return *cellDataText
 		}
 	default:
-		var cellDataText = privateData.(*CellData[any]).text
+		var cellDataText = pd.(*CellData[any]).text
 		if cellDataText != nil {
 			return *cellDataText
 		}

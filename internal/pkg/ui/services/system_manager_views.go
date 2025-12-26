@@ -28,11 +28,11 @@ func NewSystemManagerDetailsPageView(
 	var paramValueView = core.JsonTextView[any]{
 		TextView: core.NewSearchableTextView("", serviceViewCtx.AppContext),
 		ExtractTextFunc: func(data any) string {
-			switch data.(type) {
+			switch d := data.(type) {
 			case types.Parameter:
-				return aws.ToString(data.(types.Parameter).Value)
+				return aws.ToString(d.Value)
 			case types.ParameterHistory:
-				return aws.ToString(data.(types.ParameterHistory).Value)
+				return aws.ToString(d.Value)
 			}
 			return ""
 		},
