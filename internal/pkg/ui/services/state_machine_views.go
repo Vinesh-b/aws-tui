@@ -103,6 +103,7 @@ type SfnExectionDetailsPageView struct {
 func NewSfnExectionDetailsPage(
 	executionSummary *tables.SfnExecutionSummaryTable,
 	executionDetails *tables.SfnExecutionDetailsTable,
+	executionStates *tables.SfnExecutionStatesTable,
 	serviceViewCtx *core.ServiceContext[awsapi.StateMachineApi],
 ) *SfnExectionDetailsPageView {
 
@@ -113,17 +114,19 @@ func NewSfnExectionDetailsPage(
 		},
 	}
 
-	var selectionFunc = func(_, _ int) {
-		if input := executionDetails.GetSelectedStepInput(); len(input) > 0 {
+	var selectionFunc = func(row, _ int) {
+		if input := executionStates.GetSelectedStepInput(); len(input) > 0 {
 			inputOutputExpandedView.SetTitle("Input")
 			inputOutputExpandedView.SetText(input)
-		} else if output := executionDetails.GetSelectedStepOutput(); len(output) > 0 {
+		} else if output := executionStates.GetSelectedStepOutput(); len(output) > 0 {
 			inputOutputExpandedView.SetTitle("Ouput")
 			inputOutputExpandedView.SetText(output)
 		} else {
 			inputOutputExpandedView.SetTitle("Errors")
-			inputOutputExpandedView.SetText(executionDetails.GetSelectedStepErrorCause())
+			inputOutputExpandedView.SetText(executionStates.GetSelectedStepErrorCause())
 		}
+
+		executionStates.RefreshExecutionState(executionDetails.GetPrivateData(row, 0))
 	}
 
 	executionDetails.SetSelectedFunc(selectionFunc)
@@ -131,7 +134,8 @@ func NewSfnExectionDetailsPage(
 
 	var tabView = core.NewTabView(serviceViewCtx.AppContext).
 		AddAndSwitchToTab("Input/Output", inputOutputExpandedView.TextView, 0, 1, true).
-		AddTab("Summary", executionSummary, 0, 1, true)
+		AddTab("Summary", executionSummary, 0, 1, true).
+		AddTab("Events", executionStates, 0, 1, true)
 
 	const detailsViewSize = 10
 	const inputOutputViewSize = 10
@@ -195,6 +199,7 @@ func NewStepFunctionsHomeView(appCtx *core.AppContext) core.ServicePage {
 		SfnExeDetailsView = NewSfnExectionDetailsPage(
 			tables.NewSfnExecutionSummaryTable(serviceCtx),
 			tables.NewSfnExecutionDetailsTable(serviceCtx.AppContext, api, cwlApi),
+			tables.NewSfnExecutionStatesTable(serviceCtx.AppContext, api),
 			serviceCtx,
 		)
 	)
