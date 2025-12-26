@@ -90,16 +90,15 @@ func CreateJsonTableDataView[T any, U any](
 		var privateData = any(table.GetPrivateData(row, col))
 		var anyJson any
 
-		switch privateData.(type) {
+		switch pd := privateData.(type) {
 		case string:
-			var text = privateData.(string)
-			if err := json.Unmarshal([]byte(text), &anyJson); err != nil {
-				expandedView.SetText(text, false)
+			if err := json.Unmarshal([]byte(pd), &anyJson); err != nil {
+				expandedView.SetText(pd, false)
 				expandedView.SetSearchText(table.GetSearchText())
 				return
 			}
 		case map[string]any:
-			anyJson = privateData.(map[string]any)
+			anyJson = pd
 		default:
 			var text = fmt.Sprintf("%v", privateData)
 			expandedView.SetText(text, false)
