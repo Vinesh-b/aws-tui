@@ -217,7 +217,7 @@ func (inst *SfnExecutionStatesTable) populateTable() {
 	for _, row := range inst.States {
 		tableData = append(tableData, core.TableRow{
 			row.Name,
-			row.Type,
+			string(row.Type),
 			row.Duration.String(),
 		})
 	}
@@ -418,15 +418,19 @@ func (inst *SfnExecutionStatesTable) parseStates() []StateDetails {
 
 	var currentState *StateDetails = nil
 	for _, e := range inst.events {
+		var eventStateType = SfnStateFromEvent(types.HistoryEventType(e.Type))
+
+		// Only StateEntered events have the name property set
 		if len(e.Name) > 0 {
-			results = append(results, StateDetails{})
+			results = append(results, StateDetails{
+				Name: e.Name,
+				Id:   e.Id,
+				Type: eventStateType,
+			})
 			currentState = &results[len(results)-1]
-			currentState.Name = e.Name
-			currentState.Id = e.Id
-			currentState.Type = e.Type
 		}
 
-		if currentState != nil {
+		if currentState != nil && eventStateType == currentState.Type {
 			currentState.Events = append(currentState.Events, e)
 		}
 	}

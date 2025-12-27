@@ -23,7 +23,7 @@ type SfnExecutionStateEventsTable struct {
 type StateDetails struct {
 	Id       int64
 	Name     string
-	Type     string
+	Type     SfnStateType
 	Duration time.Duration
 	Events   []EventDetails
 }
