@@ -141,18 +141,21 @@ func NewSfnExectionDetailsPage(
 		AddAndSwitchToTab("Input/Output", inputOutputExpandedView.TextView, 0, 1, true).
 		AddTab("Summary", executionSummary, 0, 1, true)
 
-	const detailsViewSize = 10
-	const inputOutputViewSize = 10
+	const statesViewSize = 45
+	const eventsViewSize = 55
 
 	var resizableStatesView = core.NewResizableView(
-		executionStates, detailsViewSize,
-		executionStateEvents, inputOutputViewSize,
+		executionStates, statesViewSize,
+		executionStateEvents, eventsViewSize,
 		tview.FlexColumn,
 	)
 
+	const stateEventsViewSize = 10
+	const tabPaneViewSize = 10
+
 	var resizableView = core.NewResizableView(
-		tabView, inputOutputViewSize,
-		resizableStatesView, detailsViewSize,
+		tabView, tabPaneViewSize,
+		resizableStatesView, stateEventsViewSize,
 		tview.FlexRow,
 	)
 	var serviceView = core.NewServicePageView(serviceViewCtx.AppContext)
