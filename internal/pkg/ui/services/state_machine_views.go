@@ -114,14 +114,14 @@ func NewSfnExectionDetailsPage(
 		},
 	}
 
-	var stateSelectionFunc = func(row, _ int) {
+	var stateSelectionFunc = func(_row, _col int) {
 		executionStateEvents.RefreshExecutionState(executionStates.GetSelectedState())
 	}
 
 	executionStates.SetSelectedFunc(stateSelectionFunc)
 	executionStates.SetSelectionChangedFunc(stateSelectionFunc)
 
-	var eventSelectionFunc = func(row, _ int) {
+	var eventSelectionFunc = func(_row, _col int) {
 		if input := executionStateEvents.GetSelectedStepInput(); len(input) > 0 {
 			inputOutputExpandedView.SetTitle("Input")
 			inputOutputExpandedView.SetText(input)
@@ -233,10 +233,10 @@ func NewStepFunctionsHomeView(appCtx *core.AppContext) core.ServicePage {
 			if sfType == "EXPRESS" {
 				var execution = SfnDetailsView.
 					sfnExecutionsTable.GetSeletedExecution()
-				SfnExeDetailsView.detailsTable.RefreshExpressExecutionDetails(execution, true)
+				SfnExeDetailsView.detailsTable.RefreshExpressExecutionStates(execution, true)
 			} else {
 				SfnExeDetailsView.summaryTable.RefreshExecutionDetails(selectedExecution, true)
-				SfnExeDetailsView.detailsTable.RefreshExecutionDetails(selectedExecution, true)
+				SfnExeDetailsView.detailsTable.RefreshExecutionStates(selectedExecution, true)
 			}
 			serviceRootView.ChangePage(1, nil)
 		}

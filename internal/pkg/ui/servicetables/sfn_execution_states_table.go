@@ -77,7 +77,7 @@ func NewSfnExecutionDetailsTable(
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
-			view.RefreshExecutionDetails(view.selectedExecutionArn, true)
+			view.RefreshExecutionStates(view.selectedExecutionArn, true)
 		}
 		return event
 	})
@@ -223,9 +223,10 @@ func (inst *SfnExecutionStatesTable) populateTable() {
 	}
 
 	inst.SetData(tableData, inst.States, 0)
+	inst.Select(1, 0)
 }
 
-func (inst *SfnExecutionStatesTable) RefreshExecutionDetails(executionArn string, force bool) {
+func (inst *SfnExecutionStatesTable) RefreshExecutionStates(executionArn string, force bool) {
 	inst.selectedExecutionArn = executionArn
 	var dataLoader = core.NewUiDataLoader(inst.appCtx.App, 10)
 
@@ -244,7 +245,7 @@ func (inst *SfnExecutionStatesTable) RefreshExecutionDetails(executionArn string
 	})
 }
 
-func (inst *SfnExecutionStatesTable) RefreshExpressExecutionDetails(executionItem ExecutionItem, force bool) {
+func (inst *SfnExecutionStatesTable) RefreshExpressExecutionStates(executionItem ExecutionItem, force bool) {
 	inst.selectedExecutionArn = aws.ToString(executionItem.ExecutionArn)
 	var findExecutionDetailsQuery = fmt.Sprintf(
 		`fields @message | filter execution_arn="%s" | sort id asc | limit 1000`,

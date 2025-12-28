@@ -82,6 +82,7 @@ func (inst *SfnExecutionStateEventsTable) populateTable() {
 	}
 
 	inst.SetData(tableData, inst.State.Events, 0)
+	inst.Select(1, 0)
 }
 
 func (inst *SfnExecutionStateEventsTable) RefreshExecutionState(state StateDetails) {
