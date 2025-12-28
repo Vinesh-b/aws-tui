@@ -41,25 +41,30 @@ func (inst *ResizableView) paneResizeHightHandler(event *tcell.EventKey) *tcell.
 	var _, _, view1wSize, view1hSize = inst.view1.GetRect()
 	var _, _, view2wSize, view2hSize = inst.view2.GetRect()
 	var view1Size, view2Size int
+	var movePositiveKey, moveNegativeKey rune
 
 	if inst.direction == tview.FlexRow {
 		view1Size = view1hSize
 		view2Size = view2hSize
+		movePositiveKey = APP_KEY_BINDINGS.MoveDownRune
+		moveNegativeKey = APP_KEY_BINDINGS.MoveUpRune
 	} else {
 		view1Size = view1wSize
 		view2Size = view2wSize
+		movePositiveKey = APP_KEY_BINDINGS.MoveRightRune
+		moveNegativeKey = APP_KEY_BINDINGS.MoveLeftRune
 	}
 
 	switch event.Modifiers() {
 	case APP_KEY_BINDINGS.ViewResizeModKey:
 		switch event.Rune() {
-		case APP_KEY_BINDINGS.MoveDownRune:
+		case movePositiveKey:
 			if view2Size > 0 {
 				inst.ResizeItem(inst.view1, 0, view1Size+1)
 				inst.ResizeItem(inst.view2, 0, view2Size-1)
 			}
 			return nil
-		case APP_KEY_BINDINGS.MoveUpRune:
+		case moveNegativeKey:
 			if view1Size > 0 {
 				inst.ResizeItem(inst.view1, 0, view1Size-1)
 				inst.ResizeItem(inst.view2, 0, view2Size+1)
