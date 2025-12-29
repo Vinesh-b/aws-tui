@@ -73,7 +73,8 @@ func (inst *ResizableView) paneResizeHightHandler(event *tcell.EventKey) *tcell.
 		case APP_KEY_BINDINGS.ViewResizeReset:
 			inst.ResizeItem(inst.view1, 0, inst.view1Defaultlen)
 			inst.ResizeItem(inst.view2, 0, inst.view2Defaultlen)
-			return nil
+			// Propagate reset command to all views
+			return event
 		}
 	}
 
