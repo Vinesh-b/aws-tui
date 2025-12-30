@@ -10,6 +10,14 @@ import (
 	"github.com/rivo/tview"
 )
 
+type VimMode = int
+
+const (
+	VimModeNormal VimMode = iota
+	VimModeVisual
+	VimModeInsert
+)
+
 type SearchableTextView struct {
 	*SearchableView
 	ErrorMessageCallback func(text string, a ...any)
@@ -19,6 +27,8 @@ type SearchableTextView struct {
 	searchPositions      [][]int
 	nextSearchPosition   int
 	title                string
+	vimMode              VimMode
+	readOnly             bool
 }
 
 func NewSearchableTextView(title string, appContext *AppContext) *SearchableTextView {
@@ -34,6 +44,8 @@ func NewSearchableTextView(title string, appContext *AppContext) *SearchableText
 		searchPositions:      nil,
 		nextSearchPosition:   0,
 		title:                title,
+		vimMode:              VimModeNormal,
+		readOnly:             true,
 	}
 
 	view.textArea.
@@ -54,71 +66,13 @@ func NewSearchableTextView(title string, appContext *AppContext) *SearchableText
 		SetBorder(true)
 
 	view.textArea.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case // Disable text area default edititing key events
-			tcell.KeyCtrlY, tcell.KeyCtrlZ, tcell.KeyCtrlX, tcell.KeyCtrlV,
-			tcell.KeyCtrlH, tcell.KeyCtrlD, tcell.KeyCtrlK, tcell.KeyCtrlW,
-			tcell.KeyCtrlU, tcell.KeyBackspace2, tcell.KeyDelete, tcell.KeyTab,
-			tcell.KeyEnter:
-			return nil
+		event = view.baseKeyInuptHandler(event)
+		event = view.normalModeInputHandler(event)
+		event = view.visualModeInputHandler(event)
+		if !view.readOnly {
+			event = view.insertModeInputHandler(event)
 		}
-		if unicode.IsControl(event.Rune()) {
-			return event
-		}
-		var updateSearch = false
-
-		switch event.Rune() {
-		case APP_KEY_BINDINGS.TextCopy:
-			return tcell.NewEventKey(tcell.KeyCtrlQ, 0, 0)
-		case APP_KEY_BINDINGS.MoveUpRune:
-			return tcell.NewEventKey(tcell.KeyUp, 0, 0)
-		case APP_KEY_BINDINGS.TextViewSelectUp:
-			return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModShift)
-		case APP_KEY_BINDINGS.MoveDownRune:
-			return tcell.NewEventKey(tcell.KeyDown, 0, 0)
-		case APP_KEY_BINDINGS.TextViewSelectDown:
-			return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModShift)
-		case APP_KEY_BINDINGS.MoveLeftRune:
-			return tcell.NewEventKey(tcell.KeyLeft, 0, 0)
-		case APP_KEY_BINDINGS.TextViewSelectLeft:
-			return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModShift)
-		case APP_KEY_BINDINGS.MoveRightRune:
-			return tcell.NewEventKey(tcell.KeyRight, 0, 0)
-		case APP_KEY_BINDINGS.TextViewPageUp:
-			return tcell.NewEventKey(tcell.KeyPgUp, 0, 0)
-		case APP_KEY_BINDINGS.TextViewSelectPageUp:
-			return tcell.NewEventKey(tcell.KeyPgUp, 0, tcell.ModShift)
-		case APP_KEY_BINDINGS.TextViewPageDown:
-			return tcell.NewEventKey(tcell.KeyPgDn, 0, 0)
-		case APP_KEY_BINDINGS.TextViewSelectPageDown:
-			return tcell.NewEventKey(tcell.KeyPgDn, 0, tcell.ModShift)
-		case APP_KEY_BINDINGS.TextViewSelectRight:
-			return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModShift)
-		case APP_KEY_BINDINGS.TextViewWordRight:
-			return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModCtrl)
-		case APP_KEY_BINDINGS.TextViewWordSelectRight:
-			return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModCtrl|tcell.ModShift)
-		case APP_KEY_BINDINGS.TextViewWordLeft:
-			return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModCtrl)
-		case APP_KEY_BINDINGS.TextViewWordSelectLeft:
-			return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModCtrl|tcell.ModShift)
-		case APP_KEY_BINDINGS.NextSearch:
-			if searchCount := len(view.searchPositions); searchCount > 0 {
-				updateSearch = true
-				view.nextSearchPosition = (view.nextSearchPosition + 1) % searchCount
-			}
-		case APP_KEY_BINDINGS.PrevSearch:
-			if searchCount := len(view.searchPositions); searchCount > 0 {
-				updateSearch = true
-				view.nextSearchPosition = (view.nextSearchPosition - 1 + searchCount) % searchCount
-			}
-		}
-
-		if updateSearch {
-			view.updateSearchPosition()
-		}
-
-		return nil
+		return event
 	})
 
 	view.SearchableView.SetSearchDoneFunc(func(key tcell.Key) {
@@ -141,16 +95,18 @@ func NewSearchableTextView(title string, appContext *AppContext) *SearchableText
 
 	view.AddRuneToggleOverlay("HELP", view.HelpView, '?', true)
 	view.HelpView.View.
-		AddItem("Ctrl-F", "Search Text", nil).
-		AddItem("f", "Jump to next search result", nil).
-		AddItem("F", "Jump to previous search result", nil).
+		AddItem("/", "Search text", nil).
+		AddItem("n", "Jump to next search result", nil).
+		AddItem("N", "Jump to previous search result", nil).
 		AddItem("k,j,h,l", "Move Up, Down, Left, Right", nil).
 		AddItem("w", "Move forward one word", nil).
 		AddItem("b", "Move back one word", nil).
-		AddItem("u", "Move page up", nil).
-		AddItem("d", "Move page down", nil).
-		AddItem("Shift + Move key", "Select Text", nil).
-		AddItem("y", "Copy selected Text", nil)
+		AddItem("Ctrl-u", "Move page up", nil).
+		AddItem("Ctrl-d", "Move page down", nil).
+		AddItem("g", "Move to top", nil).
+		AddItem("G", "Move to bottom", nil).
+		AddItem("v", "Visual mode to select Text", nil).
+		AddItem("y", "Copy selected text in visual mode", nil)
 
 	return view
 }
@@ -208,4 +164,168 @@ func (inst *SearchableTextView) GetText() string {
 func (inst *SearchableTextView) SetText(text string, cursorAtTheEnd bool) {
 	inst.lineCount = countRune(text, '\n', -1)
 	inst.textArea.SetText(text, cursorAtTheEnd)
+}
+
+func (inst *SearchableTextView) baseKeyInuptHandler(event *tcell.EventKey) *tcell.EventKey {
+	if event == nil {
+		return nil
+	}
+
+	switch event.Key() {
+	case // Disable text area default edititing key events
+		tcell.KeyCtrlY, tcell.KeyCtrlZ, tcell.KeyCtrlX, tcell.KeyCtrlV,
+		tcell.KeyCtrlH, tcell.KeyCtrlD, tcell.KeyCtrlK, tcell.KeyCtrlW,
+		tcell.KeyCtrlU, tcell.KeyBackspace2, tcell.KeyDelete, tcell.KeyTab,
+		tcell.KeyEnter:
+		return nil
+	case tcell.KeyEsc:
+		inst.vimMode = VimModeNormal
+		var _, _, end_pos = inst.textArea.GetSelection()
+		inst.textArea.Select(end_pos, end_pos)
+		return nil
+	}
+	return event
+}
+
+func (inst *SearchableTextView) normalModeInputHandler(event *tcell.EventKey) *tcell.EventKey {
+
+	if event == nil {
+		return nil
+	}
+
+	if inst.vimMode != VimModeNormal {
+		return event
+	}
+
+	switch event.Key() {
+	case APP_KEY_BINDINGS.TextViewPageUp:
+		return tcell.NewEventKey(tcell.KeyPgUp, 0, 0)
+	case APP_KEY_BINDINGS.TextViewPageDown:
+		return tcell.NewEventKey(tcell.KeyPgDn, 0, 0)
+	case APP_KEY_BINDINGS.TextViewRedo:
+		return tcell.NewEventKey(tcell.KeyCtrlY, 0, 0)
+	}
+
+	if unicode.IsControl(event.Rune()) {
+		return event
+	}
+
+	var updateSearch = false
+
+	switch event.Rune() {
+	case 'v':
+		inst.vimMode = VimModeVisual
+		return nil
+	case 'i':
+		inst.vimMode = VimModeInsert
+		return nil
+	case APP_KEY_BINDINGS.MoveUpRune:
+		return tcell.NewEventKey(tcell.KeyUp, 0, 0)
+	case APP_KEY_BINDINGS.MoveDownRune:
+		return tcell.NewEventKey(tcell.KeyDown, 0, 0)
+	case APP_KEY_BINDINGS.MoveLeftRune:
+		return tcell.NewEventKey(tcell.KeyLeft, 0, 0)
+	case APP_KEY_BINDINGS.MoveRightRune:
+		return tcell.NewEventKey(tcell.KeyRight, 0, 0)
+	case APP_KEY_BINDINGS.MoveLineStartRune:
+		return tcell.NewEventKey(tcell.KeyCtrlA, 0, 0)
+	case APP_KEY_BINDINGS.MoveLineEndRune:
+		return tcell.NewEventKey(tcell.KeyCtrlE, 0, 0)
+	case APP_KEY_BINDINGS.MovePageTopRune:
+		inst.textArea.Select(0, 0)
+		return nil
+	case APP_KEY_BINDINGS.MovePageBottomRune:
+		var l = inst.textArea.GetTextLength()
+		inst.textArea.Select(l, l)
+		return nil
+	case APP_KEY_BINDINGS.TextViewWordRight:
+		return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModCtrl)
+	case APP_KEY_BINDINGS.TextViewWordLeft:
+		return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModCtrl)
+	case APP_KEY_BINDINGS.NextSearch:
+		if searchCount := len(inst.searchPositions); searchCount > 0 {
+			updateSearch = true
+			inst.nextSearchPosition = (inst.nextSearchPosition + 1) % searchCount
+		}
+	case APP_KEY_BINDINGS.PrevSearch:
+		if searchCount := len(inst.searchPositions); searchCount > 0 {
+			updateSearch = true
+			inst.nextSearchPosition = (inst.nextSearchPosition - 1 + searchCount) % searchCount
+		}
+	case APP_KEY_BINDINGS.TextViewUndo:
+		return tcell.NewEventKey(tcell.KeyCtrlZ, 0, 0)
+	}
+
+	if updateSearch {
+		inst.updateSearchPosition()
+	}
+	return nil
+}
+
+func (inst *SearchableTextView) visualModeInputHandler(event *tcell.EventKey) *tcell.EventKey {
+	if event == nil {
+		return nil
+	}
+
+	if inst.vimMode != VimModeVisual {
+		return event
+	}
+
+	switch event.Key() {
+	case APP_KEY_BINDINGS.TextViewPageUp:
+		return tcell.NewEventKey(tcell.KeyPgUp, 0, 0)
+	case APP_KEY_BINDINGS.TextViewPageDown:
+		return tcell.NewEventKey(tcell.KeyPgDn, 0, 0)
+	case APP_KEY_BINDINGS.TextViewRedo:
+		return tcell.NewEventKey(tcell.KeyCtrlY, 0, 0)
+	}
+
+	if unicode.IsControl(event.Rune()) {
+		return event
+	}
+
+	switch event.Rune() {
+	case 'v':
+		inst.vimMode = VimModeNormal
+		return nil
+	case APP_KEY_BINDINGS.TextCopy:
+		return tcell.NewEventKey(tcell.KeyCtrlQ, 0, 0)
+	case APP_KEY_BINDINGS.MoveUpRune:
+		return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModShift)
+	case APP_KEY_BINDINGS.MoveDownRune:
+		return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModShift)
+	case APP_KEY_BINDINGS.MoveLeftRune:
+		return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModShift)
+	case APP_KEY_BINDINGS.MoveRightRune:
+		return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModShift)
+	case APP_KEY_BINDINGS.MoveLineStartRune:
+		return tcell.NewEventKey(tcell.KeyCtrlA, 0, tcell.ModShift)
+	case APP_KEY_BINDINGS.MoveLineEndRune:
+		return tcell.NewEventKey(tcell.KeyCtrlE, 0, tcell.ModShift)
+	case APP_KEY_BINDINGS.MovePageTopRune:
+		var _, _, end = inst.textArea.GetSelection()
+		// Select always places the cursor at the end of selection, workaround TBD
+		inst.textArea.Select(end, 0)
+		return nil
+	case APP_KEY_BINDINGS.MovePageBottomRune:
+		var _, start, _ = inst.textArea.GetSelection()
+		inst.textArea.Select(start, inst.textArea.GetTextLength())
+		return nil
+	case APP_KEY_BINDINGS.TextViewWordRight:
+		return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModCtrl|tcell.ModShift)
+	case APP_KEY_BINDINGS.TextViewWordLeft:
+		return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModCtrl|tcell.ModShift)
+	}
+	return nil
+}
+
+func (inst *SearchableTextView) insertModeInputHandler(event *tcell.EventKey) *tcell.EventKey {
+	if event == nil {
+		return nil
+	}
+	if unicode.IsControl(event.Rune()) || inst.vimMode != VimModeInsert {
+		return event
+	}
+
+	return event
 }
