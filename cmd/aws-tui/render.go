@@ -11,10 +11,12 @@ import (
 	"github.com/rivo/tview"
 )
 
+type PageName = string
+
 const (
-	HOME_PAGE             string = "Services"
-	SELECTED_SERVICE             = "ServiceHome"
-	FLOATING_SERVICE_LIST        = "FloatingServices"
+	HOME_PAGE             PageName = "Services"
+	SELECTED_SERVICE      PageName = "ServiceHome"
+	FLOATING_SERVICE_LIST PageName = "FloatingServices"
 )
 
 type EmptyPlaceholderView struct {
@@ -100,6 +102,9 @@ func RenderUI(config aws.Config, version string) {
 		},
 		{" " + string(services.CLOUDWATCH_LOGS_GROUPS), "Logs groups and streams", rune('󰯉'),
 			services.NewLogsHomeView(appContext),
+		},
+		{"󰘘 " + string(services.EVENTBRIDGE), "Event buses, rules, schedules...", rune('󰯉'),
+			services.NewEventBridgeHomeView(appContext),
 		},
 		{"󰘥 " + string(services.HELP), "Help docs on how to use this app", rune('?'),
 			services.NewHelpHomeView(appContext),
