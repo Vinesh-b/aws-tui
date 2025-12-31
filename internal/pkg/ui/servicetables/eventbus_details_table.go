@@ -7,12 +7,12 @@ import (
 	"aws-tui/internal/pkg/ui/core"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
+	"github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 )
 
 type EventBusDetailsTable struct {
 	*core.DetailsTable
-	data       eventbridge.DescribeEventBusOutput
+	data       types.EventBus
 	serviceCtx *core.ServiceContext[awsapi.EventBridgeApi]
 }
 
@@ -21,7 +21,7 @@ func NewEventBusDetailsTable(
 ) *EventBusDetailsTable {
 	var table = &EventBusDetailsTable{
 		DetailsTable: core.NewDetailsTable("EventBus Details", serviceCtx.AppContext),
-		data:         eventbridge.DescribeEventBusOutput{},
+		data:         types.EventBus{},
 		serviceCtx:   serviceCtx,
 	}
 
@@ -46,23 +46,13 @@ func (inst *EventBusDetailsTable) populateEventBusDetailsTable() {
 	inst.ScrollToBeginning()
 }
 
-func (inst *EventBusDetailsTable) RefreshDetails(busArn string) {
+func (inst *EventBusDetailsTable) RefreshDetails(busDetail types.EventBus) {
+	inst.data = busDetail
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
-	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.serviceCtx.Api.DescribeEventBus(true, busArn)
-		if err != nil {
-			inst.ErrorMessageCallback(err.Error())
-		}
-		inst.data = data
-
-	})
+	dataLoader.AsyncLoadData(func() {})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateEventBusDetailsTable()
 	})
-}
-
-func (inst *EventBusDetailsTable) GetPolicy() string {
-	return aws.ToString(inst.data.Policy)
 }

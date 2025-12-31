@@ -5,6 +5,8 @@ import (
 	"aws-tui/internal/pkg/ui/core"
 	tables "aws-tui/internal/pkg/ui/servicetables"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -13,6 +15,7 @@ type EventBridgeDetailsPageView struct {
 	*core.ServicePageView
 	EventBridgeListTable    *tables.EventBusListTable
 	EventBridgeDetailsTable *tables.EventBusDetailsTable
+	PolicyView              *core.JsonTextView[types.EventBus]
 	serviceCtx              *core.ServiceContext[awsapi.EventBridgeApi]
 }
 
@@ -21,31 +24,20 @@ func NewEventBridgeDetailsPageView(
 	busDetailsTable *tables.EventBusDetailsTable,
 	serviceCtx *core.ServiceContext[awsapi.EventBridgeApi],
 ) *EventBridgeDetailsPageView {
-	var policyView = core.JsonTextView[any]{
+	var policyView = core.JsonTextView[types.EventBus]{
 		TextView: core.NewSearchableTextView("", serviceCtx.AppContext),
-		ExtractTextFunc: func(data any) string {
-			switch d := data.(type) {
-			case string:
-				return d
-			}
-			return ""
+		ExtractTextFunc: func(data types.EventBus) string {
+			return aws.ToString(data.Policy)
 		},
 	}
 	policyView.SetTitle("Policy")
-	busDetailsTable.SetSelectionChangedFunc(func(row, column int) {
-		policyView.SetText(busDetailsTable.GetPolicy())
-	})
-
-	busDetailsTable.SetSelectionChangedFunc(func(row, column int) {
-		policyView.SetText(busDetailsTable.GetPolicy())
-	})
 
 	var tabView = core.NewTabView(serviceCtx.AppContext).
 		AddAndSwitchToTab("Details", busDetailsTable, 0, 1, true).
 		AddTab("Policy", policyView.TextView, 0, 1, true)
 
-	const detailsViewSize = 3000
-	const tableViewSize = 7000
+	const detailsViewSize = 5000
+	const tableViewSize = 5000
 
 	var mainPage = core.NewResizableView(
 		tabView, detailsViewSize,
@@ -60,6 +52,7 @@ func NewEventBridgeDetailsPageView(
 
 		EventBridgeListTable:    busListTable,
 		EventBridgeDetailsTable: busDetailsTable,
+		PolicyView:              &policyView,
 		serviceCtx:              serviceCtx,
 	}
 
@@ -85,6 +78,8 @@ func (inst *EventBridgeDetailsPageView) initInputCapture() {
 	inst.EventBridgeListTable.SetSelectionChangedFunc(func(row, column int) {
 		var selectedEventBus = inst.EventBridgeListTable.GetSeletedEventBus()
 		inst.EventBridgeDetailsTable.RefreshDetails(selectedEventBus)
+
+		inst.PolicyView.SetText(inst.EventBridgeListTable.GetSeletedEventBus())
 	})
 }
 

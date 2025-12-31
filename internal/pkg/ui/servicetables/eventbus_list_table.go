@@ -143,6 +143,6 @@ func (inst *EventBusListTable) SetInputCapture(capture func(event *tcell.EventKe
 	})
 }
 
-func (inst *EventBusListTable) GetSeletedEventBus() string {
-	return aws.ToString(inst.selectedEventBus.Arn)
+func (inst *EventBusListTable) GetSeletedEventBus() types.EventBus {
+	return inst.selectedEventBus
 }
