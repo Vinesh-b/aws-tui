@@ -16,7 +16,7 @@ type SystemManagerDetailsPageView struct {
 	*core.ServicePageView
 	SSMParametersListTable   *tables.SSMParametersListTable
 	SSMParameterHistoryTable *tables.SSMParameterHistoryTable
-	TabView                  *core.TabView
+	TabView                  *core.TabViewHorizontal
 	serviceCtx               *core.ServiceContext[awsapi.SystemsManagerApi]
 }
 
@@ -50,7 +50,7 @@ func NewSystemManagerDetailsPageView(
 	const expandItemViewSize = 25
 	const itemsTableSize = 75
 
-	var tabView = core.NewTabView(serviceViewCtx.AppContext).
+	var tabView = core.NewTabViewHorizontal(serviceViewCtx.AppContext).
 		AddAndSwitchToTab("Parameters", ssmParamsListTable, 0, 1, true).
 		AddTab("Param History", ssmParamHistoryTable, 0, 1, true)
 
@@ -79,7 +79,7 @@ func NewSystemManagerDetailsPageView(
 	view.InitViewNavigation(
 		[][]core.View{
 			{paramValueView.TextView},
-			{tabView.GetTabsList(), tabView.GetTabDisplayView()},
+			{tabView.GetTabDisplayView()},
 		},
 	)
 	view.initInputCapture()

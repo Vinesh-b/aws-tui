@@ -26,9 +26,9 @@ func NewSfnDetailsPageView(
 	stateMachineDetailsTable *tables.SfnDetailsTable,
 	serviceViewCtx *core.ServiceContext[awsapi.StateMachineApi],
 ) *SfnDetailsPageView {
-	var tabView = core.NewTabView(serviceViewCtx.AppContext).
-		AddAndSwitchToTab("Executions", sfnExecutionsTable, 0, 1, true).
-		AddTab("Details", stateMachineDetailsTable, 0, 1, true)
+	var tabView = core.NewTabViewHorizontal(serviceViewCtx.AppContext).
+		AddTab("Details", stateMachineDetailsTable, 0, 1, true).
+		AddAndSwitchToTab("Executions", sfnExecutionsTable, 0, 1, true)
 
 	const detailsViewSize = 4000
 	const tableViewSize = 6000
@@ -44,7 +44,7 @@ func NewSfnDetailsPageView(
 
 	serviceView.InitViewNavigation(
 		[][]core.View{
-			{tabView.GetTabsList(), tabView.GetTabDisplayView()},
+			{tabView.GetTabDisplayView()},
 			{sfnListTable},
 		},
 	)
@@ -137,9 +137,9 @@ func NewSfnExectionDetailsPage(
 	executionStateEvents.SetSelectedFunc(eventSelectionFunc)
 	executionStateEvents.SetSelectionChangedFunc(eventSelectionFunc)
 
-	var tabView = core.NewTabView(serviceViewCtx.AppContext).
-		AddAndSwitchToTab("Input/Output", inputOutputExpandedView.TextView, 0, 1, true).
-		AddTab("Summary", executionSummary, 0, 1, true)
+	var tabView = core.NewTabViewHorizontal(serviceViewCtx.AppContext).
+		AddTab("Summary", executionSummary, 0, 1, true).
+		AddAndSwitchToTab("Input/Output", inputOutputExpandedView.TextView, 0, 1, true)
 
 	const statesViewSize = 45
 	const eventsViewSize = 55
@@ -164,7 +164,7 @@ func NewSfnExectionDetailsPage(
 
 	serviceView.InitViewNavigation(
 		[][]core.View{
-			{tabView.GetTabsList(), tabView.GetTabDisplayView()},
+			{tabView.GetTabDisplayView()},
 			{executionStates, executionStateEvents},
 		},
 	)

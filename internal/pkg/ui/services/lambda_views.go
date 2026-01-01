@@ -36,7 +36,7 @@ func NewLambdaDetailsPageView(
 	logStreamsTable *tables.LogStreamsTable,
 	serviceCtx *core.ServiceContext[awsapi.LambdaApi],
 ) *LambdaDetailsPageView {
-	var tabView = core.NewTabView(serviceCtx.AppContext).
+	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab("Details", lambdaDetailsTable, 0, 1, true).
 		AddTab("Log Streams", logStreamsTable, 0, 1, true).
 		AddTab("Environment Vars", lambdaEnvVarsTable, 0, 1, true).
@@ -79,7 +79,7 @@ func NewLambdaDetailsPageView(
 
 	view.InitViewNavigation(
 		[][]core.View{
-			{tabView.GetTabsList(), tabView.GetTabDisplayView()},
+			{tabView.GetTabDisplayView()},
 			{lambdaListTable},
 		},
 	)
