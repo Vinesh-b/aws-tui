@@ -217,7 +217,7 @@ func (inst *SfnExecutionsTable) RefreshExpressExecutions(logGroup string, reset 
 
 	var resultsChan = make(chan [][]cwlTypes.ResultField)
 
-	var dataLoader = core.NewUiDataLoader(inst.appCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.appCtx.App, 30)
 	dataLoader.AsyncLoadData(func() {
 		insightsQueryRunner.ExecuteInsightsQuery(insightsQuery, []string{logGroup}, resultsChan)
 		var insightsResults = <-resultsChan
