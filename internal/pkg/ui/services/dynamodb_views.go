@@ -22,13 +22,18 @@ type DynamoDBDetailsPage struct {
 func NewDynamoDBDetailsPage(
 	detailsTable *tables.DynamoDBDetailsTable,
 	tablesTable *tables.DynamoDBTablesTable,
+	tagsTable *tables.DynamoDBTagsTable,
 	serviceContext *core.ServiceContext[awsapi.DynamoDBApi],
 ) *DynamoDBDetailsPage {
-	const detailsSize = 3000
+	const tabViewSize = 3000
 	const tablesSize = 5000
 
+	var tabView = core.NewTabViewHorizontal(serviceContext.AppContext).
+		AddAndSwitchToTab("Details", detailsTable, 0, 1, true).
+		AddTab("Tags", tagsTable, 0, 1, true)
+
 	var mainPage = core.NewResizableView(
-		detailsTable, detailsSize,
+		tabView, tabViewSize,
 		tablesTable, tablesSize,
 		tview.FlexRow,
 	)
@@ -38,7 +43,7 @@ func NewDynamoDBDetailsPage(
 
 	serviceView.InitViewNavigation(
 		[][]core.View{
-			{detailsTable},
+			{tabView.GetTabDisplayView()},
 			{tablesTable},
 		},
 	)
@@ -119,6 +124,7 @@ func NewDynamoDBHomeView(appCtx *core.AppContext) core.ServicePage {
 		ddbDetailsView = NewDynamoDBDetailsPage(
 			tables.NewDynamoDBDetailsTable(serviceCtx),
 			tables.NewDynamoDBTablesTable(serviceCtx),
+			tables.NewDynamoDbTagsTable(serviceCtx),
 			serviceCtx,
 		)
 		ddbItemsView = NewDynamoDBTableItemsPage(

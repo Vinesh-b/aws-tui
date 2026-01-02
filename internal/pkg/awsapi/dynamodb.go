@@ -175,3 +175,33 @@ func (inst *DynamoDBApi) QueryTable(
 	items = append(items, temp...)
 	return items, nil
 }
+
+func (inst *DynamoDBApi) ListTags(force bool, resourceArn string) ([]types.Tag, error) {
+	var apiError error = nil
+	var nextToken *string = nil
+	var result = []types.Tag{}
+
+	for {
+		var output, err = inst.client.ListTagsOfResource(context.TODO(),
+			&dynamodb.ListTagsOfResourceInput{
+				ResourceArn: aws.String(resourceArn),
+				NextToken:   nextToken,
+			},
+		)
+
+		if err != nil {
+			inst.logger.Println(err)
+			apiError = err
+			break
+		}
+
+		nextToken = output.NextToken
+		result = append(result, output.Tags...)
+
+		if nextToken == nil {
+			break
+		}
+	}
+
+	return result, apiError
+}
