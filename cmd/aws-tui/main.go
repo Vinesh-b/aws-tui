@@ -46,5 +46,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	RenderUI(cfg, VersionString())
+	var app = CreateApplication(cfg, VersionString())
+
+	if err := app.EnableMouse(true).Run(); err != nil {
+		panic(err)
+	}
 }

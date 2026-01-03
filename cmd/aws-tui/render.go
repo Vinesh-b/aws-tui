@@ -42,7 +42,7 @@ type ServiceItem struct {
 	ServicePage   core.ServicePage
 }
 
-func RenderUI(config aws.Config, version string) {
+func CreateApplication(config aws.Config, version string) *tview.Application {
 
 	var appTheme = core.AppTheme{
 		PrimaryTextColour:           tcell.NewHexColor(0xBFBFBF),
@@ -177,7 +177,6 @@ func RenderUI(config aws.Config, version string) {
 		return event
 	})
 
-	if err := app.SetRoot(pages, true).EnableMouse(true).Run(); err != nil {
-		panic(err)
-	}
+	app.SetRoot(pages, true)
+	return app
 }
