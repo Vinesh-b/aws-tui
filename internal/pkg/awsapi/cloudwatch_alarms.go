@@ -13,21 +13,16 @@ import (
 
 type CloudWatchAlarmsApi struct {
 	logger             *log.Logger
-	config             aws.Config
-	client             *cloudwatch.Client
 	allCompositeAlarms map[string]types.CompositeAlarm
 	alarmsPaginator    *cloudwatch.DescribeAlarmsPaginator
 	historyPaginator   *cloudwatch.DescribeAlarmHistoryPaginator
 }
 
 func NewCloudWatchAlarmsApi(
-	config aws.Config,
 	logger *log.Logger,
 ) *CloudWatchAlarmsApi {
 	return &CloudWatchAlarmsApi{
-		config:             config,
 		logger:             logger,
-		client:             cloudwatch.NewFromConfig(config),
 		allCompositeAlarms: nil,
 		alarmsPaginator:    nil,
 		historyPaginator:   nil,
@@ -35,8 +30,10 @@ func NewCloudWatchAlarmsApi(
 }
 
 func (inst *CloudWatchAlarmsApi) ListAlarms(force bool) ([]types.MetricAlarm, error) {
+	var client = GetAwsApiClients().cloudwatch
+
 	inst.alarmsPaginator = cloudwatch.NewDescribeAlarmsPaginator(
-		inst.client,
+		client,
 		&cloudwatch.DescribeAlarmsInput{
 			MaxRecords: aws.Int32(100),
 		},
@@ -67,9 +64,11 @@ func (inst *CloudWatchAlarmsApi) ListAlarmHistory(name string, force bool) ([]ty
 		return nil, fmt.Errorf("Alarm name not set")
 	}
 
+	var client = GetAwsApiClients().cloudwatch
+
 	if force || inst.historyPaginator == nil {
 		inst.historyPaginator = cloudwatch.NewDescribeAlarmHistoryPaginator(
-			inst.client,
+			client,
 			&cloudwatch.DescribeAlarmHistoryInput{
 				AlarmName:  aws.String(name),
 				MaxRecords: aws.Int32(50),

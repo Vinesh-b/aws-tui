@@ -79,7 +79,7 @@ func NewS3bucketsHomeView(appCtx *core.AppContext) core.ServicePage {
 	defer appCtx.Theme.ResetGlobalStyle()
 
 	var (
-		api        = awsapi.NewS3BucketsApi(*appCtx.Config, appCtx.Logger)
+		api        = awsapi.NewS3BucketsApi(appCtx.Logger)
 		serviceCtx = core.NewServiceViewContext(appCtx, api)
 
 		s3DetailsView = NewS3bucketsDetailsView(

@@ -1,7 +1,6 @@
 package awsapi
 
 import (
-	"aws-tui/internal/pkg/ui/core"
 	"context"
 	"fmt"
 	"io"
@@ -16,21 +15,16 @@ import (
 
 type S3BucketsApi struct {
 	logger           *log.Logger
-	config           aws.Config
-	client           *s3.Client
 	allbuckets       []types.Bucket
 	objectsPaginator *s3.ListObjectsV2Paginator
 	bucketsPaginator *s3.ListBucketsPaginator
 }
 
 func NewS3BucketsApi(
-	config aws.Config,
 	logger *log.Logger,
 ) *S3BucketsApi {
 	return &S3BucketsApi{
-		config:     config,
 		logger:     logger,
-		client:     s3.NewFromConfig(config),
 		allbuckets: []types.Bucket{},
 	}
 }
@@ -40,9 +34,10 @@ func (inst *S3BucketsApi) ListBuckets(force bool) ([]types.Bucket, error) {
 		return inst.allbuckets, nil
 	}
 
+	var client = GetAwsApiClients().s3
 	if force || inst.bucketsPaginator == nil {
 		inst.bucketsPaginator = s3.NewListBucketsPaginator(
-			inst.client,
+			client,
 			&s3.ListBucketsInput{},
 		)
 	}
@@ -66,12 +61,6 @@ func (inst *S3BucketsApi) ListBuckets(force bool) ([]types.Bucket, error) {
 	return inst.allbuckets, nil
 }
 
-func (inst *S3BucketsApi) FilterByName(name string) []types.Bucket {
-	return core.FuzzySearch(name, inst.allbuckets, func(b types.Bucket) string {
-		return aws.ToString(b.Name)
-	})
-}
-
 func (inst *S3BucketsApi) ListObjects(
 	bucketName string,
 	prefix string,
@@ -85,9 +74,11 @@ func (inst *S3BucketsApi) ListObjects(
 	if len(prefix) == 0 {
 		objPrefix = nil
 	}
+
+	var client = GetAwsApiClients().s3
 	if force || inst.objectsPaginator == nil {
 		inst.objectsPaginator = s3.NewListObjectsV2Paginator(
-			inst.client, &s3.ListObjectsV2Input{
+			client, &s3.ListObjectsV2Input{
 				Bucket:    aws.String(bucketName),
 				MaxKeys:   aws.Int32(200),
 				Delimiter: aws.String("/"),
@@ -121,7 +112,9 @@ func (inst *S3BucketsApi) DownloadFile(bucketName string, objectKey string, file
 		return fmt.Errorf("File name not set")
 	}
 
-	result, err := inst.client.GetObject(context.TODO(), &s3.GetObjectInput{
+	var client = GetAwsApiClients().s3
+
+	result, err := client.GetObject(context.TODO(), &s3.GetObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(objectKey),
 	})

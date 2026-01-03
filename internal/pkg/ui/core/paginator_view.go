@@ -1,6 +1,7 @@
 package core
 
 import (
+	"aws-tui/internal/pkg/awsapi"
 	"context"
 	"fmt"
 	"os"
@@ -23,9 +24,15 @@ func CreatePaginatorView(service string, appContext *AppContext) PaginatorView {
 		SetTextColor(appContext.Theme.TertiaryTextColour)
 
 	go func() {
-		var creds, err = appContext.Config.Credentials.Retrieve(context.Background())
+		time.Sleep(5 * time.Second)
+
 		var logger = appContext.Logger
 		var app = appContext.App
+
+		var creds, err = awsapi.GetAwsApiClients().
+			Config.
+			Credentials.
+			Retrieve(context.Background())
 
 		if err != nil {
 			logger.Print(err.Error())
@@ -48,6 +55,7 @@ func CreatePaginatorView(service string, appContext *AppContext) PaginatorView {
 		}
 
 		if creds.CanExpire == false {
+			//appContext.Logger.Printf("Creds: %v\n",creds)
 			app.QueueUpdateDraw(func() {
 				sessionDetailsView.SetText(fmt.Sprintf(
 					"Profile: %s | Account Id: %s | Session duration: Inf",

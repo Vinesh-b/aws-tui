@@ -14,8 +14,6 @@ import (
 
 type CloudWatchLogsApi struct {
 	logger                     *log.Logger
-	config                     aws.Config
-	client                     *cloudwatchlogs.Client
 	logEventsPaginator         *cloudwatchlogs.GetLogEventsPaginator
 	logStreamsPaginator        *cloudwatchlogs.DescribeLogStreamsPaginator
 	logGroupsPaginator         *cloudwatchlogs.DescribeLogGroupsPaginator
@@ -23,20 +21,19 @@ type CloudWatchLogsApi struct {
 }
 
 func NewCloudWatchLogsApi(
-	config aws.Config,
 	logger *log.Logger,
 ) *CloudWatchLogsApi {
 	return &CloudWatchLogsApi{
-		config: config,
 		logger: logger,
-		client: cloudwatchlogs.NewFromConfig(config),
 	}
 }
 
 func (inst *CloudWatchLogsApi) ListLogGroups(reset bool) ([]types.LogGroup, error) {
+	var client = GetAwsApiClients().cloudwatchlogs
+
 	if reset || inst.logGroupsPaginator == nil {
 		inst.logGroupsPaginator = cloudwatchlogs.NewDescribeLogGroupsPaginator(
-			inst.client,
+			client,
 			&cloudwatchlogs.DescribeLogGroupsInput{
 				Limit: aws.Int32(50),
 			},
@@ -84,8 +81,11 @@ func (inst *CloudWatchLogsApi) ListLogStreams(
 			order = types.OrderByLogStreamName
 			searchPrefixPtr = &searchPrefix
 		}
+
+		var client = GetAwsApiClients().cloudwatchlogs
+
 		inst.logStreamsPaginator = cloudwatchlogs.NewDescribeLogStreamsPaginator(
-			inst.client,
+			client,
 			&cloudwatchlogs.DescribeLogStreamsInput{
 				Descending:          aws.Bool(true),
 				Limit:               aws.Int32(50),
@@ -125,9 +125,11 @@ func (inst *CloudWatchLogsApi) ListLogEvents(
 		return empty, fmt.Errorf("log stream not set")
 	}
 
+	var client = GetAwsApiClients().cloudwatchlogs
+
 	if reset || inst.logEventsPaginator == nil {
 		inst.logEventsPaginator = cloudwatchlogs.NewGetLogEventsPaginator(
-			inst.client,
+			client,
 			&cloudwatchlogs.GetLogEventsInput{
 				LogStreamName: aws.String(logStreamName),
 				Limit:         aws.Int32(500),
@@ -162,9 +164,11 @@ func (inst *CloudWatchLogsApi) ListFilteredLogEvents(
 		return empty, fmt.Errorf("log group not set")
 	}
 
+	var client = GetAwsApiClients().cloudwatchlogs
+
 	if reset || inst.filteredLogEventsPaginator == nil {
 		inst.filteredLogEventsPaginator = cloudwatchlogs.NewFilterLogEventsPaginator(
-			inst.client,
+			client,
 			&cloudwatchlogs.FilterLogEventsInput{
 				Limit:        aws.Int32(500),
 				LogGroupName: aws.String(logGroupName),
@@ -192,7 +196,8 @@ func (inst *CloudWatchLogsApi) StartInightsQuery(
 	endTime time.Time,
 	query string,
 ) (string, error) {
-	var output, err = inst.client.StartQuery(
+	var client = GetAwsApiClients().cloudwatchlogs
+	var output, err = client.StartQuery(
 		context.TODO(), &cloudwatchlogs.StartQueryInput{
 			StartTime:     aws.Int64(startTime.Unix()),
 			EndTime:       aws.Int64(endTime.Unix()),
@@ -216,7 +221,9 @@ func (inst *CloudWatchLogsApi) StopInightsQuery(
 		return false, fmt.Errorf("Query Id not set")
 	}
 
-	var output, err = inst.client.StopQuery(
+	var client = GetAwsApiClients().cloudwatchlogs
+
+	var output, err = client.StopQuery(
 		context.TODO(), &cloudwatchlogs.StopQueryInput{
 			QueryId: aws.String(queryId),
 		},
@@ -239,7 +246,9 @@ func (inst *CloudWatchLogsApi) GetInightsQueryResults(
 		return empty, types.QueryStatusUnknown, fmt.Errorf("Query Id not set")
 	}
 
-	var output, err = inst.client.GetQueryResults(
+	var client = GetAwsApiClients().cloudwatchlogs
+
+	var output, err = client.GetQueryResults(
 		context.TODO(), &cloudwatchlogs.GetQueryResultsInput{
 			QueryId: aws.String(queryId),
 		})
@@ -261,7 +270,9 @@ func (inst *CloudWatchLogsApi) GetInsightsLogRecord(
 		return empty, fmt.Errorf("Record pointer not set")
 	}
 
-	var output, err = inst.client.GetLogRecord(
+	var client = GetAwsApiClients().cloudwatchlogs
+
+	var output, err = client.GetLogRecord(
 		context.TODO(), &cloudwatchlogs.GetLogRecordInput{
 			LogRecordPointer: aws.String(recordPtr),
 		})

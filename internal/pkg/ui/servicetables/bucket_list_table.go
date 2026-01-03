@@ -6,6 +6,7 @@ import (
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 
 	"github.com/gdamore/tcell/v2"
@@ -15,6 +16,7 @@ type BucketListTable struct {
 	*core.SelectableTable[any]
 	selectedBucket string
 	data           []types.Bucket
+	allBuckets     []types.Bucket
 	serviceCtx     *core.ServiceContext[awsapi.S3BucketsApi]
 }
 
@@ -62,10 +64,13 @@ func (inst *BucketListTable) RefreshBuckets(force bool) {
 
 	dataLoader.AsyncLoadData(func() {
 		if len(search) > 0 {
-			inst.data = inst.serviceCtx.Api.FilterByName(search)
+			inst.data = core.FuzzySearch(search, inst.allBuckets, func(b types.Bucket) string {
+				return aws.ToString(b.Name)
+			})
 		} else {
 			var err error = nil
-			inst.data, err = inst.serviceCtx.Api.ListBuckets(force)
+			inst.allBuckets, err = inst.serviceCtx.Api.ListBuckets(force)
+			inst.data = inst.allBuckets
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
 			}

@@ -12,20 +12,15 @@ import (
 
 type SystemsManagerApi struct {
 	logger                   *log.Logger
-	config                   aws.Config
-	client                   *ssm.Client
 	getParamsByPathPaginator *ssm.GetParametersByPathPaginator
 	getParamHistoryPaginator *ssm.GetParameterHistoryPaginator
 }
 
 func NewSystemsManagerApi(
-	config aws.Config,
 	logger *log.Logger,
 ) *SystemsManagerApi {
 	return &SystemsManagerApi{
-		config: config,
 		logger: logger,
-		client: ssm.NewFromConfig(config),
 	}
 }
 
@@ -38,9 +33,10 @@ func (inst *SystemsManagerApi) GetParametersByPath(
 		return empty, fmt.Errorf("Parameter path not set")
 	}
 
+	var client = GetAwsApiClients().ssm
 	if inst.getParamsByPathPaginator == nil || reset {
 		inst.getParamsByPathPaginator = ssm.NewGetParametersByPathPaginator(
-			inst.client,
+			client,
 			&ssm.GetParametersByPathInput{
 				Path:           aws.String(path),
 				Recursive:      aws.Bool(true),
@@ -72,9 +68,11 @@ func (inst *SystemsManagerApi) GetParameterHistory(
 		return empty, fmt.Errorf("Parameter name not set")
 	}
 
+	var client = GetAwsApiClients().ssm
+
 	if inst.getParamHistoryPaginator == nil || reset {
 		inst.getParamHistoryPaginator = ssm.NewGetParameterHistoryPaginator(
-			inst.client,
+			client,
 			&ssm.GetParameterHistoryInput{
 				Name:           aws.String(name),
 				WithDecryption: aws.Bool(true),

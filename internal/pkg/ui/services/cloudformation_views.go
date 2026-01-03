@@ -132,7 +132,7 @@ func NewStacksHomeView(appCtx *core.AppContext) core.ServicePage {
 	defer appCtx.Theme.ResetGlobalStyle()
 
 	var (
-		api        = awsapi.NewCloudFormationApi(*appCtx.Config, appCtx.Logger)
+		api        = awsapi.NewCloudFormationApi(appCtx.Logger)
 		serviceCtx = core.NewServiceViewContext(appCtx, api)
 
 		stacksDetailsView = NewStacksDetailsPageView(

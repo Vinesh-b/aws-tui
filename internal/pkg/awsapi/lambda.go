@@ -14,25 +14,21 @@ import (
 
 type LambdaApi struct {
 	logger     *log.Logger
-	config     aws.Config
-	client     *lambda.Client
 	allLambdas []types.FunctionConfiguration
 }
 
 func NewLambdaApi(
-	config aws.Config,
 	logger *log.Logger,
 ) *LambdaApi {
 	return &LambdaApi{
-		config: config,
 		logger: logger,
-		client: lambda.NewFromConfig(config),
 	}
 }
 
 func (inst *LambdaApi) ListLambdas(force bool) ([]types.FunctionConfiguration, error) {
+	var client = GetAwsApiClients().lambda
 	var paginator = lambda.NewListFunctionsPaginator(
-		inst.client, &lambda.ListFunctionsInput{},
+		client, &lambda.ListFunctionsInput{},
 	)
 
 	var result = []types.FunctionConfiguration{}
@@ -73,7 +69,8 @@ func (inst *LambdaApi) InvokeLambda(
 		return nil, err
 	}
 
-	output, err = inst.client.Invoke(context.TODO(),
+	var client = GetAwsApiClients().lambda
+	output, err = client.Invoke(context.TODO(),
 		&lambda.InvokeInput{
 			FunctionName:   aws.String(name),
 			Payload:        jsonPayload,
@@ -94,7 +91,8 @@ func (inst *LambdaApi) GetPolicy(lambdaArn string) (string, error) {
 		return "", fmt.Errorf("lambda ARN not set")
 	}
 
-	var output, err = inst.client.GetPolicy(
+	var client = GetAwsApiClients().lambda
+	var output, err = client.GetPolicy(
 		context.TODO(),
 		&lambda.GetPolicyInput{
 			FunctionName: aws.String(lambdaArn),
@@ -112,7 +110,8 @@ func (inst *LambdaApi) ListTags(lambdaArn string) (map[string]string, error) {
 		return nil, fmt.Errorf("lambda ARN not set")
 	}
 
-	var output, err = inst.client.ListTags(
+	var client = GetAwsApiClients().lambda
+	var output, err = client.ListTags(
 		context.TODO(),
 		&lambda.ListTagsInput{
 			Resource: aws.String(lambdaArn),

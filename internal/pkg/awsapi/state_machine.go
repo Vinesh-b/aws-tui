@@ -14,26 +14,23 @@ import (
 
 type StateMachineApi struct {
 	logger                  *log.Logger
-	config                  aws.Config
-	client                  *sfn.Client
 	nextExectionsToken      *string
 	listExecutionsPaginator *sfn.ListExecutionsPaginator
 }
 
 func NewStateMachineApi(
-	config aws.Config,
 	logger *log.Logger,
 ) *StateMachineApi {
 	return &StateMachineApi{
-		config: config,
 		logger: logger,
-		client: sfn.NewFromConfig(config),
 	}
 }
 
 func (inst *StateMachineApi) ListStateMachines(force bool) ([]types.StateMachineListItem, error) {
+	var client = GetAwsApiClients().sfn
+
 	var paginator = sfn.NewListStateMachinesPaginator(
-		inst.client, &sfn.ListStateMachinesInput{},
+		client, &sfn.ListStateMachinesInput{},
 	)
 
 	var apiErr error = nil
@@ -62,7 +59,9 @@ func (inst *StateMachineApi) DescribeStateMachine(stateMachineArn string) (*sfn.
 		return nil, fmt.Errorf("state machine ARN not set")
 	}
 
-	var output, err = inst.client.DescribeStateMachine(
+	var client = GetAwsApiClients().sfn
+
+	var output, err = client.DescribeStateMachine(
 		context.TODO(),
 		&sfn.DescribeStateMachineInput{
 			StateMachineArn: aws.String(stateMachineArn),
@@ -85,9 +84,11 @@ func (inst *StateMachineApi) ListExecutions(
 		return empty, fmt.Errorf("State machine ARN not set")
 	}
 
+	var client = GetAwsApiClients().sfn
+
 	if inst.listExecutionsPaginator == nil || reset == true {
 		inst.listExecutionsPaginator = sfn.NewListExecutionsPaginator(
-			inst.client, &sfn.ListExecutionsInput{
+			client, &sfn.ListExecutionsInput{
 				StateMachineArn: aws.String(stateMachineArn),
 				MaxResults:      500,
 			},
@@ -125,7 +126,9 @@ func (inst *StateMachineApi) DescribeExecution(executionArn string) (*sfn.Descri
 		return nil, fmt.Errorf("Exeuction ARN not set")
 	}
 
-	var response, err = inst.client.DescribeExecution(context.TODO(), &sfn.DescribeExecutionInput{
+	var client = GetAwsApiClients().sfn
+
+	var response, err = client.DescribeExecution(context.TODO(), &sfn.DescribeExecutionInput{
 		ExecutionArn: &executionArn,
 	})
 
@@ -142,7 +145,8 @@ func (inst *StateMachineApi) GetExecutionHistory(executionArn string) (*sfn.GetE
 		return nil, fmt.Errorf("Exeuction ARN not set")
 	}
 
-	var response, err = inst.client.GetExecutionHistory(context.TODO(), &sfn.GetExecutionHistoryInput{
+	var client = GetAwsApiClients().sfn
+	var response, err = client.GetExecutionHistory(context.TODO(), &sfn.GetExecutionHistoryInput{
 		ExecutionArn:         aws.String(executionArn),
 		IncludeExecutionData: aws.Bool(true),
 	})

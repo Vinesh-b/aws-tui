@@ -10,6 +10,7 @@ import (
 type DynamoDBTablesTable struct {
 	*core.SelectableTable[any]
 	data          []string
+	allTables     []string
 	selectedTable string
 	serviceCtx    *core.ServiceContext[awsapi.DynamoDBApi]
 }
@@ -27,6 +28,7 @@ func NewDynamoDBTablesTable(
 			serviceContext.AppContext,
 		),
 		data:       nil,
+		allTables:  nil,
 		serviceCtx: serviceContext,
 	}
 
@@ -61,10 +63,13 @@ func (inst *DynamoDBTablesTable) RefreshTables(force bool) {
 
 	dataLoader.AsyncLoadData(func() {
 		if len(search) > 0 {
-			inst.data = inst.serviceCtx.Api.FilterByName(search)
+			inst.data = core.FuzzySearch(search, inst.allTables, func(t string) string {
+				return t
+			})
 		} else {
 			var err error = nil
-			inst.data, err = inst.serviceCtx.Api.ListTables(force)
+			inst.allTables, err = inst.serviceCtx.Api.ListTables(force)
+			inst.data = inst.allTables
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
 			}
