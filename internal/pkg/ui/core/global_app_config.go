@@ -54,6 +54,7 @@ func (inst *AppTheme) ChangeColourScheme(colour tcell.Color) {
 
 type KeyBindings struct {
 	Help               rune
+	Quit               rune
 	Escape             tcell.Key
 	ToggleServicesMenu tcell.Key
 	ToggleServicePages tcell.Key
@@ -99,6 +100,7 @@ type KeyBindings struct {
 
 var APP_KEY_BINDINGS = KeyBindings{
 	Help:               '?',
+	Quit:               'q',
 	Escape:             tcell.KeyESC,
 	ToggleServicesMenu: tcell.KeyCtrlM,
 	ToggleServicePages: tcell.KeyCtrlP,

@@ -158,12 +158,25 @@ func CreateApplication(config aws.Config, version string) *tview.Application {
 
 	var lastFocus = app.GetFocus()
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case core.APP_KEY_BINDINGS.Escape:
+		var hideServiceListFunc = func() {
+			pages.HidePage(FLOATING_SERVICE_LIST)
+			app.SetFocus(lastFocus)
+			serviceListHidden = true
+
+		}
+
+		switch event.Rune() {
+		case core.APP_KEY_BINDINGS.Quit:
 			if !serviceListHidden && servicesList.IsEscapable() {
-				pages.HidePage(FLOATING_SERVICE_LIST)
-				app.SetFocus(lastFocus)
-				serviceListHidden = true
+				hideServiceListFunc()
+				return nil
+			}
+		}
+
+		switch event.Key() {
+		case core.APP_KEY_BINDINGS.Escape, tcell.Key(core.APP_KEY_BINDINGS.Quit):
+			if !serviceListHidden && servicesList.IsEscapable() {
+				hideServiceListFunc()
 				return nil
 			}
 		case core.APP_KEY_BINDINGS.ToggleServicesMenu:
