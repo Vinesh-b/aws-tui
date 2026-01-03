@@ -13,25 +13,22 @@ import (
 
 type CloudFormationApi struct {
 	logger               *log.Logger
-	config               aws.Config
-	client               *cloudformation.Client
 	stackEventsPaginator *cloudformation.DescribeStackEventsPaginator
 }
 
 func NewCloudFormationApi(
-	config aws.Config,
 	logger *log.Logger,
 ) *CloudFormationApi {
 	return &CloudFormationApi{
-		config: config,
 		logger: logger,
-		client: cloudformation.NewFromConfig(config),
 	}
 }
 
 func (inst *CloudFormationApi) ListStacks(force bool) ([]types.StackSummary, error) {
+	var client = GetAwsApiClients().cloudformation
+
 	var paginator = cloudformation.NewListStacksPaginator(
-		inst.client, &cloudformation.ListStacksInput{},
+		client, &cloudformation.ListStacksInput{},
 	)
 
 	var apiErr error = nil
@@ -61,9 +58,11 @@ func (inst *CloudFormationApi) DescribeStackEvents(stackName string, force bool)
 		return empty, fmt.Errorf("Stack name not set")
 	}
 
+	var client = GetAwsApiClients().cloudformation
+
 	if inst.stackEventsPaginator == nil || force {
 		inst.stackEventsPaginator = cloudformation.NewDescribeStackEventsPaginator(
-			inst.client, &cloudformation.DescribeStackEventsInput{
+			client, &cloudformation.DescribeStackEventsInput{
 				StackName: aws.String(stackName),
 			},
 		)

@@ -93,7 +93,7 @@ func NewEventBridgeHomeView(appCtx *core.AppContext) core.ServicePage {
 	defer appCtx.Theme.ResetGlobalStyle()
 
 	var (
-		api        = awsapi.NewEventBridgeApi(*appCtx.Config, appCtx.Logger)
+		api        = awsapi.NewEventBridgeApi(appCtx.Logger)
 		serviceCtx = core.NewServiceViewContext(appCtx, api)
 
 		eventbridgeDetailsView = NewEventBridgeDetailsPageView(

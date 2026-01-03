@@ -10,6 +10,7 @@ import (
 type ViewId string
 
 const (
+	PROFILE_SELECTION        ViewId = "Profile Selection"
 	LAMBDA                   ViewId = "Lambda"
 	CLOUDWATCH_LOGS_GROUPS   ViewId = "Log Groups"
 	CLOUDWATCH_LOGS_INSIGHTS ViewId = "Log Insights"

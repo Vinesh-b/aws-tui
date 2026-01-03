@@ -1,7 +1,6 @@
 package awsapi
 
 import (
-	"aws-tui/internal/pkg/ui/core"
 	"context"
 	"fmt"
 	"log"
@@ -16,32 +15,29 @@ import (
 
 type DynamoDBApi struct {
 	logger         *log.Logger
-	config         aws.Config
-	client         *dynamodb.Client
 	allTables      []string
 	queryPaginator *dynamodb.QueryPaginator
 	scanPaginator  *dynamodb.ScanPaginator
 }
 
 func NewDynamoDBApi(
-	config aws.Config,
 	logger *log.Logger,
 ) *DynamoDBApi {
+
 	return &DynamoDBApi{
-		config: config,
 		logger: logger,
-		client: dynamodb.NewFromConfig(config),
 	}
 }
 
 func (inst *DynamoDBApi) ListTables(force bool) ([]string, error) {
+	var client = GetAwsApiClients().dynamodb
 	if len(inst.allTables) > 0 && !force {
 		return inst.allTables, nil
 	}
 
 	inst.allTables = nil
 	var paginator = dynamodb.NewListTablesPaginator(
-		inst.client, &dynamodb.ListTablesInput{},
+		client, &dynamodb.ListTablesInput{},
 	)
 
 	var apiErr error = nil
@@ -61,18 +57,13 @@ func (inst *DynamoDBApi) ListTables(force bool) ([]string, error) {
 	return inst.allTables, apiErr
 }
 
-func (inst *DynamoDBApi) FilterByName(name string) []string {
-	return core.FuzzySearch(name, inst.allTables, func(t string) string {
-		return t
-	})
-}
-
 func (inst *DynamoDBApi) DescribeTable(tableName string) (*types.TableDescription, error) {
 	if len(tableName) == 0 {
 		return nil, fmt.Errorf("Table name not set")
 	}
 
-	var output, err = inst.client.DescribeTable(context.TODO(),
+	var client = GetAwsApiClients().dynamodb
+	var output, err = client.DescribeTable(context.TODO(),
 		&dynamodb.DescribeTableInput{TableName: &tableName},
 	)
 	if err != nil {
@@ -98,9 +89,10 @@ func (inst *DynamoDBApi) ScanTable(
 	if len(indexName) > 0 {
 		index = aws.String(indexName)
 	}
+	var client = GetAwsApiClients().dynamodb
 
 	if force || inst.scanPaginator == nil {
-		inst.scanPaginator = dynamodb.NewScanPaginator(inst.client, &dynamodb.ScanInput{
+		inst.scanPaginator = dynamodb.NewScanPaginator(client, &dynamodb.ScanInput{
 			TableName:                 aws.String(tableName),
 			Limit:                     aws.Int32(20),
 			FilterExpression:          scanExpression.Filter(),
@@ -143,7 +135,8 @@ func (inst *DynamoDBApi) QueryTable(
 		if len(indexName) > 0 {
 			index = aws.String(indexName)
 		}
-		inst.queryPaginator = dynamodb.NewQueryPaginator(inst.client, &dynamodb.QueryInput{
+		var client = GetAwsApiClients().dynamodb
+		inst.queryPaginator = dynamodb.NewQueryPaginator(client, &dynamodb.QueryInput{
 			TableName:                 aws.String(tableName),
 			Limit:                     aws.Int32(100),
 			FilterExpression:          queryExpression.Filter(),
@@ -180,9 +173,10 @@ func (inst *DynamoDBApi) ListTags(force bool, resourceArn string) ([]types.Tag, 
 	var apiError error = nil
 	var nextToken *string = nil
 	var result = []types.Tag{}
+	var client = GetAwsApiClients().dynamodb
 
 	for {
-		var output, err = inst.client.ListTagsOfResource(context.TODO(),
+		var output, err = client.ListTagsOfResource(context.TODO(),
 			&dynamodb.ListTagsOfResourceInput{
 				ResourceArn: aws.String(resourceArn),
 				NextToken:   nextToken,

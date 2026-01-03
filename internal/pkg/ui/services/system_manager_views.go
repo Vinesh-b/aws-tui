@@ -100,7 +100,7 @@ func NewSystemManagerHomeView(appCtx *core.AppContext) core.ServicePage {
 	defer appCtx.Theme.ResetGlobalStyle()
 
 	var (
-		api        = awsapi.NewSystemsManagerApi(*appCtx.Config, appCtx.Logger)
+		api        = awsapi.NewSystemsManagerApi(appCtx.Logger)
 		serviceCtx = core.NewServiceViewContext(appCtx, api)
 
 		systemManagersDetailsView = NewSystemManagerDetailsPageView(

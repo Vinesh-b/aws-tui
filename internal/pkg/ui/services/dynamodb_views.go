@@ -118,7 +118,7 @@ func NewDynamoDBHomeView(appCtx *core.AppContext) core.ServicePage {
 	defer appCtx.Theme.ResetGlobalStyle()
 
 	var (
-		api        = awsapi.NewDynamoDBApi(*appCtx.Config, appCtx.Logger)
+		api        = awsapi.NewDynamoDBApi(appCtx.Logger)
 		serviceCtx = core.NewServiceViewContext(appCtx, api)
 
 		ddbDetailsView = NewDynamoDBDetailsPage(

@@ -196,10 +196,10 @@ func NewStepFunctionsHomeView(appCtx *core.AppContext) core.ServicePage {
 	defer appCtx.Theme.ResetGlobalStyle()
 
 	var (
-		api        = awsapi.NewStateMachineApi(*appCtx.Config, appCtx.Logger)
+		api        = awsapi.NewStateMachineApi(appCtx.Logger)
 		serviceCtx = core.NewServiceViewContext(appCtx, api)
 
-		cwlApi = awsapi.NewCloudWatchLogsApi(*appCtx.Config, appCtx.Logger)
+		cwlApi = awsapi.NewCloudWatchLogsApi(appCtx.Logger)
 
 		SfnDetailsView = NewSfnDetailsPageView(
 			tables.NewSfnListTable(serviceCtx),

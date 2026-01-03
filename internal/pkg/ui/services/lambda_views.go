@@ -243,10 +243,10 @@ func NewLambdaHomeView(appCtx *core.AppContext) core.ServicePage {
 	defer appCtx.Theme.ResetGlobalStyle()
 
 	var (
-		api       = awsapi.NewLambdaApi(*appCtx.Config, appCtx.Logger)
+		api       = awsapi.NewLambdaApi(appCtx.Logger)
 		lambdaCtx = core.NewServiceViewContext(appCtx, api)
 
-		cwl_api   = awsapi.NewCloudWatchLogsApi(*appCtx.Config, appCtx.Logger)
+		cwl_api   = awsapi.NewCloudWatchLogsApi(appCtx.Logger)
 		cwLogsCtx = core.NewServiceViewContext(appCtx, cwl_api)
 
 		lambdasDetailsView = NewLambdaDetailsPageView(

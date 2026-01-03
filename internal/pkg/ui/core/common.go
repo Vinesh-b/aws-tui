@@ -1,6 +1,7 @@
 package core
 
 import (
+	"aws-tui/internal/pkg/awsapi"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -37,9 +38,16 @@ func TryFormatToJson(text string) (string, bool) {
 
 type AppContext struct {
 	App    *tview.Application
-	Config *aws.Config
 	Logger *log.Logger
 	Theme  *AppTheme
+}
+
+func (inst *AppContext) GetApiClients() *awsapi.AwsApiClients {
+	return awsapi.GetAwsApiClients()
+}
+
+func (inst *AppContext) ResetApiClients(cfg aws.Config, profile string) {
+	awsapi.ResetAwsApiClients(cfg, profile)
 }
 
 func NewAppContext(
@@ -47,7 +55,6 @@ func NewAppContext(
 ) *AppContext {
 	return &AppContext{
 		App:    app,
-		Config: config,
 		Logger: logger,
 		Theme:  theme,
 	}

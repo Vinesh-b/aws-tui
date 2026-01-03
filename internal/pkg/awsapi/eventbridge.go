@@ -12,20 +12,15 @@ import (
 
 type EventBridgeApi struct {
 	logger        *log.Logger
-	config        aws.Config
-	client        *eventbridge.Client
 	allEventBuses []types.EventBus
 	allBusRules   []types.Rule
 }
 
 func NewEventBridgeApi(
-	config aws.Config,
 	logger *log.Logger,
 ) *EventBridgeApi {
 	return &EventBridgeApi{
-		config: config,
 		logger: logger,
-		client: eventbridge.NewFromConfig(config),
 	}
 }
 
@@ -34,9 +29,10 @@ func (inst *EventBridgeApi) ListEventBuses(force bool) ([]types.EventBus, error)
 	var namePrefix *string = nil
 	var apiError error = nil
 	var result = []types.EventBus{}
+	var client = GetAwsApiClients().eventbridge
 
 	for {
-		var output, err = inst.client.ListEventBuses(context.TODO(),
+		var output, err = client.ListEventBuses(context.TODO(),
 			&eventbridge.ListEventBusesInput{
 				Limit:      aws.Int32(50),
 				NamePrefix: namePrefix,
@@ -67,8 +63,9 @@ func (inst *EventBridgeApi) ListEventBuses(force bool) ([]types.EventBus, error)
 
 func (inst *EventBridgeApi) DescribeEventBus(force bool, busArn string) (eventbridge.DescribeEventBusOutput, error) {
 	var empty = eventbridge.DescribeEventBusOutput{}
+	var client = GetAwsApiClients().eventbridge
 
-	var output, err = inst.client.DescribeEventBus(context.TODO(),
+	var output, err = client.DescribeEventBus(context.TODO(),
 		&eventbridge.DescribeEventBusInput{
 			Name: aws.String(busArn),
 		},
@@ -87,9 +84,10 @@ func (inst *EventBridgeApi) ListRules(force bool, busArn string) ([]types.Rule, 
 	var namePrefix *string = nil
 	var apiError error = nil
 	var result = []types.Rule{}
+	var client = GetAwsApiClients().eventbridge
 
 	for {
-		var output, err = inst.client.ListRules(context.TODO(),
+		var output, err = client.ListRules(context.TODO(),
 			&eventbridge.ListRulesInput{EventBusName: &busArn,
 				Limit:      aws.Int32(50),
 				NamePrefix: namePrefix,
@@ -121,8 +119,9 @@ func (inst *EventBridgeApi) ListRules(force bool, busArn string) ([]types.Rule, 
 
 func (inst *EventBridgeApi) ListTags(force bool, resourceArn string) ([]types.Tag, error) {
 	var apiError error = nil
+	var client = GetAwsApiClients().eventbridge
 
-	var output, err = inst.client.ListTagsForResource(context.TODO(),
+	var output, err = client.ListTagsForResource(context.TODO(),
 		&eventbridge.ListTagsForResourceInput{
 			ResourceARN: aws.String(resourceArn),
 		},

@@ -115,6 +115,9 @@ func CreateApplication(config aws.Config, version string) *tview.Application {
 		{" " + string(services.DEBUG_LOGS), "View debug logs", rune('0'),
 			errorTextArea,
 		},
+		{" " + string(services.PROFILE_SELECTION), "AWS Profile selection", rune('p'),
+			services.NewProfileSelectionView(appContext),
+		},
 	}
 
 	errorTextArea.

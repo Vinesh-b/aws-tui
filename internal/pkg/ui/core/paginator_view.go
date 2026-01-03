@@ -3,9 +3,12 @@ package core
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/rivo/tview"
 )
 
@@ -17,65 +20,103 @@ type PaginatorView struct {
 	appCtx          *AppContext
 }
 
+const CredsPollRate = time.Second * 5
+
+func sessionDetails(
+	profile string, userId string, accountId string, duration time.Duration,
+) string {
+	var durationStr = ""
+	switch {
+	case duration == math.MinInt64:
+		durationStr = "Inf"
+	case duration <= 0:
+		durationStr = "Expired"
+	case duration > 0:
+		durationStr = duration.String()
+	}
+
+	return fmt.Sprintf(
+		"Profile: %s | Account Id: %s | Session duration: %s | User Id: %s",
+		profile,
+		accountId,
+		durationStr,
+		userId,
+	)
+}
+
 func CreatePaginatorView(service string, appContext *AppContext) PaginatorView {
 	var sessionDetailsView = tview.NewTextView().
 		SetTextAlign(tview.AlignLeft).
 		SetTextColor(appContext.Theme.TertiaryTextColour)
 
 	go func() {
-		var creds, err = appContext.Config.Credentials.Retrieve(context.Background())
-		var logger = appContext.Logger
-		var app = appContext.App
+		for {
+			time.Sleep(CredsPollRate)
 
-		if err != nil {
-			logger.Print(err.Error())
+			var logger = appContext.Logger
+			var app = appContext.App
+
+			var apiClients = appContext.GetApiClients()
+
+			var creds, err = apiClients.Config.Credentials.Retrieve(context.TODO())
+			if err != nil {
+				logger.Print(err.Error())
+				app.QueueUpdateDraw(func() {
+					sessionDetailsView.SetText(fmt.Sprintf(
+						"Credentials Error: %s", err.Error(),
+					))
+				})
+				continue
+			}
+
+			identity, err := apiClients.Sts.GetCallerIdentity(
+				context.TODO(),
+				&sts.GetCallerIdentityInput{},
+			)
+			if err != nil {
+				logger.Print(err.Error())
+				app.QueueUpdateDraw(func() {
+					sessionDetailsView.SetText(fmt.Sprintf(
+						"Credentials Error: %s", err.Error(),
+					))
+				})
+				continue
+			}
+			var profileName = os.Getenv("AWS_PROFILE")
+			if len(profileName) == 0 {
+				profileName = apiClients.Profile
+				if len(profileName) == 0 {
+					profileName = "unset"
+				}
+			}
+
+			var accountId = aws.ToString(identity.Account)
+			var userId = aws.ToString(identity.UserId)
+
+			if creds.CanExpire == false {
+				app.QueueUpdateDraw(func() {
+					sessionDetailsView.SetText(
+						sessionDetails(profileName, userId, accountId, math.MinInt64),
+					)
+				})
+				continue
+			}
+
+			for time.Now().Before(creds.Expires) {
+				app.QueueUpdateDraw(func() {
+					var remainingTime = creds.Expires.Sub(time.Now()).Truncate(time.Second)
+					sessionDetailsView.SetText(
+						sessionDetails(profileName, userId, accountId, remainingTime),
+					)
+				})
+				time.Sleep(CredsPollRate)
+			}
 			app.QueueUpdateDraw(func() {
-				sessionDetailsView.SetText(fmt.Sprintf(
-					"Credentials Error: %s", err.Error(),
-				))
+				sessionDetailsView.SetText(
+					sessionDetails(profileName, userId, accountId, 0),
+				)
 			})
-			return
 		}
-
-		var profileName = os.Getenv("AWS_PROFILE")
-		if len(profileName) == 0 {
-			profileName = "unset"
-		}
-
-		var accountId = creds.AccountID
-		if len(accountId) == 0 {
-			accountId = "unset"
-		}
-
-		if creds.CanExpire == false {
-			app.QueueUpdateDraw(func() {
-				sessionDetailsView.SetText(fmt.Sprintf(
-					"Profile: %s | Account Id: %s | Session duration: Inf",
-					profileName, accountId,
-				))
-			})
-			return
-		}
-
-		for time.Now().Before(creds.Expires) {
-			app.QueueUpdateDraw(func() {
-				var remainingTime = creds.Expires.Sub(time.Now()).Truncate(time.Second)
-				sessionDetailsView.SetText(fmt.Sprintf(
-					"Profile: %s | Account Id: %s | Session duration: %s",
-					profileName,
-					accountId,
-					remainingTime.String(),
-				))
-			})
-			time.Sleep(5 * time.Second)
-		}
-		app.QueueUpdateDraw(func() {
-			sessionDetailsView.SetText(fmt.Sprintf(
-				"Profile: %s | Account Id: %s | Session duration: Expired",
-				profileName,
-				accountId,
-			))
-		})
 	}()
 
 	var rootView = tview.NewFlex().SetDirection(tview.FlexRow).
