@@ -37,6 +37,7 @@ func NewSfnExecutionSummaryTable(
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			table.RefreshExecutionDetails(table.selectedExecutionArn, true)
+			return nil
 		}
 		return event
 	})

@@ -35,6 +35,7 @@ func NewDynamoDBDetailsTable(
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			table.RefreshDetails()
+			return nil
 		}
 		return event
 	})

@@ -82,8 +82,10 @@ func (inst *AlarmsDetailsPageView) InitInputCapture() {
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			refreshDetails()
+			return nil
 		case core.APP_KEY_BINDINGS.LoadMoreData:
 			inst.HistoryTable.RefreshHistory(false)
+			return nil
 		}
 		return event
 	})

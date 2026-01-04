@@ -56,8 +56,10 @@ func NewLogStreamsTable(
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			view.RefreshStreams(true)
+			return nil
 		case core.APP_KEY_BINDINGS.LoadMoreData:
 			view.RefreshStreams(false)
+			return nil
 		}
 		return event
 	})

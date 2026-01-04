@@ -44,8 +44,10 @@ func NewAlarmListTable(
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			view.RefreshAlarms(true)
+			return nil
 		case core.APP_KEY_BINDINGS.LoadMoreData:
 			view.RefreshAlarms(false)
+			return nil
 		}
 		return event
 	})

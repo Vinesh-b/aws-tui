@@ -103,6 +103,7 @@ func (inst *StackEventsTable) SetInputCapture(capture func(event *tcell.EventKey
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshEvents(true)
+			return nil
 		}
 		return capture(event)
 	})

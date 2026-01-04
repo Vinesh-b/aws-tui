@@ -147,8 +147,10 @@ func (inst *SSMParameterHistoryTable) SetInputCapture(capture func(event *tcell.
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshHistory(true)
+			return nil
 		case core.APP_KEY_BINDINGS.LoadMoreData:
 			inst.RefreshHistory(false)
+			return nil
 		}
 		return capture(event)
 	})

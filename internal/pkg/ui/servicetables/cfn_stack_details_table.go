@@ -34,6 +34,7 @@ func NewStackDetailsTable(
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			view.RefreshDetails(view.data)
+			return nil
 		}
 		return event
 	})

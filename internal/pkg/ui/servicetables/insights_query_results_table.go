@@ -136,6 +136,7 @@ func NewInsightsQueryResultsTable(
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			view.RefreshResults()
+			return nil
 		}
 		return event
 	})

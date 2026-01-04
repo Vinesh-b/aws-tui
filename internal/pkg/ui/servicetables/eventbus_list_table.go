@@ -138,6 +138,7 @@ func (inst *EventBusListTable) SetInputCapture(capture func(event *tcell.EventKe
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset, core.APP_KEY_BINDINGS.LoadMoreData:
 			inst.RefreshEventBuss(true)
+			return nil
 		}
 		return capture(event)
 	})

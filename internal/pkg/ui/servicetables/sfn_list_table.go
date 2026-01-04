@@ -121,6 +121,7 @@ func (inst *SfnListTable) SetInputCapture(capture func(event *tcell.EventKey) *t
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset, core.APP_KEY_BINDINGS.LoadMoreData:
 			inst.RefreshStateMachines(true)
+			return nil
 		}
 
 		return capture(event)

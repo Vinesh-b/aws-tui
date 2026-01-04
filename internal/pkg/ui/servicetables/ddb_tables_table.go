@@ -96,6 +96,7 @@ func (inst *DynamoDBTablesTable) SetInputCapture(capture func(event *tcell.Event
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset, core.APP_KEY_BINDINGS.LoadMoreData:
 			inst.RefreshTables(true)
+			return nil
 		}
 		return capture(event)
 	})

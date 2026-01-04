@@ -47,8 +47,10 @@ func NewLogEventsTable(
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			view.RefreshLogEvents(true)
+			return nil
 		case core.APP_KEY_BINDINGS.LoadMoreData:
 			view.RefreshLogEvents(false)
+			return nil
 		}
 		return event
 	})

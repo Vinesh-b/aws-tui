@@ -85,8 +85,10 @@ func NewSfnExecutionsTable(
 			switch table.selectedFunction.Type {
 			case types.StateMachineTypeStandard:
 				table.RefreshExecutions(true)
+				return nil
 			case types.StateMachineTypeExpress:
 				table.RefreshExpressExecutions(aws.ToString(table.selectedExecution.logGroup), true)
+				return nil
 			default:
 				table.ErrorMessageCallback(
 					"Unsupported type: %s", table.selectedExecution.StateMachineType,
@@ -94,6 +96,7 @@ func NewSfnExecutionsTable(
 			}
 		case core.APP_KEY_BINDINGS.LoadMoreData:
 			table.RefreshExecutions(false)
+			return nil
 		}
 		return event
 	})

@@ -113,6 +113,7 @@ func (inst *MetricListTable) SetInputCapture(capture func(event *tcell.EventKey)
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset, core.APP_KEY_BINDINGS.LoadMoreData:
 			inst.RefreshMetrics(true)
+			return nil
 		}
 
 		return capture(event)

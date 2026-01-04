@@ -198,8 +198,10 @@ func (inst *BucketObjectsTable) SetInputCapture(capture func(event *tcell.EventK
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshObjects(true)
+			return nil
 		case core.APP_KEY_BINDINGS.LoadMoreData:
 			inst.RefreshObjects(false)
+			return nil
 		}
 		return capture(event)
 	})

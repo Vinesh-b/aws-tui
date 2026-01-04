@@ -78,6 +78,7 @@ func NewSfnExecutionDetailsTable(
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			view.RefreshExecutionStates(view.selectedExecutionArn, true)
+			return nil
 		}
 		return event
 	})

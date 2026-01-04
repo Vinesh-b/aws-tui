@@ -135,6 +135,7 @@ func (inst *LambdaListTable) SetInputCapture(capture func(event *tcell.EventKey)
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset, core.APP_KEY_BINDINGS.LoadMoreData:
 			inst.RefreshLambdas(true)
+			return nil
 		}
 		return capture(event)
 	})

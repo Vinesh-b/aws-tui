@@ -43,6 +43,7 @@ func NewLogGroupsTable(
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset, core.APP_KEY_BINDINGS.LoadMoreData:
 			view.RefreshLogGroups(true)
+			return nil
 		}
 		return event
 	})

@@ -142,8 +142,10 @@ func (inst *SSMParametersListTable) SetInputCapture(capture func(event *tcell.Ev
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshParameters("/", true)
+			return nil
 		case core.APP_KEY_BINDINGS.LoadMoreData:
 			inst.RefreshParameters("/", false)
+			return nil
 		}
 		return capture(event)
 	})
