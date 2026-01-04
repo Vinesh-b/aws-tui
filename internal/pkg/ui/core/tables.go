@@ -370,6 +370,16 @@ func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventK
 	}
 
 	inst.table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		// Ignore navigation if table is empty (headings only)
+		// ToDo: Why does it dead-lock without this with rapid key inputs?
+		if inst.table.GetRowCount() <= 1 {
+			switch event.Rune() {
+			case APP_KEY_BINDINGS.Reset, APP_KEY_BINDINGS.LoadMoreData:
+				return capture(event)
+			}
+			return nil
+		}
+
 		switch event.Key() {
 		case APP_KEY_BINDINGS.ClearTable:
 			inst.SetData(nil, nil, 0)
@@ -406,7 +416,6 @@ func (inst *SelectableTable[T]) SetSearchDoneFunc(handler func(key tcell.Key)) {
 				[]int{},
 			)
 		}
-		return
 	}
 
 	inst.SearchableView.SetSearchDoneFunc(func(key tcell.Key) {
