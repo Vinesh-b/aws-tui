@@ -140,3 +140,74 @@ func (inst *S3BucketsApi) DownloadFile(bucketName string, objectKey string, file
 	_, err = file.Write(body)
 	return err
 }
+
+func (inst *S3BucketsApi) GetBucketPolicy(bucketArn string, force bool) (string, error) {
+	var client = GetAwsApiClients().s3
+
+	var output, err = client.GetBucketPolicy(context.TODO(),
+		&s3.GetBucketPolicyInput{
+			Bucket: aws.String(bucketArn),
+		})
+
+	if err != nil {
+		inst.logger.Println(err)
+		return "", err
+	}
+
+	return aws.ToString(output.Policy), nil
+}
+
+func (inst *S3BucketsApi) GetBucketTags(
+	bucketArn string, force bool,
+) ([]types.Tag, error) {
+	var client = GetAwsApiClients().s3
+
+	var output, err = client.GetBucketTagging(context.TODO(),
+		&s3.GetBucketTaggingInput{
+			Bucket: aws.String(bucketArn),
+		})
+
+	if err != nil {
+		inst.logger.Println(err)
+		return nil, err
+	}
+
+	return output.TagSet, nil
+}
+
+func (inst *S3BucketsApi) HeadBucket(
+	bucketArn string, objectKey string, force bool,
+) (s3.HeadBucketOutput, error) {
+	var client = GetAwsApiClients().s3
+	var empty = s3.HeadBucketOutput{}
+	var output, err = client.HeadBucket(context.TODO(),
+		&s3.HeadBucketInput{
+			Bucket: aws.String(bucketArn),
+		})
+
+	if err != nil {
+		inst.logger.Println(err)
+		return empty, err
+	}
+
+	return *output, nil
+}
+
+func (inst *S3BucketsApi) HeadObject(
+	bucketArn string, objectKey string, force bool,
+) (s3.HeadObjectOutput, error) {
+	var client = GetAwsApiClients().s3
+	var empty = s3.HeadObjectOutput{}
+	var output, err = client.HeadObject(context.TODO(),
+		&s3.HeadObjectInput{
+			Bucket: aws.String(bucketArn),
+			Key:    aws.String(objectKey),
+		})
+
+	if err != nil {
+		inst.logger.Println(err)
+		return empty, err
+	}
+
+	return *output, nil
+}
