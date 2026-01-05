@@ -5,6 +5,7 @@ import (
 
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
+	"aws-tui/internal/pkg/utils"
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -186,7 +187,7 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 		tcell.Style{}.Background(inst.serviceCtx.Theme.MoreContrastBackgroundColor),
 	)
 
-	var clampedName = core.ClampStringLen(inst.tableDescription.TableName, 100)
+	var clampedName = utils.ClampStringLen(inst.tableDescription.TableName, 100)
 	inst.SetTitleExtra(clampedName)
 	inst.RefreshTitle(len(inst.data))
 

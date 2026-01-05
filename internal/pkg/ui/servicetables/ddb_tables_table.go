@@ -3,6 +3,7 @@ package servicetables
 import (
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
+	"aws-tui/internal/pkg/utils"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -63,7 +64,7 @@ func (inst *DynamoDBTablesTable) RefreshTables(force bool) {
 
 	dataLoader.AsyncLoadData(func() {
 		if len(search) > 0 {
-			inst.data = core.FuzzySearch(search, inst.allTables, func(t string) string {
+			inst.data = utils.FuzzySearch(search, inst.allTables, func(t string) string {
 				return t
 			})
 		} else {

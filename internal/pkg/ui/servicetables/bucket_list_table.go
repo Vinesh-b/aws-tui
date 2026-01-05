@@ -5,6 +5,7 @@ import (
 
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
+	"aws-tui/internal/pkg/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -64,7 +65,7 @@ func (inst *BucketListTable) RefreshBuckets(force bool) {
 
 	dataLoader.AsyncLoadData(func() {
 		if len(search) > 0 {
-			inst.data = core.FuzzySearch(search, inst.allBuckets, func(b types.Bucket) string {
+			inst.data = utils.FuzzySearch(search, inst.allBuckets, func(b types.Bucket) string {
 				return aws.ToString(b.Name)
 			})
 		} else {

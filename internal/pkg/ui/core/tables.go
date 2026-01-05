@@ -2,6 +2,7 @@ package core
 
 import (
 	"aws-tui/internal/pkg/errors"
+	"aws-tui/internal/pkg/utils"
 	"encoding/csv"
 	"os"
 	"path"
@@ -32,7 +33,7 @@ func NewTableCell[T any](text string, ref *T) *tview.TableCell {
 	// we have to clamp the text length
 	var cellData = CellData[T]{text: &text, ref: ref}
 	var cell = tview.NewTableCell(text).
-		SetText(ClampStringLen(cellData.text, 180)).
+		SetText(utils.ClampStringLen(cellData.text, 180)).
 		SetAlign(tview.AlignLeft).
 		SetReference(&cellData)
 	return cell

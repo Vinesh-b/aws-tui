@@ -6,6 +6,7 @@ import (
 
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
+	"aws-tui/internal/pkg/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sfn/types"
@@ -75,7 +76,7 @@ func (inst *SfnListTable) FilterByName(name string) {
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		inst.filtered = core.FuzzySearch(name,
+		inst.filtered = utils.FuzzySearch(name,
 			inst.data,
 			func(v types.StateMachineListItem) string {
 				return aws.ToString(v.Name)

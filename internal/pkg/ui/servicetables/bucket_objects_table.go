@@ -8,6 +8,7 @@ import (
 
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
+	"aws-tui/internal/pkg/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -114,14 +115,14 @@ func (inst *BucketObjectsTable) FilterByName(name string) {
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		inst.filtered = core.FuzzySearch(
+		inst.filtered = utils.FuzzySearch(
 			name,
 			inst.data,
 			func(f types.Object) string {
 				return aws.ToString(f.Key)
 			},
 		)
-		inst.filteredDirs = core.FuzzySearch(
+		inst.filteredDirs = utils.FuzzySearch(
 			name,
 			inst.dirs,
 			func(f types.CommonPrefix) string {

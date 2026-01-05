@@ -3,6 +3,7 @@ package servicetables
 import (
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
+	"aws-tui/internal/pkg/utils"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -78,7 +79,7 @@ func (inst *EventBusListTable) FilterByName(name string) {
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		inst.filtered = core.FuzzySearch(
+		inst.filtered = utils.FuzzySearch(
 			name,
 			inst.data,
 			func(f types.EventBus) string {

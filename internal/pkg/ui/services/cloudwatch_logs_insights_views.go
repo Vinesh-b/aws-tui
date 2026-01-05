@@ -6,6 +6,7 @@ import (
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 	tables "aws-tui/internal/pkg/ui/servicetables"
+	"aws-tui/internal/pkg/utils"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -16,7 +17,7 @@ type LogGroupsSelectionPageView struct {
 	LogGroupsTable     *tables.LogGroupsTable
 	SeletedGroupsTable *tables.SelectedGroupsTable
 	SearchInput        *tview.InputField
-	selectedGroups     core.StringSet
+	selectedGroups     utils.StringSet
 	serviceCtx         *core.ServiceContext[awsapi.CloudWatchLogsApi]
 }
 
@@ -48,7 +49,7 @@ func NewLogGroupsSelectionPageView(
 		ServicePageView:    serviceView,
 		SeletedGroupsTable: selectedGroupsTable,
 		LogGroupsTable:     logGroupsView.LogGroupsTable,
-		selectedGroups:     core.StringSet{},
+		selectedGroups:     utils.StringSet{},
 		serviceCtx:         serviceViewCtx,
 	}
 }

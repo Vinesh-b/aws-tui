@@ -2,6 +2,7 @@ package services
 
 import (
 	"aws-tui/internal/pkg/ui/core"
+	"aws-tui/internal/pkg/utils"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -88,7 +89,7 @@ func NewServicesHomeView(appContext *core.AppContext) *ServicesHomeView {
 			return
 		}
 
-		var filteredItems = core.FuzzySearch(search, view.serviceListItems,
+		var filteredItems = utils.FuzzySearch(search, view.serviceListItems,
 			func(listItem ServiceListItem) string {
 				return listItem.MainText + " " + listItem.SecondaryText
 			},

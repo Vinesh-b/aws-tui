@@ -5,6 +5,7 @@ import (
 
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
+	"aws-tui/internal/pkg/utils"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -13,7 +14,7 @@ const logNameCol = 0
 
 type SelectedGroupsTable struct {
 	*core.SelectableTable[string]
-	data          core.StringSet
+	data          utils.StringSet
 	selectedGroup string
 	serviceCtx    *core.ServiceContext[awsapi.CloudWatchLogsApi]
 }
@@ -30,7 +31,7 @@ func NewSelectedGroupsTable(
 			},
 			serviceViewCtx.AppContext,
 		),
-		data:          core.StringSet{},
+		data:          utils.StringSet{},
 		selectedGroup: "",
 		serviceCtx:    serviceViewCtx,
 	}
@@ -41,7 +42,7 @@ func NewSelectedGroupsTable(
 	view.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
-			view.data = core.StringSet{}
+			view.data = utils.StringSet{}
 			view.RefreshSelectedGroups()
 			return nil
 		case rune('u'):

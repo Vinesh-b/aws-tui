@@ -3,6 +3,7 @@ package services
 import (
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
+	"aws-tui/internal/pkg/utils"
 	"context"
 	"slices"
 
@@ -74,7 +75,7 @@ func NewProfileSelectionView(appCtx *core.AppContext) core.ServicePage {
 			return
 		}
 
-		var filteredItems = core.FuzzySearch(search, view.serviceListItems,
+		var filteredItems = utils.FuzzySearch(search, view.serviceListItems,
 			func(listItem ServiceListItem) string {
 				return listItem.MainText + " " + listItem.SecondaryText
 			},

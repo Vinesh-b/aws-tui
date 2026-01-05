@@ -7,6 +7,7 @@ import (
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 	tables "aws-tui/internal/pkg/ui/servicetables"
+	"aws-tui/internal/pkg/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
@@ -175,7 +176,7 @@ func (inst *LambdaInvokePageView) loadLogs(text string) {
 
 func (inst *LambdaInvokePageView) loadResponse(text string) {
 	inst.responseOutput.SetTitle("Response")
-	var newText, _ = core.TryFormatToJson(text)
+	var newText, _ = utils.TryFormatToJson(text)
 	inst.responseOutput.SetText(newText, false)
 }
 
