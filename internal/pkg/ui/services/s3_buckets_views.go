@@ -11,21 +11,29 @@ import (
 
 type S3BucketsDetailsView struct {
 	*core.ServicePageView
-	bucketsTable *tables.BucketListTable
-	objectsTable *tables.BucketObjectsTable
-	serviceCtx   *core.ServiceContext[awsapi.S3BucketsApi]
+	bucketsTable       *tables.BucketListTable
+	objectsTable       *tables.BucketObjectsTable
+	objectDetailsTable *tables.S3ObjectDetailsTable
+	serviceCtx         *core.ServiceContext[awsapi.S3BucketsApi]
 }
 
 func NewS3bucketsDetailsView(
 	bucketListTable *tables.BucketListTable,
 	bucketObjectsTable *tables.BucketObjectsTable,
+	bucketObjectDetailsTable *tables.S3ObjectDetailsTable,
 	serviceViewCtx *core.ServiceContext[awsapi.S3BucketsApi],
 ) *S3BucketsDetailsView {
 	const objectsTableSize = 4000
 	const bucketsTableSize = 3000
 
+	var details = core.NewResizableView(
+		bucketObjectsTable, 6000,
+		bucketObjectDetailsTable, 4000,
+		tview.FlexColumn,
+	)
+
 	var mainPage = core.NewResizableView(
-		bucketObjectsTable, objectsTableSize,
+		details, objectsTableSize,
 		bucketListTable, bucketsTableSize,
 		tview.FlexRow,
 	)
@@ -35,7 +43,7 @@ func NewS3bucketsDetailsView(
 
 	serviceView.InitViewNavigation(
 		[][]core.View{
-			{bucketObjectsTable},
+			{bucketObjectsTable, bucketObjectDetailsTable},
 			{bucketListTable},
 		},
 	)
@@ -48,10 +56,11 @@ func NewS3bucketsDetailsView(
 	bucketObjectsTable.ErrorMessageCallback = errorHandler
 
 	return &S3BucketsDetailsView{
-		ServicePageView: serviceView,
-		bucketsTable:    bucketListTable,
-		objectsTable:    bucketObjectsTable,
-		serviceCtx:      serviceViewCtx,
+		ServicePageView:    serviceView,
+		bucketsTable:       bucketListTable,
+		objectsTable:       bucketObjectsTable,
+		objectDetailsTable: bucketObjectDetailsTable,
+		serviceCtx:         serviceViewCtx,
 	}
 }
 
@@ -72,6 +81,13 @@ func (inst *S3BucketsDetailsView) InitInputCapture() {
 		inst.objectsTable.RefreshObjects(true)
 		inst.serviceCtx.App.SetFocus(inst.objectsTable)
 	})
+
+	inst.objectsTable.SetSelectedFunc(func(row, column int) {
+		inst.objectDetailsTable.RefreshDetails(
+			inst.bucketsTable.GetSeletedBucket(),
+			inst.objectsTable.GetSelectedPrefix(),
+		)
+	})
 }
 
 func NewS3bucketsHomeView(appCtx *core.AppContext) core.ServicePage {
@@ -85,6 +101,7 @@ func NewS3bucketsHomeView(appCtx *core.AppContext) core.ServicePage {
 		s3DetailsView = NewS3bucketsDetailsView(
 			tables.NewBucketListTable(serviceCtx),
 			tables.NewBucketObjectsTable(serviceCtx),
+			tables.NewS3ObjectDetailsTable(serviceCtx),
 			serviceCtx,
 		)
 	)

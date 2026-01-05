@@ -179,7 +179,7 @@ func (inst *BucketObjectsTable) SetSelectedFunc(handler func(row, column int)) {
 			inst.selectedDir = prefix
 			inst.RefreshObjects(true)
 		} else {
-			inst.serviceCtx.Api.DownloadFile(inst.selectedBucket, prefix, filepath.Base(prefix))
+			//inst.serviceCtx.Api.DownloadFile(inst.selectedBucket, prefix, filepath.Base(prefix))
 		}
 
 		handler(row, column)
