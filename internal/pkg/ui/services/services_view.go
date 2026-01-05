@@ -22,6 +22,7 @@ const (
 	S3BUCKETS                ViewId = "S3 Buckets"
 	STATE_MACHINES           ViewId = "State Machines"
 	SYSTEMS_MANAGER          ViewId = "Systems Manager"
+	VPC                      ViewId = "VPCs"
 
 	HELP       ViewId = "Help"
 	SETTINGS   ViewId = "Settings"

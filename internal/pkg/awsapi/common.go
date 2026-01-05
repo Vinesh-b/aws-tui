@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -30,6 +31,7 @@ type AwsApiClients struct {
 	cloudwatch     *cloudwatch.Client
 	cloudwatchlogs *cloudwatchlogs.Client
 	dynamodb       *dynamodb.Client
+	ec2            *ec2.Client
 	eventbridge    *eventbridge.Client
 	lambda         *lambda.Client
 	sfn            *sfn.Client
@@ -58,6 +60,7 @@ func ResetAwsApiClients(cfg aws.Config, profile string) {
 		cloudwatch:     cloudwatch.NewFromConfig(cfg),
 		cloudwatchlogs: cloudwatchlogs.NewFromConfig(cfg),
 		dynamodb:       dynamodb.NewFromConfig(cfg),
+		ec2:            ec2.NewFromConfig(cfg),
 		eventbridge:    eventbridge.NewFromConfig(cfg),
 		lambda:         lambda.NewFromConfig(cfg),
 		sfn:            sfn.NewFromConfig(cfg),
@@ -88,6 +91,7 @@ func GetAwsApiClients() *AwsApiClients {
 			cloudwatch:     cloudwatch.NewFromConfig(cfg),
 			cloudwatchlogs: cloudwatchlogs.NewFromConfig(cfg),
 			dynamodb:       dynamodb.NewFromConfig(cfg),
+			ec2:            ec2.NewFromConfig(cfg),
 			eventbridge:    eventbridge.NewFromConfig(cfg),
 			lambda:         lambda.NewFromConfig(cfg),
 			sfn:            sfn.NewFromConfig(cfg),
