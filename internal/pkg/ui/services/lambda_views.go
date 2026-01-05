@@ -16,6 +16,13 @@ import (
 	"github.com/rivo/tview"
 )
 
+// For some reason the lambda service uses a map[string]string for Tag unlike
+// All other services which have a specific Tag type.
+type LambdaTag struct {
+	Key   string
+	Value string
+}
+
 type LambdaDetailsPageView struct {
 	*core.ServicePageView
 	SelectedLambda     string
@@ -23,7 +30,7 @@ type LambdaDetailsPageView struct {
 	LambdaDetailsTable *tables.LambdaDetailsTable
 	LambdaEnvVarsTable *tables.LambdaEnvVarsTable
 	LambdaVpcConfTable *tables.LambdaVpcConfigTable
-	LambdaTagsTable    *tables.LambdaTagsTable
+	LambdaTagsTable    *tables.TagsTable[LambdaTag, awsapi.LambdaApi]
 	LogStreamsTable    *tables.LogStreamsTable
 	serviceCtx         *core.ServiceContext[awsapi.LambdaApi]
 }
@@ -33,10 +40,27 @@ func NewLambdaDetailsPageView(
 	lambdaDetailsTable *tables.LambdaDetailsTable,
 	lambdaEnvVarsTable *tables.LambdaEnvVarsTable,
 	lambdaVpcConfTable *tables.LambdaVpcConfigTable,
-	lambdaTagsTable *tables.LambdaTagsTable,
 	logStreamsTable *tables.LogStreamsTable,
 	serviceCtx *core.ServiceContext[awsapi.LambdaApi],
 ) *LambdaDetailsPageView {
+
+	var lambdaTagsTable = tables.NewTagsTable(serviceCtx,
+		func(t LambdaTag) (string, string) {
+			return t.Key, t.Value
+		},
+		func() ([]LambdaTag, error) {
+			var tagsMap, err = serviceCtx.Api.ListTags(
+				aws.ToString(lambdaListTable.GetSeletedLambda().FunctionArn),
+			)
+			var tags = []LambdaTag{}
+			for k, v := range tagsMap {
+				tags = append(tags, LambdaTag{Key: k, Value: v})
+			}
+
+			return tags, err
+		},
+	)
+
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab("Details", lambdaDetailsTable, 0, 1, true).
 		AddTab("Log Streams", logStreamsTable, 0, 1, true).
@@ -255,7 +279,6 @@ func NewLambdaHomeView(appCtx *core.AppContext) core.ServicePage {
 			tables.NewLambdaDetailsTable(lambdaCtx),
 			tables.NewLambdaEnvVarsTable(lambdaCtx),
 			tables.NewLambdaVpcConfigTable(lambdaCtx),
-			tables.NewLambdaTagsTable(lambdaCtx),
 			tables.NewLogStreamsTable(cwLogsCtx),
 			lambdaCtx,
 		)
@@ -293,7 +316,7 @@ func NewLambdaHomeView(appCtx *core.AppContext) core.ServicePage {
 
 		var selectedLambda = lambdasListTable.GetSeletedLambda()
 		var lambdaName = aws.ToString(selectedLambda.FunctionName)
-		lambdaTagsTable.RefreshDetails(selectedLambda)
+		lambdaTagsTable.RefreshDetails()
 		lambdaInvokeView.SetSelectedLambda(lambdaName)
 	}
 

@@ -5,6 +5,7 @@ import (
 	"aws-tui/internal/pkg/ui/core"
 	tables "aws-tui/internal/pkg/ui/servicetables"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
@@ -16,17 +17,28 @@ type DynamoDBDetailsPage struct {
 	*core.ServicePageView
 	TablesTable  *tables.DynamoDBTablesTable
 	DetailsTable *tables.DynamoDBDetailsTable
+	TagsTable    *tables.TagsTable[types.Tag, awsapi.DynamoDBApi]
 	serviceCtx   *core.ServiceContext[awsapi.DynamoDBApi]
 }
 
 func NewDynamoDBDetailsPage(
 	detailsTable *tables.DynamoDBDetailsTable,
 	tablesTable *tables.DynamoDBTablesTable,
-	tagsTable *tables.DynamoDBTagsTable,
 	serviceContext *core.ServiceContext[awsapi.DynamoDBApi],
 ) *DynamoDBDetailsPage {
 	const tabViewSize = 3000
 	const tablesSize = 5000
+
+	var tagsTable = tables.NewTagsTable(serviceContext,
+		func(t types.Tag) (string, string) {
+			return aws.ToString(t.Key), aws.ToString(t.Value)
+		},
+		func() ([]types.Tag, error) {
+			return serviceContext.Api.ListTags(
+				true, detailsTable.GetSelectedTableArn(),
+			)
+		},
+	)
 
 	var tabView = core.NewTabViewHorizontal(serviceContext.AppContext).
 		AddAndSwitchToTab("Details", detailsTable, 0, 1, true).
@@ -52,11 +64,16 @@ func NewDynamoDBDetailsPage(
 		ServicePageView: serviceView,
 		TablesTable:     tablesTable,
 		DetailsTable:    detailsTable,
+		TagsTable:       tagsTable,
 		serviceCtx:      serviceContext,
 	}
 }
 
-func (inst *DynamoDBDetailsPage) InitInputCapture() {}
+func (inst *DynamoDBDetailsPage) InitInputCapture() {
+	inst.DetailsTable.SetSelectedFunc(func(row, column int) {
+		inst.TagsTable.RefreshDetails()
+	})
+}
 
 type DynamoDBTableItemsPage struct {
 	*core.ServicePageView
@@ -124,7 +141,6 @@ func NewDynamoDBHomeView(appCtx *core.AppContext) core.ServicePage {
 		ddbDetailsView = NewDynamoDBDetailsPage(
 			tables.NewDynamoDBDetailsTable(serviceCtx),
 			tables.NewDynamoDBTablesTable(serviceCtx),
-			tables.NewDynamoDbTagsTable(serviceCtx),
 			serviceCtx,
 		)
 		ddbItemsView = NewDynamoDBTableItemsPage(

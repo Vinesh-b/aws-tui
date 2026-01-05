@@ -15,7 +15,7 @@ type EventBridgeDetailsPageView struct {
 	*core.ServicePageView
 	EventBusListTable    *tables.EventBusListTable
 	EventBusDetailsTable *tables.EventBusDetailsTable
-	EventBusTagsTable    *tables.EventBusTagsTable
+	EventBusTagsTable    *tables.TagsTable[types.Tag, awsapi.EventBridgeApi]
 	EventBusPolicyView   *core.JsonTextView[types.EventBus]
 	serviceCtx           *core.ServiceContext[awsapi.EventBridgeApi]
 }
@@ -23,7 +23,6 @@ type EventBridgeDetailsPageView struct {
 func NewEventBridgeDetailsPageView(
 	busListTable *tables.EventBusListTable,
 	busDetailsTable *tables.EventBusDetailsTable,
-	busTagsTable *tables.EventBusTagsTable,
 	serviceCtx *core.ServiceContext[awsapi.EventBridgeApi],
 ) *EventBridgeDetailsPageView {
 	var policyView = core.JsonTextView[types.EventBus]{
@@ -33,6 +32,17 @@ func NewEventBridgeDetailsPageView(
 		},
 	}
 	policyView.SetTitle("Policy")
+
+	var busTagsTable = tables.NewTagsTable(serviceCtx,
+		func(t types.Tag) (string, string) {
+			return aws.ToString(t.Key), aws.ToString(t.Value)
+		},
+		func() ([]types.Tag, error) {
+			return serviceCtx.Api.ListTags(
+				true, aws.ToString(busListTable.GetSeletedEventBus().Arn),
+			)
+		},
+	)
 
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab("Details", busDetailsTable, 0, 1, true).
@@ -82,7 +92,7 @@ func (inst *EventBridgeDetailsPageView) initInputCapture() {
 	inst.EventBusListTable.SetSelectionChangedFunc(func(row, column int) {
 		var selectedEventBus = inst.EventBusListTable.GetSeletedEventBus()
 		inst.EventBusDetailsTable.RefreshDetails(selectedEventBus)
-		inst.EventBusTagsTable.RefreshDetails(selectedEventBus)
+		inst.EventBusTagsTable.RefreshDetails()
 
 		inst.EventBusPolicyView.SetText(inst.EventBusListTable.GetSeletedEventBus())
 	})
@@ -99,7 +109,6 @@ func NewEventBridgeHomeView(appCtx *core.AppContext) core.ServicePage {
 		eventbridgeDetailsView = NewEventBridgeDetailsPageView(
 			tables.NewEventBusListTable(serviceCtx),
 			tables.NewEventBusDetailsTable(serviceCtx),
-			tables.NewEventBusTagsTable(serviceCtx),
 			serviceCtx,
 		)
 	)

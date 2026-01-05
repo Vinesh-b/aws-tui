@@ -5,6 +5,8 @@ import (
 	"aws-tui/internal/pkg/ui/core"
 	tables "aws-tui/internal/pkg/ui/servicetables"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -13,6 +15,7 @@ type VpcDetailsPageView struct {
 	*core.ServicePageView
 	VpcListTable      *tables.VpcListTable
 	VpcEndpointsTable *tables.VpcEndpointsTable
+	TagsTable         *tables.TagsTable[types.Tag, awsapi.Ec2Api]
 	serviceCtx        *core.ServiceContext[awsapi.Ec2Api]
 }
 
@@ -21,10 +24,19 @@ func NewVpcDetailsPageView(
 	vpcEndpointsTable *tables.VpcEndpointsTable,
 	serviceCtx *core.ServiceContext[awsapi.Ec2Api],
 ) *VpcDetailsPageView {
+	var tagsTable = tables.NewTagsTable(
+		serviceCtx,
+		func(t types.Tag) (string, string) {
+			return aws.ToString(t.Key), aws.ToString(t.Value)
+		},
+		func() ([]types.Tag, error) {
+			return vpcListTable.GetSeletedVpc().Tags, nil
+		},
+	)
 
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
-		AddAndSwitchToTab("Details", tview.NewBox().SetBorder(true), 0, 1, true).
-		AddAndSwitchToTab("Endpoints", vpcEndpointsTable, 0, 1, true)
+		AddAndSwitchToTab("Endpoints", vpcEndpointsTable, 0, 1, true).
+		AddTab("Tags", tagsTable, 0, 1, true)
 
 	const detailsViewSize = 5000
 	const tableViewSize = 5000
@@ -41,6 +53,7 @@ func NewVpcDetailsPageView(
 		ServicePageView:   serviceView,
 		VpcListTable:      vpcListTable,
 		VpcEndpointsTable: vpcEndpointsTable,
+		TagsTable:         tagsTable,
 		serviceCtx:        serviceCtx,
 	}
 
@@ -66,6 +79,7 @@ func (inst *VpcDetailsPageView) initInputCapture() {
 	inst.VpcListTable.SetSelectedFunc(func(row, column int) {
 		var selectedVpc = inst.VpcListTable.GetSeletedVpc()
 		inst.VpcEndpointsTable.RefreshVpcEndpoints(true, selectedVpc)
+		inst.TagsTable.RefreshDetails()
 	})
 }
 

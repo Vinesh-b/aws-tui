@@ -122,3 +122,7 @@ func (inst *DynamoDBDetailsTable) RefreshDetails() {
 func (inst *DynamoDBDetailsTable) SetSelectedTable(tableName string) {
 	inst.selectedTable = tableName
 }
+
+func (inst *DynamoDBDetailsTable) GetSelectedTableArn() string {
+	return aws.ToString(inst.data.TableArn)
+}
