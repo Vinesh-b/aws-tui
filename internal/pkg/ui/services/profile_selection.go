@@ -4,47 +4,87 @@ import (
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 	"context"
+	"slices"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
+type ListItem struct {
+	MainText      string
+	SecondaryText string
+	Shortcut      rune
+	SelectedFunc  func()
+}
+
 type AwsProfilesView struct {
-	*core.ServicePageView
-	ListView *tview.List
+	*core.SearchableView
+	filteredList     *tview.List
+	serviceListItems []ServiceListItem
 }
 
 func NewProfileSelectionView(appCtx *core.AppContext) core.ServicePage {
 	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0xCC6600))
 	defer appCtx.Theme.ResetGlobalStyle()
 
-	var profilesListView = tview.NewList().
+	var listView = tview.NewList().
 		SetSecondaryTextColor(tcell.ColorDarkGray).
 		SetSelectedTextColor(appCtx.Theme.SecondaryTextColour).
 		SetHighlightFullLine(true)
 
-	profilesListView.
+	listView.
 		SetBorder(true).
 		SetBorderPadding(1, 0, 1, 1).
 		SetTitle("Available Profiles")
 
-	profilesListView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		var currentIdx = profilesListView.GetCurrentItem()
-		var numItems = profilesListView.GetItemCount()
+	var view = &ServicesHomeView{
+		SearchableView:   core.NewSearchableView(listView, appCtx),
+		filteredList:     listView,
+		serviceListItems: []ServiceListItem{},
+	}
+
+	listView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		var currentIdx = listView.GetCurrentItem()
+		var numItems = listView.GetItemCount()
 		switch event.Key() {
 		case tcell.KeyRune:
 			switch event.Rune() {
 			case core.APP_KEY_BINDINGS.MoveUpRune:
 				currentIdx = (currentIdx - 1 + numItems) % numItems
-				profilesListView.SetCurrentItem(currentIdx)
+				listView.SetCurrentItem(currentIdx)
 				return nil
 			case core.APP_KEY_BINDINGS.MoveDownRune:
 				currentIdx = (currentIdx + 1) % numItems
-				profilesListView.SetCurrentItem(currentIdx)
+				listView.SetCurrentItem(currentIdx)
 				return nil
 			}
 		}
 		return event
+	})
+
+	view.SetSearchChangedFunc(func(search string) {
+		listView.Clear()
+
+		if len(search) == 0 {
+			for _, item := range view.serviceListItems {
+				listView.AddItem(
+					item.MainText, item.SecondaryText, item.Shortcut, item.SelectedFunc,
+				)
+			}
+			return
+		}
+
+		var filteredItems = core.FuzzySearch(search, view.serviceListItems,
+			func(listItem ServiceListItem) string {
+				return listItem.MainText + " " + listItem.SecondaryText
+			},
+		)
+
+		for _, item := range filteredItems {
+			listView.AddItem(
+				item.MainText, item.SecondaryText, item.Shortcut, item.SelectedFunc,
+			)
+		}
 	})
 
 	var manager = awsapi.NewAWSClientManager()
@@ -54,8 +94,10 @@ func NewProfileSelectionView(appCtx *core.AppContext) core.ServicePage {
 		appCtx.Logger.Println(err)
 	}
 
+	slices.Sort(profiles)
+
 	for _, profile := range profiles {
-		profilesListView.AddItem(profile, "", '*', func() {
+		view.AddItem(profile, "", '*', func() {
 			var cfg, err = manager.SwitchToProfile(context.Background(), profile)
 			if err != nil {
 				appCtx.Logger.Println(err)
@@ -66,10 +108,10 @@ func NewProfileSelectionView(appCtx *core.AppContext) core.ServicePage {
 	}
 
 	var serviceView = core.NewServicePageView(appCtx)
-	serviceView.MainPage.AddItem(profilesListView, 0, 1, true)
+	serviceView.MainPage.AddItem(view, 0, 1, true)
 	serviceView.InitViewNavigation(
 		[][]core.View{
-			{profilesListView},
+			{view},
 		},
 	)
 
@@ -78,4 +120,16 @@ func NewProfileSelectionView(appCtx *core.AppContext) core.ServicePage {
 		AddAndSwitchToPage("Profiles", serviceView, true)
 
 	return serviceRootView
+}
+
+func (inst *AwsProfilesView) AddItem(
+	mainText string, secondaryText string, shortcut rune, selected func(),
+) {
+	inst.filteredList.AddItem(mainText, secondaryText, shortcut, selected)
+	inst.serviceListItems = append(inst.serviceListItems, ServiceListItem{
+		MainText:      mainText,
+		SecondaryText: secondaryText,
+		Shortcut:      shortcut,
+		SelectedFunc:  selected,
+	})
 }
