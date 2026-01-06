@@ -113,12 +113,14 @@ func (inst *TabView) GetTabDisplayView() *tview.Pages {
 
 type TabViewHorizontal struct {
 	*tview.Flex
-	pages         *tview.Pages
-	pageIdxMap    map[string]int
-	pageViewMap   map[string]*ServicePageView
-	orderedTabs   []string
-	currentTabIdx int
-	appCtx        *AppContext
+	pages           *tview.Pages
+	pageIdxMap      map[string]int
+	pageViewMap     map[string]*ServicePageView
+	orderedTabs     []string
+	currentTabIdx   int
+	defaultTabIdx   int
+	onTabChangeFunc func(tabName string, index int)
+	appCtx          *AppContext
 }
 
 func NewTabViewHorizontal(appCtx *AppContext) *TabViewHorizontal {
@@ -251,11 +253,13 @@ func (inst *TabViewHorizontal) AddTab(
 func (inst *TabViewHorizontal) AddAndSwitchToTab(
 	name string, view tview.Primitive, fixedSize int, proportion int, focus bool,
 ) *TabViewHorizontal {
+	//Used to set the default Tab
 	inst.AddTab(name, view, fixedSize, proportion, focus)
 	inst.pages.SwitchToPage(name)
 	for i, tabName := range inst.orderedTabs {
 		if tabName == name {
 			inst.currentTabIdx = i
+			inst.defaultTabIdx = i
 			break
 		}
 	}
@@ -267,6 +271,9 @@ func (inst *TabViewHorizontal) SwitchToTab(name string) *TabViewHorizontal {
 	for i, tabName := range inst.orderedTabs {
 		if tabName == name {
 			inst.currentTabIdx = i
+			if inst.onTabChangeFunc != nil {
+				inst.onTabChangeFunc(name, i)
+			}
 			break
 		}
 	}
@@ -282,4 +289,16 @@ func (inst *TabViewHorizontal) GetTab(name string) *ServicePageView {
 
 func (inst *TabViewHorizontal) GetTabDisplayView() *tview.Pages {
 	return inst.pages
+}
+
+func (inst *TabViewHorizontal) SetOnTabChangeFunc(f func(tabName string, index int)) {
+	inst.onTabChangeFunc = f
+}
+
+func (inst *TabViewHorizontal) GetDefaultTab() (string, int) {
+	return inst.orderedTabs[inst.defaultTabIdx], inst.defaultTabIdx
+}
+
+func (inst *TabViewHorizontal) GetCurrentTab() (string, int) {
+	return inst.orderedTabs[inst.currentTabIdx], inst.currentTabIdx
 }
