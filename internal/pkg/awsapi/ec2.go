@@ -131,3 +131,41 @@ func (inst *Ec2Api) DescribeVpcSubnets(force bool, vpcId string) ([]types.Subnet
 
 	return result, apiError
 }
+
+func (inst *Ec2Api) DescribeVpcSecurityGroups(force bool, vpcId string) ([]types.SecurityGroup, error) {
+	var nextToken *string = nil
+	var apiError error = nil
+	var result = []types.SecurityGroup{}
+	var client = GetAwsApiClients().ec2
+
+	var filterVpcId = "vpc-id"
+
+	for {
+		var output, err = client.DescribeSecurityGroups(context.TODO(),
+			&ec2.DescribeSecurityGroupsInput{
+				Filters: []types.Filter{
+					{Name: aws.String(filterVpcId), Values: []string{vpcId}},
+				},
+				NextToken: nextToken,
+			},
+		)
+
+		if err != nil {
+			apiError = err
+			inst.logger.Println(err)
+			break
+		}
+
+		result = append(result, output.SecurityGroups...)
+
+		if output.NextToken == nil {
+			break
+		}
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return aws.ToString(result[i].GroupId) < aws.ToString(result[j].GroupId)
+	})
+
+	return result, apiError
+}

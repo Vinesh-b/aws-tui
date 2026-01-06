@@ -13,17 +13,19 @@ import (
 
 type VpcDetailsPageView struct {
 	*core.ServicePageView
-	VpcListTable      *tables.VpcListTable
-	VpcEndpointsTable *tables.VpcEndpointsTable
-	VpcSubnetsTable   *tables.VpcSubnetsTable
-	TagsTable         *tables.TagsTable[types.Tag, awsapi.Ec2Api]
-	serviceCtx        *core.ServiceContext[awsapi.Ec2Api]
+	VpcListTable           *tables.VpcListTable
+	VpcEndpointsTable      *tables.VpcEndpointsTable
+	VpcSubnetsTable        *tables.VpcSubnetsTable
+	VpcSecurityGroupsTable *tables.VpcSecurityGroupsTable
+	TagsTable              *tables.TagsTable[types.Tag, awsapi.Ec2Api]
+	serviceCtx             *core.ServiceContext[awsapi.Ec2Api]
 }
 
 func NewVpcDetailsPageView(
 	vpcListTable *tables.VpcListTable,
 	vpcEndpointsTable *tables.VpcEndpointsTable,
 	vpcSubnetsTable *tables.VpcSubnetsTable,
+	vpcSecurityGroupsTable *tables.VpcSecurityGroupsTable,
 	serviceCtx *core.ServiceContext[awsapi.Ec2Api],
 ) *VpcDetailsPageView {
 	var tagsTable = tables.NewTagsTable(
@@ -38,6 +40,7 @@ func NewVpcDetailsPageView(
 
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab("Subnets", vpcSubnetsTable, 0, 1, true).
+		AddTab("Security Groups", vpcSecurityGroupsTable, 0, 1, true).
 		AddTab("Endpoints", vpcEndpointsTable, 0, 1, true).
 		AddTab("Tags", tagsTable, 0, 1, true)
 
@@ -53,12 +56,13 @@ func NewVpcDetailsPageView(
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	var view = &VpcDetailsPageView{
-		ServicePageView:   serviceView,
-		VpcListTable:      vpcListTable,
-		VpcEndpointsTable: vpcEndpointsTable,
-		VpcSubnetsTable:   vpcSubnetsTable,
-		TagsTable:         tagsTable,
-		serviceCtx:        serviceCtx,
+		ServicePageView:        serviceView,
+		VpcListTable:           vpcListTable,
+		VpcEndpointsTable:      vpcEndpointsTable,
+		VpcSubnetsTable:        vpcSubnetsTable,
+		VpcSecurityGroupsTable: vpcSecurityGroupsTable,
+		TagsTable:              tagsTable,
+		serviceCtx:             serviceCtx,
 	}
 
 	var errorHandler = func(text string, a ...any) {
@@ -84,6 +88,7 @@ func (inst *VpcDetailsPageView) initInputCapture() {
 		var selectedVpc = inst.VpcListTable.GetSeletedVpc()
 		inst.VpcEndpointsTable.RefreshVpcEndpoints(true, selectedVpc)
 		inst.VpcSubnetsTable.RefreshVpcSubnets(true, selectedVpc)
+		inst.VpcSecurityGroupsTable.RefreshVpcSecurityGroups(true, selectedVpc)
 		inst.TagsTable.RefreshDetails()
 	})
 }
@@ -100,6 +105,7 @@ func NewVpcHomeView(appCtx *core.AppContext) core.ServicePage {
 			tables.NewVpcListTable(serviceCtx),
 			tables.NewVpcEndpointsTable(serviceCtx),
 			tables.NewVpcSubnetsTable(serviceCtx),
+			tables.NewVpcSecurityGroupsTable(serviceCtx),
 			serviceCtx,
 		)
 	)
