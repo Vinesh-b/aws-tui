@@ -18,6 +18,7 @@ type VpcDetailsPageView struct {
 	VpcSubnetsTable        *tables.VpcSubnetsTable
 	VpcSecurityGroupsTable *tables.VpcSecurityGroupsTable
 	TagsTable              *tables.TagsTable[types.Tag, awsapi.Ec2Api]
+	TabsView               *core.TabViewHorizontal
 	serviceCtx             *core.ServiceContext[awsapi.Ec2Api]
 }
 
@@ -62,6 +63,7 @@ func NewVpcDetailsPageView(
 		VpcSubnetsTable:        vpcSubnetsTable,
 		VpcSecurityGroupsTable: vpcSecurityGroupsTable,
 		TagsTable:              tagsTable,
+		TabsView:               tabView,
 		serviceCtx:             serviceCtx,
 	}
 
@@ -84,13 +86,35 @@ func NewVpcDetailsPageView(
 }
 
 func (inst *VpcDetailsPageView) initInputCapture() {
-	inst.VpcListTable.SetSelectedFunc(func(row, column int) {
+	var loadedTabs = map[int]bool{}
+	var tabChangeFunc = func(tabName string, index int) {
+		// Only automaticaly load new data on first change
+		if loadedTabs[index] {
+			return
+		}
+
 		var selectedVpc = inst.VpcListTable.GetSeletedVpc()
-		inst.VpcEndpointsTable.RefreshVpcEndpoints(true, selectedVpc)
-		inst.VpcSubnetsTable.RefreshVpcSubnets(true, selectedVpc)
-		inst.VpcSecurityGroupsTable.RefreshVpcSecurityGroups(true, selectedVpc)
-		inst.TagsTable.RefreshDetails()
+
+		switch tabName {
+		case "Subnets":
+			inst.VpcSubnetsTable.RefreshVpcSubnets(true, selectedVpc)
+		case "Security Groups":
+			inst.VpcSecurityGroupsTable.RefreshVpcSecurityGroups(true, selectedVpc)
+		case "Endpoints":
+			inst.VpcEndpointsTable.RefreshVpcEndpoints(true, selectedVpc)
+		case "Tags":
+			inst.TagsTable.RefreshDetails()
+		}
+
+		loadedTabs[index] = true
+	}
+
+	inst.VpcListTable.SetSelectedFunc(func(row, column int) {
+		var tabName, index = inst.TabsView.GetDefaultTab()
+		tabChangeFunc(tabName, index)
 	})
+
+	inst.TabsView.SetOnTabChangeFunc(tabChangeFunc)
 }
 
 func NewVpcHomeView(appCtx *core.AppContext) core.ServicePage {
