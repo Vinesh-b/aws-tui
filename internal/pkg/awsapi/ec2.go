@@ -46,7 +46,6 @@ func (inst *Ec2Api) ListVpcs(force bool) ([]types.Vpc, error) {
 			break
 		}
 	}
-	
 
 	sort.Slice(result, func(i, j int) bool {
 		return aws.ToString(result[i].VpcId) < aws.ToString(result[j].VpcId)
@@ -89,7 +88,45 @@ func (inst *Ec2Api) DescribeVpcEndpoints(force bool, vpcId string) ([]types.VpcE
 	}
 
 	sort.Slice(result, func(i, j int) bool {
-		return aws.ToString(result[i].VpcEndpointId) < aws.ToString(result[j].VpcEndpointId)
+		return aws.ToString(result[i].ServiceName) < aws.ToString(result[j].ServiceName)
+	})
+
+	return result, apiError
+}
+
+func (inst *Ec2Api) DescribeVpcSubnets(force bool, vpcId string) ([]types.Subnet, error) {
+	var nextToken *string = nil
+	var apiError error = nil
+	var result = []types.Subnet{}
+	var client = GetAwsApiClients().ec2
+
+	var filterVpcId = "vpc-id"
+
+	for {
+		var output, err = client.DescribeSubnets(context.TODO(),
+			&ec2.DescribeSubnetsInput{
+				Filters: []types.Filter{
+					{Name: aws.String(filterVpcId), Values: []string{vpcId}},
+				},
+				NextToken: nextToken,
+			},
+		)
+
+		if err != nil {
+			apiError = err
+			inst.logger.Println(err)
+			break
+		}
+
+		result = append(result, output.Subnets...)
+
+		if output.NextToken == nil {
+			break
+		}
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return aws.ToString(result[i].CidrBlock) < aws.ToString(result[j].CidrBlock)
 	})
 
 	return result, apiError

@@ -15,6 +15,7 @@ type VpcDetailsPageView struct {
 	*core.ServicePageView
 	VpcListTable      *tables.VpcListTable
 	VpcEndpointsTable *tables.VpcEndpointsTable
+	VpcSubnetsTable   *tables.VpcSubnetsTable
 	TagsTable         *tables.TagsTable[types.Tag, awsapi.Ec2Api]
 	serviceCtx        *core.ServiceContext[awsapi.Ec2Api]
 }
@@ -22,6 +23,7 @@ type VpcDetailsPageView struct {
 func NewVpcDetailsPageView(
 	vpcListTable *tables.VpcListTable,
 	vpcEndpointsTable *tables.VpcEndpointsTable,
+	vpcSubnetsTable *tables.VpcSubnetsTable,
 	serviceCtx *core.ServiceContext[awsapi.Ec2Api],
 ) *VpcDetailsPageView {
 	var tagsTable = tables.NewTagsTable(
@@ -35,7 +37,8 @@ func NewVpcDetailsPageView(
 	)
 
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
-		AddAndSwitchToTab("Endpoints", vpcEndpointsTable, 0, 1, true).
+		AddAndSwitchToTab("Subnets", vpcSubnetsTable, 0, 1, true).
+		AddTab("Endpoints", vpcEndpointsTable, 0, 1, true).
 		AddTab("Tags", tagsTable, 0, 1, true)
 
 	const detailsViewSize = 5000
@@ -53,6 +56,7 @@ func NewVpcDetailsPageView(
 		ServicePageView:   serviceView,
 		VpcListTable:      vpcListTable,
 		VpcEndpointsTable: vpcEndpointsTable,
+		VpcSubnetsTable:   vpcSubnetsTable,
 		TagsTable:         tagsTable,
 		serviceCtx:        serviceCtx,
 	}
@@ -79,6 +83,7 @@ func (inst *VpcDetailsPageView) initInputCapture() {
 	inst.VpcListTable.SetSelectedFunc(func(row, column int) {
 		var selectedVpc = inst.VpcListTable.GetSeletedVpc()
 		inst.VpcEndpointsTable.RefreshVpcEndpoints(true, selectedVpc)
+		inst.VpcSubnetsTable.RefreshVpcSubnets(true, selectedVpc)
 		inst.TagsTable.RefreshDetails()
 	})
 }
@@ -94,6 +99,7 @@ func NewVpcHomeView(appCtx *core.AppContext) core.ServicePage {
 		eventbridgeDetailsView = NewVpcDetailsPageView(
 			tables.NewVpcListTable(serviceCtx),
 			tables.NewVpcEndpointsTable(serviceCtx),
+			tables.NewVpcSubnetsTable(serviceCtx),
 			serviceCtx,
 		)
 	)
