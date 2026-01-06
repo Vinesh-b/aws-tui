@@ -9,6 +9,16 @@ import (
 
 type StringSet map[string]struct{}
 
+func FilterSlice[S ~[]E, E any](s S, f func(E) bool) []E {
+	var result = []E{}
+	for i := range s {
+		if f(s[i]) {
+			result = append(result, s[i])
+		}
+	}
+	return result
+}
+
 func ClampStringLen(input *string, maxLen int) string {
 	if len(*input) < maxLen {
 		return *input
