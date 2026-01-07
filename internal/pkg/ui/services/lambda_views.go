@@ -23,6 +23,16 @@ type LambdaTag struct {
 	Value string
 }
 
+type LambdaTabName = string
+
+const (
+	LambdaTabDetails   LambdaTabName = "Details"
+	LambdaTabLogSreams LambdaTabName = "Log Streams"
+	LambdaTabEnvVars   LambdaTabName = "Environment Vars"
+	LambdaTabVpcConfig LambdaTabName = "VPC Config"
+	LambdaTabTags      LambdaTabName = "Tags"
+)
+
 type LambdaDetailsPageView struct {
 	*core.ServicePageView
 	SelectedLambda     string
@@ -61,11 +71,11 @@ func NewLambdaDetailsPageView(
 		})
 
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
-		AddAndSwitchToTab("Details", lambdaDetailsTable, 0, 1, true).
-		AddTab("Log Streams", logStreamsTable, 0, 1, true).
-		AddTab("Environment Vars", lambdaEnvVarsTable, 0, 1, true).
-		AddTab("VPC Config", lambdaVpcConfTable, 0, 1, true).
-		AddTab("Tags", lambdaTagsTable, 0, 1, true)
+		AddAndSwitchToTab(LambdaTabDetails, lambdaDetailsTable, 0, 1, true).
+		AddTab(LambdaTabLogSreams, logStreamsTable, 0, 1, true).
+		AddTab(LambdaTabEnvVars, lambdaEnvVarsTable, 0, 1, true).
+		AddTab(LambdaTabVpcConfig, lambdaVpcConfTable, 0, 1, true).
+		AddTab(LambdaTabTags, lambdaTagsTable, 0, 1, true)
 
 	const detailsViewSize = 3000
 	const tableViewSize = 7000
