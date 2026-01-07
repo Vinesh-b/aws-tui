@@ -19,6 +19,12 @@ func FilterSlice[S ~[]E, E any](s S, f func(E) bool) []E {
 	return result
 }
 
+func ClearMap[Map ~map[K]V, K comparable, V any](m Map) {
+	for k := range m {
+		delete(m, k)
+	}
+}
+
 func ClampStringLen(input *string, maxLen int) string {
 	if len(*input) < maxLen {
 		return *input
