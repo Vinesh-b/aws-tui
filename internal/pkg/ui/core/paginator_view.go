@@ -109,6 +109,10 @@ func CreatePaginatorView(service string, appContext *AppContext) PaginatorView {
 						sessionDetails(profileName, userId, accountId, remainingTime),
 					)
 				})
+				if appContext.GetApiClients().Profile != profileName {
+					//Profile updated by user
+					break
+				}
 				time.Sleep(CredsPollRate)
 			}
 			app.QueueUpdateDraw(func() {
