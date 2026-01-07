@@ -11,6 +11,15 @@ import (
 	"github.com/rivo/tview"
 )
 
+type VpcTabName = string
+
+const (
+	VpcTabNameSubnets        VpcTabName = "Subnets"
+	VpcTabNameSecurityGroups VpcTabName = "Security Groups"
+	VpcTabNameEndpoints      VpcTabName = "Endpoints"
+	VpcTabNameTags           VpcTabName = "Tags"
+)
+
 type VpcDetailsPageView struct {
 	*core.ServicePageView
 	VpcListTable           *tables.VpcListTable
@@ -38,10 +47,10 @@ func NewVpcDetailsPageView(
 		})
 
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
-		AddAndSwitchToTab("Subnets", vpcSubnetsTable, 0, 1, true).
-		AddTab("Security Groups", vpcSecurityGroupsTable, 0, 1, true).
-		AddTab("Endpoints", vpcEndpointsTable, 0, 1, true).
-		AddTab("Tags", tagsTable, 0, 1, true)
+		AddAndSwitchToTab(VpcTabNameSubnets, vpcSubnetsTable, 0, 1, true).
+		AddTab(VpcTabNameSecurityGroups, vpcSecurityGroupsTable, 0, 1, true).
+		AddTab(VpcTabNameEndpoints, vpcEndpointsTable, 0, 1, true).
+		AddTab(VpcTabNameTags, tagsTable, 0, 1, true)
 
 	const detailsViewSize = 5000
 	const tableViewSize = 5000
@@ -94,13 +103,13 @@ func (inst *VpcDetailsPageView) initInputCapture() {
 		var selectedVpc = inst.VpcListTable.GetSeletedVpc()
 
 		switch tabName {
-		case "Subnets":
+		case VpcTabNameSubnets:
 			inst.VpcSubnetsTable.RefreshVpcSubnets(true, selectedVpc)
-		case "Security Groups":
+		case VpcTabNameSecurityGroups:
 			inst.VpcSecurityGroupsTable.RefreshVpcSecurityGroups(true, selectedVpc)
-		case "Endpoints":
+		case VpcTabNameEndpoints:
 			inst.VpcEndpointsTable.RefreshVpcEndpoints(true, selectedVpc)
-		case "Tags":
+		case VpcTabNameTags:
 			inst.TagsTable.RefreshDetails()
 		}
 

@@ -11,6 +11,14 @@ import (
 	"github.com/rivo/tview"
 )
 
+type EventBridgeTabName = string
+
+const (
+	EventBridgeTabNameDetails EventBridgeTabName = "Details"
+	EventBridgeTabNamePolicy  EventBridgeTabName = "Policy"
+	EventBridgeTabNameTags    EventBridgeTabName = "Tags"
+)
+
 type EventBridgeDetailsPageView struct {
 	*core.ServicePageView
 	EventBusListTable    *tables.EventBusListTable
@@ -44,9 +52,9 @@ func NewEventBridgeDetailsPageView(
 		})
 
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
-		AddAndSwitchToTab("Details", busDetailsTable, 0, 1, true).
-		AddTab("Policy", policyView.TextView, 0, 1, true).
-		AddTab("Tags", tagsTable, 0, 1, true)
+		AddAndSwitchToTab(EventBridgeTabNameDetails, busDetailsTable, 0, 1, true).
+		AddTab(EventBridgeTabNamePolicy, policyView.TextView, 0, 1, true).
+		AddTab(EventBridgeTabNameTags, tagsTable, 0, 1, true)
 
 	const detailsViewSize = 5000
 	const tableViewSize = 5000

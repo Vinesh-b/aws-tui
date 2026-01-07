@@ -11,6 +11,15 @@ import (
 	"github.com/rivo/tview"
 )
 
+type SfnTabName = string
+
+const (
+	SfnTabNameDetails          SfnTabName = "Details"
+	SfnTabNameExecutions       SfnTabName = "Executions"
+	SfnTabNameExecutionSummary SfnTabName = "Summary"
+	SfnTabNameStateIO          SfnTabName = "Input/Output"
+)
+
 type SfnDetailsPageView struct {
 	*core.ServicePageView
 	selectedStateMachine string
@@ -27,8 +36,8 @@ func NewSfnDetailsPageView(
 	serviceViewCtx *core.ServiceContext[awsapi.StateMachineApi],
 ) *SfnDetailsPageView {
 	var tabView = core.NewTabViewHorizontal(serviceViewCtx.AppContext).
-		AddTab("Details", stateMachineDetailsTable, 0, 1, true).
-		AddAndSwitchToTab("Executions", sfnExecutionsTable, 0, 1, true)
+		AddTab(SfnTabNameDetails, stateMachineDetailsTable, 0, 1, true).
+		AddAndSwitchToTab(SfnTabNameExecutions, sfnExecutionsTable, 0, 1, true)
 
 	const detailsViewSize = 4000
 	const tableViewSize = 6000
@@ -138,8 +147,8 @@ func NewSfnExectionDetailsPage(
 	executionStateEvents.SetSelectionChangedFunc(eventSelectionFunc)
 
 	var tabView = core.NewTabViewHorizontal(serviceViewCtx.AppContext).
-		AddTab("Summary", executionSummary, 0, 1, true).
-		AddAndSwitchToTab("Input/Output", inputOutputExpandedView.TextView, 0, 1, true)
+		AddTab(SfnTabNameExecutionSummary, executionSummary, 0, 1, true).
+		AddAndSwitchToTab(SfnTabNameStateIO, inputOutputExpandedView.TextView, 0, 1, true)
 
 	const statesViewSize = 45
 	const eventsViewSize = 55

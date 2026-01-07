@@ -13,6 +13,13 @@ import (
 	"github.com/rivo/tview"
 )
 
+type DdbTabName = string
+
+const (
+	DdbTabNameDetails DdbTabName = "Details"
+	DdbTabNameTags    DdbTabName = "Tags"
+)
+
 type DynamoDBDetailsPage struct {
 	*core.ServicePageView
 	TablesTable  *tables.DynamoDBTablesTable
@@ -40,8 +47,8 @@ func NewDynamoDBDetailsPage(
 		})
 
 	var tabView = core.NewTabViewHorizontal(serviceContext.AppContext).
-		AddAndSwitchToTab("Details", detailsTable, 0, 1, true).
-		AddTab("Tags", tagsTable, 0, 1, true)
+		AddAndSwitchToTab(DdbTabNameDetails, detailsTable, 0, 1, true).
+		AddTab(DdbTabNameTags, tagsTable, 0, 1, true)
 
 	var mainPage = core.NewResizableView(
 		tabView, tabViewSize,

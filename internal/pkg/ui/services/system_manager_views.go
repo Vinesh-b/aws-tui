@@ -12,6 +12,13 @@ import (
 	"github.com/rivo/tview"
 )
 
+type SsmTabName = string
+
+const (
+	SsmTabNameParameters       SsmTabName = "Parameters"
+	SsmTabNameParameterHistory SsmTabName = "Parameter History"
+)
+
 type SystemManagerDetailsPageView struct {
 	*core.ServicePageView
 	SSMParametersListTable   *tables.SSMParametersListTable
@@ -51,8 +58,8 @@ func NewSystemManagerDetailsPageView(
 	const itemsTableSize = 75
 
 	var tabView = core.NewTabViewHorizontal(serviceViewCtx.AppContext).
-		AddAndSwitchToTab("Parameters", ssmParamsListTable, 0, 1, true).
-		AddTab("Param History", ssmParamHistoryTable, 0, 1, true)
+		AddAndSwitchToTab(SsmTabNameParameters, ssmParamsListTable, 0, 1, true).
+		AddTab(SsmTabNameParameterHistory, ssmParamHistoryTable, 0, 1, true)
 
 	var mainPage = core.NewResizableView(
 		paramValueView.TextView, expandItemViewSize,
