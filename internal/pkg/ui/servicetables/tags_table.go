@@ -16,14 +16,10 @@ type TagsTable[T any, AwsApi any] struct {
 
 func NewTagsTable[T any, AwsApi any](
 	serviceCtx *core.ServiceContext[AwsApi],
-	extractKeyValueFunc func(T) (string, string),
-	getTagsFunc func() ([]T, error),
 ) *TagsTable[T, AwsApi] {
 	var table = &TagsTable[T, AwsApi]{
-		DetailsTable:        core.NewDetailsTable("Tags", serviceCtx.AppContext),
-		serviceCtx:          serviceCtx,
-		extractKeyValueFunc: extractKeyValueFunc,
-		getTagsFunc:         getTagsFunc,
+		DetailsTable: core.NewDetailsTable("Tags", serviceCtx.AppContext),
+		serviceCtx:   serviceCtx,
 	}
 
 	table.populateTagsTable()
@@ -47,7 +43,7 @@ func (inst *TagsTable[T, AwsApi]) populateTagsTable() {
 	inst.ScrollToBeginning()
 }
 
-func (inst *TagsTable[T, AwsApi]) ClearDetails() {
+func (inst *TagsTable[T, AwsApi]) ClearDetails() *TagsTable[T, AwsApi] {
 	inst.data = nil
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 	dataLoader.AsyncLoadData(func() {})
@@ -55,9 +51,10 @@ func (inst *TagsTable[T, AwsApi]) ClearDetails() {
 	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateTagsTable()
 	})
+	return inst
 }
 
-func (inst *TagsTable[T, AwsApi]) RefreshDetails() {
+func (inst *TagsTable[T, AwsApi]) RefreshDetails() *TagsTable[T, AwsApi] {
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
@@ -71,4 +68,20 @@ func (inst *TagsTable[T, AwsApi]) RefreshDetails() {
 	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateTagsTable()
 	})
+
+	return inst
+}
+
+func (inst *TagsTable[T, AwsApi]) SetExtractKeyValFunc(
+	f func(T) (k string, v string),
+) *TagsTable[T, AwsApi] {
+	inst.extractKeyValueFunc = f
+	return inst
+}
+
+func (inst *TagsTable[T, AwsApi]) SetGetTagsFunc(
+	f func() ([]T, error),
+) *TagsTable[T, AwsApi] {
+	inst.getTagsFunc = f
+	return inst
 }

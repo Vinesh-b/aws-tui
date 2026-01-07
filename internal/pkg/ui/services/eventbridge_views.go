@@ -33,21 +33,20 @@ func NewEventBridgeDetailsPageView(
 	}
 	policyView.SetTitle("Policy")
 
-	var busTagsTable = tables.NewTagsTable(serviceCtx,
-		func(t types.Tag) (string, string) {
+	var tagsTable = tables.NewTagsTable[types.Tag](serviceCtx).
+		SetExtractKeyValFunc(func(t types.Tag) (k string, v string) {
 			return aws.ToString(t.Key), aws.ToString(t.Value)
-		},
-		func() ([]types.Tag, error) {
+		}).
+		SetGetTagsFunc(func() ([]types.Tag, error) {
 			return serviceCtx.Api.ListTags(
 				true, aws.ToString(busListTable.GetSeletedEventBus().Arn),
 			)
-		},
-	)
+		})
 
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab("Details", busDetailsTable, 0, 1, true).
 		AddTab("Policy", policyView.TextView, 0, 1, true).
-		AddTab("Tags", busTagsTable, 0, 1, true)
+		AddTab("Tags", tagsTable, 0, 1, true)
 
 	const detailsViewSize = 5000
 	const tableViewSize = 5000
@@ -65,7 +64,7 @@ func NewEventBridgeDetailsPageView(
 
 		EventBusListTable:    busListTable,
 		EventBusDetailsTable: busDetailsTable,
-		EventBusTagsTable:    busTagsTable,
+		EventBusTagsTable:    tagsTable,
 		EventBusPolicyView:   &policyView,
 		serviceCtx:           serviceCtx,
 	}
