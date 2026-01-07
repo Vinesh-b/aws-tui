@@ -29,16 +29,15 @@ func NewDynamoDBDetailsPage(
 	const tabViewSize = 3000
 	const tablesSize = 5000
 
-	var tagsTable = tables.NewTagsTable(serviceContext,
-		func(t types.Tag) (string, string) {
+	var tagsTable = tables.NewTagsTable[types.Tag](serviceContext).
+		SetExtractKeyValFunc(func(t types.Tag) (k string, v string) {
 			return aws.ToString(t.Key), aws.ToString(t.Value)
-		},
-		func() ([]types.Tag, error) {
+		}).
+		SetGetTagsFunc(func() ([]types.Tag, error) {
 			return serviceContext.Api.ListTags(
 				true, detailsTable.GetSelectedTableArn(),
 			)
-		},
-	)
+		})
 
 	var tabView = core.NewTabViewHorizontal(serviceContext.AppContext).
 		AddAndSwitchToTab("Details", detailsTable, 0, 1, true).

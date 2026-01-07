@@ -29,15 +29,13 @@ func NewVpcDetailsPageView(
 	vpcSecurityGroupsTable *tables.VpcSecurityGroupsTable,
 	serviceCtx *core.ServiceContext[awsapi.Ec2Api],
 ) *VpcDetailsPageView {
-	var tagsTable = tables.NewTagsTable(
-		serviceCtx,
-		func(t types.Tag) (string, string) {
+	var tagsTable = tables.NewTagsTable[types.Tag](serviceCtx).
+		SetExtractKeyValFunc(func(t types.Tag) (k string, v string) {
 			return aws.ToString(t.Key), aws.ToString(t.Value)
-		},
-		func() ([]types.Tag, error) {
+		}).
+		SetGetTagsFunc(func() ([]types.Tag, error) {
 			return vpcListTable.GetSeletedVpc().Tags, nil
-		},
-	)
+		})
 
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab("Subnets", vpcSubnetsTable, 0, 1, true).

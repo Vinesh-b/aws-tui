@@ -44,11 +44,11 @@ func NewLambdaDetailsPageView(
 	serviceCtx *core.ServiceContext[awsapi.LambdaApi],
 ) *LambdaDetailsPageView {
 
-	var lambdaTagsTable = tables.NewTagsTable(serviceCtx,
-		func(t LambdaTag) (string, string) {
-			return t.Key, t.Value
-		},
-		func() ([]LambdaTag, error) {
+	var lambdaTagsTable = tables.NewTagsTable[LambdaTag](serviceCtx).
+		SetExtractKeyValFunc(func(lt LambdaTag) (k string, v string) {
+			return lt.Key, lt.Value
+		}).
+		SetGetTagsFunc(func() ([]LambdaTag, error) {
 			var tagsMap, err = serviceCtx.Api.ListTags(
 				aws.ToString(lambdaListTable.GetSeletedLambda().FunctionArn),
 			)
@@ -58,8 +58,7 @@ func NewLambdaDetailsPageView(
 			}
 
 			return tags, err
-		},
-	)
+		})
 
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab("Details", lambdaDetailsTable, 0, 1, true).
