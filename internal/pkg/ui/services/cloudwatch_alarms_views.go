@@ -9,6 +9,13 @@ import (
 	"github.com/rivo/tview"
 )
 
+type AlarmsTabName = string
+
+const (
+	AlarmTabDetails AlarmsTabName = "Details"
+	AlarmTabHistory AlarmsTabName = "History"
+)
+
 type AlarmsDetailsPageView struct {
 	*core.ServicePageView
 	AlarmsTable  *tables.AlarmListTable
@@ -23,17 +30,20 @@ func NewAlarmsDetailsPageView(
 	alarmDetailsTable *tables.AlarmDetailsTable,
 	serviceContext *core.ServiceContext[awsapi.CloudWatchAlarmsApi],
 ) *AlarmsDetailsPageView {
-	const alarmsTableSize = 3500
-	const alarmHistorySize = 3000
+	const alarmTabViewSize = 3000
+	const alarmsTableSize = 7000
+
+	var tabView = core.NewTabViewHorizontal(serviceContext.AppContext).
+		AddAndSwitchToTab(AlarmTabDetails, alarmDetailsTable, 0, 1, true).
+		AddTab(AlarmTabHistory, alarmHistoryTable, 0, 1, true)
 
 	var resizableView = core.NewResizableView(
-		alarmHistoryTable, alarmHistorySize,
+		tabView, alarmTabViewSize,
 		alarmListTable, alarmsTableSize,
 		tview.FlexRow,
 	)
 
 	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(alarmDetailsTable, 14, 0, false).
 		AddItem(resizableView, 0, 1, true)
 
 	var serviceView = core.NewServicePageView(serviceContext.AppContext)
@@ -41,8 +51,7 @@ func NewAlarmsDetailsPageView(
 
 	serviceView.InitViewNavigation(
 		[][]core.View{
-			{alarmDetailsTable},
-			{alarmHistoryTable},
+			{tabView.GetTabDisplayView()},
 			{alarmListTable},
 		},
 	)
