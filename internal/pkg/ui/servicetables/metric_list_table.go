@@ -68,6 +68,7 @@ func (inst *MetricListTable) populateMetricsTable(data []types.Metric) {
 
 	inst.SetData(tableData, data, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
+	inst.Select(1, 0)
 }
 
 func (inst *MetricListTable) FilterByName(name string) {

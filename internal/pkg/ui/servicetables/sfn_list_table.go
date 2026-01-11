@@ -70,6 +70,7 @@ func (inst *SfnListTable) populateTable(data []types.StateMachineListItem) {
 
 	inst.SetData(tableData, data, sfnFunctionNameCol)
 	inst.GetCell(0, 0).SetExpansion(1)
+	inst.Select(1, 0)
 }
 
 func (inst *SfnListTable) FilterByName(name string) {

@@ -76,6 +76,7 @@ func (inst *LogEventsTable) populateLogEventsTable(reset bool) {
 
 	inst.SetData(tableData, privateData, logMsgCol)
 	inst.GetCell(0, 0).SetExpansion(1)
+	inst.Select(1, 0)
 }
 
 func (inst *LogEventsTable) RefreshLogEvents(reset bool) {

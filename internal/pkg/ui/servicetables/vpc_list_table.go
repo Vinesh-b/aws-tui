@@ -91,6 +91,7 @@ func (inst *VpcListTable) populateVpcTable(data []types.Vpc) {
 	inst.SetData(tableData, privateData, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
 	inst.GetTable().SetFixed(1, 0)
+	inst.Select(1, 0)
 }
 
 func (inst *VpcListTable) FilterByName(name string) {

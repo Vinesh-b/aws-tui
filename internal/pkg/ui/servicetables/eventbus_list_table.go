@@ -73,6 +73,7 @@ func (inst *EventBusListTable) populateEventBusTable(data []types.EventBus) {
 
 	inst.SetData(tableData, privateData, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
+	inst.Select(1, 0)
 }
 
 func (inst *EventBusListTable) FilterByName(name string) {

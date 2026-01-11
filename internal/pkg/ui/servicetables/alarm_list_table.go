@@ -79,6 +79,7 @@ func (inst *AlarmListTable) populateAlarmsTable(data []types.MetricAlarm) {
 
 	inst.SetData(tableData, data, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
+	inst.Select(1, 0)
 	inst.ScrollToBeginning()
 }
 
