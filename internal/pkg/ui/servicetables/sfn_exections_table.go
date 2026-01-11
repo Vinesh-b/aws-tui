@@ -66,8 +66,9 @@ func NewSfnExecutionsTable(
 		cwlApi:            cwlApi,
 	}
 
-	var endTime = time.Now()
-	var startTime = endTime.Add(-24 * 1 * time.Hour)
+	var timeNow = time.Now()
+	var endTime = timeNow.Add(3 * time.Hour)
+	var startTime = timeNow.Add(-24 * 1 * time.Hour)
 	table.queryView.Input.SetDefaultTimes(startTime, endTime)
 
 	table.HighlightSearch = true
