@@ -4,6 +4,7 @@ import (
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 	tables "aws-tui/internal/pkg/ui/servicetables"
+	"aws-tui/internal/pkg/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -94,13 +95,19 @@ func NewVpcDetailsPageView(
 
 func (inst *VpcDetailsPageView) initInputCapture() {
 	var loadedTabs = map[int]bool{}
+	var lastSelection = ""
 	var tabChangeFunc = func(tabName string, index int) {
+		var selectedVpc = inst.VpcListTable.GetSeletedVpc()
+
+		if vpcId := aws.ToString(selectedVpc.VpcId); vpcId != lastSelection {
+			lastSelection = vpcId
+			utils.ClearMap(loadedTabs)
+		}
+
 		// Only automaticaly load new data on first change
 		if loadedTabs[index] {
 			return
 		}
-
-		var selectedVpc = inst.VpcListTable.GetSeletedVpc()
 
 		switch tabName {
 		case VpcTabNameSubnets:
