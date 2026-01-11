@@ -179,6 +179,7 @@ func (inst *SfnExecutionStatesTable) parseExecutionHistory() []EventDetails {
 			types.HistoryEventTypeParallelStateEntered,
 			types.HistoryEventTypeMapStateEntered,
 			types.HistoryEventTypeChoiceStateEntered,
+			types.HistoryEventTypeWaitStateEntered,
 			types.HistoryEventTypeSucceedStateEntered,
 			types.HistoryEventTypeFailStateEntered:
 
@@ -192,6 +193,7 @@ func (inst *SfnExecutionStatesTable) parseExecutionHistory() []EventDetails {
 			types.HistoryEventTypeParallelStateExited,
 			types.HistoryEventTypeMapStateExited,
 			types.HistoryEventTypeChoiceStateExited,
+			types.HistoryEventTypeWaitStateExited,
 			types.HistoryEventTypeSucceedStateExited:
 
 			var idx = slices.IndexFunc(results, func(d EventDetails) bool {
