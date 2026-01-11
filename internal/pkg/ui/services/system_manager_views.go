@@ -4,6 +4,7 @@ import (
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 	tables "aws-tui/internal/pkg/ui/servicetables"
+	"aws-tui/internal/pkg/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
@@ -95,11 +96,37 @@ func NewSystemManagerDetailsPageView(
 }
 
 func (inst *SystemManagerDetailsPageView) initInputCapture() {
+	var loadedTabs = map[int]bool{}
+	var lastSelection = ""
+	var tabChangeFunc = func(tabName string, index int) {
+		var selectedParam = inst.SSMParametersListTable.GetSeletedParameter()
+
+		if paramArn := aws.ToString(selectedParam.ARN); paramArn != lastSelection {
+			lastSelection = paramArn
+			utils.ClearMap(loadedTabs)
+		}
+
+		// Only automaticaly load new data on first change
+		if loadedTabs[index] {
+			return
+		}
+
+		switch tabName {
+		case SsmTabNameParameterHistory:
+			inst.SSMParameterHistoryTable.SetSeletedParameter(selectedParam)
+			inst.SSMParameterHistoryTable.RefreshHistory(true)
+		}
+
+		loadedTabs[index] = true
+	}
+
 	inst.SSMParametersListTable.SetSelectedFunc(func(row, column int) {
-		inst.SSMParameterHistoryTable.SetSeletedParameter(inst.SSMParametersListTable.GetSeletedParameter())
-		inst.SSMParameterHistoryTable.RefreshHistory(true)
-		inst.TabView.SwitchToTab("Param History")
+		var tabName, index = inst.TabView.GetCurrentTab()
+		tabChangeFunc(tabName, index)
+		inst.TabView.SwitchToTab(SsmTabNameParameterHistory)
 	})
+
+	inst.TabView.SetOnTabChangeFunc(tabChangeFunc)
 }
 
 func NewSystemManagerHomeView(appCtx *core.AppContext) core.ServicePage {
