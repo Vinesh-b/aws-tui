@@ -1,6 +1,7 @@
 package main
 
 import (
+	"aws-tui/internal/ui/app"
 	"context"
 	"flag"
 	"fmt"
@@ -50,9 +51,9 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var app = CreateApplication(ctx, cfg, VersionString())
+	var tuiApp = app.CreateApplication(ctx, cfg, VersionString())
 
-	if err := app.EnableMouse(true).Run(); err != nil {
+	if err := tuiApp.EnableMouse(true).Run(); err != nil {
 		panic(err)
 	}
 }
