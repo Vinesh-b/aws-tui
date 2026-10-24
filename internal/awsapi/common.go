@@ -19,6 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/aws/smithy-go/logging"
 )
 
 var apiSingletonMtx = &sync.Mutex{}
@@ -75,7 +76,10 @@ func GetAwsApiClients() *AwsApiClients {
 	defer apiSingletonMtx.Unlock()
 
 	if apiClientsSingleton == nil {
-		var cfg, err = config.LoadDefaultConfig(context.Background())
+		// Anything the SDK writes to the terminal would corrupt the TUI
+		var cfg, err = config.LoadDefaultConfig(context.Background(),
+			config.WithLogger(logging.Nop{}),
+		)
 		if err != nil {
 			log.Fatal(err)
 		}

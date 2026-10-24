@@ -83,6 +83,9 @@ func CreateApplication(ctx context.Context, config aws.Config, version string) *
 	)
 
 	config.Logger = logging.StandardLogger{Logger: inAppLogger}
+	// The api clients must log to the in-app view; SDK warnings written to the
+	// terminal would shift the whole screen.
+	appContext.ResetApiClients(config, "")
 
 	var serviceViews = []ServiceItem{
 		{"󰘧 " + string(core.LAMBDA), "Lambdas and logs", rune('1'),

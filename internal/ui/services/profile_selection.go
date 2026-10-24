@@ -6,6 +6,7 @@ import (
 	"context"
 	"slices"
 
+	"github.com/aws/smithy-go/logging"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -42,6 +43,7 @@ func NewProfileSelectionView(appCtx *core.AppContext) core.ServicePage {
 				appCtx.Logger.Println(err)
 				return
 			}
+			cfg.Logger = logging.StandardLogger{Logger: appCtx.Logger}
 			appCtx.ResetApiClients(cfg, profile)
 		})
 	}
