@@ -23,13 +23,13 @@ func NewLambdaApi(
 	}
 }
 
-func (inst *LambdaApi) ListLambdas(force bool) ([]types.FunctionConfiguration, error) {
+func (inst *LambdaApi) ListLambdas(ctx context.Context, force bool) ([]types.FunctionConfiguration, error) {
 	var paginator = lambda.NewListFunctionsPaginator(
 		GetAwsApiClients().lambda, &lambda.ListFunctionsInput{},
 	)
 
 	var result, err = collectPaginator(paginator.HasMorePages, func() ([]types.FunctionConfiguration, error) {
-		var output, err = paginator.NextPage(context.TODO())
+		var output, err = paginator.NextPage(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -42,6 +42,7 @@ func (inst *LambdaApi) ListLambdas(force bool) ([]types.FunctionConfiguration, e
 }
 
 func (inst *LambdaApi) InvokeLambda(
+	ctx context.Context,
 	name string,
 	payload map[string]any,
 ) (*lambda.InvokeOutput, error) {
@@ -60,7 +61,7 @@ func (inst *LambdaApi) InvokeLambda(
 	}
 
 	var client = GetAwsApiClients().lambda
-	output, err = client.Invoke(context.TODO(),
+	output, err = client.Invoke(ctx,
 		&lambda.InvokeInput{
 			FunctionName:   aws.String(name),
 			Payload:        jsonPayload,
@@ -76,14 +77,14 @@ func (inst *LambdaApi) InvokeLambda(
 	return output, err
 }
 
-func (inst *LambdaApi) GetPolicy(lambdaArn string) (string, error) {
+func (inst *LambdaApi) GetPolicy(ctx context.Context, lambdaArn string) (string, error) {
 	if err := requireArg("lambda ARN", lambdaArn); err != nil {
 		return "", err
 	}
 
 	var client = GetAwsApiClients().lambda
 	var output, err = client.GetPolicy(
-		context.TODO(),
+		ctx,
 		&lambda.GetPolicyInput{
 			FunctionName: aws.String(lambdaArn),
 		},
@@ -95,14 +96,14 @@ func (inst *LambdaApi) GetPolicy(lambdaArn string) (string, error) {
 	return aws.ToString(output.Policy), err
 }
 
-func (inst *LambdaApi) ListTags(lambdaArn string) (map[string]string, error) {
+func (inst *LambdaApi) ListTags(ctx context.Context, lambdaArn string) (map[string]string, error) {
 	if err := requireArg("lambda ARN", lambdaArn); err != nil {
 		return nil, err
 	}
 
 	var client = GetAwsApiClients().lambda
 	var output, err = client.ListTags(
-		context.TODO(),
+		ctx,
 		&lambda.ListTagsInput{
 			Resource: aws.String(lambdaArn),
 		},

@@ -1,6 +1,7 @@
 package awsapi
 
 import (
+	"context"
 	"io"
 	"log"
 	"net/http"
@@ -122,7 +123,7 @@ func TestLambdaListLambdasSortedAcrossPages(t *testing.T) {
 		return response(200, "application/json", `{"Functions":[{"FunctionName":"alpha"}]}`)
 	})
 
-	var funcs, err = NewLambdaApi(testLogger()).ListLambdas(true)
+	var funcs, err = NewLambdaApi(testLogger()).ListLambdas(context.Background(), true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -181,15 +182,15 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			return err
 		}, "table name not set"},
 		{"invoke lambda", func() error {
-			var _, err = lambdaApi.InvokeLambda("", nil)
+			var _, err = lambdaApi.InvokeLambda(context.Background(), "", nil)
 			return err
 		}, "lambda name not set"},
 		{"lambda policy", func() error {
-			var _, err = lambdaApi.GetPolicy("")
+			var _, err = lambdaApi.GetPolicy(context.Background(), "")
 			return err
 		}, "lambda ARN not set"},
 		{"lambda tags", func() error {
-			var _, err = lambdaApi.ListTags("")
+			var _, err = lambdaApi.ListTags(context.Background(), "")
 			return err
 		}, "lambda ARN not set"},
 		{"ssm path", func() error {

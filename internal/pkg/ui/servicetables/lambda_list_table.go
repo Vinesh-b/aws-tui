@@ -95,7 +95,7 @@ func (inst *LambdaListTable) RefreshLambdas(reset bool) {
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.serviceCtx.Api.ListLambdas(reset)
+		var data, err = inst.serviceCtx.Api.ListLambdas(inst.serviceCtx.Ctx, reset)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

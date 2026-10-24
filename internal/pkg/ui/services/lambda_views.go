@@ -60,6 +60,7 @@ func NewLambdaDetailsPageView(
 		}).
 		SetGetTagsFunc(func() ([]LambdaTag, error) {
 			var tagsMap, err = serviceCtx.Api.ListTags(
+				serviceCtx.Ctx,
 				aws.ToString(lambdaListTable.GetSeletedLambda().FunctionArn),
 			)
 			var tags = []LambdaTag{}
@@ -233,7 +234,7 @@ func (inst *LambdaInvokePageView) Invoke() {
 		}
 
 		var data *lambda.InvokeOutput = nil
-		data, err = inst.serviceCtx.Api.InvokeLambda(inst.selectedLambda, payload)
+		data, err = inst.serviceCtx.Api.InvokeLambda(inst.serviceCtx.Ctx, inst.selectedLambda, payload)
 		if err != nil {
 			inst.responseOutput.ErrorMessageCallback(err.Error())
 			return
