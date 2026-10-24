@@ -14,7 +14,15 @@ clean:
 	rm -f -r bin
 
 test:
-	go test ./...
+	go test -race ./...
+
+fmt-check:
+	@test -z "$$(gofmt -l .)" || { echo "Files need gofmt:"; gofmt -l .; exit 1; }
+
+vet:
+	go vet ./...
+
+lint: fmt-check vet
 
 get-modules:
 	go mod download
