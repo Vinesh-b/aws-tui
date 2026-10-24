@@ -25,6 +25,7 @@ func NewSystemsManagerApi(
 }
 
 func (inst *SystemsManagerApi) GetParametersByPath(
+	ctx context.Context,
 	path string, reset bool,
 ) ([]types.Parameter, error) {
 	var empty []types.Parameter
@@ -50,7 +51,7 @@ func (inst *SystemsManagerApi) GetParametersByPath(
 		return empty, fmt.Errorf("No more results")
 	}
 
-	var output, err = inst.getParamsByPathPaginator.NextPage(context.Background())
+	var output, err = inst.getParamsByPathPaginator.NextPage(ctx)
 	if err != nil {
 		return empty, inst.logErr(err)
 	}
@@ -59,6 +60,7 @@ func (inst *SystemsManagerApi) GetParametersByPath(
 }
 
 func (inst *SystemsManagerApi) GetParameterHistory(
+	ctx context.Context,
 	name string, reset bool,
 ) ([]types.ParameterHistory, error) {
 	var empty []types.ParameterHistory
@@ -84,7 +86,7 @@ func (inst *SystemsManagerApi) GetParameterHistory(
 		return empty, fmt.Errorf("No more results")
 	}
 
-	var output, err = inst.getParamHistoryPaginator.NextPage(context.Background())
+	var output, err = inst.getParamHistoryPaginator.NextPage(ctx)
 	if err != nil {
 		return empty, inst.logErr(err)
 	}

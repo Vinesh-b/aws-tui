@@ -105,7 +105,7 @@ func (inst *SSMParameterHistoryTable) RefreshHistory(reset bool) {
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.serviceCtx.Api.GetParameterHistory(paramName, reset)
+		var data, err = inst.serviceCtx.Api.GetParameterHistory(inst.serviceCtx.Ctx, paramName, reset)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

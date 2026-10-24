@@ -102,7 +102,7 @@ func (inst *SSMParametersListTable) RefreshParameters(path string, reset bool) {
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.serviceCtx.Api.GetParametersByPath(path, reset)
+		var data, err = inst.serviceCtx.Api.GetParametersByPath(inst.serviceCtx.Ctx, path, reset)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

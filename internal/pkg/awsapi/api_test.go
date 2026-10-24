@@ -194,11 +194,11 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			return err
 		}, "lambda ARN not set"},
 		{"ssm path", func() error {
-			var _, err = NewSystemsManagerApi(logger).GetParametersByPath("", true)
+			var _, err = NewSystemsManagerApi(logger).GetParametersByPath(context.Background(), "", true)
 			return err
 		}, "parameter path not set"},
 		{"ssm history", func() error {
-			var _, err = NewSystemsManagerApi(logger).GetParameterHistory("", true)
+			var _, err = NewSystemsManagerApi(logger).GetParameterHistory(context.Background(), "", true)
 			return err
 		}, "parameter name not set"},
 		{"describe state machine", func() error {
