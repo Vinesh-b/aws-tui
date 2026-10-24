@@ -42,8 +42,9 @@ func NewVpcDetailsPageView(
 		SetExtractKeyValFunc(func(t types.Tag) (k string, v string) {
 			return aws.ToString(t.Key), aws.ToString(t.Value)
 		}).
-		SetGetTagsFunc(func() ([]types.Tag, error) {
-			return vpcListTable.GetSelectedVpc().Tags, nil
+		SetGetTagsFunc(func() func() ([]types.Tag, error) {
+			var tags = vpcListTable.GetSelectedVpc().Tags
+			return func() ([]types.Tag, error) { return tags, nil }
 		})
 
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).

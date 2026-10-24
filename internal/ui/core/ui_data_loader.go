@@ -34,7 +34,14 @@ func (inst *UiDataLoader) AsyncLoadData(handler func()) {
 func (inst *UiDataLoader) AsyncUpdateView(view View, updateViewFunc func()) {
 	go func() {
 		var idx = 0
-		var originalTitle = view.GetTitle()
+		var originalTitle string
+		var titleRead = make(chan struct{})
+		inst.app.QueueUpdate(func() {
+			originalTitle = view.GetTitle()
+			close(titleRead)
+		})
+		<-titleRead
+
 		var loadingSymbol = [...]string{"⢎⡰", "⢎⡡", "⢎⡑", "⢎⠱", "⠎⡱", "⢊⡱", "⢌⡱", "⢆⡱"}
 		var timeoutCtx, cancelFunc = context.WithTimeout(context.Background(), inst.timeoutSec)
 		defer cancelFunc()
@@ -42,16 +49,17 @@ func (inst *UiDataLoader) AsyncUpdateView(view View, updateViewFunc func()) {
 		for {
 			select {
 			case <-inst.dataLoadComplete:
-				view.SetTitle(originalTitle)
-				inst.app.QueueUpdateDraw(updateViewFunc)
+				inst.app.QueueUpdateDraw(func() {
+					view.SetTitle(originalTitle)
+					updateViewFunc()
+				})
 				return
 			case <-timeoutCtx.Done():
-				view.SetTitle(originalTitle + "[Timed out]")
-				inst.app.QueueUpdateDraw(func() {})
+				inst.app.QueueUpdateDraw(func() { view.SetTitle(originalTitle + "[Timed out]") })
 				return
 			default:
-				view.SetTitle(fmt.Sprintf("%s "+originalTitle, loadingSymbol[idx]))
-				inst.app.QueueUpdateDraw(func() {})
+				var title = fmt.Sprintf("%s "+originalTitle, loadingSymbol[idx])
+				inst.app.QueueUpdateDraw(func() { view.SetTitle(title) })
 				idx = (idx + 1) % len(loadingSymbol)
 				time.Sleep(time.Millisecond * 100)
 			}

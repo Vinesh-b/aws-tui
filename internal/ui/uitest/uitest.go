@@ -3,6 +3,7 @@ package uitest
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -67,7 +68,7 @@ func PressEnter(table TableView) {
 
 const asyncTimeout = 3 * time.Second
 
-func RunApp(t *testing.T, app *tview.Application) {
+func RunApp(t *testing.T, app *tview.Application) tcell.SimulationScreen {
 	t.Helper()
 	var screen = tcell.NewSimulationScreen("UTF-8")
 	if err := screen.Init(); err != nil {
@@ -85,6 +86,7 @@ func RunApp(t *testing.T, app *tview.Application) {
 		<-stopped
 	})
 	OnUI(t, app, func() {})
+	return screen
 }
 
 func OnUI(t *testing.T, app *tview.Application, fn func()) {
@@ -142,4 +144,51 @@ func AwaitDetailsRows(t *testing.T, app *tview.Application, table *core.DetailsT
 	t.Helper()
 	Eventually(t, app, func() bool { return table.GetCellText(0, 0) == want[0][0] && table.GetCellText(len(want), 0) == "" })
 	OnUI(t, app, func() { AssertDetailsRows(t, table, want) })
+}
+
+func ScreenText(screen tcell.SimulationScreen) string {
+	var cells, width, height = screen.GetContents()
+	var text strings.Builder
+	for row := range height {
+		for col := range width {
+			text.WriteString(string(cells[row*width+col].Runes))
+		}
+		text.WriteString("\n")
+	}
+	return text.String()
+}
+
+func ShowPage(t *testing.T, app *tview.Application, page core.ServicePage) tcell.SimulationScreen {
+	t.Helper()
+	var screen = RunApp(t, app)
+	OnUI(t, app, func() {
+		app.SetRoot(page, true)
+		app.SetFocus(page.GetLastFocusedView())
+	})
+	return screen
+}
+
+func PressRune(t *testing.T, app *tview.Application, r rune) {
+	t.Helper()
+	OnUI(t, app, func() {
+		var focused = app.GetFocus()
+		var handler = focused.InputHandler()
+		handler(tcell.NewEventKey(tcell.KeyRune, r, tcell.ModNone), func(p tview.Primitive) { app.SetFocus(p) })
+	})
+}
+
+func AwaitScreenText(t *testing.T, app *tview.Application, screen tcell.SimulationScreen, want string) {
+	t.Helper()
+	var deadline = time.Now().Add(asyncTimeout)
+	for time.Now().Before(deadline) {
+		var text string
+		OnUI(t, app, func() {
+			text = ScreenText(screen)
+		})
+		if strings.Contains(text, want) {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("screen never showed %q", want)
 }

@@ -38,11 +38,11 @@ func NewDynamoDBDetailsPageView(
 		SetExtractKeyValFunc(func(t types.Tag) (k string, v string) {
 			return aws.ToString(t.Key), aws.ToString(t.Value)
 		}).
-		SetGetTagsFunc(func() ([]types.Tag, error) {
-			return serviceCtx.Api.ListTags(
-				serviceCtx.Ctx,
-				true, detailsTable.GetSelectedTableArn(),
-			)
+		SetGetTagsFunc(func() func() ([]types.Tag, error) {
+			var arn = detailsTable.GetSelectedTableArn()
+			return func() ([]types.Tag, error) {
+				return serviceCtx.Api.ListTags(serviceCtx.Ctx, true, arn)
+			}
 		})
 
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).

@@ -22,6 +22,10 @@ func (f *fakeEventBridgeApi) ListEventBuses(ctx context.Context, force bool) ([]
 	return f.buses, f.err
 }
 
+func (f *fakeEventBridgeApi) ListTags(ctx context.Context, force bool, resourceArn string) ([]types.Tag, error) {
+	return nil, nil
+}
+
 func TestEventBusListTable__RefreshLoadsBusesFromApi(t *testing.T) {
 	var api = &fakeEventBridgeApi{buses: []types.EventBus{newEventBus("orders")}}
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.EventBridgeApi](api)

@@ -105,16 +105,19 @@ func (inst *DynamoDBDetailsTable) populateDetailsTable() {
 
 func (inst *DynamoDBDetailsTable) RefreshDetails() {
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var tableName = inst.selectedTable
+	var description *types.TableDescription
 
 	dataLoader.AsyncLoadData(func() {
 		var err error = nil
-		inst.data, err = inst.serviceCtx.Api.DescribeTable(inst.serviceCtx.Ctx, inst.selectedTable)
+		description, err = inst.serviceCtx.Api.DescribeTable(inst.serviceCtx.Ctx, tableName)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
+		inst.data = description
 		inst.populateDetailsTable()
 	})
 }

@@ -58,17 +58,17 @@ func NewLambdaDetailsPageView(
 		SetExtractKeyValFunc(func(lt LambdaTag) (k string, v string) {
 			return lt.Key, lt.Value
 		}).
-		SetGetTagsFunc(func() ([]LambdaTag, error) {
-			var tagsMap, err = serviceCtx.Api.ListTags(
-				serviceCtx.Ctx,
-				aws.ToString(lambdaListTable.GetSelectedLambda().FunctionArn),
-			)
-			var tags = []LambdaTag{}
-			for k, v := range tagsMap {
-				tags = append(tags, LambdaTag{Key: k, Value: v})
-			}
+		SetGetTagsFunc(func() func() ([]LambdaTag, error) {
+			var arn = aws.ToString(lambdaListTable.GetSelectedLambda().FunctionArn)
+			return func() ([]LambdaTag, error) {
+				var tagsMap, err = serviceCtx.Api.ListTags(serviceCtx.Ctx, arn)
+				var tags = []LambdaTag{}
+				for k, v := range tagsMap {
+					tags = append(tags, LambdaTag{Key: k, Value: v})
+				}
 
-			return tags, err
+				return tags, err
+			}
 		})
 
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).

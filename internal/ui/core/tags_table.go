@@ -9,7 +9,7 @@ type TagsTable[T any, AwsApi any] struct {
 	data                []T
 	serviceCtx          *ServiceContext[AwsApi]
 	extractKeyValueFunc func(T) (string, string)
-	getTagsFunc         func() ([]T, error)
+	getTagsFunc         func() func() ([]T, error)
 }
 
 func NewTagsTable[T any, AwsApi any](
@@ -55,15 +55,19 @@ func (inst *TagsTable[T, AwsApi]) ClearDetails() *TagsTable[T, AwsApi] {
 func (inst *TagsTable[T, AwsApi]) RefreshDetails() *TagsTable[T, AwsApi] {
 	var dataLoader = NewUiDataLoader(inst.serviceCtx.App, 10)
 
+	var fetchTags = inst.getTagsFunc()
+	var tags []T
+
 	dataLoader.AsyncLoadData(func() {
 		var err error
-		inst.data, err = inst.getTagsFunc()
+		tags, err = fetchTags()
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
+		inst.data = tags
 		inst.populateTagsTable()
 	})
 
@@ -78,7 +82,7 @@ func (inst *TagsTable[T, AwsApi]) SetExtractKeyValFunc(
 }
 
 func (inst *TagsTable[T, AwsApi]) SetGetTagsFunc(
-	f func() ([]T, error),
+	f func() func() ([]T, error),
 ) *TagsTable[T, AwsApi] {
 	inst.getTagsFunc = f
 	return inst
