@@ -46,7 +46,7 @@ func (inst *InsightsQueryRunner) ExecuteInsightsQuery(
 
 	go func() {
 		if len(inst.queryId) > 0 {
-			var _, err = inst.api.StopInightsQuery(inst.queryId)
+			var _, err = inst.api.StopInsightsQuery(inst.queryId)
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
 			}
@@ -54,7 +54,7 @@ func (inst *InsightsQueryRunner) ExecuteInsightsQuery(
 		}
 
 		var err error = nil
-		inst.queryId, err = inst.api.StartInightsQuery(
+		inst.queryId, err = inst.api.StartInsightsQuery(
 			logGroups,
 			query.startTime,
 			query.endTime,
@@ -71,7 +71,7 @@ func (inst *InsightsQueryRunner) ExecuteInsightsQuery(
 				break
 			}
 
-			results, status, err = inst.api.GetInightsQueryResults(inst.queryId)
+			results, status, err = inst.api.GetInsightsQueryResults(inst.queryId)
 
 			switch status {
 			case types.QueryStatusRunning, types.QueryStatusScheduled:
@@ -223,7 +223,7 @@ func (inst *InsightsQueryResultsTable) RefreshResults() {
 				break
 			}
 
-			results, status, err = inst.serviceCtx.Api.GetInightsQueryResults(inst.queryId)
+			results, status, err = inst.serviceCtx.Api.GetInsightsQueryResults(inst.queryId)
 
 			switch status {
 			case types.QueryStatusRunning, types.QueryStatusScheduled:
@@ -266,14 +266,14 @@ func (inst *InsightsQueryResultsTable) ExecuteQuery() {
 	var queryIdChan = make(chan string, 1)
 	go func() {
 		if len(inst.queryId) > 0 {
-			var _, err = inst.serviceCtx.Api.StopInightsQuery(inst.queryId)
+			var _, err = inst.serviceCtx.Api.StopInsightsQuery(inst.queryId)
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
 			}
 			inst.SetQueryId("")
 		}
 
-		var res, err = inst.serviceCtx.Api.StartInightsQuery(
+		var res, err = inst.serviceCtx.Api.StartInsightsQuery(
 			inst.selectedLogGroups,
 			query.startTime,
 			query.endTime,
@@ -298,7 +298,7 @@ func (inst *InsightsQueryResultsTable) StopQuery() {
 			stopSuccess <- true
 			return
 		}
-		var res, err = inst.serviceCtx.Api.StopInightsQuery(inst.queryId)
+		var res, err = inst.serviceCtx.Api.StopInsightsQuery(inst.queryId)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

@@ -190,7 +190,7 @@ func (inst *CloudWatchLogsApi) ListFilteredLogEvents(
 	return output.Events, nil
 }
 
-func (inst *CloudWatchLogsApi) StartInightsQuery(
+func (inst *CloudWatchLogsApi) StartInsightsQuery(
 	logGroups []string,
 	startTime time.Time,
 	endTime time.Time,
@@ -214,7 +214,7 @@ func (inst *CloudWatchLogsApi) StartInightsQuery(
 	return aws.ToString(output.QueryId), nil
 }
 
-func (inst *CloudWatchLogsApi) StopInightsQuery(
+func (inst *CloudWatchLogsApi) StopInsightsQuery(
 	queryId string,
 ) (bool, error) {
 	if len(queryId) == 0 {
@@ -237,7 +237,7 @@ func (inst *CloudWatchLogsApi) StopInightsQuery(
 	return *aws.Bool(output.Success), nil
 }
 
-func (inst *CloudWatchLogsApi) GetInightsQueryResults(
+func (inst *CloudWatchLogsApi) GetInsightsQueryResults(
 	queryId string,
 ) ([][]types.ResultField, types.QueryStatus, error) {
 	var empty [][]types.ResultField
