@@ -10,7 +10,18 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
 )
 
-type SystemsManagerApi struct {
+type SystemsManagerApi interface {
+	GetParametersByPath(
+		ctx context.Context,
+		path string, reset bool,
+	) ([]types.Parameter, error)
+	GetParameterHistory(
+		ctx context.Context,
+		name string, reset bool,
+	) ([]types.ParameterHistory, error)
+}
+
+type systemsManagerApi struct {
 	baseApi
 	getParamsByPathPaginator *ssm.GetParametersByPathPaginator
 	getParamHistoryPaginator *ssm.GetParameterHistoryPaginator
@@ -18,13 +29,13 @@ type SystemsManagerApi struct {
 
 func NewSystemsManagerApi(
 	logger *log.Logger,
-) *SystemsManagerApi {
-	return &SystemsManagerApi{
+) SystemsManagerApi {
+	return &systemsManagerApi{
 		baseApi: baseApi{logger: logger},
 	}
 }
 
-func (inst *SystemsManagerApi) GetParametersByPath(
+func (inst *systemsManagerApi) GetParametersByPath(
 	ctx context.Context,
 	path string, reset bool,
 ) ([]types.Parameter, error) {
@@ -59,7 +70,7 @@ func (inst *SystemsManagerApi) GetParametersByPath(
 	return output.Parameters, nil
 }
 
-func (inst *SystemsManagerApi) GetParameterHistory(
+func (inst *systemsManagerApi) GetParameterHistory(
 	ctx context.Context,
 	name string, reset bool,
 ) ([]types.ParameterHistory, error) {

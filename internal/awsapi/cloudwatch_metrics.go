@@ -8,21 +8,31 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 )
 
-type CloudWatchMetricsApi struct {
+type CloudWatchMetricsApi interface {
+	ListMetrics(
+		ctx context.Context,
+		dims []types.DimensionFilter,
+		namespace string,
+		metricName string,
+		force bool,
+	) ([]types.Metric, error)
+}
+
+type cloudWatchMetricsApi struct {
 	baseApi
 	metricsPaginator *cloudwatch.ListMetricsPaginator
 }
 
 func NewCloudWatchMetricsApi(
 	logger *log.Logger,
-) *CloudWatchMetricsApi {
-	return &CloudWatchMetricsApi{
+) CloudWatchMetricsApi {
+	return &cloudWatchMetricsApi{
 		baseApi:          baseApi{logger: logger},
 		metricsPaginator: nil,
 	}
 }
 
-func (inst *CloudWatchMetricsApi) ListMetrics(
+func (inst *cloudWatchMetricsApi) ListMetrics(
 	ctx context.Context,
 	dims []types.DimensionFilter,
 	namespace string,

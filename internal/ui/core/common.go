@@ -43,11 +43,11 @@ func NewAppContext(
 
 type ServiceContext[AwsApi any] struct {
 	*AppContext
-	Api *AwsApi
+	Api AwsApi
 }
 
 func NewServiceViewContext[AwsApi any](
-	appContext *AppContext, api *AwsApi,
+	appContext *AppContext, api AwsApi,
 ) *ServiceContext[AwsApi] {
 	return &ServiceContext[AwsApi]{
 		AppContext: appContext,

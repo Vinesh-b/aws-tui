@@ -12,7 +12,31 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
-type S3BucketsApi struct {
+type S3BucketsApi interface {
+	ListBuckets(ctx context.Context, force bool) ([]types.Bucket, error)
+	ListObjects(
+		ctx context.Context,
+		bucketName string,
+		prefix string,
+		force bool,
+	) ([]types.Object, []types.CommonPrefix, error)
+	DownloadFile(ctx context.Context, bucketName string, objectKey string, fileName string) error
+	GetBucketPolicy(ctx context.Context, bucketArn string, force bool) (string, error)
+	GetBucketTags(
+		ctx context.Context,
+		bucketArn string, force bool,
+	) ([]types.Tag, error)
+	HeadBucket(
+		ctx context.Context,
+		bucketArn string, objectKey string, force bool,
+	) (s3.HeadBucketOutput, error)
+	HeadObject(
+		ctx context.Context,
+		bucketArn string, objectKey string, force bool,
+	) (s3.HeadObjectOutput, error)
+}
+
+type s3BucketsApi struct {
 	baseApi
 	allbuckets       []types.Bucket
 	objectsPaginator *s3.ListObjectsV2Paginator
@@ -20,14 +44,14 @@ type S3BucketsApi struct {
 
 func NewS3BucketsApi(
 	logger *log.Logger,
-) *S3BucketsApi {
-	return &S3BucketsApi{
+) S3BucketsApi {
+	return &s3BucketsApi{
 		baseApi:    baseApi{logger: logger},
 		allbuckets: []types.Bucket{},
 	}
 }
 
-func (inst *S3BucketsApi) ListBuckets(ctx context.Context, force bool) ([]types.Bucket, error) {
+func (inst *s3BucketsApi) ListBuckets(ctx context.Context, force bool) ([]types.Bucket, error) {
 	if len(inst.allbuckets) > 0 && !force {
 		return inst.allbuckets, nil
 	}
@@ -51,7 +75,7 @@ func (inst *S3BucketsApi) ListBuckets(ctx context.Context, force bool) ([]types.
 	return result, inst.logErr(err)
 }
 
-func (inst *S3BucketsApi) ListObjects(
+func (inst *s3BucketsApi) ListObjects(
 	ctx context.Context,
 	bucketName string,
 	prefix string,
@@ -89,7 +113,7 @@ func (inst *S3BucketsApi) ListObjects(
 	return output.Contents, output.CommonPrefixes, nil
 }
 
-func (inst *S3BucketsApi) DownloadFile(ctx context.Context, bucketName string, objectKey string, fileName string) error {
+func (inst *s3BucketsApi) DownloadFile(ctx context.Context, bucketName string, objectKey string, fileName string) error {
 	if err := requireArg("bucket name", bucketName); err != nil {
 		return err
 	}
@@ -131,7 +155,7 @@ func (inst *S3BucketsApi) DownloadFile(ctx context.Context, bucketName string, o
 	return nil
 }
 
-func (inst *S3BucketsApi) GetBucketPolicy(ctx context.Context, bucketArn string, force bool) (string, error) {
+func (inst *s3BucketsApi) GetBucketPolicy(ctx context.Context, bucketArn string, force bool) (string, error) {
 	var client = GetAwsApiClients().s3
 
 	var output, err = client.GetBucketPolicy(ctx,
@@ -146,7 +170,7 @@ func (inst *S3BucketsApi) GetBucketPolicy(ctx context.Context, bucketArn string,
 	return aws.ToString(output.Policy), nil
 }
 
-func (inst *S3BucketsApi) GetBucketTags(
+func (inst *s3BucketsApi) GetBucketTags(
 	ctx context.Context,
 	bucketArn string, force bool,
 ) ([]types.Tag, error) {
@@ -164,7 +188,7 @@ func (inst *S3BucketsApi) GetBucketTags(
 	return output.TagSet, nil
 }
 
-func (inst *S3BucketsApi) HeadBucket(
+func (inst *s3BucketsApi) HeadBucket(
 	ctx context.Context,
 	bucketArn string, objectKey string, force bool,
 ) (s3.HeadBucketOutput, error) {
@@ -182,7 +206,7 @@ func (inst *S3BucketsApi) HeadBucket(
 	return *output, nil
 }
 
-func (inst *S3BucketsApi) HeadObject(
+func (inst *s3BucketsApi) HeadObject(
 	ctx context.Context,
 	bucketArn string, objectKey string, force bool,
 ) (s3.HeadObjectOutput, error) {

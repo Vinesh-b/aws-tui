@@ -9,7 +9,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 )
 
-type EventBridgeApi struct {
+type EventBridgeApi interface {
+	ListEventBuses(ctx context.Context, force bool) ([]types.EventBus, error)
+	DescribeEventBus(ctx context.Context, force bool, busArn string) (eventbridge.DescribeEventBusOutput, error)
+	ListRules(ctx context.Context, force bool, busArn string) ([]types.Rule, error)
+	ListTags(ctx context.Context, force bool, resourceArn string) ([]types.Tag, error)
+}
+
+type eventBridgeApi struct {
 	baseApi
 	allEventBuses []types.EventBus
 	allBusRules   []types.Rule
@@ -17,13 +24,13 @@ type EventBridgeApi struct {
 
 func NewEventBridgeApi(
 	logger *log.Logger,
-) *EventBridgeApi {
-	return &EventBridgeApi{
+) EventBridgeApi {
+	return &eventBridgeApi{
 		baseApi: baseApi{logger: logger},
 	}
 }
 
-func (inst *EventBridgeApi) ListEventBuses(ctx context.Context, force bool) ([]types.EventBus, error) {
+func (inst *eventBridgeApi) ListEventBuses(ctx context.Context, force bool) ([]types.EventBus, error) {
 	var result, err = collectTokenPages(func(token *string) ([]types.EventBus, *string, error) {
 		var output, err = GetAwsApiClients().eventbridge.ListEventBuses(ctx,
 			&eventbridge.ListEventBusesInput{
@@ -44,7 +51,7 @@ func (inst *EventBridgeApi) ListEventBuses(ctx context.Context, force bool) ([]t
 	return result, inst.logErr(err)
 }
 
-func (inst *EventBridgeApi) DescribeEventBus(ctx context.Context, force bool, busArn string) (eventbridge.DescribeEventBusOutput, error) {
+func (inst *eventBridgeApi) DescribeEventBus(ctx context.Context, force bool, busArn string) (eventbridge.DescribeEventBusOutput, error) {
 	var empty = eventbridge.DescribeEventBusOutput{}
 	var client = GetAwsApiClients().eventbridge
 
@@ -61,7 +68,7 @@ func (inst *EventBridgeApi) DescribeEventBus(ctx context.Context, force bool, bu
 	return *output, err
 }
 
-func (inst *EventBridgeApi) ListRules(ctx context.Context, force bool, busArn string) ([]types.Rule, error) {
+func (inst *eventBridgeApi) ListRules(ctx context.Context, force bool, busArn string) ([]types.Rule, error) {
 	var result, err = collectTokenPages(func(token *string) ([]types.Rule, *string, error) {
 		var output, err = GetAwsApiClients().eventbridge.ListRules(ctx,
 			&eventbridge.ListRulesInput{
@@ -83,7 +90,7 @@ func (inst *EventBridgeApi) ListRules(ctx context.Context, force bool, busArn st
 	return result, inst.logErr(err)
 }
 
-func (inst *EventBridgeApi) ListTags(ctx context.Context, force bool, resourceArn string) ([]types.Tag, error) {
+func (inst *eventBridgeApi) ListTags(ctx context.Context, force bool, resourceArn string) ([]types.Tag, error) {
 	var client = GetAwsApiClients().eventbridge
 
 	var output, err = client.ListTagsForResource(ctx,

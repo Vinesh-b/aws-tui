@@ -10,20 +10,31 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 )
 
-type LambdaApi struct {
+type LambdaApi interface {
+	ListLambdas(ctx context.Context, force bool) ([]types.FunctionConfiguration, error)
+	InvokeLambda(
+		ctx context.Context,
+		name string,
+		payload map[string]any,
+	) (*lambda.InvokeOutput, error)
+	GetPolicy(ctx context.Context, lambdaArn string) (string, error)
+	ListTags(ctx context.Context, lambdaArn string) (map[string]string, error)
+}
+
+type lambdaApi struct {
 	baseApi
 	allLambdas []types.FunctionConfiguration
 }
 
 func NewLambdaApi(
 	logger *log.Logger,
-) *LambdaApi {
-	return &LambdaApi{
+) LambdaApi {
+	return &lambdaApi{
 		baseApi: baseApi{logger: logger},
 	}
 }
 
-func (inst *LambdaApi) ListLambdas(ctx context.Context, force bool) ([]types.FunctionConfiguration, error) {
+func (inst *lambdaApi) ListLambdas(ctx context.Context, force bool) ([]types.FunctionConfiguration, error) {
 	var paginator = lambda.NewListFunctionsPaginator(
 		GetAwsApiClients().lambda, &lambda.ListFunctionsInput{},
 	)
@@ -41,7 +52,7 @@ func (inst *LambdaApi) ListLambdas(ctx context.Context, force bool) ([]types.Fun
 	return result, inst.logErr(err)
 }
 
-func (inst *LambdaApi) InvokeLambda(
+func (inst *lambdaApi) InvokeLambda(
 	ctx context.Context,
 	name string,
 	payload map[string]any,
@@ -77,7 +88,7 @@ func (inst *LambdaApi) InvokeLambda(
 	return output, err
 }
 
-func (inst *LambdaApi) GetPolicy(ctx context.Context, lambdaArn string) (string, error) {
+func (inst *lambdaApi) GetPolicy(ctx context.Context, lambdaArn string) (string, error) {
 	if err := requireArg("lambda ARN", lambdaArn); err != nil {
 		return "", err
 	}
@@ -96,7 +107,7 @@ func (inst *LambdaApi) GetPolicy(ctx context.Context, lambdaArn string) (string,
 	return aws.ToString(output.Policy), err
 }
 
-func (inst *LambdaApi) ListTags(ctx context.Context, lambdaArn string) (map[string]string, error) {
+func (inst *lambdaApi) ListTags(ctx context.Context, lambdaArn string) (map[string]string, error) {
 	if err := requireArg("lambda ARN", lambdaArn); err != nil {
 		return nil, err
 	}

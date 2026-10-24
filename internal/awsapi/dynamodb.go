@@ -13,7 +13,27 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
-type DynamoDBApi struct {
+type DynamoDBApi interface {
+	ListTables(ctx context.Context, force bool) ([]string, error)
+	DescribeTable(ctx context.Context, tableName string) (*types.TableDescription, error)
+	ScanTable(
+		ctx context.Context,
+		tableName string,
+		scanExpression expression.Expression,
+		indexName string,
+		force bool,
+	) ([]map[string]any, error)
+	QueryTable(
+		ctx context.Context,
+		tableName string,
+		queryExpression expression.Expression,
+		indexName string,
+		force bool,
+	) ([]map[string]any, error)
+	ListTags(ctx context.Context, force bool, resourceArn string) ([]types.Tag, error)
+}
+
+type dynamoDBApi struct {
 	baseApi
 	allTables      []string
 	queryPaginator *dynamodb.QueryPaginator
@@ -22,14 +42,14 @@ type DynamoDBApi struct {
 
 func NewDynamoDBApi(
 	logger *log.Logger,
-) *DynamoDBApi {
+) DynamoDBApi {
 
-	return &DynamoDBApi{
+	return &dynamoDBApi{
 		baseApi: baseApi{logger: logger},
 	}
 }
 
-func (inst *DynamoDBApi) ListTables(ctx context.Context, force bool) ([]string, error) {
+func (inst *dynamoDBApi) ListTables(ctx context.Context, force bool) ([]string, error) {
 	var client = GetAwsApiClients().dynamodb
 	if len(inst.allTables) > 0 && !force {
 		return inst.allTables, nil
@@ -57,7 +77,7 @@ func (inst *DynamoDBApi) ListTables(ctx context.Context, force bool) ([]string, 
 	return inst.allTables, apiErr
 }
 
-func (inst *DynamoDBApi) DescribeTable(ctx context.Context, tableName string) (*types.TableDescription, error) {
+func (inst *dynamoDBApi) DescribeTable(ctx context.Context, tableName string) (*types.TableDescription, error) {
 	if err := requireArg("table name", tableName); err != nil {
 		return nil, err
 	}
@@ -73,7 +93,7 @@ func (inst *DynamoDBApi) DescribeTable(ctx context.Context, tableName string) (*
 	return output.Table, nil
 }
 
-func (inst *DynamoDBApi) ScanTable(
+func (inst *dynamoDBApi) ScanTable(
 	ctx context.Context,
 	tableName string,
 	scanExpression expression.Expression,
@@ -119,7 +139,7 @@ func (inst *DynamoDBApi) ScanTable(
 	return items, err
 }
 
-func (inst *DynamoDBApi) QueryTable(
+func (inst *dynamoDBApi) QueryTable(
 	ctx context.Context,
 	tableName string,
 	queryExpression expression.Expression,
@@ -170,7 +190,7 @@ func (inst *DynamoDBApi) QueryTable(
 	return items, nil
 }
 
-func (inst *DynamoDBApi) ListTags(ctx context.Context, force bool, resourceArn string) ([]types.Tag, error) {
+func (inst *dynamoDBApi) ListTags(ctx context.Context, force bool, resourceArn string) ([]types.Tag, error) {
 	var result, err = collectTokenPages(func(token *string) ([]types.Tag, *string, error) {
 		var output, err = GetAwsApiClients().dynamodb.ListTagsOfResource(ctx,
 			&dynamodb.ListTagsOfResourceInput{

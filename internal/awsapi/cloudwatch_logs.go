@@ -10,7 +10,49 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 )
 
-type CloudWatchLogsApi struct {
+type CloudWatchLogsApi interface {
+	ListLogGroups(ctx context.Context, reset bool) ([]types.LogGroup, error)
+	ListLogStreams(
+		ctx context.Context,
+		logGroupName string,
+		searchPrefix string,
+		reset bool,
+	) ([]types.LogStream, error)
+	ListLogEvents(
+		ctx context.Context,
+		logGroupName string,
+		logStreamName string,
+		reset bool,
+	) ([]types.OutputLogEvent, error)
+	ListFilteredLogEvents(
+		ctx context.Context,
+		logGroupName string,
+		startDateTime time.Time,
+		endDateTime time.Time,
+		reset bool,
+	) ([]types.FilteredLogEvent, error)
+	StartInsightsQuery(
+		ctx context.Context,
+		logGroups []string,
+		startTime time.Time,
+		endTime time.Time,
+		query string,
+	) (string, error)
+	StopInsightsQuery(
+		ctx context.Context,
+		queryId string,
+	) (bool, error)
+	GetInsightsQueryResults(
+		ctx context.Context,
+		queryId string,
+	) ([][]types.ResultField, types.QueryStatus, error)
+	GetInsightsLogRecord(
+		ctx context.Context,
+		recordPtr string,
+	) (map[string]string, error)
+}
+
+type cloudWatchLogsApi struct {
 	baseApi
 	logEventsPaginator         *cloudwatchlogs.GetLogEventsPaginator
 	logStreamsPaginator        *cloudwatchlogs.DescribeLogStreamsPaginator
@@ -20,13 +62,13 @@ type CloudWatchLogsApi struct {
 
 func NewCloudWatchLogsApi(
 	logger *log.Logger,
-) *CloudWatchLogsApi {
-	return &CloudWatchLogsApi{
+) CloudWatchLogsApi {
+	return &cloudWatchLogsApi{
 		baseApi: baseApi{logger: logger},
 	}
 }
 
-func (inst *CloudWatchLogsApi) ListLogGroups(ctx context.Context, reset bool) ([]types.LogGroup, error) {
+func (inst *cloudWatchLogsApi) ListLogGroups(ctx context.Context, reset bool) ([]types.LogGroup, error) {
 	if reset || inst.logGroupsPaginator == nil {
 		inst.logGroupsPaginator = cloudwatchlogs.NewDescribeLogGroupsPaginator(
 			GetAwsApiClients().cloudwatchlogs,
@@ -49,7 +91,7 @@ func (inst *CloudWatchLogsApi) ListLogGroups(ctx context.Context, reset bool) ([
 	return result, inst.logErr(err)
 }
 
-func (inst *CloudWatchLogsApi) ListLogStreams(
+func (inst *cloudWatchLogsApi) ListLogStreams(
 	ctx context.Context,
 	logGroupName string,
 	searchPrefix string,
@@ -99,7 +141,7 @@ func (inst *CloudWatchLogsApi) ListLogStreams(
 	return output.LogStreams, nil
 }
 
-func (inst *CloudWatchLogsApi) ListLogEvents(
+func (inst *cloudWatchLogsApi) ListLogEvents(
 	ctx context.Context,
 	logGroupName string,
 	logStreamName string,
@@ -141,7 +183,7 @@ func (inst *CloudWatchLogsApi) ListLogEvents(
 	return output.Events, nil
 }
 
-func (inst *CloudWatchLogsApi) ListFilteredLogEvents(
+func (inst *cloudWatchLogsApi) ListFilteredLogEvents(
 	ctx context.Context,
 	logGroupName string,
 	startDateTime time.Time,
@@ -179,7 +221,7 @@ func (inst *CloudWatchLogsApi) ListFilteredLogEvents(
 	return output.Events, nil
 }
 
-func (inst *CloudWatchLogsApi) StartInsightsQuery(
+func (inst *cloudWatchLogsApi) StartInsightsQuery(
 	ctx context.Context,
 	logGroups []string,
 	startTime time.Time,
@@ -203,7 +245,7 @@ func (inst *CloudWatchLogsApi) StartInsightsQuery(
 	return aws.ToString(output.QueryId), nil
 }
 
-func (inst *CloudWatchLogsApi) StopInsightsQuery(
+func (inst *cloudWatchLogsApi) StopInsightsQuery(
 	ctx context.Context,
 	queryId string,
 ) (bool, error) {
@@ -226,7 +268,7 @@ func (inst *CloudWatchLogsApi) StopInsightsQuery(
 	return *aws.Bool(output.Success), nil
 }
 
-func (inst *CloudWatchLogsApi) GetInsightsQueryResults(
+func (inst *cloudWatchLogsApi) GetInsightsQueryResults(
 	ctx context.Context,
 	queryId string,
 ) ([][]types.ResultField, types.QueryStatus, error) {
@@ -250,7 +292,7 @@ func (inst *CloudWatchLogsApi) GetInsightsQueryResults(
 	return output.Results, output.Status, nil
 }
 
-func (inst *CloudWatchLogsApi) GetInsightsLogRecord(
+func (inst *cloudWatchLogsApi) GetInsightsLogRecord(
 	ctx context.Context,
 	recordPtr string,
 ) (map[string]string, error) {

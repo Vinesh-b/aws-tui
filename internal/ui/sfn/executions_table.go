@@ -50,14 +50,14 @@ type SfnExecutionsTable struct {
 	filtered          []ExecutionItem
 	selectedExecution ExecutionItem
 	appCtx            *core.AppContext
-	api               *awsapi.StateMachineApi
-	cwlApi            *awsapi.CloudWatchLogsApi
+	api               awsapi.StateMachineApi
+	cwlApi            awsapi.CloudWatchLogsApi
 }
 
 func NewSfnExecutionsTable(
 	appCtx *core.AppContext,
-	api *awsapi.StateMachineApi,
-	cwlApi *awsapi.CloudWatchLogsApi,
+	api awsapi.StateMachineApi,
+	cwlApi awsapi.CloudWatchLogsApi,
 ) *SfnExecutionsTable {
 	var selectableTable = core.NewSelectableTable[ExecutionItem](
 		"Executions",

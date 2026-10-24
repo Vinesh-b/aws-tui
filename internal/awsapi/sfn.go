@@ -10,7 +10,18 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sfn/types"
 )
 
-type StateMachineApi struct {
+type StateMachineApi interface {
+	ListStateMachines(ctx context.Context, force bool) ([]types.StateMachineListItem, error)
+	DescribeStateMachine(ctx context.Context, stateMachineArn string) (*sfn.DescribeStateMachineOutput, error)
+	ListExecutions(
+		ctx context.Context,
+		stateMachineArn string, start time.Time, end time.Time, reset bool,
+	) ([]types.ExecutionListItem, error)
+	DescribeExecution(ctx context.Context, executionArn string) (*sfn.DescribeExecutionOutput, error)
+	GetExecutionHistory(ctx context.Context, executionArn string) (*sfn.GetExecutionHistoryOutput, error)
+}
+
+type stateMachineApi struct {
 	baseApi
 	nextExecutionsToken     *string
 	listExecutionsPaginator *sfn.ListExecutionsPaginator
@@ -18,13 +29,13 @@ type StateMachineApi struct {
 
 func NewStateMachineApi(
 	logger *log.Logger,
-) *StateMachineApi {
-	return &StateMachineApi{
+) StateMachineApi {
+	return &stateMachineApi{
 		baseApi: baseApi{logger: logger},
 	}
 }
 
-func (inst *StateMachineApi) ListStateMachines(ctx context.Context, force bool) ([]types.StateMachineListItem, error) {
+func (inst *stateMachineApi) ListStateMachines(ctx context.Context, force bool) ([]types.StateMachineListItem, error) {
 	var paginator = sfn.NewListStateMachinesPaginator(
 		GetAwsApiClients().sfn, &sfn.ListStateMachinesInput{},
 	)
@@ -42,7 +53,7 @@ func (inst *StateMachineApi) ListStateMachines(ctx context.Context, force bool) 
 	return result, inst.logErr(err)
 }
 
-func (inst *StateMachineApi) DescribeStateMachine(ctx context.Context, stateMachineArn string) (*sfn.DescribeStateMachineOutput, error) {
+func (inst *stateMachineApi) DescribeStateMachine(ctx context.Context, stateMachineArn string) (*sfn.DescribeStateMachineOutput, error) {
 	if err := requireArg("state machine ARN", stateMachineArn); err != nil {
 		return nil, err
 	}
@@ -63,7 +74,7 @@ func (inst *StateMachineApi) DescribeStateMachine(ctx context.Context, stateMach
 	return output, err
 }
 
-func (inst *StateMachineApi) ListExecutions(
+func (inst *stateMachineApi) ListExecutions(
 	ctx context.Context,
 	stateMachineArn string, start time.Time, end time.Time, reset bool,
 ) ([]types.ExecutionListItem, error) {
@@ -109,7 +120,7 @@ func (inst *StateMachineApi) ListExecutions(
 	return result, nil
 }
 
-func (inst *StateMachineApi) DescribeExecution(ctx context.Context, executionArn string) (*sfn.DescribeExecutionOutput, error) {
+func (inst *stateMachineApi) DescribeExecution(ctx context.Context, executionArn string) (*sfn.DescribeExecutionOutput, error) {
 	if err := requireArg("execution ARN", executionArn); err != nil {
 		return nil, err
 	}
@@ -127,7 +138,7 @@ func (inst *StateMachineApi) DescribeExecution(ctx context.Context, executionArn
 	return response, nil
 }
 
-func (inst *StateMachineApi) GetExecutionHistory(ctx context.Context, executionArn string) (*sfn.GetExecutionHistoryOutput, error) {
+func (inst *stateMachineApi) GetExecutionHistory(ctx context.Context, executionArn string) (*sfn.GetExecutionHistoryOutput, error) {
 	if err := requireArg("execution ARN", executionArn); err != nil {
 		return nil, err
 	}

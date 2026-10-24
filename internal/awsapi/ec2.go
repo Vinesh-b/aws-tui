@@ -9,15 +9,22 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 )
 
-type Ec2Api struct {
+type Ec2Api interface {
+	ListVpcs(ctx context.Context, force bool) ([]types.Vpc, error)
+	DescribeVpcEndpoints(ctx context.Context, force bool, vpcId string) ([]types.VpcEndpoint, error)
+	DescribeVpcSubnets(ctx context.Context, force bool, vpcId string) ([]types.Subnet, error)
+	DescribeVpcSecurityGroups(ctx context.Context, force bool, vpcId string) ([]types.SecurityGroup, error)
+}
+
+type ec2Api struct {
 	baseApi
 	allVpcs []types.Vpc
 }
 
 func NewEc2Api(
 	logger *log.Logger,
-) *Ec2Api {
-	return &Ec2Api{
+) Ec2Api {
+	return &ec2Api{
 		baseApi: baseApi{logger: logger},
 	}
 }
@@ -28,7 +35,7 @@ func vpcIdFilter(vpcId string) []types.Filter {
 	}
 }
 
-func (inst *Ec2Api) ListVpcs(ctx context.Context, force bool) ([]types.Vpc, error) {
+func (inst *ec2Api) ListVpcs(ctx context.Context, force bool) ([]types.Vpc, error) {
 	var result, err = collectTokenPages(func(token *string) ([]types.Vpc, *string, error) {
 		var output, err = GetAwsApiClients().ec2.DescribeVpcs(ctx,
 			&ec2.DescribeVpcsInput{NextToken: token},
@@ -46,7 +53,7 @@ func (inst *Ec2Api) ListVpcs(ctx context.Context, force bool) ([]types.Vpc, erro
 	return result, inst.logErr(err)
 }
 
-func (inst *Ec2Api) DescribeVpcEndpoints(ctx context.Context, force bool, vpcId string) ([]types.VpcEndpoint, error) {
+func (inst *ec2Api) DescribeVpcEndpoints(ctx context.Context, force bool, vpcId string) ([]types.VpcEndpoint, error) {
 	var result, err = collectTokenPages(func(token *string) ([]types.VpcEndpoint, *string, error) {
 		var output, err = GetAwsApiClients().ec2.DescribeVpcEndpoints(ctx,
 			&ec2.DescribeVpcEndpointsInput{Filters: vpcIdFilter(vpcId), NextToken: token},
@@ -62,7 +69,7 @@ func (inst *Ec2Api) DescribeVpcEndpoints(ctx context.Context, force bool, vpcId 
 	return result, inst.logErr(err)
 }
 
-func (inst *Ec2Api) DescribeVpcSubnets(ctx context.Context, force bool, vpcId string) ([]types.Subnet, error) {
+func (inst *ec2Api) DescribeVpcSubnets(ctx context.Context, force bool, vpcId string) ([]types.Subnet, error) {
 	var result, err = collectTokenPages(func(token *string) ([]types.Subnet, *string, error) {
 		var output, err = GetAwsApiClients().ec2.DescribeSubnets(ctx,
 			&ec2.DescribeSubnetsInput{Filters: vpcIdFilter(vpcId), NextToken: token},
@@ -78,7 +85,7 @@ func (inst *Ec2Api) DescribeVpcSubnets(ctx context.Context, force bool, vpcId st
 	return result, inst.logErr(err)
 }
 
-func (inst *Ec2Api) DescribeVpcSecurityGroups(ctx context.Context, force bool, vpcId string) ([]types.SecurityGroup, error) {
+func (inst *ec2Api) DescribeVpcSecurityGroups(ctx context.Context, force bool, vpcId string) ([]types.SecurityGroup, error) {
 	var result, err = collectTokenPages(func(token *string) ([]types.SecurityGroup, *string, error) {
 		var output, err = GetAwsApiClients().ec2.DescribeSecurityGroups(ctx,
 			&ec2.DescribeSecurityGroupsInput{Filters: vpcIdFilter(vpcId), NextToken: token},

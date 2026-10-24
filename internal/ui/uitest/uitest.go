@@ -2,7 +2,9 @@ package uitest
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
 
 	"aws-tui/internal/ui/core"
 
@@ -22,7 +24,12 @@ func NewAppContext() *core.AppContext {
 }
 
 func NewServiceContext[Api any]() *core.ServiceContext[Api] {
-	return core.NewServiceViewContext[Api](NewAppContext(), nil)
+	var noApi Api
+	return core.NewServiceViewContext(NewAppContext(), noApi)
+}
+
+func NewServiceContextWith[Api any](api Api) *core.ServiceContext[Api] {
+	return core.NewServiceViewContext(NewAppContext(), api)
 }
 
 func AssertDetailsRows(t *testing.T, table *core.DetailsTable, want []core.TableRow) {
@@ -56,4 +63,83 @@ func AssertTableRows(t *testing.T, table TableView, want []core.TableRow) {
 func PressEnter(table TableView) {
 	var handler = table.GetTable().InputHandler()
 	handler(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(tview.Primitive) {})
+}
+
+const asyncTimeout = 3 * time.Second
+
+func RunApp(t *testing.T, app *tview.Application) {
+	t.Helper()
+	var screen = tcell.NewSimulationScreen("UTF-8")
+	if err := screen.Init(); err != nil {
+		t.Fatalf("failed to init screen: %v", err)
+	}
+	app.SetScreen(screen)
+
+	var stopped = make(chan struct{})
+	go func() {
+		defer close(stopped)
+		_ = app.Run()
+	}()
+	t.Cleanup(func() {
+		app.Stop()
+		<-stopped
+	})
+	OnUI(t, app, func() {})
+}
+
+func OnUI(t *testing.T, app *tview.Application, fn func()) {
+	t.Helper()
+	var done = make(chan struct{})
+	app.QueueUpdate(func() {
+		fn()
+		close(done)
+	})
+	select {
+	case <-done:
+	case <-time.After(asyncTimeout):
+		t.Fatal("timed out waiting for the UI goroutine")
+	}
+}
+
+func Eventually(t *testing.T, app *tview.Application, condition func() bool) {
+	t.Helper()
+	var deadline = time.Now().Add(asyncTimeout)
+	for time.Now().Before(deadline) {
+		var ok bool
+		OnUI(t, app, func() { ok = condition() })
+		if ok {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("condition not met before timeout")
+}
+
+func CaptureErrors() (callback func(text string, a ...any), received chan string) {
+	received = make(chan string, 8)
+	callback = func(text string, a ...any) { received <- fmt.Sprintf(text, a...) }
+	return callback, received
+}
+
+func AwaitError(t *testing.T, received <-chan string) string {
+	t.Helper()
+	select {
+	case message := <-received:
+		return message
+	case <-time.After(asyncTimeout):
+		t.Fatal("error callback was not called")
+		return ""
+	}
+}
+
+func AwaitRows(t *testing.T, app *tview.Application, table TableView, want []core.TableRow) {
+	t.Helper()
+	Eventually(t, app, func() bool { return table.GetTable().GetRowCount() == len(want) })
+	OnUI(t, app, func() { AssertTableRows(t, table, want) })
+}
+
+func AwaitDetailsRows(t *testing.T, app *tview.Application, table *core.DetailsTable, want []core.TableRow) {
+	t.Helper()
+	Eventually(t, app, func() bool { return table.GetCellText(0, 0) == want[0][0] && table.GetCellText(len(want), 0) == "" })
+	OnUI(t, app, func() { AssertDetailsRows(t, table, want) })
 }

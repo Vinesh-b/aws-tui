@@ -9,20 +9,25 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 )
 
-type CloudFormationApi struct {
+type CloudFormationApi interface {
+	ListStacks(ctx context.Context, force bool) ([]types.StackSummary, error)
+	DescribeStackEvents(ctx context.Context, stackName string, force bool) ([]types.StackEvent, error)
+}
+
+type cloudFormationApi struct {
 	baseApi
 	stackEventsPaginator *cloudformation.DescribeStackEventsPaginator
 }
 
 func NewCloudFormationApi(
 	logger *log.Logger,
-) *CloudFormationApi {
-	return &CloudFormationApi{
+) CloudFormationApi {
+	return &cloudFormationApi{
 		baseApi: baseApi{logger: logger},
 	}
 }
 
-func (inst *CloudFormationApi) ListStacks(ctx context.Context, force bool) ([]types.StackSummary, error) {
+func (inst *cloudFormationApi) ListStacks(ctx context.Context, force bool) ([]types.StackSummary, error) {
 	var paginator = cloudformation.NewListStacksPaginator(
 		GetAwsApiClients().cloudformation, &cloudformation.ListStacksInput{},
 	)
@@ -40,7 +45,7 @@ func (inst *CloudFormationApi) ListStacks(ctx context.Context, force bool) ([]ty
 	return result, inst.logErr(err)
 }
 
-func (inst *CloudFormationApi) DescribeStackEvents(ctx context.Context, stackName string, force bool) ([]types.StackEvent, error) {
+func (inst *cloudFormationApi) DescribeStackEvents(ctx context.Context, stackName string, force bool) ([]types.StackEvent, error) {
 	var empty []types.StackEvent
 
 	if err := requireArg("stack name", stackName); err != nil {

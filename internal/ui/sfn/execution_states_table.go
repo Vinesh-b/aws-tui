@@ -45,14 +45,14 @@ type SfnExecutionStatesTable struct {
 	selectedExecutionArn string
 	selectedState        StateDetails
 	appCtx               *core.AppContext
-	api                  *awsapi.StateMachineApi
-	cwlApi               *awsapi.CloudWatchLogsApi
+	api                  awsapi.StateMachineApi
+	cwlApi               awsapi.CloudWatchLogsApi
 }
 
 func NewSfnExecutionDetailsTable(
 	appCtx *core.AppContext,
-	api *awsapi.StateMachineApi,
-	cwlApi *awsapi.CloudWatchLogsApi,
+	api awsapi.StateMachineApi,
+	cwlApi awsapi.CloudWatchLogsApi,
 ) *SfnExecutionStatesTable {
 
 	var view = &SfnExecutionStatesTable{

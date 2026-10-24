@@ -19,14 +19,14 @@ type InsightsQueryRunner struct {
 
 	ctx                  context.Context
 	app                  *tview.Application
-	api                  *awsapi.CloudWatchLogsApi
+	api                  awsapi.CloudWatchLogsApi
 	ErrorMessageCallback func(text string, a ...any)
 }
 
 func NewInsightsQueryRunner(
 	ctx context.Context,
 	app *tview.Application,
-	api *awsapi.CloudWatchLogsApi,
+	api awsapi.CloudWatchLogsApi,
 ) *InsightsQueryRunner {
 
 	return &InsightsQueryRunner{

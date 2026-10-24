@@ -16,8 +16,8 @@ type SfnExecutionStateEventsTable struct {
 	State            StateDetails
 	selectedEvent    EventDetails
 	appCtx           *core.AppContext
-	api              *awsapi.StateMachineApi
-	cwlApi           *awsapi.CloudWatchLogsApi
+	api              awsapi.StateMachineApi
+	cwlApi           awsapi.CloudWatchLogsApi
 }
 
 type StateDetails struct {
@@ -30,7 +30,7 @@ type StateDetails struct {
 
 func NewSfnExecutionStatesTable(
 	appCtx *core.AppContext,
-	api *awsapi.StateMachineApi,
+	api awsapi.StateMachineApi,
 ) *SfnExecutionStateEventsTable {
 
 	var view = &SfnExecutionStateEventsTable{

@@ -9,7 +9,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 )
 
-type CloudWatchAlarmsApi struct {
+type CloudWatchAlarmsApi interface {
+	ListAlarms(ctx context.Context, force bool) ([]types.MetricAlarm, error)
+	ListAlarmHistory(ctx context.Context, name string, force bool) ([]types.AlarmHistoryItem, error)
+}
+
+type cloudWatchAlarmsApi struct {
 	baseApi
 	allCompositeAlarms map[string]types.CompositeAlarm
 	alarmsPaginator    *cloudwatch.DescribeAlarmsPaginator
@@ -18,8 +23,8 @@ type CloudWatchAlarmsApi struct {
 
 func NewCloudWatchAlarmsApi(
 	logger *log.Logger,
-) *CloudWatchAlarmsApi {
-	return &CloudWatchAlarmsApi{
+) CloudWatchAlarmsApi {
+	return &cloudWatchAlarmsApi{
 		baseApi:            baseApi{logger: logger},
 		allCompositeAlarms: nil,
 		alarmsPaginator:    nil,
@@ -27,7 +32,7 @@ func NewCloudWatchAlarmsApi(
 	}
 }
 
-func (inst *CloudWatchAlarmsApi) ListAlarms(ctx context.Context, force bool) ([]types.MetricAlarm, error) {
+func (inst *cloudWatchAlarmsApi) ListAlarms(ctx context.Context, force bool) ([]types.MetricAlarm, error) {
 	inst.alarmsPaginator = cloudwatch.NewDescribeAlarmsPaginator(
 		GetAwsApiClients().cloudwatch,
 		&cloudwatch.DescribeAlarmsInput{
@@ -48,7 +53,7 @@ func (inst *CloudWatchAlarmsApi) ListAlarms(ctx context.Context, force bool) ([]
 	return result, inst.logErr(err)
 }
 
-func (inst *CloudWatchAlarmsApi) ListAlarmHistory(ctx context.Context, name string, force bool) ([]types.AlarmHistoryItem, error) {
+func (inst *cloudWatchAlarmsApi) ListAlarmHistory(ctx context.Context, name string, force bool) ([]types.AlarmHistoryItem, error) {
 	if err := requireArg("alarm name", name); err != nil {
 		return nil, err
 	}
