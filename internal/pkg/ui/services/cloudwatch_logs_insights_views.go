@@ -164,7 +164,7 @@ func NewLogsInsightsHomeView(appCtx *core.AppContext) core.ServicePage {
 		recordPtr = insightsResultsView.QueryResultsTable.GetRecordPtr(row)
 		var record, err = api.GetInsightsLogRecord(recordPtr)
 		if err != nil {
-			logEventsView.LogEventsTable.ErrorMessageCallback(err.Error())
+			logEventsView.LogEventsTable.ErrorMessageCallback("%s", err.Error())
 		}
 
 		var logStream = record["@logStream"]
