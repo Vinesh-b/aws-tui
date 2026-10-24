@@ -12,7 +12,7 @@ import (
 
 type StateMachineApi struct {
 	baseApi
-	nextExectionsToken      *string
+	nextExecutionsToken      *string
 	listExecutionsPaginator *sfn.ListExecutionsPaginator
 }
 

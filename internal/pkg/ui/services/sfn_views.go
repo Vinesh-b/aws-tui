@@ -100,21 +100,21 @@ func (inst *SfnDetailsPageView) initInputCapture() {
 	})
 }
 
-type SfnExectionDetailsPageView struct {
+type SfnExecutionDetailsPageView struct {
 	*core.ServicePageView
-	selectedExection string
+	selectedExecution string
 	summaryTable     *tables.SfnExecutionSummaryTable
 	detailsTable     *tables.SfnExecutionStatesTable
 	searchInput      *tview.InputField
 	serviceCtx       *core.ServiceContext[awsapi.StateMachineApi]
 }
 
-func NewSfnExectionDetailsPage(
+func NewSfnExecutionDetailsPage(
 	executionSummary *tables.SfnExecutionSummaryTable,
 	executionStates *tables.SfnExecutionStatesTable,
 	executionStateEvents *tables.SfnExecutionStateEventsTable,
 	serviceViewCtx *core.ServiceContext[awsapi.StateMachineApi],
-) *SfnExectionDetailsPageView {
+) *SfnExecutionDetailsPageView {
 
 	var inputOutputExpandedView = core.JsonTextView[string]{
 		TextView: core.NewSearchableTextView("", serviceViewCtx.AppContext),
@@ -185,9 +185,9 @@ func NewSfnExectionDetailsPage(
 	executionSummary.ErrorMessageCallback = errorHandler
 	executionStates.ErrorMessageCallback = errorHandler
 
-	var detailsView = &SfnExectionDetailsPageView{
+	var detailsView = &SfnExecutionDetailsPageView{
 		ServicePageView:  serviceView,
-		selectedExection: "",
+		selectedExecution: "",
 		summaryTable:     executionSummary,
 		detailsTable:     executionStates,
 		serviceCtx:       serviceViewCtx,
@@ -197,7 +197,7 @@ func NewSfnExectionDetailsPage(
 	return detailsView
 }
 
-func (inst *SfnExectionDetailsPageView) initInputCapture() {
+func (inst *SfnExecutionDetailsPageView) initInputCapture() {
 }
 
 func NewStepFunctionsHomeView(appCtx *core.AppContext) core.ServicePage {
@@ -217,7 +217,7 @@ func NewStepFunctionsHomeView(appCtx *core.AppContext) core.ServicePage {
 			serviceCtx,
 		)
 
-		SfnExeDetailsView = NewSfnExectionDetailsPage(
+		SfnExeDetailsView = NewSfnExecutionDetailsPage(
 			tables.NewSfnExecutionSummaryTable(serviceCtx),
 			tables.NewSfnExecutionDetailsTable(serviceCtx.AppContext, api, cwlApi),
 			tables.NewSfnExecutionStatesTable(serviceCtx.AppContext, api),
@@ -229,7 +229,7 @@ func NewStepFunctionsHomeView(appCtx *core.AppContext) core.ServicePage {
 
 	serviceRootView.
 		AddAndSwitchToPage("StateMachines", SfnDetailsView, true).
-		AddPage("Exection Details", SfnExeDetailsView, true, true)
+		AddPage("Execution Details", SfnExeDetailsView, true, true)
 
 	serviceRootView.InitPageNavigation()
 
