@@ -128,12 +128,11 @@ func (inst *SystemManagerDetailsPageView) initInputCapture() {
 	inst.TabView.SetOnTabChangeFunc(tabChangeFunc)
 }
 
-func NewSystemManagerHomeView(appCtx *core.AppContext) core.ServicePage {
+func NewSystemManagerHomeView(appCtx *core.AppContext, api awsapi.SystemsManagerApi) core.ServicePage {
 	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0xFF5AAD))
 	defer appCtx.Theme.ResetGlobalStyle()
 
 	var (
-		api        = awsapi.NewSystemsManagerApi(appCtx.Logger)
 		serviceCtx = core.NewServiceViewContext(appCtx, api)
 
 		systemManagersDetailsView = NewSystemManagerDetailsPageView(

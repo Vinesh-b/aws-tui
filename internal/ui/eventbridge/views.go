@@ -105,12 +105,11 @@ func (inst *EventBridgeDetailsPageView) initInputCapture() {
 	})
 }
 
-func NewEventBridgeHomeView(appCtx *core.AppContext) core.ServicePage {
+func NewEventBridgeHomeView(appCtx *core.AppContext, api awsapi.EventBridgeApi) core.ServicePage {
 	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0x660033))
 	defer appCtx.Theme.ResetGlobalStyle()
 
 	var (
-		api        = awsapi.NewEventBridgeApi(appCtx.Logger)
 		serviceCtx = core.NewServiceViewContext(appCtx, api)
 
 		eventbridgeDetailsView = NewEventBridgeDetailsPageView(

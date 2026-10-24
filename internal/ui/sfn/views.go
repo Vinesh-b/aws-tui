@@ -199,15 +199,16 @@ func NewSfnExecutionDetailsPage(
 func (inst *SfnExecutionDetailsPageView) initInputCapture() {
 }
 
-func NewStepFunctionsHomeView(appCtx *core.AppContext) core.ServicePage {
+func NewStepFunctionsHomeView(
+	appCtx *core.AppContext,
+	api awsapi.StateMachineApi,
+	cwlApi awsapi.CloudWatchLogsApi,
+) core.ServicePage {
 	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0xFF3399))
 	defer appCtx.Theme.ResetGlobalStyle()
 
 	var (
-		api        = awsapi.NewStateMachineApi(appCtx.Logger)
 		serviceCtx = core.NewServiceViewContext(appCtx, api)
-
-		cwlApi = awsapi.NewCloudWatchLogsApi(appCtx.Logger)
 
 		SfnDetailsView = NewSfnDetailsPageView(
 			NewSfnListTable(serviceCtx),

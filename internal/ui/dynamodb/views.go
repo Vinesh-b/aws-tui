@@ -169,12 +169,11 @@ func (inst *DynamoDBItemsPageView) LoadTableItems(tableName string) {
 	inst.ItemsTable.ExecuteSearch(DDBTableScan, expression.Expression{}, true)
 }
 
-func NewDynamoDBHomeView(appCtx *core.AppContext) core.ServicePage {
+func NewDynamoDBHomeView(appCtx *core.AppContext, api awsapi.DynamoDBApi) core.ServicePage {
 	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0x003388))
 	defer appCtx.Theme.ResetGlobalStyle()
 
 	var (
-		api        = awsapi.NewDynamoDBApi(appCtx.Logger)
 		serviceCtx = core.NewServiceViewContext(appCtx, api)
 
 		ddbDetailsView = NewDynamoDBDetailsPageView(

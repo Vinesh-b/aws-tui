@@ -130,12 +130,11 @@ func (inst *VpcDetailsPageView) initInputCapture() {
 	inst.TabsView.SetOnTabChangeFunc(tabChangeFunc)
 }
 
-func NewVpcHomeView(appCtx *core.AppContext) core.ServicePage {
+func NewVpcHomeView(appCtx *core.AppContext, api awsapi.Ec2Api) core.ServicePage {
 	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0x660033))
 	defer appCtx.Theme.ResetGlobalStyle()
 
 	var (
-		api        = awsapi.NewEc2Api(appCtx.Logger)
 		serviceCtx = core.NewServiceViewContext(appCtx, api)
 
 		eventbridgeDetailsView = NewVpcDetailsPageView(

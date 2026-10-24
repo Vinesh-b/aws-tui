@@ -118,11 +118,10 @@ func NewInsightsQueryResultsPageView(
 
 func (inst *InsightsQueryResultsPageView) InitInputCapture() {}
 
-func NewLogsInsightsHomeView(appCtx *core.AppContext) core.ServicePage {
+func NewLogsInsightsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchLogsApi) core.ServicePage {
 	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0xBB00DD))
 	defer appCtx.Theme.ResetGlobalStyle()
 
-	var api = awsapi.NewCloudWatchLogsApi(appCtx.Logger)
 	var serviceCtx = core.NewServiceViewContext(appCtx, api)
 
 	var insightsResultsView = NewInsightsQueryResultsPageView(

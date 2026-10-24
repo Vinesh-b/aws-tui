@@ -1,6 +1,7 @@
 package app
 
 import (
+	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/cloudformation"
 	"aws-tui/internal/ui/cloudwatch"
 	"aws-tui/internal/ui/core"
@@ -84,40 +85,48 @@ func CreateApplication(ctx context.Context, config aws.Config, version string) *
 
 	var serviceViews = []ServiceItem{
 		{"󰘧 " + string(core.LAMBDA), "Lambdas and logs", rune('1'),
-			lambda.NewLambdaHomeView(appContext),
+			lambda.NewLambdaHomeView(
+				appContext,
+				awsapi.NewLambdaApi(appContext.Logger),
+				awsapi.NewCloudWatchLogsApi(appContext.Logger),
+			),
 		},
 		{"󰺮 " + string(core.CLOUDWATCH_LOGS_INSIGHTS), "Query and filter logs", rune('2'),
-			cloudwatch.NewLogsInsightsHomeView(appContext),
+			cloudwatch.NewLogsInsightsHomeView(appContext, awsapi.NewCloudWatchLogsApi(appContext.Logger)),
 		},
 		{"󰆼 " + string(core.DYNAMODB), "View and search DynamoDB tables", rune('3'),
-			dynamodb.NewDynamoDBHomeView(appContext),
+			dynamodb.NewDynamoDBHomeView(appContext, awsapi.NewDynamoDBApi(appContext.Logger)),
 		},
 		{"󱁊 " + string(core.STATE_MACHINES), "Step Functions and executions", rune('4'),
-			sfn.NewStepFunctionsHomeView(appContext),
+			sfn.NewStepFunctionsHomeView(
+				appContext,
+				awsapi.NewStateMachineApi(appContext.Logger),
+				awsapi.NewCloudWatchLogsApi(appContext.Logger),
+			),
 		},
 		{"󱐕 " + string(core.S3BUCKETS), "S3 buckets and objects", rune('5'),
-			s3.NewS3bucketsHomeView(appContext),
+			s3.NewS3bucketsHomeView(appContext, awsapi.NewS3BucketsApi(appContext.Logger)),
 		},
 		{"󰙵 " + string(core.SYSTEMS_MANAGER), "Application parameters", rune('6'),
-			ssm.NewSystemManagerHomeView(appContext),
+			ssm.NewSystemManagerHomeView(appContext, awsapi.NewSystemsManagerApi(appContext.Logger)),
 		},
 		{" " + string(core.CLOUDWATCH_LOGS_GROUPS), "Logs groups and streams", rune('7'),
-			cloudwatch.NewLogsHomeView(appContext),
+			cloudwatch.NewLogsHomeView(appContext, awsapi.NewCloudWatchLogsApi(appContext.Logger)),
 		},
 		{"󰘘 " + string(core.EVENTBRIDGE), "Event buses, rules, schedules...", rune('8'),
-			eventbridge.NewEventBridgeHomeView(appContext),
+			eventbridge.NewEventBridgeHomeView(appContext, awsapi.NewEventBridgeApi(appContext.Logger)),
 		},
 		{" " + string(core.CLOUDFORMATION), "Cloud formation stacks", rune('󰯉'),
-			cloudformation.NewStacksHomeView(appContext),
+			cloudformation.NewStacksHomeView(appContext, awsapi.NewCloudFormationApi(appContext.Logger)),
 		},
 		{"󰞏 " + string(core.CLOUDWATCH_ALARMS), "Metric alarms", rune('󰯉'),
-			cloudwatch.NewAlarmsHomeView(appContext),
+			cloudwatch.NewAlarmsHomeView(appContext, awsapi.NewCloudWatchAlarmsApi(appContext.Logger)),
 		},
 		{" " + string(core.CLOUDWATCH_METRICS), "View metrics", rune('󰯉'),
-			cloudwatch.NewMetricsHomeView(appContext),
+			cloudwatch.NewMetricsHomeView(appContext, awsapi.NewCloudWatchMetricsApi(appContext.Logger)),
 		},
 		{"󱇱 " + string(core.VPC), "VPCs, endpoints, subnets...", rune('󰯉'),
-			vpc.NewVpcHomeView(appContext),
+			vpc.NewVpcHomeView(appContext, awsapi.NewEc2Api(appContext.Logger)),
 		},
 		{"󰘥 " + string(core.HELP), "Help docs on how to use this app", rune('?'),
 			services.NewHelpHomeView(appContext),

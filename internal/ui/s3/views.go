@@ -96,12 +96,11 @@ func (inst *S3BucketsDetailsView) InitInputCapture() {
 	})
 }
 
-func NewS3bucketsHomeView(appCtx *core.AppContext) core.ServicePage {
+func NewS3bucketsHomeView(appCtx *core.AppContext, api awsapi.S3BucketsApi) core.ServicePage {
 	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0x005500))
 	defer appCtx.Theme.ResetGlobalStyle()
 
 	var (
-		api        = awsapi.NewS3BucketsApi(appCtx.Logger)
 		serviceCtx = core.NewServiceViewContext(appCtx, api)
 
 		s3DetailsView = NewS3bucketsDetailsView(

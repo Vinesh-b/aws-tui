@@ -60,11 +60,10 @@ func (inst *MetricDetailsView) InitInputCapture() {
 	})
 }
 
-func NewMetricsHomeView(appCtx *core.AppContext) core.ServicePage {
+func NewMetricsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchMetricsApi) core.ServicePage {
 	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0x660000))
 	defer appCtx.Theme.ResetGlobalStyle()
 
-	var api = awsapi.NewCloudWatchMetricsApi(appCtx.Logger)
 	var serviceCtx = core.NewServiceViewContext(appCtx, api)
 
 	var metricsDetailsView = NewMetricsDetailsView(

@@ -273,16 +273,18 @@ func (inst *FloatingLambdaInvoke) GetLastFocusedView() tview.Primitive {
 	return inst.Input.GetLastFocusedView()
 }
 
-func NewLambdaHomeView(appCtx *core.AppContext) core.ServicePage {
+func NewLambdaHomeView(
+	appCtx *core.AppContext,
+	api awsapi.LambdaApi,
+	cwlApi awsapi.CloudWatchLogsApi,
+) core.ServicePage {
 	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0xCC6600))
 	defer appCtx.Theme.ResetGlobalStyle()
 
 	var (
-		api       = awsapi.NewLambdaApi(appCtx.Logger)
 		lambdaCtx = core.NewServiceViewContext(appCtx, api)
 
-		cwl_api   = awsapi.NewCloudWatchLogsApi(appCtx.Logger)
-		cwLogsCtx = core.NewServiceViewContext(appCtx, cwl_api)
+		cwLogsCtx = core.NewServiceViewContext(appCtx, cwlApi)
 
 		lambdasDetailsView = NewLambdaDetailsPageView(
 			NewLambdasListTable(lambdaCtx),
