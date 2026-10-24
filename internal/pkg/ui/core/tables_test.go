@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"encoding/csv"
 	"os"
 	"path"
@@ -13,7 +14,7 @@ import (
 
 func TestTableSetData(t *testing.T) {
 	var app = tview.NewApplication()
-	var appCtx = NewAppContext(app, nil, nil, &AppTheme{})
+	var appCtx = NewAppContext(context.Background(), app, nil, nil, &AppTheme{})
 
 	var table = NewSelectableTable[any]("test", TableRow{"col0", "col1", "col2"}, appCtx)
 	var data = []TableRow{
@@ -29,7 +30,7 @@ func TestTableSetData(t *testing.T) {
 
 func TestTableSetData__TooManyColumns(t *testing.T) {
 	var app = tview.NewApplication()
-	var appCtx = NewAppContext(app, nil, nil, &AppTheme{})
+	var appCtx = NewAppContext(context.Background(), app, nil, nil, &AppTheme{})
 
 	var table = NewSelectableTable[any]("test", TableRow{"col0", "col1", "col2"}, appCtx)
 	var data = []TableRow{
@@ -46,7 +47,7 @@ func TestTableSetData__TooManyColumns(t *testing.T) {
 
 func TestTableSetData__TooFewColumns(t *testing.T) {
 	var app = tview.NewApplication()
-	var appCtx = NewAppContext(app, nil, nil, &AppTheme{})
+	var appCtx = NewAppContext(context.Background(), app, nil, nil, &AppTheme{})
 
 	var table = NewSelectableTable[any]("test", TableRow{"col0", "col1", "col2"}, appCtx)
 	var data = []TableRow{
@@ -63,7 +64,7 @@ func TestTableSetData__TooFewColumns(t *testing.T) {
 
 func TestTableSetData__WithPrivateData(t *testing.T) {
 	var app = tview.NewApplication()
-	var appCtx = NewAppContext(app, nil, nil, &AppTheme{})
+	var appCtx = NewAppContext(context.Background(), app, nil, nil, &AppTheme{})
 
 	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1", "col2"}, appCtx)
 	var data = []TableRow{
@@ -99,7 +100,7 @@ func TestTableSetData__WithPrivateData(t *testing.T) {
 
 func TestTableSetData__WithPrivateDataBadColumnIndex(t *testing.T) {
 	var app = tview.NewApplication()
-	var appCtx = NewAppContext(app, nil, nil, &AppTheme{})
+	var appCtx = NewAppContext(context.Background(), app, nil, nil, &AppTheme{})
 
 	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1", "col2"}, appCtx)
 	var data = []TableRow{
@@ -123,7 +124,7 @@ func TestTableSetData__WithPrivateDataBadColumnIndex(t *testing.T) {
 
 func TestTableSetData__WithPrivateDataLargerThanDisplayData(t *testing.T) {
 	var app = tview.NewApplication()
-	var appCtx = NewAppContext(app, nil, nil, &AppTheme{})
+	var appCtx = NewAppContext(context.Background(), app, nil, nil, &AppTheme{})
 
 	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1", "col2"}, appCtx)
 	var data = []TableRow{
@@ -148,7 +149,7 @@ func TestTableSetData__WithPrivateDataLargerThanDisplayData(t *testing.T) {
 
 func TestTableExtendData(t *testing.T) {
 	var app = tview.NewApplication()
-	var appCtx = NewAppContext(app, nil, nil, &AppTheme{})
+	var appCtx = NewAppContext(context.Background(), app, nil, nil, &AppTheme{})
 
 	var table = NewSelectableTable[any]("test", TableRow{"col0", "col1", "col2"}, appCtx)
 	var data = []TableRow{
@@ -171,7 +172,7 @@ func TestTableExtendData(t *testing.T) {
 
 func TestTableExtendData__TooManyColumns(t *testing.T) {
 	var app = tview.NewApplication()
-	var appCtx = NewAppContext(app, nil, nil, &AppTheme{})
+	var appCtx = NewAppContext(context.Background(), app, nil, nil, &AppTheme{})
 
 	var table = NewSelectableTable[any]("test", TableRow{"col0", "col1", "col2"}, appCtx)
 	var data = []TableRow{
@@ -194,7 +195,7 @@ func TestTableExtendData__TooManyColumns(t *testing.T) {
 
 func TestTableExtendData__TooFewColumns(t *testing.T) {
 	var app = tview.NewApplication()
-	var appCtx = NewAppContext(app, nil, nil, &AppTheme{})
+	var appCtx = NewAppContext(context.Background(), app, nil, nil, &AppTheme{})
 
 	var table = NewSelectableTable[any]("test", TableRow{"col0", "col1", "col2"}, appCtx)
 	var data = []TableRow{
@@ -217,7 +218,7 @@ func TestTableExtendData__TooFewColumns(t *testing.T) {
 
 func TestTableExtendData__WithPrivateData(t *testing.T) {
 	var app = tview.NewApplication()
-	var appCtx = NewAppContext(app, nil, nil, &AppTheme{})
+	var appCtx = NewAppContext(context.Background(), app, nil, nil, &AppTheme{})
 
 	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1", "col2"}, appCtx)
 	var data = []TableRow{
@@ -251,7 +252,7 @@ func TestTableExtendData__WithPrivateData(t *testing.T) {
 
 func TestTableExtendData__WithPrivateDataTooManyRows(t *testing.T) {
 	var app = tview.NewApplication()
-	var appCtx = NewAppContext(app, nil, nil, &AppTheme{})
+	var appCtx = NewAppContext(context.Background(), app, nil, nil, &AppTheme{})
 
 	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1", "col2"}, appCtx)
 	var data = []TableRow{
@@ -283,7 +284,7 @@ func TestTableExtendData__WithPrivateDataTooManyRows(t *testing.T) {
 
 func TestTableExtendData__WithPrivateDataTooFewRows(t *testing.T) {
 	var app = tview.NewApplication()
-	var appCtx = NewAppContext(app, nil, nil, &AppTheme{})
+	var appCtx = NewAppContext(context.Background(), app, nil, nil, &AppTheme{})
 
 	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1", "col2"}, appCtx)
 	var data = []TableRow{
@@ -313,7 +314,7 @@ func TestTableExtendData__WithPrivateDataTooFewRows(t *testing.T) {
 
 func TestSearchTableText(t *testing.T) {
 	var app = tview.NewApplication()
-	var appCtx = NewAppContext(app, nil, nil, &AppTheme{})
+	var appCtx = NewAppContext(context.Background(), app, nil, nil, &AppTheme{})
 
 	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1", "col2"}, appCtx)
 	var data = []TableRow{
@@ -344,7 +345,7 @@ func TestSearchTableText(t *testing.T) {
 
 func newTestAppContext() *AppContext {
 	var app = tview.NewApplication()
-	return NewAppContext(app, nil, nil, &AppTheme{
+	return NewAppContext(context.Background(), app, nil, nil, &AppTheme{
 		PrimaryTextColour:  tcell.ColorWhite,
 		TertiaryTextColour: tcell.ColorRed,
 	})

@@ -3,6 +3,7 @@ package main
 import (
 	"aws-tui/internal/pkg/ui/core"
 	"aws-tui/internal/pkg/ui/services"
+	"context"
 	"log"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -42,7 +43,7 @@ type ServiceItem struct {
 	ServicePage   core.ServicePage
 }
 
-func CreateApplication(config aws.Config, version string) *tview.Application {
+func CreateApplication(ctx context.Context, config aws.Config, version string) *tview.Application {
 
 	var appTheme = core.AppTheme{
 		PrimaryTextColour:           tcell.NewHexColor(0xBFBFBF),
@@ -67,7 +68,7 @@ func CreateApplication(config aws.Config, version string) *tview.Application {
 			log.Default().Prefix(),
 			log.Default().Flags(),
 		)
-		appContext = core.NewAppContext(app, &config, inAppLogger, &appTheme)
+		appContext = core.NewAppContext(ctx, app, &config, inAppLogger, &appTheme)
 	)
 
 	config.Logger = logging.StandardLogger{Logger: inAppLogger}

@@ -2,6 +2,7 @@ package core
 
 import (
 	"aws-tui/internal/pkg/awsapi"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -13,8 +14,9 @@ import (
 	"github.com/rivo/tview"
 )
 
-
 type AppContext struct {
+	// Ctx is cancelled when the app shuts down; pass it to AWS api calls.
+	Ctx    context.Context
 	App    *tview.Application
 	Logger *log.Logger
 	Theme  *AppTheme
@@ -29,9 +31,10 @@ func (inst *AppContext) ResetApiClients(cfg aws.Config, profile string) {
 }
 
 func NewAppContext(
-	app *tview.Application, config *aws.Config, logger *log.Logger, theme *AppTheme,
+	ctx context.Context, app *tview.Application, config *aws.Config, logger *log.Logger, theme *AppTheme,
 ) *AppContext {
 	return &AppContext{
+		Ctx:    ctx,
 		App:    app,
 		Logger: logger,
 		Theme:  theme,

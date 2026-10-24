@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"testing"
 
 	"github.com/rivo/tview"
@@ -8,7 +9,7 @@ import (
 
 func TestCreateJsonTableDataView(t *testing.T) {
 	var app = tview.NewApplication()
-	var appCtx = NewAppContext(app, nil, nil, &AppTheme{})
+	var appCtx = NewAppContext(context.Background(), app, nil, nil, &AppTheme{})
 	var table = NewSelectableTable[string]("test", TableRow{"col0"}, appCtx)
 	var data = []TableRow{
 		{`Cell text 1`},

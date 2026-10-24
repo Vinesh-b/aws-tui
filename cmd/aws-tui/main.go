@@ -46,7 +46,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	var app = CreateApplication(cfg, VersionString())
+	// Cancelled on exit so in-flight AWS calls don't outlive the app.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var app = CreateApplication(ctx, cfg, VersionString())
 
 	if err := app.EnableMouse(true).Run(); err != nil {
 		panic(err)
