@@ -9,6 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sfn/types"
+	"github.com/gdamore/tcell/v2"
 )
 
 var executionHeadings = core.TableRow{"Execution Id", "Status", "Start Date", "Stop Date", "Duration"}
@@ -120,5 +121,32 @@ func TestExecutionsTable__FilterByExecutionId(t *testing.T) {
 				t.Errorf("got %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestExecutionsTable__ColoursSucceededAndFailedStatuses(t *testing.T) {
+	var table = newExecutionsTable()
+	table.data = []ExecutionItem{
+		newExecution("run-1", types.ExecutionStatusSucceeded, 0, 1),
+		newExecution("run-2", types.ExecutionStatusFailed, 0, 1),
+		newExecution("run-3", types.ExecutionStatusRunning, 0, 1),
+	}
+
+	table.populateTable(true)
+
+	var uncoloured, _, _ = table.GetCell(3, 0).Style.Decompose()
+	var tests = []struct {
+		row  int
+		want tcell.Color
+	}{
+		{1, tcell.ColorForestGreen},
+		{2, tcell.ColorIndianRed},
+		{3, uncoloured},
+	}
+	for _, tt := range tests {
+		var fg, _, _ = table.GetCell(tt.row, 1).Style.Decompose()
+		if fg != tt.want {
+			t.Errorf("row %d colour = %v, want %v", tt.row, fg, tt.want)
+		}
 	}
 }

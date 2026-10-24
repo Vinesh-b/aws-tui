@@ -14,6 +14,7 @@ import (
 	cwlTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 )
 
 type ExecutionItem struct {
@@ -22,7 +23,24 @@ type ExecutionItem struct {
 	StateMachineType string
 }
 
-const sfnExecutionArnCol = 0
+const (
+	sfnExecutionArnCol    = 0
+	sfnExecutionStatusCol = 1
+)
+
+var executionStatusColours = map[types.ExecutionStatus]tcell.Color{
+	types.ExecutionStatusSucceeded: tcell.ColorForestGreen,
+	types.ExecutionStatusFailed:    tcell.ColorIndianRed,
+}
+
+func colourExecutionStatuses(table *tview.Table) {
+	for row := range table.GetRowCount() {
+		var cell = table.GetCell(row, sfnExecutionStatusCol)
+		if colour, ok := executionStatusColours[types.ExecutionStatus(cell.Text)]; ok {
+			cell.SetStyle(tcell.Style{}.Foreground(colour))
+		}
+	}
+}
 
 type SfnExecutionsTable struct {
 	*core.SelectableTable[ExecutionItem]
@@ -148,17 +166,7 @@ func (inst *SfnExecutionsTable) populateTable(force bool) {
 	inst.SetData(tableData, inst.data, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
 
-	// temp hack to colour successful and failed executions
-	var table = inst.GetTable()
-	var rows = table.GetRowCount()
-	for r := range rows {
-		var cell = table.GetCell(r, 1)
-		if cell.Text == "SUCCEEDED" {
-			cell.SetStyle(tcell.Style{}.Foreground(tcell.ColorForestGreen))
-		} else if cell.Text == "FAILED" {
-			cell.SetStyle(tcell.Style{}.Foreground(tcell.ColorIndianRed))
-		}
-	}
+	colourExecutionStatuses(inst.GetTable())
 }
 
 func (inst *SfnExecutionsTable) SetSelectedFunc(handler func(row int, column int)) {
