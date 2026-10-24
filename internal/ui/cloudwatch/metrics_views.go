@@ -8,23 +8,38 @@ import (
 	"github.com/rivo/tview"
 )
 
+const (
+	MetricTabNameDetails = "Details"
+	MetricTabNameChart   = "Chart"
+)
+
 type MetricDetailsView struct {
 	*core.ServicePageView
 	MetricListTable    *MetricListTable
 	MetricDetailsTable *MetricDetailsTable
+	MetricChartView    *MetricChartView
 	serviceCtx         *core.ServiceContext[awsapi.CloudWatchMetricsApi]
 }
 
 func NewMetricsDetailsView(
 	metricListTable *MetricListTable,
 	metricDetailsTable *MetricDetailsTable,
+	metricChartView *MetricChartView,
 	serviceViewCtx *core.ServiceContext[awsapi.CloudWatchMetricsApi],
 ) *MetricDetailsView {
 	const metricsTableSize = 3500
 	const detailsTableSize = 3500
 
+	var tabView = core.NewTabViewHorizontal(serviceViewCtx.AppContext).
+		AddAndSwitchToTab(MetricTabNameDetails, metricDetailsTable, 0, 1, true).
+		AddTab(MetricTabNameChart, metricChartView, 0, 1, true)
+
+	tabView.SetOnTabChangeFunc(func(tabName string, index int) {
+		metricChartView.SetVisible(tabName == MetricTabNameChart)
+	})
+
 	var mainPage = core.NewResizableView(
-		metricDetailsTable, metricsTableSize,
+		tabView, metricsTableSize,
 		metricListTable, metricsTableSize,
 		tview.FlexRow,
 	)
@@ -34,7 +49,7 @@ func NewMetricsDetailsView(
 
 	serviceView.InitViewNavigation(
 		[][]core.View{
-			{metricDetailsTable},
+			{tabView.GetTabDisplayView()},
 			{metricListTable},
 		},
 	)
@@ -45,18 +60,22 @@ func NewMetricsDetailsView(
 
 	metricListTable.ErrorMessageCallback = errorHandler
 	metricDetailsTable.ErrorMessageCallback = errorHandler
+	metricChartView.ErrorMessageCallback = errorHandler
 
 	return &MetricDetailsView{
 		ServicePageView:    serviceView,
 		MetricListTable:    metricListTable,
 		MetricDetailsTable: metricDetailsTable,
+		MetricChartView:    metricChartView,
 		serviceCtx:         serviceViewCtx,
 	}
 }
 
 func (inst *MetricDetailsView) InitInputCapture() {
 	inst.MetricListTable.SetSelectionChangedFunc(func(row, column int) {
-		inst.MetricDetailsTable.RefreshDetails(inst.MetricListTable.GetSelectedMetric(), false)
+		var metric = inst.MetricListTable.GetSelectedMetric()
+		inst.MetricDetailsTable.RefreshDetails(metric, false)
+		inst.MetricChartView.SetMetric(metric)
 	})
 }
 
@@ -69,6 +88,7 @@ func NewMetricsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchMetricsApi
 	var metricsDetailsView = NewMetricsDetailsView(
 		NewMetricsTable(serviceCtx),
 		NewMetricDetailsTable(serviceCtx),
+		NewMetricChartView(serviceCtx),
 		serviceCtx,
 	)
 	metricsDetailsView.InitInputCapture()

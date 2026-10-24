@@ -14,6 +14,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
+	cwTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 )
 
 // fakeHttp serves canned responses to the SDK clients so the api methods can be
@@ -272,6 +273,12 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 		{"s3 download without key", func() error {
 			return s3Api.DownloadFile(context.Background(), "bucket", "", "file")
 		}, "object key not set"},
+		{"metric data without metric name", func() error {
+			var _, err = NewCloudWatchMetricsApi(logger).GetMetricData(
+				context.Background(), cwTypes.Metric{}, "Average", 60, testTime, testTime,
+			)
+			return err
+		}, "metric name not set"},
 		{"s3 content without bucket", func() error {
 			var _, err = s3Api.GetObjectContent(context.Background(), "", "key", 1)
 			return err

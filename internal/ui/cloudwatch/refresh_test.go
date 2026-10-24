@@ -3,7 +3,9 @@ package cloudwatch
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
+	"time"
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
@@ -30,10 +32,38 @@ func (f *fakeCloudWatchAlarmsApi) ListAlarmHistory(
 	return f.history, f.err
 }
 
+type metricDataRequest struct {
+	stat   string
+	period int32
+	start  time.Time
+	end    time.Time
+}
+
 type fakeCloudWatchMetricsApi struct {
 	awsapi.CloudWatchMetricsApi
 	metrics []cwTypes.Metric
 	err     error
+
+	data    cwTypes.MetricDataResult
+	dataErr error
+
+	mu       sync.Mutex
+	requests []metricDataRequest
+}
+
+func (f *fakeCloudWatchMetricsApi) metricDataRequests() []metricDataRequest {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]metricDataRequest(nil), f.requests...)
+}
+
+func (f *fakeCloudWatchMetricsApi) GetMetricData(
+	ctx context.Context, metric cwTypes.Metric, stat string, periodSeconds int32, start time.Time, end time.Time,
+) (cwTypes.MetricDataResult, error) {
+	f.mu.Lock()
+	f.requests = append(f.requests, metricDataRequest{stat, periodSeconds, start, end})
+	f.mu.Unlock()
+	return f.data, f.dataErr
 }
 
 func (f *fakeCloudWatchMetricsApi) ListMetrics(

@@ -3,7 +3,9 @@ package awsapi
 import (
 	"context"
 	"log"
+	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 )
@@ -16,6 +18,14 @@ type CloudWatchMetricsApi interface {
 		metricName string,
 		force bool,
 	) ([]types.Metric, error)
+	GetMetricData(
+		ctx context.Context,
+		metric types.Metric,
+		stat string,
+		periodSeconds int32,
+		start time.Time,
+		end time.Time,
+	) (types.MetricDataResult, error)
 }
 
 type cloudWatchMetricsApi struct {
@@ -69,4 +79,51 @@ func (inst *cloudWatchMetricsApi) ListMetrics(
 	sortByKey(result, func(m types.Metric) *string { return m.MetricName })
 
 	return result, inst.logErr(err)
+}
+
+// GetMetricData returns the datapoints of one metric in ascending time order.
+func (inst *cloudWatchMetricsApi) GetMetricData(
+	ctx context.Context,
+	metric types.Metric,
+	stat string,
+	periodSeconds int32,
+	start time.Time,
+	end time.Time,
+) (types.MetricDataResult, error) {
+	var result = types.MetricDataResult{}
+
+	if err := requireArg("metric name", aws.ToString(metric.MetricName)); err != nil {
+		return result, err
+	}
+
+	var paginator = cloudwatch.NewGetMetricDataPaginator(
+		GetAwsApiClients().cloudwatch,
+		&cloudwatch.GetMetricDataInput{
+			StartTime: &start,
+			EndTime:   &end,
+			ScanBy:    types.ScanByTimestampAscending,
+			MetricDataQueries: []types.MetricDataQuery{{
+				Id:         aws.String("m1"),
+				ReturnData: aws.Bool(true),
+				MetricStat: &types.MetricStat{
+					Metric: &metric,
+					Period: aws.Int32(periodSeconds),
+					Stat:   aws.String(stat),
+				},
+			}},
+		},
+	)
+
+	for paginator.HasMorePages() {
+		var output, err = paginator.NextPage(ctx)
+		if err != nil {
+			return types.MetricDataResult{}, inst.logErr(err)
+		}
+		for _, series := range output.MetricDataResults {
+			result.Timestamps = append(result.Timestamps, series.Timestamps...)
+			result.Values = append(result.Values, series.Values...)
+		}
+	}
+
+	return result, nil
 }
