@@ -207,7 +207,7 @@ func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expre
 
 		var err error = nil
 		if reset || inst.tableDescription == nil {
-			inst.tableDescription, err = inst.serviceCtx.Api.DescribeTable(inst.selectedTable)
+			inst.tableDescription, err = inst.serviceCtx.Api.DescribeTable(inst.serviceCtx.Ctx, inst.selectedTable)
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
 				return
@@ -218,9 +218,9 @@ func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expre
 
 		switch operation {
 		case DDBTableScan:
-			data, err = inst.serviceCtx.Api.ScanTable(inst.selectedTable, expr, "", reset)
+			data, err = inst.serviceCtx.Api.ScanTable(inst.serviceCtx.Ctx, inst.selectedTable, expr, "", reset)
 		case DDBTableQuery:
-			data, err = inst.serviceCtx.Api.QueryTable(inst.selectedTable, expr, "", reset)
+			data, err = inst.serviceCtx.Api.QueryTable(inst.serviceCtx.Ctx, inst.selectedTable, expr, "", reset)
 		}
 
 		if !reset {

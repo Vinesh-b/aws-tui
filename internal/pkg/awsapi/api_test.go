@@ -102,7 +102,7 @@ func TestDynamoDBListTagsFollowsNextToken(t *testing.T) {
 		return jsonResponse(`{"Tags":[{"Key":"b","Value":"2"}]}`)
 	})
 
-	var tags, err = NewDynamoDBApi(testLogger()).ListTags(true, "arn:aws:dynamodb:::table/t")
+	var tags, err = NewDynamoDBApi(testLogger()).ListTags(context.Background(), true, "arn:aws:dynamodb:::table/t")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -178,7 +178,7 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			return err
 		}, "record pointer not set"},
 		{"describe table", func() error {
-			var _, err = NewDynamoDBApi(logger).DescribeTable("")
+			var _, err = NewDynamoDBApi(logger).DescribeTable(context.Background(), "")
 			return err
 		}, "table name not set"},
 		{"invoke lambda", func() error {

@@ -29,7 +29,7 @@ func NewDynamoDBApi(
 	}
 }
 
-func (inst *DynamoDBApi) ListTables(force bool) ([]string, error) {
+func (inst *DynamoDBApi) ListTables(ctx context.Context, force bool) ([]string, error) {
 	var client = GetAwsApiClients().dynamodb
 	if len(inst.allTables) > 0 && !force {
 		return inst.allTables, nil
@@ -42,7 +42,7 @@ func (inst *DynamoDBApi) ListTables(force bool) ([]string, error) {
 
 	var apiErr error = nil
 	for paginator.HasMorePages() {
-		var output, err = paginator.NextPage(context.TODO())
+		var output, err = paginator.NextPage(ctx)
 		if err != nil {
 			inst.logger.Printf("Couldn't list tables: %v\n", err)
 			apiErr = err
@@ -57,13 +57,13 @@ func (inst *DynamoDBApi) ListTables(force bool) ([]string, error) {
 	return inst.allTables, apiErr
 }
 
-func (inst *DynamoDBApi) DescribeTable(tableName string) (*types.TableDescription, error) {
+func (inst *DynamoDBApi) DescribeTable(ctx context.Context, tableName string) (*types.TableDescription, error) {
 	if err := requireArg("table name", tableName); err != nil {
 		return nil, err
 	}
 
 	var client = GetAwsApiClients().dynamodb
-	var output, err = client.DescribeTable(context.TODO(),
+	var output, err = client.DescribeTable(ctx,
 		&dynamodb.DescribeTableInput{TableName: &tableName},
 	)
 	if err != nil {
@@ -74,6 +74,7 @@ func (inst *DynamoDBApi) DescribeTable(tableName string) (*types.TableDescriptio
 }
 
 func (inst *DynamoDBApi) ScanTable(
+	ctx context.Context,
 	tableName string,
 	scanExpression expression.Expression,
 	indexName string,
@@ -107,7 +108,7 @@ func (inst *DynamoDBApi) ScanTable(
 		return items, fmt.Errorf("No more pages found")
 	}
 
-	var output, err = inst.scanPaginator.NextPage(context.TODO())
+	var output, err = inst.scanPaginator.NextPage(ctx)
 	if err != nil {
 		inst.logger.Printf("Scan failed: %s\n", err.Error())
 	} else {
@@ -119,6 +120,7 @@ func (inst *DynamoDBApi) ScanTable(
 }
 
 func (inst *DynamoDBApi) QueryTable(
+	ctx context.Context,
 	tableName string,
 	queryExpression expression.Expression,
 	indexName string,
@@ -152,7 +154,7 @@ func (inst *DynamoDBApi) QueryTable(
 		return items, fmt.Errorf("No more pages found")
 	}
 
-	var output, err = inst.queryPaginator.NextPage(context.TODO())
+	var output, err = inst.queryPaginator.NextPage(ctx)
 	if err != nil {
 		inst.logger.Printf("Query failed: %s\n", err.Error())
 		return items, err
@@ -168,9 +170,9 @@ func (inst *DynamoDBApi) QueryTable(
 	return items, nil
 }
 
-func (inst *DynamoDBApi) ListTags(force bool, resourceArn string) ([]types.Tag, error) {
+func (inst *DynamoDBApi) ListTags(ctx context.Context, force bool, resourceArn string) ([]types.Tag, error) {
 	var result, err = collectTokenPages(func(token *string) ([]types.Tag, *string, error) {
-		var output, err = GetAwsApiClients().dynamodb.ListTagsOfResource(context.TODO(),
+		var output, err = GetAwsApiClients().dynamodb.ListTagsOfResource(ctx,
 			&dynamodb.ListTagsOfResourceInput{
 				ResourceArn: aws.String(resourceArn),
 				NextToken:   token,

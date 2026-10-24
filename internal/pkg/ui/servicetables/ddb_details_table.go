@@ -108,7 +108,7 @@ func (inst *DynamoDBDetailsTable) RefreshDetails() {
 
 	dataLoader.AsyncLoadData(func() {
 		var err error = nil
-		inst.data, err = inst.serviceCtx.Api.DescribeTable(inst.selectedTable)
+		inst.data, err = inst.serviceCtx.Api.DescribeTable(inst.serviceCtx.Ctx, inst.selectedTable)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

@@ -41,6 +41,7 @@ func NewDynamoDBDetailsPageView(
 		}).
 		SetGetTagsFunc(func() ([]types.Tag, error) {
 			return serviceCtx.Api.ListTags(
+				serviceCtx.Ctx,
 				true, detailsTable.GetSelectedTableArn(),
 			)
 		})
