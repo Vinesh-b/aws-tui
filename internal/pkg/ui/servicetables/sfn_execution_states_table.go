@@ -237,7 +237,7 @@ func (inst *SfnExecutionStatesTable) RefreshExecutionStates(executionArn string,
 
 	dataLoader.AsyncLoadData(func() {
 		var err error = nil
-		inst.ExecutionHistory, err = inst.api.GetExecutionHistory(executionArn)
+		inst.ExecutionHistory, err = inst.api.GetExecutionHistory(inst.appCtx.Ctx, executionArn)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

@@ -109,7 +109,7 @@ ChanFlushLoop:
 
 	dataLoader.AsyncLoadData(func() {
 		var err error
-		inst.data, err = inst.serviceCtx.Api.DescribeStateMachine(inst.selectedStateMachineArn)
+		inst.data, err = inst.serviceCtx.Api.DescribeStateMachine(inst.serviceCtx.Ctx, inst.selectedStateMachineArn)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 			return

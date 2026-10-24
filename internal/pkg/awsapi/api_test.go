@@ -202,19 +202,19 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			return err
 		}, "parameter name not set"},
 		{"describe state machine", func() error {
-			var _, err = sfnApi.DescribeStateMachine("")
+			var _, err = sfnApi.DescribeStateMachine(context.Background(), "")
 			return err
 		}, "state machine ARN not set"},
 		{"list executions", func() error {
-			var _, err = sfnApi.ListExecutions("", testTime, testTime, true)
+			var _, err = sfnApi.ListExecutions(context.Background(), "", testTime, testTime, true)
 			return err
 		}, "state machine ARN not set"},
 		{"describe execution", func() error {
-			var _, err = sfnApi.DescribeExecution("")
+			var _, err = sfnApi.DescribeExecution(context.Background(), "")
 			return err
 		}, "execution ARN not set"},
 		{"execution history", func() error {
-			var _, err = sfnApi.GetExecutionHistory("")
+			var _, err = sfnApi.GetExecutionHistory(context.Background(), "")
 			return err
 		}, "execution ARN not set"},
 		{"s3 list objects", func() error {

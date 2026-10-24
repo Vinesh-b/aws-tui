@@ -318,6 +318,7 @@ func (inst *SfnExecutionsTable) RefreshExecutions(reset bool) {
 		var selectedFunctionArn = aws.ToString(inst.selectedFunction.StateMachineArn)
 		if len(selectedFunctionArn) > 0 {
 			var data, err = inst.api.ListExecutions(
+				inst.appCtx.Ctx,
 				selectedFunctionArn,
 				query.startTime,
 				query.endTime,

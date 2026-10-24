@@ -77,7 +77,7 @@ func (inst *SfnExecutionSummaryTable) RefreshExecutionDetails(executionArn strin
 
 	dataLoader.AsyncLoadData(func() {
 		var err error = nil
-		inst.data, err = inst.serviceCtx.Api.DescribeExecution(executionArn)
+		inst.data, err = inst.serviceCtx.Api.DescribeExecution(inst.serviceCtx.Ctx, executionArn)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

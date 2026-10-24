@@ -24,13 +24,13 @@ func NewStateMachineApi(
 	}
 }
 
-func (inst *StateMachineApi) ListStateMachines(force bool) ([]types.StateMachineListItem, error) {
+func (inst *StateMachineApi) ListStateMachines(ctx context.Context, force bool) ([]types.StateMachineListItem, error) {
 	var paginator = sfn.NewListStateMachinesPaginator(
 		GetAwsApiClients().sfn, &sfn.ListStateMachinesInput{},
 	)
 
 	var result, err = collectPaginator(paginator.HasMorePages, func() ([]types.StateMachineListItem, error) {
-		var output, err = paginator.NextPage(context.TODO())
+		var output, err = paginator.NextPage(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -42,7 +42,7 @@ func (inst *StateMachineApi) ListStateMachines(force bool) ([]types.StateMachine
 	return result, inst.logErr(err)
 }
 
-func (inst *StateMachineApi) DescribeStateMachine(stateMachineArn string) (*sfn.DescribeStateMachineOutput, error) {
+func (inst *StateMachineApi) DescribeStateMachine(ctx context.Context, stateMachineArn string) (*sfn.DescribeStateMachineOutput, error) {
 	if err := requireArg("state machine ARN", stateMachineArn); err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func (inst *StateMachineApi) DescribeStateMachine(stateMachineArn string) (*sfn.
 	var client = GetAwsApiClients().sfn
 
 	var output, err = client.DescribeStateMachine(
-		context.TODO(),
+		ctx,
 		&sfn.DescribeStateMachineInput{
 			StateMachineArn: aws.String(stateMachineArn),
 		},
@@ -64,6 +64,7 @@ func (inst *StateMachineApi) DescribeStateMachine(stateMachineArn string) (*sfn.
 }
 
 func (inst *StateMachineApi) ListExecutions(
+	ctx context.Context,
 	stateMachineArn string, start time.Time, end time.Time, reset bool,
 ) ([]types.ExecutionListItem, error) {
 	var empty = []types.ExecutionListItem{}
@@ -85,7 +86,7 @@ func (inst *StateMachineApi) ListExecutions(
 
 	var result = []types.ExecutionListItem{}
 	for inst.listExecutionsPaginator.HasMorePages() {
-		var output, err = inst.listExecutionsPaginator.NextPage(context.TODO())
+		var output, err = inst.listExecutionsPaginator.NextPage(ctx)
 		if err != nil {
 			return empty, inst.logErr(err)
 		}
@@ -108,14 +109,14 @@ func (inst *StateMachineApi) ListExecutions(
 	return result, nil
 }
 
-func (inst *StateMachineApi) DescribeExecution(executionArn string) (*sfn.DescribeExecutionOutput, error) {
+func (inst *StateMachineApi) DescribeExecution(ctx context.Context, executionArn string) (*sfn.DescribeExecutionOutput, error) {
 	if err := requireArg("execution ARN", executionArn); err != nil {
 		return nil, err
 	}
 
 	var client = GetAwsApiClients().sfn
 
-	var response, err = client.DescribeExecution(context.TODO(), &sfn.DescribeExecutionInput{
+	var response, err = client.DescribeExecution(ctx, &sfn.DescribeExecutionInput{
 		ExecutionArn: &executionArn,
 	})
 
@@ -126,13 +127,13 @@ func (inst *StateMachineApi) DescribeExecution(executionArn string) (*sfn.Descri
 	return response, nil
 }
 
-func (inst *StateMachineApi) GetExecutionHistory(executionArn string) (*sfn.GetExecutionHistoryOutput, error) {
+func (inst *StateMachineApi) GetExecutionHistory(ctx context.Context, executionArn string) (*sfn.GetExecutionHistoryOutput, error) {
 	if err := requireArg("execution ARN", executionArn); err != nil {
 		return nil, err
 	}
 
 	var client = GetAwsApiClients().sfn
-	var response, err = client.GetExecutionHistory(context.TODO(), &sfn.GetExecutionHistoryInput{
+	var response, err = client.GetExecutionHistory(ctx, &sfn.GetExecutionHistoryInput{
 		ExecutionArn:         aws.String(executionArn),
 		IncludeExecutionData: aws.Bool(true),
 	})
