@@ -122,6 +122,7 @@ func (inst *VpcEndpointsTable) RefreshVpcEndpoints(reset bool, vpc types.Vpc) {
 
 	dataLoader.AsyncLoadData(func() {
 		var data, err = inst.serviceCtx.Api.DescribeVpcEndpoints(
+			inst.serviceCtx.Ctx,
 			reset, aws.ToString(inst.selectedVpc.VpcId),
 		)
 		if err != nil {

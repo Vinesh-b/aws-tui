@@ -28,9 +28,9 @@ func vpcIdFilter(vpcId string) []types.Filter {
 	}
 }
 
-func (inst *Ec2Api) ListVpcs(force bool) ([]types.Vpc, error) {
+func (inst *Ec2Api) ListVpcs(ctx context.Context, force bool) ([]types.Vpc, error) {
 	var result, err = collectTokenPages(func(token *string) ([]types.Vpc, *string, error) {
-		var output, err = GetAwsApiClients().ec2.DescribeVpcs(context.TODO(),
+		var output, err = GetAwsApiClients().ec2.DescribeVpcs(ctx,
 			&ec2.DescribeVpcsInput{NextToken: token},
 		)
 		if err != nil {
@@ -46,9 +46,9 @@ func (inst *Ec2Api) ListVpcs(force bool) ([]types.Vpc, error) {
 	return result, inst.logErr(err)
 }
 
-func (inst *Ec2Api) DescribeVpcEndpoints(force bool, vpcId string) ([]types.VpcEndpoint, error) {
+func (inst *Ec2Api) DescribeVpcEndpoints(ctx context.Context, force bool, vpcId string) ([]types.VpcEndpoint, error) {
 	var result, err = collectTokenPages(func(token *string) ([]types.VpcEndpoint, *string, error) {
-		var output, err = GetAwsApiClients().ec2.DescribeVpcEndpoints(context.TODO(),
+		var output, err = GetAwsApiClients().ec2.DescribeVpcEndpoints(ctx,
 			&ec2.DescribeVpcEndpointsInput{Filters: vpcIdFilter(vpcId), NextToken: token},
 		)
 		if err != nil {
@@ -62,9 +62,9 @@ func (inst *Ec2Api) DescribeVpcEndpoints(force bool, vpcId string) ([]types.VpcE
 	return result, inst.logErr(err)
 }
 
-func (inst *Ec2Api) DescribeVpcSubnets(force bool, vpcId string) ([]types.Subnet, error) {
+func (inst *Ec2Api) DescribeVpcSubnets(ctx context.Context, force bool, vpcId string) ([]types.Subnet, error) {
 	var result, err = collectTokenPages(func(token *string) ([]types.Subnet, *string, error) {
-		var output, err = GetAwsApiClients().ec2.DescribeSubnets(context.TODO(),
+		var output, err = GetAwsApiClients().ec2.DescribeSubnets(ctx,
 			&ec2.DescribeSubnetsInput{Filters: vpcIdFilter(vpcId), NextToken: token},
 		)
 		if err != nil {
@@ -78,9 +78,9 @@ func (inst *Ec2Api) DescribeVpcSubnets(force bool, vpcId string) ([]types.Subnet
 	return result, inst.logErr(err)
 }
 
-func (inst *Ec2Api) DescribeVpcSecurityGroups(force bool, vpcId string) ([]types.SecurityGroup, error) {
+func (inst *Ec2Api) DescribeVpcSecurityGroups(ctx context.Context, force bool, vpcId string) ([]types.SecurityGroup, error) {
 	var result, err = collectTokenPages(func(token *string) ([]types.SecurityGroup, *string, error) {
-		var output, err = GetAwsApiClients().ec2.DescribeSecurityGroups(context.TODO(),
+		var output, err = GetAwsApiClients().ec2.DescribeSecurityGroups(ctx,
 			&ec2.DescribeSecurityGroupsInput{Filters: vpcIdFilter(vpcId), NextToken: token},
 		)
 		if err != nil {

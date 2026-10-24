@@ -126,6 +126,7 @@ func (inst *VpcSubnetsTable) RefreshVpcSubnets(reset bool, vpc types.Vpc) {
 
 	dataLoader.AsyncLoadData(func() {
 		var data, err = inst.serviceCtx.Api.DescribeVpcSubnets(
+			inst.serviceCtx.Ctx,
 			reset, aws.ToString(inst.selectedVpc.VpcId),
 		)
 		if err != nil {

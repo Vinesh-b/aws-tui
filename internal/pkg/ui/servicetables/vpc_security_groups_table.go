@@ -121,6 +121,7 @@ func (inst *VpcSecurityGroupsTable) RefreshVpcSecurityGroups(reset bool, vpc typ
 
 	dataLoader.AsyncLoadData(func() {
 		var data, err = inst.serviceCtx.Api.DescribeVpcSecurityGroups(
+			inst.serviceCtx.Ctx,
 			reset, aws.ToString(inst.selectedVpc.VpcId),
 		)
 		if err != nil {
