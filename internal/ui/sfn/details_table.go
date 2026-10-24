@@ -111,7 +111,7 @@ ChanFlushLoop:
 		var err error
 		inst.data, err = inst.serviceCtx.Api.DescribeStateMachine(inst.serviceCtx.Ctx, inst.selectedStateMachineArn)
 		if err != nil {
-			inst.ErrorMessageCallback(err.Error())
+			inst.ErrorMessageCallback("%s", err.Error())
 			return
 		}
 

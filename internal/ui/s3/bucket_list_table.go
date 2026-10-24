@@ -69,7 +69,7 @@ func (inst *BucketListTable) RefreshBuckets(force bool) {
 			var err error = nil
 			inst.allBuckets, err = inst.serviceCtx.Api.ListBuckets(inst.serviceCtx.Ctx, force)
 			if err != nil {
-				inst.ErrorMessageCallback(err.Error())
+				inst.ErrorMessageCallback("%s", err.Error())
 			}
 		}
 

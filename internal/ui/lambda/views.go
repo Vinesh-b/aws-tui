@@ -229,20 +229,20 @@ func (inst *LambdaInvokePageView) Invoke() {
 		var payload = make(map[string]any)
 		err = json.Unmarshal([]byte(inst.payloadInput.GetText()), &payload)
 		if err != nil {
-			inst.responseOutput.ErrorMessageCallback(err.Error())
+			inst.responseOutput.ErrorMessageCallback("%s", err.Error())
 			return
 		}
 
 		var data *lambda.InvokeOutput = nil
 		data, err = inst.serviceCtx.Api.InvokeLambda(inst.serviceCtx.Ctx, inst.selectedLambda, payload)
 		if err != nil {
-			inst.responseOutput.ErrorMessageCallback(err.Error())
+			inst.responseOutput.ErrorMessageCallback("%s", err.Error())
 			return
 		}
 
 		logResults, err = base64.StdEncoding.DecodeString(aws.ToString(data.LogResult))
 		if err != nil {
-			inst.logResults.ErrorMessageCallback(err.Error())
+			inst.logResults.ErrorMessageCallback("%s", err.Error())
 			return
 		}
 

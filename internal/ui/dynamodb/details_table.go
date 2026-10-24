@@ -110,7 +110,7 @@ func (inst *DynamoDBDetailsTable) RefreshDetails() {
 		var err error = nil
 		inst.data, err = inst.serviceCtx.Api.DescribeTable(inst.serviceCtx.Ctx, inst.selectedTable)
 		if err != nil {
-			inst.ErrorMessageCallback(err.Error())
+			inst.ErrorMessageCallback("%s", err.Error())
 		}
 	})
 

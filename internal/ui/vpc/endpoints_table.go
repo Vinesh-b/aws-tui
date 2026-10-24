@@ -126,7 +126,7 @@ func (inst *VpcEndpointsTable) RefreshVpcEndpoints(reset bool, vpc types.Vpc) {
 			reset, aws.ToString(inst.selectedVpc.VpcId),
 		)
 		if err != nil {
-			inst.ErrorMessageCallback(err.Error())
+			inst.ErrorMessageCallback("%s", err.Error())
 		}
 
 		if !reset {

@@ -57,13 +57,13 @@ func (inst *TextArea) SetTitleExtra(text string) {
 func (inst *TextArea) FormatAsJson() {
 	var payload = make(map[string]any)
 	if err := json.Unmarshal([]byte(inst.GetText()), &payload); err != nil {
-		inst.ErrorMessageCallback(err.Error())
+		inst.ErrorMessageCallback("%s", err.Error())
 		return
 	}
 
 	var jsonPayload, err = json.MarshalIndent(payload, "", "  ")
 	if err != nil {
-		inst.ErrorMessageCallback(err.Error())
+		inst.ErrorMessageCallback("%s", err.Error())
 	}
 
 	inst.SetText(string(jsonPayload), false)

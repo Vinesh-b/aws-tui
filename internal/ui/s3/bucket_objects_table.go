@@ -145,7 +145,7 @@ func (inst *BucketObjectsTable) RefreshObjects(force bool) {
 		)
 
 		if err != nil {
-			inst.ErrorMessageCallback(err.Error())
+			inst.ErrorMessageCallback("%s", err.Error())
 			return
 		}
 

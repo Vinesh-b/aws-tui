@@ -72,7 +72,7 @@ func (inst *DynamoDBTablesTable) RefreshTables(force bool) {
 			inst.allTables, err = inst.serviceCtx.Api.ListTables(inst.serviceCtx.Ctx, force)
 			inst.data = inst.allTables
 			if err != nil {
-				inst.ErrorMessageCallback(err.Error())
+				inst.ErrorMessageCallback("%s", err.Error())
 			}
 		}
 	})

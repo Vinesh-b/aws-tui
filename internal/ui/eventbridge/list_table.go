@@ -100,7 +100,7 @@ func (inst *EventBusListTable) RefreshEventBuss(reset bool) {
 	dataLoader.AsyncLoadData(func() {
 		var data, err = inst.serviceCtx.Api.ListEventBuses(inst.serviceCtx.Ctx, reset)
 		if err != nil {
-			inst.ErrorMessageCallback(err.Error())
+			inst.ErrorMessageCallback("%s", err.Error())
 		}
 
 		if !reset {

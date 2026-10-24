@@ -87,7 +87,7 @@ func (inst *S3ObjectDetailsTable) RefreshDetails(bucketArn string, objectKey str
 		var data, err = inst.serviceCtx.Api.HeadObject(inst.serviceCtx.Ctx, bucketArn, objectKey, true)
 		if err != nil {
 			loadFailed = true
-			inst.ErrorMessageCallback(err.Error())
+			inst.ErrorMessageCallback("%s", err.Error())
 			return
 		}
 

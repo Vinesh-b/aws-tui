@@ -59,7 +59,7 @@ func (inst *TagsTable[T, AwsApi]) RefreshDetails() *TagsTable[T, AwsApi] {
 		var err error
 		inst.data, err = inst.getTagsFunc()
 		if err != nil {
-			inst.ErrorMessageCallback(err.Error())
+			inst.ErrorMessageCallback("%s", err.Error())
 		}
 	})
 

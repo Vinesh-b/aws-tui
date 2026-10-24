@@ -79,7 +79,7 @@ func (inst *SfnExecutionSummaryTable) RefreshExecutionDetails(executionArn strin
 		var err error = nil
 		inst.data, err = inst.serviceCtx.Api.DescribeExecution(inst.serviceCtx.Ctx, executionArn)
 		if err != nil {
-			inst.ErrorMessageCallback(err.Error())
+			inst.ErrorMessageCallback("%s", err.Error())
 		}
 	})
 

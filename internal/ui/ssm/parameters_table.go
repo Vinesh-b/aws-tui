@@ -104,7 +104,7 @@ func (inst *SSMParametersListTable) RefreshParameters(path string, reset bool) {
 	dataLoader.AsyncLoadData(func() {
 		var data, err = inst.serviceCtx.Api.GetParametersByPath(inst.serviceCtx.Ctx, path, reset)
 		if err != nil {
-			inst.ErrorMessageCallback(err.Error())
+			inst.ErrorMessageCallback("%s", err.Error())
 		}
 
 		if !reset {

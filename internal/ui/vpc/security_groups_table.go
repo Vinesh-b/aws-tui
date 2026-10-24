@@ -125,7 +125,7 @@ func (inst *VpcSecurityGroupsTable) RefreshVpcSecurityGroups(reset bool, vpc typ
 			reset, aws.ToString(inst.selectedVpc.VpcId),
 		)
 		if err != nil {
-			inst.ErrorMessageCallback(err.Error())
+			inst.ErrorMessageCallback("%s", err.Error())
 		}
 
 		if !reset {

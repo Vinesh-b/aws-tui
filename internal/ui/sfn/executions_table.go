@@ -205,7 +205,7 @@ func (inst *SfnExecutionsTable) RefreshExpressExecutions(logGroup string, reset 
 	inst.selectedExecution.logGroup = &logGroup
 	var query, err = inst.queryView.Input.GenerateQuery()
 	if err != nil {
-		inst.ErrorMessageCallback(err.Error())
+		inst.ErrorMessageCallback("%s", err.Error())
 		return
 	}
 
@@ -311,7 +311,7 @@ func (inst *SfnExecutionsTable) RefreshExecutions(reset bool) {
 	var dataLoader = core.NewUiDataLoader(inst.appCtx.App, 10)
 	var query, err = inst.queryView.Input.GenerateQuery()
 	if err != nil {
-		inst.ErrorMessageCallback(err.Error())
+		inst.ErrorMessageCallback("%s", err.Error())
 		return
 	}
 
@@ -327,7 +327,7 @@ func (inst *SfnExecutionsTable) RefreshExecutions(reset bool) {
 			)
 
 			if err != nil {
-				inst.ErrorMessageCallback(err.Error())
+				inst.ErrorMessageCallback("%s", err.Error())
 			}
 
 			inst.data = nil
