@@ -3,6 +3,7 @@ package servicetables
 import (
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
+	"context"
 	"fmt"
 	"time"
 
@@ -17,12 +18,14 @@ type InsightsQueryRunner struct {
 	data    [][]types.ResultField
 	queryId string
 
+	ctx                  context.Context
 	app                  *tview.Application
 	api                  *awsapi.CloudWatchLogsApi
 	ErrorMessageCallback func(text string, a ...any)
 }
 
 func NewInsightsQueryRunner(
+	ctx context.Context,
 	app *tview.Application,
 	api *awsapi.CloudWatchLogsApi,
 ) *InsightsQueryRunner {
@@ -30,6 +33,7 @@ func NewInsightsQueryRunner(
 	return &InsightsQueryRunner{
 		data:                 nil,
 		queryId:              "",
+		ctx:                  ctx,
 		app:                  app,
 		api:                  api,
 		ErrorMessageCallback: func(text string, a ...any) {},
@@ -46,7 +50,7 @@ func (inst *InsightsQueryRunner) ExecuteInsightsQuery(
 
 	go func() {
 		if len(inst.queryId) > 0 {
-			var _, err = inst.api.StopInsightsQuery(inst.queryId)
+			var _, err = inst.api.StopInsightsQuery(inst.ctx, inst.queryId)
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
 			}
@@ -55,6 +59,7 @@ func (inst *InsightsQueryRunner) ExecuteInsightsQuery(
 
 		var err error = nil
 		inst.queryId, err = inst.api.StartInsightsQuery(
+			inst.ctx,
 			logGroups,
 			query.startTime,
 			query.endTime,
@@ -71,7 +76,7 @@ func (inst *InsightsQueryRunner) ExecuteInsightsQuery(
 				break
 			}
 
-			results, status, err = inst.api.GetInsightsQueryResults(inst.queryId)
+			results, status, err = inst.api.GetInsightsQueryResults(inst.ctx, inst.queryId)
 
 			switch status {
 			case types.QueryStatusRunning, types.QueryStatusScheduled:
@@ -223,7 +228,7 @@ func (inst *InsightsQueryResultsTable) RefreshResults() {
 				break
 			}
 
-			results, status, err = inst.serviceCtx.Api.GetInsightsQueryResults(inst.queryId)
+			results, status, err = inst.serviceCtx.Api.GetInsightsQueryResults(inst.serviceCtx.Ctx, inst.queryId)
 
 			switch status {
 			case types.QueryStatusRunning, types.QueryStatusScheduled:
@@ -266,7 +271,7 @@ func (inst *InsightsQueryResultsTable) ExecuteQuery() {
 	var queryIdChan = make(chan string, 1)
 	go func() {
 		if len(inst.queryId) > 0 {
-			var _, err = inst.serviceCtx.Api.StopInsightsQuery(inst.queryId)
+			var _, err = inst.serviceCtx.Api.StopInsightsQuery(inst.serviceCtx.Ctx, inst.queryId)
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
 			}
@@ -274,6 +279,7 @@ func (inst *InsightsQueryResultsTable) ExecuteQuery() {
 		}
 
 		var res, err = inst.serviceCtx.Api.StartInsightsQuery(
+			inst.serviceCtx.Ctx,
 			inst.selectedLogGroups,
 			query.startTime,
 			query.endTime,
@@ -298,7 +304,7 @@ func (inst *InsightsQueryResultsTable) StopQuery() {
 			stopSuccess <- true
 			return
 		}
-		var res, err = inst.serviceCtx.Api.StopInsightsQuery(inst.queryId)
+		var res, err = inst.serviceCtx.Api.StopInsightsQuery(inst.serviceCtx.Ctx, inst.queryId)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

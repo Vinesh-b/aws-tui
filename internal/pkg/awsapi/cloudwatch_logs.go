@@ -26,7 +26,7 @@ func NewCloudWatchLogsApi(
 	}
 }
 
-func (inst *CloudWatchLogsApi) ListLogGroups(reset bool) ([]types.LogGroup, error) {
+func (inst *CloudWatchLogsApi) ListLogGroups(ctx context.Context, reset bool) ([]types.LogGroup, error) {
 	if reset || inst.logGroupsPaginator == nil {
 		inst.logGroupsPaginator = cloudwatchlogs.NewDescribeLogGroupsPaginator(
 			GetAwsApiClients().cloudwatchlogs,
@@ -37,7 +37,7 @@ func (inst *CloudWatchLogsApi) ListLogGroups(reset bool) ([]types.LogGroup, erro
 	}
 
 	var result, err = collectPaginator(inst.logGroupsPaginator.HasMorePages, func() ([]types.LogGroup, error) {
-		var output, err = inst.logGroupsPaginator.NextPage(context.TODO())
+		var output, err = inst.logGroupsPaginator.NextPage(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -50,6 +50,7 @@ func (inst *CloudWatchLogsApi) ListLogGroups(reset bool) ([]types.LogGroup, erro
 }
 
 func (inst *CloudWatchLogsApi) ListLogStreams(
+	ctx context.Context,
 	logGroupName string,
 	searchPrefix string,
 	reset bool,
@@ -89,7 +90,7 @@ func (inst *CloudWatchLogsApi) ListLogStreams(
 		return empty, nil
 	}
 
-	var output, err = inst.logStreamsPaginator.NextPage(context.TODO())
+	var output, err = inst.logStreamsPaginator.NextPage(ctx)
 
 	if err != nil {
 		return empty, inst.logErr(err)
@@ -99,6 +100,7 @@ func (inst *CloudWatchLogsApi) ListLogStreams(
 }
 
 func (inst *CloudWatchLogsApi) ListLogEvents(
+	ctx context.Context,
 	logGroupName string,
 	logStreamName string,
 	reset bool,
@@ -131,7 +133,7 @@ func (inst *CloudWatchLogsApi) ListLogEvents(
 		return empty, nil
 	}
 
-	var output, err = inst.logEventsPaginator.NextPage(context.TODO())
+	var output, err = inst.logEventsPaginator.NextPage(ctx)
 	if err != nil {
 		return empty, inst.logErr(err)
 	}
@@ -140,6 +142,7 @@ func (inst *CloudWatchLogsApi) ListLogEvents(
 }
 
 func (inst *CloudWatchLogsApi) ListFilteredLogEvents(
+	ctx context.Context,
 	logGroupName string,
 	startDateTime time.Time,
 	endDateTime time.Time,
@@ -168,7 +171,7 @@ func (inst *CloudWatchLogsApi) ListFilteredLogEvents(
 		return empty, nil
 	}
 
-	var output, err = inst.filteredLogEventsPaginator.NextPage(context.TODO())
+	var output, err = inst.filteredLogEventsPaginator.NextPage(ctx)
 	if err != nil {
 		return empty, inst.logErr(err)
 	}
@@ -177,6 +180,7 @@ func (inst *CloudWatchLogsApi) ListFilteredLogEvents(
 }
 
 func (inst *CloudWatchLogsApi) StartInsightsQuery(
+	ctx context.Context,
 	logGroups []string,
 	startTime time.Time,
 	endTime time.Time,
@@ -184,7 +188,7 @@ func (inst *CloudWatchLogsApi) StartInsightsQuery(
 ) (string, error) {
 	var client = GetAwsApiClients().cloudwatchlogs
 	var output, err = client.StartQuery(
-		context.TODO(), &cloudwatchlogs.StartQueryInput{
+		ctx, &cloudwatchlogs.StartQueryInput{
 			StartTime:     aws.Int64(startTime.Unix()),
 			EndTime:       aws.Int64(endTime.Unix()),
 			LogGroupNames: logGroups,
@@ -200,6 +204,7 @@ func (inst *CloudWatchLogsApi) StartInsightsQuery(
 }
 
 func (inst *CloudWatchLogsApi) StopInsightsQuery(
+	ctx context.Context,
 	queryId string,
 ) (bool, error) {
 	if err := requireArg("query ID", queryId); err != nil {
@@ -209,7 +214,7 @@ func (inst *CloudWatchLogsApi) StopInsightsQuery(
 	var client = GetAwsApiClients().cloudwatchlogs
 
 	var output, err = client.StopQuery(
-		context.TODO(), &cloudwatchlogs.StopQueryInput{
+		ctx, &cloudwatchlogs.StopQueryInput{
 			QueryId: aws.String(queryId),
 		},
 	)
@@ -222,6 +227,7 @@ func (inst *CloudWatchLogsApi) StopInsightsQuery(
 }
 
 func (inst *CloudWatchLogsApi) GetInsightsQueryResults(
+	ctx context.Context,
 	queryId string,
 ) ([][]types.ResultField, types.QueryStatus, error) {
 	var empty [][]types.ResultField
@@ -233,7 +239,7 @@ func (inst *CloudWatchLogsApi) GetInsightsQueryResults(
 	var client = GetAwsApiClients().cloudwatchlogs
 
 	var output, err = client.GetQueryResults(
-		context.TODO(), &cloudwatchlogs.GetQueryResultsInput{
+		ctx, &cloudwatchlogs.GetQueryResultsInput{
 			QueryId: aws.String(queryId),
 		})
 
@@ -245,6 +251,7 @@ func (inst *CloudWatchLogsApi) GetInsightsQueryResults(
 }
 
 func (inst *CloudWatchLogsApi) GetInsightsLogRecord(
+	ctx context.Context,
 	recordPtr string,
 ) (map[string]string, error) {
 	var empty = map[string]string{}
@@ -256,7 +263,7 @@ func (inst *CloudWatchLogsApi) GetInsightsLogRecord(
 	var client = GetAwsApiClients().cloudwatchlogs
 
 	var output, err = client.GetLogRecord(
-		context.TODO(), &cloudwatchlogs.GetLogRecordInput{
+		ctx, &cloudwatchlogs.GetLogRecordInput{
 			LogRecordPointer: aws.String(recordPtr),
 		})
 

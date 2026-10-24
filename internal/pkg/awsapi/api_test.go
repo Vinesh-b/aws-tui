@@ -158,23 +158,23 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			return err
 		}, "alarm name not set"},
 		{"log streams", func() error {
-			var _, err = cwl.ListLogStreams("", "", true)
+			var _, err = cwl.ListLogStreams(context.Background(), "", "", true)
 			return err
 		}, "log group not set"},
 		{"log events without stream", func() error {
-			var _, err = cwl.ListLogEvents("group", "", true)
+			var _, err = cwl.ListLogEvents(context.Background(), "group", "", true)
 			return err
 		}, "log stream not set"},
 		{"stop insights query", func() error {
-			var _, err = cwl.StopInsightsQuery("")
+			var _, err = cwl.StopInsightsQuery(context.Background(), "")
 			return err
 		}, "query ID not set"},
 		{"insights results", func() error {
-			var _, _, err = cwl.GetInsightsQueryResults("")
+			var _, _, err = cwl.GetInsightsQueryResults(context.Background(), "")
 			return err
 		}, "query ID not set"},
 		{"insights log record", func() error {
-			var _, err = cwl.GetInsightsLogRecord("")
+			var _, err = cwl.GetInsightsLogRecord(context.Background(), "")
 			return err
 		}, "record pointer not set"},
 		{"describe table", func() error {

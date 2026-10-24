@@ -98,7 +98,7 @@ func (inst *LogGroupsTable) RefreshLogGroups(reset bool) {
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.serviceCtx.Api.ListLogGroups(reset)
+		var data, err = inst.serviceCtx.Api.ListLogGroups(inst.serviceCtx.Ctx, reset)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

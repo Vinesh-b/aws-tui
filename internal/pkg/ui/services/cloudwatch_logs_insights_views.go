@@ -162,7 +162,7 @@ func NewLogsInsightsHomeView(appCtx *core.AppContext) core.ServicePage {
 	var recordPtr = ""
 	insightsResultsView.QueryResultsTable.SetSelectedFunc(func(row, column int) {
 		recordPtr = insightsResultsView.QueryResultsTable.GetRecordPtr(row)
-		var record, err = api.GetInsightsLogRecord(recordPtr)
+		var record, err = api.GetInsightsLogRecord(appCtx.Ctx, recordPtr)
 		if err != nil {
 			logEventsView.LogEventsTable.ErrorMessageCallback("%s", err.Error())
 		}

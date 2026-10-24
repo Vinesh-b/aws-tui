@@ -91,6 +91,7 @@ func (inst *LogStreamsTable) RefreshStreams(force bool) {
 	dataLoader.AsyncLoadData(func() {
 		var err error = nil
 		inst.data, err = inst.serviceCtx.Api.ListLogStreams(
+			inst.serviceCtx.Ctx,
 			inst.selectedLogGroup,
 			inst.searchStreamPrefix,
 			force,

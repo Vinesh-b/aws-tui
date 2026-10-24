@@ -85,6 +85,7 @@ func (inst *LogEventsTable) RefreshLogEvents(reset bool) {
 	dataLoader.AsyncLoadData(func() {
 		var err error = nil
 		inst.data, err = inst.serviceCtx.Api.ListLogEvents(
+			inst.serviceCtx.Ctx,
 			inst.selectedLogGroup,
 			inst.selectedLogStream,
 			reset,

@@ -259,7 +259,7 @@ func (inst *SfnExecutionStatesTable) RefreshExpressExecutionStates(executionItem
 		endTime:   aws.ToTime(executionItem.StopDate),
 	}
 
-	var insightsQueryRunner = NewInsightsQueryRunner(inst.appCtx.App, inst.cwlApi)
+	var insightsQueryRunner = NewInsightsQueryRunner(inst.appCtx.Ctx, inst.appCtx.App, inst.cwlApi)
 	insightsQueryRunner.ErrorMessageCallback = inst.ErrorMessageCallback
 
 	var resultsChan = make(chan [][]cwlTypes.ResultField)
