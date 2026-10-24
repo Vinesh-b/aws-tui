@@ -140,6 +140,7 @@ func (inst *BucketObjectsTable) RefreshObjects(force bool) {
 
 	dataLoader.AsyncLoadData(func() {
 		var objects, commonPrefixes, err = inst.serviceCtx.Api.ListObjects(
+			inst.serviceCtx.Ctx,
 			inst.selectedBucket, inst.selectedDir, force,
 		)
 
@@ -180,7 +181,7 @@ func (inst *BucketObjectsTable) SetSelectedFunc(handler func(row, column int)) {
 			inst.selectedDir = prefix
 			inst.RefreshObjects(true)
 		} else {
-			//inst.serviceCtx.Api.DownloadFile(inst.selectedBucket, prefix, filepath.Base(prefix))
+			//inst.serviceCtx.Api.DownloadFile(inst.serviceCtx.Ctx, inst.selectedBucket, prefix, filepath.Base(prefix))
 		}
 
 		handler(row, column)

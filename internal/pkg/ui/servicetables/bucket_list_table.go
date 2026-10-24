@@ -67,7 +67,7 @@ func (inst *BucketListTable) RefreshBuckets(force bool) {
 	dataLoader.AsyncLoadData(func() {
 		if force || len(inst.allBuckets) == 0 {
 			var err error = nil
-			inst.allBuckets, err = inst.serviceCtx.Api.ListBuckets(force)
+			inst.allBuckets, err = inst.serviceCtx.Api.ListBuckets(inst.serviceCtx.Ctx, force)
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
 			}

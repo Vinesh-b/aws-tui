@@ -84,7 +84,7 @@ func TestS3DownloadFile(t *testing.T) {
 	})
 
 	var target = filepath.Join(t.TempDir(), "out.txt")
-	if err := NewS3BucketsApi(testLogger()).DownloadFile("bucket", "key", target); err != nil {
+	if err := NewS3BucketsApi(testLogger()).DownloadFile(context.Background(), "bucket", "key", target); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -218,14 +218,14 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			return err
 		}, "execution ARN not set"},
 		{"s3 list objects", func() error {
-			var _, _, err = s3Api.ListObjects("", "", true)
+			var _, _, err = s3Api.ListObjects(context.Background(), "", "", true)
 			return err
 		}, "bucket name not set"},
 		{"s3 download without key", func() error {
-			return s3Api.DownloadFile("bucket", "", "file")
+			return s3Api.DownloadFile(context.Background(), "bucket", "", "file")
 		}, "object key not set"},
 		{"s3 download without file", func() error {
-			return s3Api.DownloadFile("bucket", "key", "")
+			return s3Api.DownloadFile(context.Background(), "bucket", "key", "")
 		}, "file name not set"},
 	}
 

@@ -27,7 +27,7 @@ func NewS3BucketsApi(
 	}
 }
 
-func (inst *S3BucketsApi) ListBuckets(force bool) ([]types.Bucket, error) {
+func (inst *S3BucketsApi) ListBuckets(ctx context.Context, force bool) ([]types.Bucket, error) {
 	if len(inst.allbuckets) > 0 && !force {
 		return inst.allbuckets, nil
 	}
@@ -37,7 +37,7 @@ func (inst *S3BucketsApi) ListBuckets(force bool) ([]types.Bucket, error) {
 	)
 
 	var result, err = collectPaginator(paginator.HasMorePages, func() ([]types.Bucket, error) {
-		var output, err = paginator.NextPage(context.TODO())
+		var output, err = paginator.NextPage(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -52,6 +52,7 @@ func (inst *S3BucketsApi) ListBuckets(force bool) ([]types.Bucket, error) {
 }
 
 func (inst *S3BucketsApi) ListObjects(
+	ctx context.Context,
 	bucketName string,
 	prefix string,
 	force bool,
@@ -80,7 +81,7 @@ func (inst *S3BucketsApi) ListObjects(
 		return nil, nil, fmt.Errorf("No more pages found")
 	}
 
-	var output, err = inst.objectsPaginator.NextPage(context.TODO())
+	var output, err = inst.objectsPaginator.NextPage(ctx)
 	if err != nil {
 		return nil, nil, inst.logErr(err)
 	}
@@ -88,7 +89,7 @@ func (inst *S3BucketsApi) ListObjects(
 	return output.Contents, output.CommonPrefixes, nil
 }
 
-func (inst *S3BucketsApi) DownloadFile(bucketName string, objectKey string, fileName string) error {
+func (inst *S3BucketsApi) DownloadFile(ctx context.Context, bucketName string, objectKey string, fileName string) error {
 	if err := requireArg("bucket name", bucketName); err != nil {
 		return err
 	}
@@ -103,7 +104,7 @@ func (inst *S3BucketsApi) DownloadFile(bucketName string, objectKey string, file
 
 	var client = GetAwsApiClients().s3
 
-	result, err := client.GetObject(context.TODO(), &s3.GetObjectInput{
+	result, err := client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(objectKey),
 	})
@@ -130,10 +131,10 @@ func (inst *S3BucketsApi) DownloadFile(bucketName string, objectKey string, file
 	return nil
 }
 
-func (inst *S3BucketsApi) GetBucketPolicy(bucketArn string, force bool) (string, error) {
+func (inst *S3BucketsApi) GetBucketPolicy(ctx context.Context, bucketArn string, force bool) (string, error) {
 	var client = GetAwsApiClients().s3
 
-	var output, err = client.GetBucketPolicy(context.TODO(),
+	var output, err = client.GetBucketPolicy(ctx,
 		&s3.GetBucketPolicyInput{
 			Bucket: aws.String(bucketArn),
 		})
@@ -146,11 +147,12 @@ func (inst *S3BucketsApi) GetBucketPolicy(bucketArn string, force bool) (string,
 }
 
 func (inst *S3BucketsApi) GetBucketTags(
+	ctx context.Context,
 	bucketArn string, force bool,
 ) ([]types.Tag, error) {
 	var client = GetAwsApiClients().s3
 
-	var output, err = client.GetBucketTagging(context.TODO(),
+	var output, err = client.GetBucketTagging(ctx,
 		&s3.GetBucketTaggingInput{
 			Bucket: aws.String(bucketArn),
 		})
@@ -163,11 +165,12 @@ func (inst *S3BucketsApi) GetBucketTags(
 }
 
 func (inst *S3BucketsApi) HeadBucket(
+	ctx context.Context,
 	bucketArn string, objectKey string, force bool,
 ) (s3.HeadBucketOutput, error) {
 	var client = GetAwsApiClients().s3
 	var empty = s3.HeadBucketOutput{}
-	var output, err = client.HeadBucket(context.TODO(),
+	var output, err = client.HeadBucket(ctx,
 		&s3.HeadBucketInput{
 			Bucket: aws.String(bucketArn),
 		})
@@ -180,11 +183,12 @@ func (inst *S3BucketsApi) HeadBucket(
 }
 
 func (inst *S3BucketsApi) HeadObject(
+	ctx context.Context,
 	bucketArn string, objectKey string, force bool,
 ) (s3.HeadObjectOutput, error) {
 	var client = GetAwsApiClients().s3
 	var empty = s3.HeadObjectOutput{}
-	var output, err = client.HeadObject(context.TODO(),
+	var output, err = client.HeadObject(ctx,
 		&s3.HeadObjectInput{
 			Bucket: aws.String(bucketArn),
 			Key:    aws.String(objectKey),

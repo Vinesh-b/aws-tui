@@ -84,7 +84,7 @@ func (inst *S3ObjectDetailsTable) RefreshDetails(bucketArn string, objectKey str
 	var loadFailed = false
 
 	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.serviceCtx.Api.HeadObject(bucketArn, objectKey, true)
+		var data, err = inst.serviceCtx.Api.HeadObject(inst.serviceCtx.Ctx, bucketArn, objectKey, true)
 		if err != nil {
 			loadFailed = true
 			inst.ErrorMessageCallback(err.Error())
