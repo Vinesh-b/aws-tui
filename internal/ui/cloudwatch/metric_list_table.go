@@ -1,6 +1,8 @@
 package cloudwatch
 
 import (
+	"strings"
+
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/utils"
@@ -27,8 +29,8 @@ func NewMetricsTable(
 		SelectableTable: core.NewSelectableTable[types.Metric](
 			"Metrics",
 			core.TableRow{
-				"Namespace",
 				"Name",
+				"Namespace",
 			},
 			serviceViewCtx.AppContext,
 		),
@@ -57,12 +59,27 @@ func NewMetricsTable(
 	return view
 }
 
+// metricDisplayName adds the dimensions to the metric name, as the same name is
+// usually reported once per resource.
+func metricDisplayName(metric types.Metric) string {
+	var name = aws.ToString(metric.MetricName)
+	if len(metric.Dimensions) == 0 {
+		return name
+	}
+
+	var dimensions = make([]string, 0, len(metric.Dimensions))
+	for _, dim := range metric.Dimensions {
+		dimensions = append(dimensions, aws.ToString(dim.Name)+"="+aws.ToString(dim.Value))
+	}
+	return name + " (" + strings.Join(dimensions, ", ") + ")"
+}
+
 func (inst *MetricListTable) populateMetricsTable(data []types.Metric) {
 	var tableData []core.TableRow
 	for _, row := range data {
 		tableData = append(tableData, core.TableRow{
+			metricDisplayName(row),
 			aws.ToString(row.Namespace),
-			aws.ToString(row.MetricName),
 		})
 	}
 
@@ -78,9 +95,7 @@ func (inst *MetricListTable) FilterByName(name string) {
 		inst.filtered = utils.FuzzySearch(
 			name,
 			inst.data,
-			func(v types.Metric) string {
-				return aws.ToString(v.MetricName)
-			},
+			metricDisplayName,
 		)
 	})
 

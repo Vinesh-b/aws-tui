@@ -11,6 +11,7 @@ import (
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/uitest"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	cwTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 )
@@ -163,8 +164,8 @@ func TestMetricListTable__RefreshLoadsMetricsFromApi(t *testing.T) {
 	table.RefreshMetrics(true)
 
 	uitest.AwaitRows(t, serviceCtx.App, table, []core.TableRow{
-		{"Namespace", "Name"},
-		{"AWS/EC2", "CPUUtilization"},
+		{"Name", "Namespace"},
+		{"CPUUtilization", "AWS/EC2"},
 	})
 }
 
@@ -181,8 +182,27 @@ func TestMetricListTable__FilterByNameShowsMatchingMetrics(t *testing.T) {
 	table.FilterByName("bucket")
 
 	uitest.AwaitRows(t, serviceCtx.App, table, []core.TableRow{
-		{"Namespace", "Name"},
-		{"AWS/S3", "BucketSizeBytes"},
+		{"Name", "Namespace"},
+		{"BucketSizeBytes", "AWS/S3"},
+	})
+}
+
+func TestMetricListTable__FilterByNameMatchesDimensionValues(t *testing.T) {
+	var api = &fakeCloudWatchMetricsApi{metrics: []cwTypes.Metric{
+		newMetric("AWS/Lambda", "Invocations", cwTypes.Dimension{Name: aws.String("FunctionName"), Value: aws.String("orders")}),
+		newMetric("AWS/Lambda", "Invocations", cwTypes.Dimension{Name: aws.String("FunctionName"), Value: aws.String("billing")}),
+	}}
+	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudWatchMetricsApi](api)
+	var table = NewMetricsTable(serviceCtx)
+	uitest.RunApp(t, serviceCtx.App)
+	table.RefreshMetrics(true)
+	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetTable().GetRowCount() == 3 })
+
+	table.FilterByName("billing")
+
+	uitest.AwaitRows(t, serviceCtx.App, table, []core.TableRow{
+		{"Name", "Namespace"},
+		{"Invocations (FunctionName=billing)", "AWS/Lambda"},
 	})
 }
 

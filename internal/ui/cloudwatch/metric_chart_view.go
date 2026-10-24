@@ -86,7 +86,7 @@ func NewMetricChartView(
 func (inst *MetricChartView) title(summary string) string {
 	var title = fmt.Sprintf(
 		"Metric Chart: %s [%s, %s]",
-		aws.ToString(inst.metric.MetricName),
+		metricDisplayName(inst.metric),
 		chartStatistics[inst.statIdx],
 		chartRanges[inst.rangeIdx].label,
 	)

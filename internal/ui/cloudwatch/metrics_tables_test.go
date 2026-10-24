@@ -32,16 +32,34 @@ func TestMetricListTable__ShowsHeadingsAndOneRowPerMetric(t *testing.T) {
 	)
 
 	uitest.AssertTableRows(t, table, []core.TableRow{
-		{"Namespace", "Name"},
-		{"AWS/EC2", "CPUUtilization"},
-		{"AWS/S3", "BucketSizeBytes"},
+		{"Name", "Namespace"},
+		{"CPUUtilization", "AWS/EC2"},
+		{"BucketSizeBytes", "AWS/S3"},
+	})
+}
+
+func TestMetricListTable__NameIncludesDimensions(t *testing.T) {
+	var table = newPopulatedMetricListTable(
+		newMetric("AWS/Lambda", "Invocations",
+			types.Dimension{Name: aws.String("FunctionName"), Value: aws.String("orders")},
+		),
+		newMetric("AWS/ApplicationELB", "RequestCount",
+			types.Dimension{Name: aws.String("LoadBalancer"), Value: aws.String("app/web/1")},
+			types.Dimension{Name: aws.String("AvailabilityZone"), Value: aws.String("us-east-1a")},
+		),
+	)
+
+	uitest.AssertTableRows(t, table, []core.TableRow{
+		{"Name", "Namespace"},
+		{"Invocations (FunctionName=orders)", "AWS/Lambda"},
+		{"RequestCount (LoadBalancer=app/web/1, AvailabilityZone=us-east-1a)", "AWS/ApplicationELB"},
 	})
 }
 
 func TestMetricListTable__EmptyDataShowsOnlyHeadings(t *testing.T) {
 	var table = newPopulatedMetricListTable()
 
-	uitest.AssertTableRows(t, table, []core.TableRow{{"Namespace", "Name"}})
+	uitest.AssertTableRows(t, table, []core.TableRow{{"Name", "Namespace"}})
 }
 
 func TestMetricListTable__SelectingRowTracksSelectedMetric(t *testing.T) {
