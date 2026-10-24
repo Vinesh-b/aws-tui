@@ -93,7 +93,7 @@ func (inst *MetricListTable) RefreshMetrics(reset bool) {
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.serviceCtx.Api.ListMetrics(nil, "", "", reset)
+		var data, err = inst.serviceCtx.Api.ListMetrics(inst.serviceCtx.Ctx, nil, "", "", reset)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

@@ -23,6 +23,7 @@ func NewCloudWatchMetricsApi(
 }
 
 func (inst *CloudWatchMetricsApi) ListMetrics(
+	ctx context.Context,
 	dims []types.DimensionFilter,
 	namespace string,
 	metricName string,
@@ -48,7 +49,7 @@ func (inst *CloudWatchMetricsApi) ListMetrics(
 	)
 
 	var result, err = collectPaginator(inst.metricsPaginator.HasMorePages, func() ([]types.Metric, error) {
-		var output, err = inst.metricsPaginator.NextPage(context.TODO())
+		var output, err = inst.metricsPaginator.NextPage(ctx)
 		if err != nil {
 			return nil, err
 		}
