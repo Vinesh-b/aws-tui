@@ -77,13 +77,17 @@ func (inst *VpcSubnetsTable) populateVpcSubnetsTable(data []types.Subnet) {
 				break
 			}
 		}
+		var blockMode = ""
+		if row.BlockPublicAccessStates != nil {
+			blockMode = string(row.BlockPublicAccessStates.InternetGatewayBlockMode)
+		}
 		tableData = append(tableData, core.TableRow{
 			name,
 			aws.ToString(row.SubnetId),
 			string(row.State),
 			aws.ToString(row.CidrBlock),
 			fmt.Sprintf("%d", aws.ToInt32(row.AvailableIpAddressCount)),
-			string(row.BlockPublicAccessStates.InternetGatewayBlockMode),
+			blockMode,
 			aws.ToString(row.AvailabilityZone),
 			aws.ToString(row.OwnerId),
 			aws.ToString(row.Type),

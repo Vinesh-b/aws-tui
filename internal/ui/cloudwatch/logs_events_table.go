@@ -110,9 +110,8 @@ func (inst *LogEventsTable) SetSeletedLogStream(logStream string) {
 }
 
 func (inst *LogEventsTable) GetFullLogMessage(row int) string {
-	var msg = inst.GetCell(row, logMsgCol).Reference
-	if row < 1 || msg == nil {
+	if row < 1 {
 		return ""
 	}
-	return msg.(string)
+	return inst.GetPrivateData(row, logMsgCol)
 }

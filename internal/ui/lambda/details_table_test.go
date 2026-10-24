@@ -3,16 +3,18 @@ package lambda
 import (
 	"testing"
 
+	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 )
 
 func TestDetailsTable__EmptyConfigShowsBlankValues(t *testing.T) {
-	var table = NewLambdaDetailsTable(newTestServiceContext())
+	var table = NewLambdaDetailsTable(uitest.NewServiceContext[awsapi.LambdaApi]())
 
-	assertRows(t, table.DetailsTable, []core.TableRow{
+	uitest.AssertDetailsRows(t, table.DetailsTable, []core.TableRow{
 		{"Description", ""},
 		{"Arn", ""},
 		{"Version", ""},
@@ -29,7 +31,7 @@ func TestDetailsTable__EmptyConfigShowsBlankValues(t *testing.T) {
 }
 
 func TestDetailsTable__PopulatesFromConfig(t *testing.T) {
-	var table = NewLambdaDetailsTable(newTestServiceContext())
+	var table = NewLambdaDetailsTable(uitest.NewServiceContext[awsapi.LambdaApi]())
 	table.data = types.FunctionConfiguration{
 		FunctionName:  aws.String("orders"),
 		Description:   aws.String("Handles orders"),
@@ -50,7 +52,7 @@ func TestDetailsTable__PopulatesFromConfig(t *testing.T) {
 
 	table.populateLambdaDetailsTable()
 
-	assertRows(t, table.DetailsTable, []core.TableRow{
+	uitest.AssertDetailsRows(t, table.DetailsTable, []core.TableRow{
 		{"Description", "Handles orders"},
 		{"Arn", "arn:aws:lambda:us-east-1:123456789012:function:orders"},
 		{"Version", "$LATEST"},

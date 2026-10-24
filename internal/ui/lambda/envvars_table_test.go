@@ -3,19 +3,21 @@ package lambda
 import (
 	"testing"
 
+	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 )
 
 func TestEnvVarsTable__NoEnvironmentIsEmpty(t *testing.T) {
-	var table = NewLambdaEnvVarsTable(newTestServiceContext())
+	var table = NewLambdaEnvVarsTable(uitest.NewServiceContext[awsapi.LambdaApi]())
 
-	assertRows(t, table.DetailsTable, nil)
+	uitest.AssertDetailsRows(t, table.DetailsTable, nil)
 }
 
 func TestEnvVarsTable__SortsVariablesByName(t *testing.T) {
-	var table = NewLambdaEnvVarsTable(newTestServiceContext())
+	var table = NewLambdaEnvVarsTable(uitest.NewServiceContext[awsapi.LambdaApi]())
 	table.data = types.FunctionConfiguration{
 		Environment: &types.EnvironmentResponse{
 			Variables: map[string]string{
@@ -28,7 +30,7 @@ func TestEnvVarsTable__SortsVariablesByName(t *testing.T) {
 
 	table.populateLambdaEnvVarsTable()
 
-	assertRows(t, table.DetailsTable, []core.TableRow{
+	uitest.AssertDetailsRows(t, table.DetailsTable, []core.TableRow{
 		{"BUCKET", "orders-bucket"},
 		{"LOG_LEVEL", "info"},
 		{"STAGE", "prod"},
