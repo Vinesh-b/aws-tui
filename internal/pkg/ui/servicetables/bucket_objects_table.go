@@ -118,14 +118,14 @@ func (inst *BucketObjectsTable) FilterByName(name string) {
 			name,
 			inst.data,
 			func(f types.Object) string {
-				return aws.ToString(f.Key)
+				return filepath.Base(aws.ToString(f.Key))
 			},
 		)
 		inst.filteredDirs = utils.FuzzySearch(
 			name,
 			inst.dirs,
 			func(f types.CommonPrefix) string {
-				return aws.ToString(f.Prefix)
+				return filepath.Base(aws.ToString(f.Prefix))
 			},
 		)
 	})
