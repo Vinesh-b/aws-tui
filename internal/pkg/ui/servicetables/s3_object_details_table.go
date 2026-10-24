@@ -2,6 +2,8 @@ package servicetables
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"time"
 
 	"aws-tui/internal/pkg/awsapi"
@@ -48,9 +50,9 @@ func (inst *S3ObjectDetailsTable) populateS3ObjectDetailsTable() {
 		)
 	}
 
-	for k, v := range inst.data.Metadata {
+	for _, k := range slices.Sorted(maps.Keys(inst.data.Metadata)) {
 		tableData = append(tableData,
-			core.TableRow{"", fmt.Sprintf("%s: %s", k, v)},
+			core.TableRow{"", fmt.Sprintf("%s: %s", k, inst.data.Metadata[k])},
 		)
 	}
 
@@ -79,10 +81,12 @@ func (inst *S3ObjectDetailsTable) populateS3ObjectDetailsTable() {
 
 func (inst *S3ObjectDetailsTable) RefreshDetails(bucketArn string, objectKey string) {
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var loadFailed = false
 
 	dataLoader.AsyncLoadData(func() {
 		var data, err = inst.serviceCtx.Api.HeadObject(bucketArn, objectKey, true)
 		if err != nil {
+			loadFailed = true
 			inst.ErrorMessageCallback(err.Error())
 			return
 		}
@@ -92,6 +96,9 @@ func (inst *S3ObjectDetailsTable) RefreshDetails(bucketArn string, objectKey str
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
+		if loadFailed {
+			return
+		}
 		inst.populateS3ObjectDetailsTable()
 	})
 }
