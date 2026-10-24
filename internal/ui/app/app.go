@@ -11,6 +11,7 @@ import (
 	"aws-tui/internal/ui/s3"
 	"aws-tui/internal/ui/services"
 	"aws-tui/internal/ui/sfn"
+	"aws-tui/internal/ui/sqs"
 	"aws-tui/internal/ui/ssm"
 	"aws-tui/internal/ui/vpc"
 	"context"
@@ -127,6 +128,9 @@ func CreateApplication(ctx context.Context, config aws.Config, version string) *
 		},
 		{"󱇱 " + string(core.VPC), "VPCs, endpoints, subnets...", rune('󰯉'),
 			vpc.NewVpcHomeView(appContext, awsapi.NewEc2Api(appContext.Logger)),
+		},
+		{"󱃔 " + string(core.SQS), "Queues and their attributes", rune('󰯉'),
+			sqs.NewSqsHomeView(appContext, awsapi.NewSqsApi(appContext.Logger)),
 		},
 		{"󰘥 " + string(core.HELP), "Help docs on how to use this app", rune('?'),
 			services.NewHelpHomeView(appContext),

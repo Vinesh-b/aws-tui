@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 )
@@ -35,6 +36,7 @@ type AwsApiClients struct {
 	eventbridge    *eventbridge.Client
 	lambda         *lambda.Client
 	sfn            *sfn.Client
+	sqs            *sqs.Client
 	ssm            *ssm.Client
 	s3             *s3.Client
 }
@@ -55,6 +57,7 @@ func newAwsApiClients(cfg aws.Config, profile string) *AwsApiClients {
 		eventbridge:    eventbridge.NewFromConfig(cfg),
 		lambda:         lambda.NewFromConfig(cfg),
 		sfn:            sfn.NewFromConfig(cfg),
+		sqs:            sqs.NewFromConfig(cfg),
 		ssm:            ssm.NewFromConfig(cfg),
 		s3:             s3.NewFromConfig(cfg),
 	}
