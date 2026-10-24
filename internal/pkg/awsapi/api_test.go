@@ -154,7 +154,7 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			return err
 		}, "stack name not set"},
 		{"alarm history", func() error {
-			var _, err = NewCloudWatchAlarmsApi(logger).ListAlarmHistory("", true)
+			var _, err = NewCloudWatchAlarmsApi(logger).ListAlarmHistory(context.Background(), "", true)
 			return err
 		}, "alarm name not set"},
 		{"log streams", func() error {

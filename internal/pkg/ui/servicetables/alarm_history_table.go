@@ -71,7 +71,7 @@ func (inst *AlarmHistoryTable) RefreshHistory(force bool) {
 
 	dataLoader.AsyncLoadData(func() {
 		var err error = nil
-		inst.data, err = inst.serviceCtx.Api.ListAlarmHistory(inst.selectedAlarm, force)
+		inst.data, err = inst.serviceCtx.Api.ListAlarmHistory(inst.serviceCtx.Ctx, inst.selectedAlarm, force)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

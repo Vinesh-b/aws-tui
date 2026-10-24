@@ -27,7 +27,7 @@ func NewCloudWatchAlarmsApi(
 	}
 }
 
-func (inst *CloudWatchAlarmsApi) ListAlarms(force bool) ([]types.MetricAlarm, error) {
+func (inst *CloudWatchAlarmsApi) ListAlarms(ctx context.Context, force bool) ([]types.MetricAlarm, error) {
 	inst.alarmsPaginator = cloudwatch.NewDescribeAlarmsPaginator(
 		GetAwsApiClients().cloudwatch,
 		&cloudwatch.DescribeAlarmsInput{
@@ -36,7 +36,7 @@ func (inst *CloudWatchAlarmsApi) ListAlarms(force bool) ([]types.MetricAlarm, er
 	)
 
 	var result, err = collectPaginator(inst.alarmsPaginator.HasMorePages, func() ([]types.MetricAlarm, error) {
-		var output, err = inst.alarmsPaginator.NextPage(context.TODO())
+		var output, err = inst.alarmsPaginator.NextPage(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -48,7 +48,7 @@ func (inst *CloudWatchAlarmsApi) ListAlarms(force bool) ([]types.MetricAlarm, er
 	return result, inst.logErr(err)
 }
 
-func (inst *CloudWatchAlarmsApi) ListAlarmHistory(name string, force bool) ([]types.AlarmHistoryItem, error) {
+func (inst *CloudWatchAlarmsApi) ListAlarmHistory(ctx context.Context, name string, force bool) ([]types.AlarmHistoryItem, error) {
 	if err := requireArg("alarm name", name); err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (inst *CloudWatchAlarmsApi) ListAlarmHistory(name string, force bool) ([]ty
 		return foundHistory, nil
 	}
 
-	var output, err = inst.historyPaginator.NextPage(context.TODO())
+	var output, err = inst.historyPaginator.NextPage(ctx)
 	if err != nil {
 		return foundHistory, inst.logErr(err)
 	}

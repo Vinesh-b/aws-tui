@@ -105,7 +105,7 @@ func (inst *AlarmListTable) RefreshAlarms(reset bool) {
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.serviceCtx.Api.ListAlarms(reset)
+		var data, err = inst.serviceCtx.Api.ListAlarms(inst.serviceCtx.Ctx, reset)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}
