@@ -50,8 +50,8 @@ func (inst *BucketListTable) populateS3BucketsTable() {
 	var tableData []core.TableRow
 	for _, row := range inst.data {
 		tableData = append(tableData, core.TableRow{
-			*row.Name,
-			row.CreationDate.Format(time.DateTime),
+			aws.ToString(row.Name),
+			aws.ToTime(row.CreationDate).Format(time.DateTime),
 		})
 	}
 
@@ -65,18 +65,17 @@ func (inst *BucketListTable) RefreshBuckets(force bool) {
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		if len(search) > 0 {
-			inst.data = utils.FuzzySearch(search, inst.allBuckets, func(b types.Bucket) string {
-				return aws.ToString(b.Name)
-			})
-		} else {
+		if force || len(inst.allBuckets) == 0 {
 			var err error = nil
 			inst.allBuckets, err = inst.serviceCtx.Api.ListBuckets(force)
-			inst.data = inst.allBuckets
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
 			}
 		}
+
+		inst.data = utils.FuzzySearch(search, inst.allBuckets, func(b types.Bucket) string {
+			return aws.ToString(b.Name)
+		})
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
