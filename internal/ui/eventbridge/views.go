@@ -15,6 +15,7 @@ type EventBridgeTabName = string
 const (
 	EventBridgeTabNameDetails EventBridgeTabName = "Details"
 	EventBridgeTabNamePolicy  EventBridgeTabName = "Policy"
+	EventBridgeTabNameRules   EventBridgeTabName = "Rules"
 	EventBridgeTabNameTags    EventBridgeTabName = "Tags"
 )
 
@@ -22,6 +23,7 @@ type EventBridgeDetailsPageView struct {
 	*core.ServicePageView
 	EventBusListTable    *EventBusListTable
 	EventBusDetailsTable *EventBusDetailsTable
+	RulesTabView         *RulesTabView
 	EventBusTagsTable    *core.TagsTable[types.Tag, awsapi.EventBridgeApi]
 	EventBusPolicyView   *core.JsonTextView[types.EventBus]
 	serviceCtx           *core.ServiceContext[awsapi.EventBridgeApi]
@@ -30,6 +32,7 @@ type EventBridgeDetailsPageView struct {
 func NewEventBridgeDetailsPageView(
 	busListTable *EventBusListTable,
 	busDetailsTable *EventBusDetailsTable,
+	rulesTabView *RulesTabView,
 	serviceCtx *core.ServiceContext[awsapi.EventBridgeApi],
 ) *EventBridgeDetailsPageView {
 	var policyView = core.JsonTextView[types.EventBus]{
@@ -54,6 +57,7 @@ func NewEventBridgeDetailsPageView(
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab(EventBridgeTabNameDetails, busDetailsTable, 0, 1, true).
 		AddTab(EventBridgeTabNamePolicy, policyView.TextView, 0, 1, true).
+		AddTab(EventBridgeTabNameRules, rulesTabView, 0, 1, true).
 		AddTab(EventBridgeTabNameTags, tagsTable, 0, 1, true)
 
 	const detailsViewSize = 5000
@@ -72,6 +76,7 @@ func NewEventBridgeDetailsPageView(
 
 		EventBusListTable:    busListTable,
 		EventBusDetailsTable: busDetailsTable,
+		RulesTabView:         rulesTabView,
 		EventBusTagsTable:    tagsTable,
 		EventBusPolicyView:   &policyView,
 		serviceCtx:           serviceCtx,
@@ -83,6 +88,7 @@ func NewEventBridgeDetailsPageView(
 
 	busDetailsTable.ErrorMessageCallback = errorHandler
 	busListTable.ErrorMessageCallback = errorHandler
+	rulesTabView.RulesTable.ErrorMessageCallback = errorHandler
 
 	view.InitViewNavigation(
 		[][]core.View{
@@ -100,6 +106,7 @@ func (inst *EventBridgeDetailsPageView) initInputCapture() {
 		var selectedEventBus = inst.EventBusListTable.GetSelectedEventBus()
 		inst.EventBusDetailsTable.RefreshDetails(selectedEventBus)
 		inst.EventBusTagsTable.RefreshDetails()
+		inst.RulesTabView.RefreshRules(aws.ToString(selectedEventBus.Arn))
 
 		inst.EventBusPolicyView.SetText(inst.EventBusListTable.GetSelectedEventBus())
 	})
@@ -115,6 +122,7 @@ func NewEventBridgeHomeView(appCtx *core.AppContext, api awsapi.EventBridgeApi) 
 		eventbridgeDetailsView = NewEventBridgeDetailsPageView(
 			NewEventBusListTable(serviceCtx),
 			NewEventBusDetailsTable(serviceCtx),
+			NewRulesTabView(NewRulesTable(serviceCtx), serviceCtx),
 			serviceCtx,
 		)
 	)

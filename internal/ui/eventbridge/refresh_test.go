@@ -14,12 +14,25 @@ import (
 
 type fakeEventBridgeApi struct {
 	awsapi.EventBridgeApi
-	buses []types.EventBus
-	err   error
+	buses      []types.EventBus
+	rules      []types.Rule
+	targets    []types.Target
+	err        error
+	targetsErr error
 }
 
 func (f *fakeEventBridgeApi) ListEventBuses(ctx context.Context, force bool) ([]types.EventBus, error) {
 	return f.buses, f.err
+}
+
+func (f *fakeEventBridgeApi) ListRules(ctx context.Context, force bool, busArn string) ([]types.Rule, error) {
+	return f.rules, f.err
+}
+
+func (f *fakeEventBridgeApi) ListTargetsByRule(
+	ctx context.Context, force bool, busArn string, ruleName string,
+) ([]types.Target, error) {
+	return f.targets, f.targetsErr
 }
 
 func (f *fakeEventBridgeApi) ListTags(ctx context.Context, force bool, resourceArn string) ([]types.Tag, error) {

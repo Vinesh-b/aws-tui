@@ -13,6 +13,7 @@ type EventBridgeApi interface {
 	ListEventBuses(ctx context.Context, force bool) ([]types.EventBus, error)
 	DescribeEventBus(ctx context.Context, force bool, busArn string) (eventbridge.DescribeEventBusOutput, error)
 	ListRules(ctx context.Context, force bool, busArn string) ([]types.Rule, error)
+	ListTargetsByRule(ctx context.Context, force bool, busArn string, ruleName string) ([]types.Target, error)
 	ListTags(ctx context.Context, force bool, resourceArn string) ([]types.Tag, error)
 }
 
@@ -104,4 +105,29 @@ func (inst *eventBridgeApi) ListTags(ctx context.Context, force bool, resourceAr
 	}
 
 	return output.Tags, nil
+}
+
+func (inst *eventBridgeApi) ListTargetsByRule(
+	ctx context.Context, force bool, busArn string, ruleName string,
+) ([]types.Target, error) {
+	if err := requireArg("ruleName", ruleName); err != nil {
+		return nil, err
+	}
+
+	var result, err = collectTokenPages(func(token *string) ([]types.Target, *string, error) {
+		var output, err = GetAwsApiClients().eventbridge.ListTargetsByRule(ctx,
+			&eventbridge.ListTargetsByRuleInput{
+				Rule:         &ruleName,
+				EventBusName: &busArn,
+				Limit:        aws.Int32(100),
+				NextToken:    token,
+			},
+		)
+		if err != nil {
+			return nil, nil, err
+		}
+		return output.Targets, output.NextToken, nil
+	})
+
+	return result, inst.logErr(err)
 }
