@@ -76,8 +76,7 @@ func NewBucketObjectsTable(
 func (inst *BucketObjectsTable) populateS3ObjectsTable(
 	data []types.Object, dirs []types.CommonPrefix,
 ) {
-	var selectedKey = aws.ToString(inst.selectedObject.Key)
-	var cleanedPrefix = filepath.Clean(selectedKey)
+	var cleanedPrefix = filepath.Clean(inst.selectedDir)
 	var parentDir = filepath.Dir(cleanedPrefix) + "/"
 	if parentDir == "./" {
 		parentDir = ""
@@ -141,7 +140,7 @@ func (inst *BucketObjectsTable) RefreshObjects(force bool) {
 
 	dataLoader.AsyncLoadData(func() {
 		var objects, commonPrefixes, err = inst.serviceCtx.Api.ListObjects(
-			inst.selectedBucket, aws.ToString(inst.selectedObject.Key), force,
+			inst.selectedBucket, inst.selectedDir, force,
 		)
 
 		if err != nil {
@@ -152,15 +151,16 @@ func (inst *BucketObjectsTable) RefreshObjects(force bool) {
 		var filterObjs = objects
 		// the current dir is retured in the objects list and we don't want that
 		for idx, val := range objects {
-			if aws.ToString(val.Key) == aws.ToString(inst.selectedObject.Key) {
+			if aws.ToString(val.Key) == inst.selectedDir {
 				filterObjs = slices.Delete(objects, idx, idx+1)
 				break
 			}
 		}
-		inst.dirs = commonPrefixes
 		if !force {
+			inst.dirs = append(inst.dirs, commonPrefixes...)
 			inst.data = append(inst.data, filterObjs...)
 		} else {
+			inst.dirs = commonPrefixes
 			inst.data = filterObjs
 		}
 	})
@@ -210,6 +210,8 @@ func (inst *BucketObjectsTable) SetInputCapture(capture func(event *tcell.EventK
 
 func (inst *BucketObjectsTable) SetSelectedBucket(name string) {
 	inst.selectedBucket = name
+	inst.selectedDir = ""
+	inst.selectedObject = types.Object{}
 }
 
 func (inst *BucketObjectsTable) GetSelectedPrefix() string {

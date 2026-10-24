@@ -1,6 +1,8 @@
 package services
 
 import (
+	"strings"
+
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 	tables "aws-tui/internal/pkg/ui/servicetables"
@@ -54,6 +56,7 @@ func NewS3bucketsDetailsView(
 
 	bucketListTable.ErrorMessageCallback = errorHandler
 	bucketObjectsTable.ErrorMessageCallback = errorHandler
+	bucketObjectDetailsTable.ErrorMessageCallback = errorHandler
 
 	return &S3BucketsDetailsView{
 		ServicePageView:    serviceView,
@@ -83,9 +86,13 @@ func (inst *S3BucketsDetailsView) InitInputCapture() {
 	})
 
 	inst.objectsTable.SetSelectedFunc(func(row, column int) {
+		var key = inst.objectsTable.GetSelectedPrefix()
+		if key == "" || strings.HasSuffix(key, "/") {
+			// directories and "../" have no object to describe
+			return
+		}
 		inst.objectDetailsTable.RefreshDetails(
-			inst.bucketsTable.GetSeletedBucket(),
-			inst.objectsTable.GetSelectedPrefix(),
+			inst.bucketsTable.GetSeletedBucket(), key,
 		)
 	})
 }
