@@ -4,6 +4,7 @@ import (
 	"aws-tui/internal/pkg/awsapi"
 	"aws-tui/internal/pkg/ui/core"
 	tables "aws-tui/internal/pkg/ui/servicetables"
+	"aws-tui/internal/pkg/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
@@ -20,82 +21,116 @@ const (
 	DdbTabNameTags    DdbTabName = "Tags"
 )
 
-type DynamoDBDetailsPage struct {
+type DynamoDBDetailsPageView struct {
 	*core.ServicePageView
 	TablesTable  *tables.DynamoDBTablesTable
 	DetailsTable *tables.DynamoDBDetailsTable
 	TagsTable    *tables.TagsTable[types.Tag, awsapi.DynamoDBApi]
+	TabView      *core.TabViewHorizontal
 	serviceCtx   *core.ServiceContext[awsapi.DynamoDBApi]
 }
 
-func NewDynamoDBDetailsPage(
-	detailsTable *tables.DynamoDBDetailsTable,
+func NewDynamoDBDetailsPageView(
 	tablesTable *tables.DynamoDBTablesTable,
-	serviceContext *core.ServiceContext[awsapi.DynamoDBApi],
-) *DynamoDBDetailsPage {
-	const tabViewSize = 3000
-	const tablesSize = 5000
-
-	var tagsTable = tables.NewTagsTable[types.Tag](serviceContext).
+	detailsTable *tables.DynamoDBDetailsTable,
+	serviceCtx *core.ServiceContext[awsapi.DynamoDBApi],
+) *DynamoDBDetailsPageView {
+	var tagsTable = tables.NewTagsTable[types.Tag](serviceCtx).
 		SetExtractKeyValFunc(func(t types.Tag) (k string, v string) {
 			return aws.ToString(t.Key), aws.ToString(t.Value)
 		}).
 		SetGetTagsFunc(func() ([]types.Tag, error) {
-			return serviceContext.Api.ListTags(
+			return serviceCtx.Api.ListTags(
 				true, detailsTable.GetSelectedTableArn(),
 			)
 		})
 
-	var tabView = core.NewTabViewHorizontal(serviceContext.AppContext).
+	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab(DdbTabNameDetails, detailsTable, 0, 1, true).
 		AddTab(DdbTabNameTags, tagsTable, 0, 1, true)
 
+	const tabViewSize = 3000
+	const tablesTableSize = 5000
+
 	var mainPage = core.NewResizableView(
 		tabView, tabViewSize,
-		tablesTable, tablesSize,
+		tablesTable, tablesTableSize,
 		tview.FlexRow,
 	)
-
-	var serviceView = core.NewServicePageView(serviceContext.AppContext)
+	var serviceView = core.NewServicePageView(serviceCtx.AppContext)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
-	serviceView.InitViewNavigation(
+	var view = &DynamoDBDetailsPageView{
+		ServicePageView: serviceView,
+		TablesTable:     tablesTable,
+		DetailsTable:    detailsTable,
+		TagsTable:       tagsTable,
+		TabView:         tabView,
+		serviceCtx:      serviceCtx,
+	}
+
+	var errorHandler = func(text string, a ...any) {
+		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
+	}
+
+	tablesTable.ErrorMessageCallback = errorHandler
+	detailsTable.ErrorMessageCallback = errorHandler
+
+	view.InitViewNavigation(
 		[][]core.View{
 			{tabView.GetTabDisplayView()},
 			{tablesTable},
 		},
 	)
+	view.initInputCapture()
 
-	return &DynamoDBDetailsPage{
-		ServicePageView: serviceView,
-		TablesTable:     tablesTable,
-		DetailsTable:    detailsTable,
-		TagsTable:       tagsTable,
-		serviceCtx:      serviceContext,
+	return view
+}
+
+func (inst *DynamoDBDetailsPageView) initInputCapture() {
+	var loadedTabs = map[int]bool{}
+	var lastSelection = ""
+	var tabChangeFunc = func(tabName string, index int) {
+		var selectedTable = inst.TablesTable.GetSelectedTable()
+
+		if selectedTable != lastSelection {
+			lastSelection = selectedTable
+			utils.ClearMap(loadedTabs)
+		}
+
+		// Only automaticaly load new data on first change
+		if loadedTabs[index] {
+			return
+		}
+
+		switch tabName {
+		case DdbTabNameTags:
+			inst.TagsTable.RefreshDetails()
+		}
+
+		loadedTabs[index] = true
 	}
-}
 
-func (inst *DynamoDBDetailsPage) InitInputCapture() {
-	inst.DetailsTable.SetSelectedFunc(func(row, column int) {
-		inst.TagsTable.RefreshDetails()
+	inst.TablesTable.SetSelectionChangedFunc(func(row, column int) {
+		inst.DetailsTable.SetSelectedTable(inst.TablesTable.GetSelectedTable())
+		inst.DetailsTable.RefreshDetails()
 	})
+
+	inst.TabView.SetOnTabChangeFunc(tabChangeFunc)
 }
 
-type DynamoDBTableItemsPage struct {
+type DynamoDBItemsPageView struct {
 	*core.ServicePageView
-	ItemsTable       *tables.DynamoDBGenericTable
-	serviceCtx       *core.ServiceContext[awsapi.DynamoDBApi]
-	tableName        string
-	tableDescription *types.TableDescription
-	lastTableOp      tables.DDBTableOp
+	ItemsTable *tables.DynamoDBGenericTable
+	serviceCtx *core.ServiceContext[awsapi.DynamoDBApi]
 }
 
-func NewDynamoDBTableItemsPage(
+func NewDynamoDBItemsPageView(
 	itemsTable *tables.DynamoDBGenericTable,
-	serviceContext *core.ServiceContext[awsapi.DynamoDBApi],
-) *DynamoDBTableItemsPage {
+	serviceCtx *core.ServiceContext[awsapi.DynamoDBApi],
+) *DynamoDBItemsPageView {
 	var expandItemView = core.CreateJsonTableDataView(
-		serviceContext.AppContext, itemsTable, -1,
+		serviceCtx.AppContext, itemsTable, -1,
 	)
 
 	const expandItemViewSize = 3
@@ -106,34 +141,32 @@ func NewDynamoDBTableItemsPage(
 		itemsTable, itemsTableSize,
 		tview.FlexRow,
 	)
-
-	var serviceView = core.NewServicePageView(serviceContext.AppContext)
+	var serviceView = core.NewServicePageView(serviceCtx.AppContext)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
-	serviceView.InitViewNavigation(
+	var view = &DynamoDBItemsPageView{
+		ServicePageView: serviceView,
+		ItemsTable:      itemsTable,
+		serviceCtx:      serviceCtx,
+	}
+
+	itemsTable.ErrorMessageCallback = func(text string, a ...any) {
+		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
+	}
+
+	view.InitViewNavigation(
 		[][]core.View{
 			{expandItemView},
 			{itemsTable},
 		},
 	)
 
-	itemsTable.ErrorMessageCallback = func(text string, a ...any) {
-		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
-	}
-
-	return &DynamoDBTableItemsPage{
-		ServicePageView:  serviceView,
-		ItemsTable:       itemsTable,
-		serviceCtx:       serviceContext,
-		tableDescription: nil,
-	}
+	return view
 }
 
-func (inst *DynamoDBTableItemsPage) InitInputCapture() {}
-
-func (inst *DynamoDBTableItemsPage) SetTableName(tableName string) *DynamoDBTableItemsPage {
-	inst.tableName = tableName
-	return inst
+func (inst *DynamoDBItemsPageView) LoadTableItems(tableName string) {
+	inst.ItemsTable.SetSelectedTable(tableName)
+	inst.ItemsTable.ExecuteSearch(tables.DDBTableScan, expression.Expression{}, true)
 }
 
 func NewDynamoDBHomeView(appCtx *core.AppContext) core.ServicePage {
@@ -144,12 +177,12 @@ func NewDynamoDBHomeView(appCtx *core.AppContext) core.ServicePage {
 		api        = awsapi.NewDynamoDBApi(appCtx.Logger)
 		serviceCtx = core.NewServiceViewContext(appCtx, api)
 
-		ddbDetailsView = NewDynamoDBDetailsPage(
-			tables.NewDynamoDBDetailsTable(serviceCtx),
+		ddbDetailsView = NewDynamoDBDetailsPageView(
 			tables.NewDynamoDBTablesTable(serviceCtx),
+			tables.NewDynamoDBDetailsTable(serviceCtx),
 			serviceCtx,
 		)
-		ddbItemsView = NewDynamoDBTableItemsPage(
+		ddbItemsView = NewDynamoDBItemsPageView(
 			tables.NewDynamoDBGenericTable(serviceCtx),
 			serviceCtx,
 		)
@@ -163,27 +196,12 @@ func NewDynamoDBHomeView(appCtx *core.AppContext) core.ServicePage {
 
 	serviceRootView.InitPageNavigation()
 
-	var selectedTableName = ""
-	ddbDetailsView.TablesTable.SetSelectionChangedFunc(func(row, column int) {
-		selectedTableName = ddbDetailsView.TablesTable.GetSelectedTable()
-		ddbDetailsView.DetailsTable.SetSelectedTable(selectedTableName)
-		ddbDetailsView.DetailsTable.RefreshDetails()
-	})
-
 	ddbDetailsView.TablesTable.SetSelectedFunc(func(row, column int) {
-		selectedTableName = ddbDetailsView.TablesTable.GetSelectedTable()
-		if len(selectedTableName) > 0 {
-			ddbItemsView.ItemsTable.SetSelectedTable(selectedTableName)
-			ddbItemsView.ItemsTable.ExecuteSearch(tables.DDBTableScan, expression.Expression{}, true)
+		if selectedTable := ddbDetailsView.TablesTable.GetSelectedTable(); len(selectedTable) > 0 {
+			ddbItemsView.LoadTableItems(selectedTable)
 			serviceRootView.ChangePage(1, nil)
 		}
 	})
-
-	ddbDetailsView.InitInputCapture()
-
-	ddbItemsView.
-		SetTableName(selectedTableName).
-		InitInputCapture()
 
 	return serviceRootView
 }

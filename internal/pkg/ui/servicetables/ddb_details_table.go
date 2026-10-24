@@ -124,5 +124,8 @@ func (inst *DynamoDBDetailsTable) SetSelectedTable(tableName string) {
 }
 
 func (inst *DynamoDBDetailsTable) GetSelectedTableArn() string {
+	if inst.data == nil {
+		return ""
+	}
 	return aws.ToString(inst.data.TableArn)
 }
