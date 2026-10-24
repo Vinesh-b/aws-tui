@@ -105,10 +105,18 @@ func CreateJsonTableDataView[T any, U any](
 type JsonTextView[T any] struct {
 	TextView        *SearchableTextView
 	ExtractTextFunc func(data T) string
+	// Syntax highlighting is on by default; set this for views that scroll
+	// through large amounts of json.
+	DisableHighlighting bool
 }
 
 func (inst *JsonTextView[T]) SetText(data T) {
 	var anyJson map[string]any
+
+	var highlight = !inst.DisableHighlighting
+	if inst.TextView.JsonHighlighting() != highlight {
+		inst.TextView.SetJsonHighlighting(highlight)
+	}
 
 	var logText = inst.ExtractTextFunc(data)
 	var err = json.Unmarshal([]byte(logText), &anyJson)

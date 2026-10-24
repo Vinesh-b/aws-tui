@@ -23,6 +23,7 @@ type SearchableTextView struct {
 	ErrorMessageCallback func(text string, a ...any)
 	HelpView             *FloatingHelpView
 	textArea             *tview.TextArea
+	syntaxArea           *syntaxTextArea
 	lineCount            int
 	searchPositions      [][]int
 	nextSearchPosition   int
@@ -32,14 +33,16 @@ type SearchableTextView struct {
 }
 
 func NewSearchableTextView(title string, appContext *AppContext) *SearchableTextView {
-	var textArea = tview.NewTextArea()
-	var searchableView = NewSearchableView(textArea, appContext)
+	var syntaxArea = newSyntaxTextArea()
+	var textArea = syntaxArea.TextArea
+	var searchableView = NewSearchableView(syntaxArea, appContext)
 
 	var view = &SearchableTextView{
 		SearchableView:       searchableView,
 		ErrorMessageCallback: func(text string, a ...any) {},
 		HelpView:             NewFloatingHelpView(appContext),
 		textArea:             textArea,
+		syntaxArea:           syntaxArea,
 		lineCount:            0,
 		searchPositions:      nil,
 		nextSearchPosition:   0,
@@ -161,9 +164,20 @@ func (inst *SearchableTextView) GetText() string {
 	return inst.textArea.GetText()
 }
 
+// SetJsonHighlighting colours json keys, strings, numbers and literals. It is
+// drawn per frame for the visible lines only, but it turns line wrapping off
+// and can be disabled where that cost matters.
+func (inst *SearchableTextView) SetJsonHighlighting(enabled bool) {
+	inst.syntaxArea.setJsonHighlighting(enabled)
+}
+
+func (inst *SearchableTextView) JsonHighlighting() bool {
+	return inst.syntaxArea.jsonHighlighting
+}
+
 func (inst *SearchableTextView) SetText(text string, cursorAtTheEnd bool) {
 	inst.lineCount = countRune(text, '\n', -1)
-	inst.textArea.SetText(text, cursorAtTheEnd)
+	inst.syntaxArea.setText(text, cursorAtTheEnd)
 }
 
 func (inst *SearchableTextView) baseKeyInuptHandler(event *tcell.EventKey) *tcell.EventKey {

@@ -6,6 +6,7 @@ require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/aws/aws-sdk-go-v2 v1.47.4
 	github.com/aws/aws-sdk-go-v2/config v1.33.10
+	github.com/aws/aws-sdk-go-v2/credentials v1.20.10
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.21.15
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression v1.10.3
 	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.82.2
@@ -24,12 +25,12 @@ require (
 	github.com/gdamore/tcell/v2 v2.13.10
 	github.com/lithammer/fuzzysearch v1.1.8
 	github.com/rivo/tview v0.42.0
+	github.com/rivo/uniseg v0.4.7
 	gopkg.in/ini.v1 v1.67.3
 )
 
 require (
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.24 // indirect
-	github.com/aws/aws-sdk-go-v2/credentials v1.20.10 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.20.4 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.7 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.7 // indirect
@@ -45,7 +46,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.43.5 // indirect
 	github.com/gdamore/encoding v1.0.1 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
-	github.com/rivo/uniseg v0.4.7 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/term v0.47.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
