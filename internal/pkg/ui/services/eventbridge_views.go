@@ -47,6 +47,7 @@ func NewEventBridgeDetailsPageView(
 		}).
 		SetGetTagsFunc(func() ([]types.Tag, error) {
 			return serviceCtx.Api.ListTags(
+				serviceCtx.Ctx,
 				true, aws.ToString(busListTable.GetSeletedEventBus().Arn),
 			)
 		})
