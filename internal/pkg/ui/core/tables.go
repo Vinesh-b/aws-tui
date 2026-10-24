@@ -329,7 +329,7 @@ func (inst *SelectableTable[T]) DumpTableToCsv(filename string) error {
 	var csvWriter = csv.NewWriter(file)
 	var rows = inst.table.GetRowCount()
 	if rows == 0 {
-		return nil
+		return file.Close()
 	}
 
 	for r := range inst.table.GetRowCount() {
