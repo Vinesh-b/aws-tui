@@ -20,14 +20,26 @@ type AppContext struct {
 	App    *tview.Application
 	Logger *log.Logger
 	Theme  *AppTheme
+
+	apiResetListeners []func()
 }
 
 func (inst *AppContext) GetApiClients() *awsapi.AwsApiClients {
 	return awsapi.GetAwsApiClients()
 }
 
+// ResetApiClients replaces the api clients and then tells the listeners, so
+// they can drop whatever they loaded with the old clients. Call it on the UI
+// goroutine as the listeners change views.
 func (inst *AppContext) ResetApiClients(cfg aws.Config, profile string) {
 	awsapi.ResetAwsApiClients(cfg, profile)
+	for _, listener := range inst.apiResetListeners {
+		listener()
+	}
+}
+
+func (inst *AppContext) OnApiClientsReset(listener func()) {
+	inst.apiResetListeners = append(inst.apiResetListeners, listener)
 }
 
 func NewAppContext(

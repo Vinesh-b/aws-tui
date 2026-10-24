@@ -137,6 +137,12 @@ func (inst *ServiceRootView) ChangePage(pageIdx int, focusView tview.Primitive) 
 	inst.switchToPage(pageName)
 }
 
+// Close stops the background work of the view. It is used when the view is
+// replaced by a new one.
+func (inst *ServiceRootView) Close() {
+	inst.paginatorView.Stop()
+}
+
 func (inst *ServiceRootView) InitPageNavigation() {
 	var numPages = len(inst.orderedPages)
 	inst.ChangePage(0, nil)

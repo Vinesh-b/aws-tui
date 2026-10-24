@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -17,6 +18,8 @@ type PaginatorView struct {
 	pageName        string
 	serviceName     string
 	appCtx          *AppContext
+	stop            chan struct{}
+	stopOnce        *sync.Once
 }
 
 const CredsPollRate = time.Second * 5
@@ -48,9 +51,23 @@ func CreatePaginatorView(service string, appContext *AppContext) PaginatorView {
 		SetTextAlign(tview.AlignLeft).
 		SetTextColor(appContext.Theme.TertiaryTextColour)
 
+	var stop = make(chan struct{})
+
+	// sleep returns false when the view has been stopped
+	var sleep = func() bool {
+		select {
+		case <-stop:
+			return false
+		case <-time.After(CredsPollRate):
+			return true
+		}
+	}
+
 	go func() {
 		for {
-			time.Sleep(CredsPollRate)
+			if !sleep() {
+				return
+			}
 
 			var logger = appContext.Logger
 			var app = appContext.App
@@ -112,7 +129,9 @@ func CreatePaginatorView(service string, appContext *AppContext) PaginatorView {
 					//Profile updated by user
 					break
 				}
-				time.Sleep(CredsPollRate)
+				if !sleep() {
+					return
+				}
 			}
 			app.QueueUpdateDraw(func() {
 				sessionDetailsView.SetText(
@@ -133,7 +152,14 @@ func CreatePaginatorView(service string, appContext *AppContext) PaginatorView {
 		pageName:        "",
 		serviceName:     service,
 		appCtx:          appContext,
+		stop:            stop,
+		stopOnce:        &sync.Once{},
 	}
+}
+
+// Stop ends the polling of the session details.
+func (inst *PaginatorView) Stop() {
+	inst.stopOnce.Do(func() { close(inst.stop) })
 }
 
 func (inst *PaginatorView) RefreshTitle() {

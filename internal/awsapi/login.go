@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -38,7 +39,7 @@ func getAwsProfileNames() ([]string, error) {
 		var cfg, err = ini.Load(configFile)
 		if err == nil {
 			for _, section := range cfg.SectionStrings() {
-				if section != "DEFAULT" {
+				if section != "DEFAULT" && !isNonProfileSection(section) {
 					// Remove "profile " prefix
 					name := section
 					if len(name) > 8 && name[:8] == "profile " {
@@ -56,6 +57,11 @@ func getAwsProfileNames() ([]string, error) {
 	}
 
 	return result, nil
+}
+
+// The config file also holds sections that are not profiles.
+func isNonProfileSection(section string) bool {
+	return strings.HasPrefix(section, "sso-session ") || strings.HasPrefix(section, "services ")
 }
 
 type AwsClientManager struct {
@@ -82,6 +88,14 @@ func (m *AwsClientManager) SwitchToProfile(ctx context.Context, profileName stri
 	)
 	if err != nil {
 		return aws.Config{}, fmt.Errorf("failed to load profile %s: %w", profileName, err)
+	}
+
+	// AWS_REGION and AWS_DEFAULT_REGION would otherwise win over the region of
+	// the profile that was picked, so every profile would use the same region.
+	for _, source := range cfg.ConfigSources {
+		if shared, ok := source.(config.SharedConfig); ok && len(shared.Region) > 0 {
+			cfg.Region = shared.Region
+		}
 	}
 
 	m.clients[profileName] = cfg

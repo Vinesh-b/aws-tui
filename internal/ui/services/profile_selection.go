@@ -26,6 +26,7 @@ func NewProfileSelectionView(appCtx *core.AppContext) core.ServicePage {
 		SetTitle("Available Profiles")
 
 	var view = core.NewFilterableList(listView, appCtx)
+	var serviceView = core.NewServicePageView(appCtx)
 
 	var manager = awsapi.NewAWSClientManager()
 
@@ -41,14 +42,17 @@ func NewProfileSelectionView(appCtx *core.AppContext) core.ServicePage {
 			var cfg, err = manager.SwitchToProfile(context.Background(), profile)
 			if err != nil {
 				appCtx.Logger.Println(err)
+				serviceView.DisplayMessage(core.ErrorPrompt, "%s", err.Error())
 				return
 			}
 			cfg.Logger = logging.StandardLogger{Logger: appCtx.Logger}
 			appCtx.ResetApiClients(cfg, profile)
+			serviceView.DisplayMessage(
+				core.InfoPrompt, "Switched to profile %s (region %s)", profile, cfg.Region,
+			)
 		})
 	}
 
-	var serviceView = core.NewServicePageView(appCtx)
 	serviceView.MainPage.AddItem(view, 0, 1, true)
 	serviceView.InitViewNavigation(
 		[][]core.View{

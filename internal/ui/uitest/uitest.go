@@ -3,6 +3,8 @@ package uitest
 import (
 	"context"
 	"fmt"
+	"io"
+	"log"
 	"strings"
 	"testing"
 	"time"
@@ -20,7 +22,7 @@ type TableView interface {
 
 func NewAppContext() *core.AppContext {
 	return core.NewAppContext(
-		context.Background(), tview.NewApplication(), nil, nil, &core.AppTheme{},
+		context.Background(), tview.NewApplication(), nil, log.New(io.Discard, "", 0), &core.AppTheme{},
 	)
 }
 
