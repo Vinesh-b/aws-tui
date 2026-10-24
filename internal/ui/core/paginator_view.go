@@ -1,7 +1,6 @@
 package core
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"os"
@@ -58,7 +57,7 @@ func CreatePaginatorView(service string, appContext *AppContext) PaginatorView {
 
 			var apiClients = appContext.GetApiClients()
 
-			var creds, err = apiClients.Config.Credentials.Retrieve(context.TODO())
+			var creds, err = apiClients.Config.Credentials.Retrieve(appContext.Ctx)
 			if err != nil {
 				logger.Print(err.Error())
 				app.QueueUpdateDraw(func() {
@@ -70,7 +69,7 @@ func CreatePaginatorView(service string, appContext *AppContext) PaginatorView {
 			}
 
 			identity, err := apiClients.Sts.GetCallerIdentity(
-				context.TODO(),
+				appContext.Ctx,
 				&sts.GetCallerIdentityInput{},
 			)
 			if err != nil {

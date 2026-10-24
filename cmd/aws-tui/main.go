@@ -42,14 +42,14 @@ func main() {
 		return
 	}
 
-	cfg, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	// Cancelled on exit so in-flight AWS calls don't outlive the app.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	cfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	var tuiApp = app.CreateApplication(ctx, cfg, VersionString())
 
