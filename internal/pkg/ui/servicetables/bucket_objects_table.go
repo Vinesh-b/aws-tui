@@ -100,7 +100,7 @@ func (inst *BucketObjectsTable) populateS3ObjectsTable(
 		tableData = append(tableData, core.TableRow{
 			filepath.Base(aws.ToString(row.Key)),
 			fmt.Sprintf("%.1f KB", float64(aws.ToInt64(row.Size))/1024.0),
-			row.LastModified.Format(time.DateTime),
+			aws.ToTime(row.LastModified).Format(time.DateTime),
 		})
 	}
 	privateData = append(privateData, data...)
