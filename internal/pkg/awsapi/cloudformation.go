@@ -22,13 +22,13 @@ func NewCloudFormationApi(
 	}
 }
 
-func (inst *CloudFormationApi) ListStacks(force bool) ([]types.StackSummary, error) {
+func (inst *CloudFormationApi) ListStacks(ctx context.Context, force bool) ([]types.StackSummary, error) {
 	var paginator = cloudformation.NewListStacksPaginator(
 		GetAwsApiClients().cloudformation, &cloudformation.ListStacksInput{},
 	)
 
 	var result, err = collectPaginator(paginator.HasMorePages, func() ([]types.StackSummary, error) {
-		var output, err = paginator.NextPage(context.TODO())
+		var output, err = paginator.NextPage(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -40,7 +40,7 @@ func (inst *CloudFormationApi) ListStacks(force bool) ([]types.StackSummary, err
 	return result, inst.logErr(err)
 }
 
-func (inst *CloudFormationApi) DescribeStackEvents(stackName string, force bool) ([]types.StackEvent, error) {
+func (inst *CloudFormationApi) DescribeStackEvents(ctx context.Context, stackName string, force bool) ([]types.StackEvent, error) {
 	var empty []types.StackEvent
 
 	if err := requireArg("stack name", stackName); err != nil {
@@ -61,7 +61,7 @@ func (inst *CloudFormationApi) DescribeStackEvents(stackName string, force bool)
 		return empty, nil
 	}
 
-	var output, err = inst.stackEventsPaginator.NextPage(context.TODO())
+	var output, err = inst.stackEventsPaginator.NextPage(ctx)
 	if err != nil {
 		return empty, inst.logErr(err)
 	}

@@ -75,7 +75,7 @@ func (inst *StackEventsTable) RefreshEvents(reset bool) {
 	dataLoader.AsyncLoadData(func() {
 		if len(inst.selectedStackName) > 0 {
 			var err error = nil
-			inst.data, err = inst.serviceCtx.Api.DescribeStackEvents(inst.selectedStackName, reset)
+			inst.data, err = inst.serviceCtx.Api.DescribeStackEvents(inst.serviceCtx.Ctx, inst.selectedStackName, reset)
 			if err != nil {
 				inst.ErrorMessageCallback(err.Error())
 			}

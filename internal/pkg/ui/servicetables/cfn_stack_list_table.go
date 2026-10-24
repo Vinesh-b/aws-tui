@@ -99,7 +99,7 @@ func (inst *StackListTable) RefreshStacks(reset bool) {
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.serviceCtx.Api.ListStacks(reset)
+		var data, err = inst.serviceCtx.Api.ListStacks(inst.serviceCtx.Ctx, reset)
 		if err != nil {
 			inst.ErrorMessageCallback(err.Error())
 		}

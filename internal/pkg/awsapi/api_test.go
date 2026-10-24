@@ -150,7 +150,7 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 		want string
 	}{
 		{"cloudformation stack events", func() error {
-			var _, err = NewCloudFormationApi(logger).DescribeStackEvents("", true)
+			var _, err = NewCloudFormationApi(logger).DescribeStackEvents(context.Background(), "", true)
 			return err
 		}, "stack name not set"},
 		{"alarm history", func() error {
