@@ -130,18 +130,18 @@ func (inst *SfnListTable) SetInputCapture(capture func(event *tcell.EventKey) *t
 	})
 }
 
-func (inst *SfnListTable) GetSeletedFunction() types.StateMachineListItem {
+func (inst *SfnListTable) GetSelectedFunction() types.StateMachineListItem {
 	return inst.selectedFunction
 }
 
-func (inst *SfnListTable) GetSeletedFunctionName() string {
+func (inst *SfnListTable) GetSelectedFunctionName() string {
 	return aws.ToString(inst.selectedFunction.Name)
 }
 
-func (inst *SfnListTable) GetSeletedFunctionArn() string {
+func (inst *SfnListTable) GetSelectedFunctionArn() string {
 	return aws.ToString(inst.selectedFunction.StateMachineArn)
 }
 
-func (inst *SfnListTable) GetSeletedFunctionType() types.StateMachineType {
+func (inst *SfnListTable) GetSelectedFunctionType() types.StateMachineType {
 	return inst.selectedFunction.Type
 }

@@ -92,8 +92,8 @@ func TestParseExecutionHistory__ExecutionEndEventsSpanFromExecutionStart(t *test
 	if events[1].Output != "done" {
 		t.Errorf("output = %q, want %q", events[1].Output, "done")
 	}
-	if events[2].Errors != "Boom" || events[2].Casue != "bad input" {
-		t.Errorf("error, cause = %q, %q, want Boom, bad input", events[2].Errors, events[2].Casue)
+	if events[2].Errors != "Boom" || events[2].Cause != "bad input" {
+		t.Errorf("error, cause = %q, %q, want Boom, bad input", events[2].Errors, events[2].Cause)
 	}
 }
 
@@ -120,7 +120,7 @@ func TestParseExecutionHistory__TaskEventsCarryResourceAndPayloads(t *testing.T)
 	if events[1].Output != `{"ok":true}` || events[1].Resource != "invoke" {
 		t.Errorf("succeeded = %+v", events[1])
 	}
-	if events[2].Errors != "Timeout" || events[2].Casue != "took too long" {
+	if events[2].Errors != "Timeout" || events[2].Cause != "took too long" {
 		t.Errorf("failed = %+v", events[2])
 	}
 }

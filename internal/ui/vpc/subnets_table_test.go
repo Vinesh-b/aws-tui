@@ -75,7 +75,7 @@ func TestSubnetsTable__SelectingRowTracksSelectedSubnet(t *testing.T) {
 
 	table.Select(2, 0)
 
-	if got := aws.ToString(table.GetSeletedVpcEndpoint().SubnetId); got != "subnet-2" {
+	if got := aws.ToString(table.GetSelectedVpcEndpoint().SubnetId); got != "subnet-2" {
 		t.Errorf("selected subnet = %q, want %q", got, "subnet-2")
 	}
 }

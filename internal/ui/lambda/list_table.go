@@ -143,13 +143,13 @@ func (inst *LambdaListTable) SetInputCapture(capture func(event *tcell.EventKey)
 	})
 }
 
-func (inst *LambdaListTable) GetSeletedLambdaLogGroup() string {
+func (inst *LambdaListTable) GetSelectedLambdaLogGroup() string {
 	if inst.selectedLambda.LoggingConfig != nil {
 		return aws.ToString(inst.selectedLambda.LoggingConfig.LogGroup)
 	}
 	return ""
 }
 
-func (inst *LambdaListTable) GetSeletedLambda() types.FunctionConfiguration {
+func (inst *LambdaListTable) GetSelectedLambda() types.FunctionConfiguration {
 	return inst.selectedLambda
 }

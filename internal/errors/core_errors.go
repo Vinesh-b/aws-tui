@@ -5,7 +5,7 @@ import "fmt"
 type ErrorCode string
 
 const (
-	InvalidDataDimentions ErrorCode = "INVALID_DATA_DIMENTIONS"
+	InvalidDataDimensions ErrorCode = "INVALID_DATA_DIMENSIONS"
 )
 
 type CoreTableError struct {

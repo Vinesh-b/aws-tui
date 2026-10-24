@@ -85,11 +85,11 @@ func (inst *SfnDetailsPageView) initInputCapture() {
 		var smExeTable = inst.sfnExecutionsTable
 		var smDetTable = inst.sfnDetailsTable
 
-		var selectedFunc = smTable.GetSeletedFunction()
-		smExeTable.SetSeletedFunction(selectedFunc)
+		var selectedFunc = smTable.GetSelectedFunction()
+		smExeTable.SetSelectedFunction(selectedFunc)
 		smDetTable.RefreshDetails(selectedFunc)
 
-		switch smTable.GetSeletedFunctionType() {
+		switch smTable.GetSelectedFunctionType() {
 		case types.StateMachineTypeStandard:
 			smExeTable.RefreshExecutions(true)
 		case types.StateMachineTypeExpress:
@@ -234,13 +234,13 @@ func NewStepFunctionsHomeView(appCtx *core.AppContext) core.ServicePage {
 
 	SfnDetailsView.sfnExecutionsTable.SetSelectedFunc(func(row, column int) {
 		var selectedExecution = SfnDetailsView.
-			sfnExecutionsTable.GetSeletedExecutionArn()
-		var sfType = SfnDetailsView.sfnListTable.GetSeletedFunctionType()
+			sfnExecutionsTable.GetSelectedExecutionArn()
+		var sfType = SfnDetailsView.sfnListTable.GetSelectedFunctionType()
 
 		if len(selectedExecution) > 0 {
 			if sfType == "EXPRESS" {
 				var execution = SfnDetailsView.
-					sfnExecutionsTable.GetSeletedExecution()
+					sfnExecutionsTable.GetSelectedExecution()
 				SfnExeDetailsView.detailsTable.RefreshExpressExecutionStates(execution, true)
 			} else {
 				SfnExeDetailsView.summaryTable.RefreshExecutionDetails(selectedExecution, true)

@@ -100,11 +100,11 @@ func (inst *LogEventsTable) RefreshLogEvents(reset bool) {
 	})
 }
 
-func (inst *LogEventsTable) SetSeletedLogGroup(logGroup string) {
+func (inst *LogEventsTable) SetSelectedLogGroup(logGroup string) {
 	inst.selectedLogGroup = logGroup
 }
 
-func (inst *LogEventsTable) SetSeletedLogStream(logStream string) {
+func (inst *LogEventsTable) SetSelectedLogStream(logStream string) {
 	inst.selectedLogStream = logStream
 	inst.SetTitleExtra(logStream)
 }

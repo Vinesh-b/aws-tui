@@ -157,10 +157,10 @@ func (inst *SSMParameterHistoryTable) SetInputCapture(capture func(event *tcell.
 	})
 }
 
-func (inst *SSMParameterHistoryTable) SetSeletedParameter(param types.Parameter) {
+func (inst *SSMParameterHistoryTable) SetSelectedParameter(param types.Parameter) {
 	inst.selectedParameter = param
 }
 
-func (inst *SSMParameterHistoryTable) GetSeletedHistory() types.ParameterHistory {
+func (inst *SSMParameterHistoryTable) GetSelectedHistory() types.ParameterHistory {
 	return inst.selectedHistory
 }

@@ -180,6 +180,6 @@ func (inst *VpcSubnetsTable) SetInputCapture(capture func(event *tcell.EventKey)
 	})
 }
 
-func (inst *VpcSubnetsTable) GetSeletedVpcEndpoint() types.Subnet {
+func (inst *VpcSubnetsTable) GetSelectedVpcEndpoint() types.Subnet {
 	return inst.selectedVpcSubnet
 }

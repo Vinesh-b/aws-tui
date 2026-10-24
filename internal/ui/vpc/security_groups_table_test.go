@@ -56,7 +56,7 @@ func TestSecurityGroupsTable__SelectingRowTracksSelectedGroup(t *testing.T) {
 
 	table.Select(2, 0)
 
-	if got := aws.ToString(table.GetSeletedSecurityGroup().GroupId); got != "sg-2" {
+	if got := aws.ToString(table.GetSelectedSecurityGroup().GroupId); got != "sg-2" {
 		t.Errorf("selected group = %q, want %q", got, "sg-2")
 	}
 }

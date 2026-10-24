@@ -13,11 +13,11 @@ import (
 
 type LogGroupsSelectionPageView struct {
 	*core.ServicePageView
-	LogGroupsTable     *LogGroupsTable
-	SeletedGroupsTable *SelectedGroupsTable
-	SearchInput        *tview.InputField
-	selectedGroups     utils.StringSet
-	serviceCtx         *core.ServiceContext[awsapi.CloudWatchLogsApi]
+	LogGroupsTable      *LogGroupsTable
+	SelectedGroupsTable *SelectedGroupsTable
+	SearchInput         *tview.InputField
+	selectedGroups      utils.StringSet
+	serviceCtx          *core.ServiceContext[awsapi.CloudWatchLogsApi]
 }
 
 func NewLogGroupsSelectionPageView(
@@ -45,11 +45,11 @@ func NewLogGroupsSelectionPageView(
 	)
 
 	return &LogGroupsSelectionPageView{
-		ServicePageView:    serviceView,
-		SeletedGroupsTable: selectedGroupsTable,
-		LogGroupsTable:     logGroupsView.LogGroupsTable,
-		selectedGroups:     utils.StringSet{},
-		serviceCtx:         serviceViewCtx,
+		ServicePageView:     serviceView,
+		SelectedGroupsTable: selectedGroupsTable,
+		LogGroupsTable:      logGroupsView.LogGroupsTable,
+		selectedGroups:      utils.StringSet{},
+		serviceCtx:          serviceViewCtx,
 	}
 }
 
@@ -58,9 +58,9 @@ func (inst *LogGroupsSelectionPageView) InitInputCapture() {
 		if row < 1 {
 			return
 		}
-		var logGroup = inst.LogGroupsTable.GetSeletedLogGroup()
-		inst.SeletedGroupsTable.AddLogGroup(logGroup)
-		inst.SeletedGroupsTable.RefreshSelectedGroups()
+		var logGroup = inst.LogGroupsTable.GetSelectedLogGroup()
+		inst.SelectedGroupsTable.AddLogGroup(logGroup)
+		inst.SelectedGroupsTable.RefreshSelectedGroups()
 	})
 
 }
@@ -147,8 +147,8 @@ func NewLogsInsightsHomeView(appCtx *core.AppContext) core.ServicePage {
 
 	serviceRootView.InitPageNavigation()
 
-	groupSelectionView.SeletedGroupsTable.SetSelectedFunc(func(row, column int) {
-		var logGroups = groupSelectionView.SeletedGroupsTable.GetAllLogGroups()
+	groupSelectionView.SelectedGroupsTable.SetSelectedFunc(func(row, column int) {
+		var logGroups = groupSelectionView.SelectedGroupsTable.GetAllLogGroups()
 		if len(logGroups) > 0 {
 			insightsResultsView.QueryResultsTable.SetSelectedLogGroups(logGroups)
 			serviceRootView.ChangePage(1, nil)
@@ -169,8 +169,8 @@ func NewLogsInsightsHomeView(appCtx *core.AppContext) core.ServicePage {
 		var logStream = record["@logStream"]
 		var _, logGroup, _ = strings.Cut(record["@log"], ":")
 
-		logEventsView.LogEventsTable.SetSeletedLogGroup(logGroup)
-		logEventsView.LogEventsTable.SetSeletedLogStream(logStream)
+		logEventsView.LogEventsTable.SetSelectedLogGroup(logGroup)
+		logEventsView.LogEventsTable.SetSelectedLogStream(logStream)
 		logEventsView.LogEventsTable.RefreshLogEvents(true)
 		serviceRootView.ChangePage(2, nil)
 	})

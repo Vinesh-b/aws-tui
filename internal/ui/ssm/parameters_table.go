@@ -153,6 +153,6 @@ func (inst *SSMParametersListTable) SetInputCapture(capture func(event *tcell.Ev
 	})
 }
 
-func (inst *SSMParametersListTable) GetSeletedParameter() types.Parameter {
+func (inst *SSMParametersListTable) GetSelectedParameter() types.Parameter {
 	return inst.selectedParameter
 }

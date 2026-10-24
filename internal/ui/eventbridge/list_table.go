@@ -146,6 +146,6 @@ func (inst *EventBusListTable) SetInputCapture(capture func(event *tcell.EventKe
 	})
 }
 
-func (inst *EventBusListTable) GetSeletedEventBus() types.EventBus {
+func (inst *EventBusListTable) GetSelectedEventBus() types.EventBus {
 	return inst.selectedEventBus
 }

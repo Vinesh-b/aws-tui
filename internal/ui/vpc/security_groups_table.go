@@ -171,6 +171,6 @@ func (inst *VpcSecurityGroupsTable) SetInputCapture(capture func(event *tcell.Ev
 	})
 }
 
-func (inst *VpcSecurityGroupsTable) GetSeletedSecurityGroup() types.SecurityGroup {
+func (inst *VpcSecurityGroupsTable) GetSelectedSecurityGroup() types.SecurityGroup {
 	return inst.selectedSecurityGroup
 }

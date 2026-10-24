@@ -110,5 +110,5 @@ func (inst *SfnExecutionStateEventsTable) GetSelectedStepOutput() string {
 }
 
 func (inst *SfnExecutionStateEventsTable) GetSelectedStepErrorCause() string {
-	return inst.selectedEvent.Casue
+	return inst.selectedEvent.Cause
 }

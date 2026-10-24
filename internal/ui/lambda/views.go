@@ -61,7 +61,7 @@ func NewLambdaDetailsPageView(
 		SetGetTagsFunc(func() ([]LambdaTag, error) {
 			var tagsMap, err = serviceCtx.Api.ListTags(
 				serviceCtx.Ctx,
-				aws.ToString(lambdaListTable.GetSeletedLambda().FunctionArn),
+				aws.ToString(lambdaListTable.GetSelectedLambda().FunctionArn),
 			)
 			var tags = []LambdaTag{}
 			for k, v := range tagsMap {
@@ -125,7 +125,7 @@ func NewLambdaDetailsPageView(
 
 func (inst *LambdaDetailsPageView) initInputCapture() {
 	inst.LambdaListTable.SetSelectionChangedFunc(func(row, column int) {
-		var selectedLambda = inst.LambdaListTable.GetSeletedLambda()
+		var selectedLambda = inst.LambdaListTable.GetSelectedLambda()
 		inst.LambdaDetailsTable.RefreshDetails(selectedLambda)
 		inst.LambdaEnvVarsTable.RefreshDetails(selectedLambda)
 		inst.LambdaVpcConfTable.RefreshDetails(selectedLambda)
@@ -319,12 +319,12 @@ func NewLambdaHomeView(appCtx *core.AppContext) core.ServicePage {
 	var logEventsTable = logEventsView.LogEventsTable
 
 	var lambdaSelectedFunc = func(_, _ int) {
-		var logGroup = lambdasListTable.GetSeletedLambdaLogGroup()
-		logStreamsTable.SetSeletedLogGroup(logGroup)
+		var logGroup = lambdasListTable.GetSelectedLambdaLogGroup()
+		logStreamsTable.SetSelectedLogGroup(logGroup)
 		logStreamsTable.SetLogStreamSearchPrefix("")
 		logStreamsTable.RefreshStreams(true)
 
-		var selectedLambda = lambdasListTable.GetSeletedLambda()
+		var selectedLambda = lambdasListTable.GetSelectedLambda()
 		var lambdaName = aws.ToString(selectedLambda.FunctionName)
 		lambdaTagsTable.RefreshDetails()
 		lambdaInvokeView.SetSelectedLambda(lambdaName)
@@ -334,11 +334,11 @@ func NewLambdaHomeView(appCtx *core.AppContext) core.ServicePage {
 	lambdasDetailsView.LambdaDetailsTable.SetSelectedFunc(lambdaSelectedFunc)
 
 	logStreamsTable.SetSelectedFunc(func(row, column int) {
-		var selectedLogStream = logStreamsTable.GetSeletedLogStream()
-		var selectedLogGroup = logStreamsTable.GetSeletedLogGroup()
+		var selectedLogStream = logStreamsTable.GetSelectedLogStream()
+		var selectedLogGroup = logStreamsTable.GetSelectedLogGroup()
 
-		logEventsTable.SetSeletedLogGroup(selectedLogGroup)
-		logEventsTable.SetSeletedLogStream(selectedLogStream)
+		logEventsTable.SetSelectedLogGroup(selectedLogGroup)
+		logEventsTable.SetSelectedLogStream(selectedLogStream)
 		logEventsTable.RefreshLogEvents(true)
 		serviceRootView.ChangePage(1, nil)
 	})

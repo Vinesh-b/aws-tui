@@ -65,7 +65,7 @@ func TestVpcListTable__SelectingRowTracksSelectedVpc(t *testing.T) {
 
 	table.Select(2, 0)
 
-	if got := aws.ToString(table.GetSeletedVpc().VpcId); got != "vpc-2" {
+	if got := aws.ToString(table.GetSelectedVpc().VpcId); got != "vpc-2" {
 		t.Errorf("selected vpc = %q, want %q", got, "vpc-2")
 	}
 }

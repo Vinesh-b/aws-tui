@@ -47,11 +47,11 @@ func NewSystemManagerDetailsPageView(
 
 	paramValueView.SetTitle("Value")
 	ssmParamsListTable.SetSelectionChangedFunc(func(row, column int) {
-		paramValueView.SetText(ssmParamsListTable.GetSeletedParameter())
+		paramValueView.SetText(ssmParamsListTable.GetSelectedParameter())
 	})
 
 	ssmParamHistoryTable.SetSelectionChangedFunc(func(row, column int) {
-		paramValueView.SetText(ssmParamHistoryTable.GetSeletedHistory())
+		paramValueView.SetText(ssmParamHistoryTable.GetSelectedHistory())
 	})
 
 	const expandItemViewSize = 25
@@ -98,7 +98,7 @@ func (inst *SystemManagerDetailsPageView) initInputCapture() {
 	var loadedTabs = map[int]bool{}
 	var lastSelection = ""
 	var tabChangeFunc = func(tabName string, index int) {
-		var selectedParam = inst.SSMParametersListTable.GetSeletedParameter()
+		var selectedParam = inst.SSMParametersListTable.GetSelectedParameter()
 
 		if paramArn := aws.ToString(selectedParam.ARN); paramArn != lastSelection {
 			lastSelection = paramArn
@@ -112,7 +112,7 @@ func (inst *SystemManagerDetailsPageView) initInputCapture() {
 
 		switch tabName {
 		case SsmTabNameParameterHistory:
-			inst.SSMParameterHistoryTable.SetSeletedParameter(selectedParam)
+			inst.SSMParameterHistoryTable.SetSelectedParameter(selectedParam)
 			inst.SSMParameterHistoryTable.RefreshHistory(true)
 		}
 

@@ -56,7 +56,7 @@ func NewMetricsDetailsView(
 
 func (inst *MetricDetailsView) InitInputCapture() {
 	inst.MetricListTable.SetSelectionChangedFunc(func(row, column int) {
-		inst.MetricDetailsTable.RefreshDetails(inst.MetricListTable.GetSeletedMetric(), false)
+		inst.MetricDetailsTable.RefreshDetails(inst.MetricListTable.GetSelectedMetric(), false)
 	})
 }
 

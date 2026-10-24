@@ -43,7 +43,7 @@ func NewVpcDetailsPageView(
 			return aws.ToString(t.Key), aws.ToString(t.Value)
 		}).
 		SetGetTagsFunc(func() ([]types.Tag, error) {
-			return vpcListTable.GetSeletedVpc().Tags, nil
+			return vpcListTable.GetSelectedVpc().Tags, nil
 		})
 
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
@@ -96,7 +96,7 @@ func (inst *VpcDetailsPageView) initInputCapture() {
 	var loadedTabs = map[int]bool{}
 	var lastSelection = ""
 	var tabChangeFunc = func(tabName string, index int) {
-		var selectedVpc = inst.VpcListTable.GetSeletedVpc()
+		var selectedVpc = inst.VpcListTable.GetSelectedVpc()
 
 		if vpcId := aws.ToString(selectedVpc.VpcId); vpcId != lastSelection {
 			lastSelection = vpcId

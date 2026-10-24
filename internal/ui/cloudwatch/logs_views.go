@@ -183,20 +183,20 @@ func NewLogsHomeView(appCtx *core.AppContext) core.ServicePage {
 	serviceRootView.InitPageNavigation()
 
 	logGroupsView.LogGroupsTable.SetSelectedFunc(func(row, column int) {
-		var logGroup = logGroupsView.LogGroupsTable.GetSeletedLogGroup()
+		var logGroup = logGroupsView.LogGroupsTable.GetSelectedLogGroup()
 
-		logStreamsView.LogStreamsTable.SetSeletedLogGroup(logGroup)
+		logStreamsView.LogStreamsTable.SetSelectedLogGroup(logGroup)
 		logStreamsView.LogStreamsTable.SetLogStreamSearchPrefix("")
 		logStreamsView.LogStreamsTable.RefreshStreams(true)
 		serviceRootView.ChangePage(1, nil)
 	})
 
 	logStreamsView.LogStreamsTable.SetSelectedFunc(func(row, column int) {
-		var logStream = logStreamsView.LogStreamsTable.GetSeletedLogStream()
-		var logGroup = logStreamsView.LogStreamsTable.GetSeletedLogGroup()
+		var logStream = logStreamsView.LogStreamsTable.GetSelectedLogStream()
+		var logGroup = logStreamsView.LogStreamsTable.GetSelectedLogGroup()
 
-		logEventsView.LogEventsTable.SetSeletedLogGroup(logGroup)
-		logEventsView.LogEventsTable.SetSeletedLogStream(logStream)
+		logEventsView.LogEventsTable.SetSelectedLogGroup(logGroup)
+		logEventsView.LogEventsTable.SetSelectedLogStream(logStream)
 		logEventsView.LogEventsTable.RefreshLogEvents(true)
 		serviceRootView.ChangePage(2, nil)
 	})

@@ -42,7 +42,7 @@ func TestLogStreamsTable__SelectedFuncTracksSelectedStream(t *testing.T) {
 	table.Select(2, 0)
 	uitest.PressEnter(table)
 
-	if got := table.GetSeletedLogStream(); got != "stream-b" {
+	if got := table.GetSelectedLogStream(); got != "stream-b" {
 		t.Errorf("selected stream = %q, want %q", got, "stream-b")
 	}
 }
@@ -69,9 +69,9 @@ func TestLogStreamsTable__LogStreamDetailIsEmptyForUnknownStream(t *testing.T) {
 func TestLogStreamsTable__SettingLogGroupIsRemembered(t *testing.T) {
 	var table = newPopulatedLogStreamsTable()
 
-	table.SetSeletedLogGroup("/aws/lambda/orders")
+	table.SetSelectedLogGroup("/aws/lambda/orders")
 
-	if got := table.GetSeletedLogGroup(); got != "/aws/lambda/orders" {
+	if got := table.GetSelectedLogGroup(); got != "/aws/lambda/orders" {
 		t.Errorf("log group = %q, want %q", got, "/aws/lambda/orders")
 	}
 }

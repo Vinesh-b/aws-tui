@@ -357,14 +357,14 @@ func (inst *SfnExecutionsTable) SetSelectionChangedFunc(handler func(row int, co
 	})
 }
 
-func (inst *SfnExecutionsTable) GetSeletedExecution() ExecutionItem {
+func (inst *SfnExecutionsTable) GetSelectedExecution() ExecutionItem {
 	return inst.selectedExecution
 }
 
-func (inst *SfnExecutionsTable) GetSeletedExecutionArn() string {
+func (inst *SfnExecutionsTable) GetSelectedExecutionArn() string {
 	return aws.ToString(inst.selectedExecution.ExecutionArn)
 }
 
-func (inst *SfnExecutionsTable) SetSeletedFunction(function types.StateMachineListItem) {
+func (inst *SfnExecutionsTable) SetSelectedFunction(function types.StateMachineListItem) {
 	inst.selectedFunction = function
 }

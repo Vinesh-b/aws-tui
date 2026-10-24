@@ -114,6 +114,6 @@ func (inst *BucketListTable) SetInputCapture(capture func(event *tcell.EventKey)
 	})
 }
 
-func (inst *BucketListTable) GetSeletedBucket() string {
+func (inst *BucketListTable) GetSelectedBucket() string {
 	return inst.selectedBucket
 }

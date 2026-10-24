@@ -51,7 +51,7 @@ func TestParameterHistoryTable__SelectingRowTracksSelectedHistory(t *testing.T) 
 
 	table.Select(2, 0)
 
-	if got := aws.ToString(table.GetSeletedHistory().Value); got != "old" {
+	if got := aws.ToString(table.GetSelectedHistory().Value); got != "old" {
 		t.Errorf("selected history value = %q, want %q", got, "old")
 	}
 }

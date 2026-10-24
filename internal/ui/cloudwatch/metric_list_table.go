@@ -133,6 +133,6 @@ func (inst *MetricListTable) SetSelectionChangedFunc(handler func(row int, colum
 	})
 }
 
-func (inst *MetricListTable) GetSeletedMetric() types.Metric {
+func (inst *MetricListTable) GetSelectedMetric() types.Metric {
 	return inst.selectedMetric
 }

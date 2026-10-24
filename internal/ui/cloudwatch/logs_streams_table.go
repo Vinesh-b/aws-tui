@@ -120,7 +120,7 @@ func (inst *LogStreamsTable) SetSelectedFunc(handler func(row int, column int)) 
 	})
 }
 
-func (inst *LogStreamsTable) GetSeletedLogStream() string {
+func (inst *LogStreamsTable) GetSelectedLogStream() string {
 	return inst.selectedLogStream
 }
 
@@ -135,11 +135,11 @@ func (inst *LogStreamsTable) GetLogStreamDetail() types.LogStream {
 	return inst.data[idx]
 }
 
-func (inst *LogStreamsTable) GetSeletedLogGroup() string {
+func (inst *LogStreamsTable) GetSelectedLogGroup() string {
 	return inst.selectedLogGroup
 }
 
-func (inst *LogStreamsTable) SetSeletedLogGroup(logGroup string) {
+func (inst *LogStreamsTable) SetSelectedLogGroup(logGroup string) {
 	inst.selectedLogGroup = logGroup
 	inst.SetTitleExtra(logGroup)
 }

@@ -169,6 +169,6 @@ func (inst *VpcListTable) SetInputCapture(capture func(event *tcell.EventKey) *t
 	})
 }
 
-func (inst *VpcListTable) GetSeletedVpc() types.Vpc {
+func (inst *VpcListTable) GetSelectedVpc() types.Vpc {
 	return inst.selectedVpc
 }

@@ -61,7 +61,7 @@ func TestEndpointsTable__SelectingRowTracksSelectedEndpoint(t *testing.T) {
 
 	table.Select(2, 0)
 
-	if got := aws.ToString(table.GetSeletedVpcEndpoint().VpcEndpointId); got != "vpce-2" {
+	if got := aws.ToString(table.GetSelectedVpcEndpoint().VpcEndpointId); got != "vpce-2" {
 		t.Errorf("selected endpoint = %q, want %q", got, "vpce-2")
 	}
 }

@@ -45,13 +45,13 @@ func TestListTable__SelectingRowTracksSelectedStateMachine(t *testing.T) {
 
 	table.Select(2, 0)
 
-	if got := table.GetSeletedFunctionName(); got != "events" {
+	if got := table.GetSelectedFunctionName(); got != "events" {
 		t.Errorf("name = %q, want %q", got, "events")
 	}
-	if got := table.GetSeletedFunctionArn(); got != "arn:aws:states:us-east-1:123456789012:stateMachine:events" {
+	if got := table.GetSelectedFunctionArn(); got != "arn:aws:states:us-east-1:123456789012:stateMachine:events" {
 		t.Errorf("arn = %q", got)
 	}
-	if got := table.GetSeletedFunctionType(); got != types.StateMachineTypeExpress {
+	if got := table.GetSelectedFunctionType(); got != types.StateMachineTypeExpress {
 		t.Errorf("type = %q, want %q", got, types.StateMachineTypeExpress)
 	}
 }

@@ -49,7 +49,7 @@ func TestBucketListTable__SelectingRowTracksSelectedBucket(t *testing.T) {
 
 	table.Select(2, 0)
 
-	if got := table.GetSeletedBucket(); got != "assets" {
+	if got := table.GetSelectedBucket(); got != "assets" {
 		t.Errorf("selected bucket = %q, want %q", got, "assets")
 	}
 }
@@ -60,7 +60,7 @@ func TestBucketListTable__SelectingHeadingKeepsPreviousSelection(t *testing.T) {
 
 	table.Select(0, 0)
 
-	if got := table.GetSeletedBucket(); got != "assets" {
+	if got := table.GetSelectedBucket(); got != "assets" {
 		t.Errorf("selected bucket = %q, want %q", got, "assets")
 	}
 }

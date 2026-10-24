@@ -25,7 +25,7 @@ func newEventDetails(name string, startSec, endSec int) EventDetails {
 		Errors:       "",
 		Input:        "in-" + name,
 		Output:       "out-" + name,
-		Casue:        "cause-" + name,
+		Cause:        "cause-" + name,
 	}
 }
 

@@ -40,7 +40,7 @@ func TestTableSetData__TooManyColumns(t *testing.T) {
 	}
 
 	var err = table.SetData(data, nil, 0)
-	if err.Error() != "INVALID_DATA_DIMENTIONS: Table data and headings dimensions do not match" {
+	if err.Error() != "INVALID_DATA_DIMENSIONS: Table data and headings dimensions do not match" {
 		t.Fatalf("Failed to error on bad data dims")
 	}
 }
@@ -57,7 +57,7 @@ func TestTableSetData__TooFewColumns(t *testing.T) {
 	}
 
 	var err = table.SetData(data, nil, 0)
-	if err.Error() != "INVALID_DATA_DIMENTIONS: Table data and headings dimensions do not match" {
+	if err.Error() != "INVALID_DATA_DIMENSIONS: Table data and headings dimensions do not match" {
 		t.Fatalf("Failed to error on bad data dims")
 	}
 }
@@ -117,7 +117,7 @@ func TestTableSetData__WithPrivateDataBadColumnIndex(t *testing.T) {
 	}
 
 	var err = table.SetData(data, privateData, privateDataColumn)
-	if err.Error() != "INVALID_DATA_DIMENTIONS: Private data column index out of bounds" {
+	if err.Error() != "INVALID_DATA_DIMENSIONS: Private data column index out of bounds" {
 		t.Fatalf("Failed to validate out of bound column index")
 	}
 }
@@ -142,7 +142,7 @@ func TestTableSetData__WithPrivateDataLargerThanDisplayData(t *testing.T) {
 	}
 
 	var err = table.SetData(data, privateData, privateDataColumn)
-	if err.Error() != "INVALID_DATA_DIMENTIONS: Table data and private data row counts do not match" {
+	if err.Error() != "INVALID_DATA_DIMENSIONS: Table data and private data row counts do not match" {
 		t.Fatalf("Failed to validate out of bound private data length")
 	}
 }
@@ -188,7 +188,7 @@ func TestTableExtendData__TooManyColumns(t *testing.T) {
 		{"20", "21", "22", "23"},
 	}
 	var err = table.ExtendData(moreData, nil)
-	if err.Error() != "INVALID_DATA_DIMENTIONS: Table data and headings dimensions do not match" {
+	if err.Error() != "INVALID_DATA_DIMENSIONS: Table data and headings dimensions do not match" {
 		t.Fatalf("Failed to extend data: %v", err)
 	}
 }
@@ -211,7 +211,7 @@ func TestTableExtendData__TooFewColumns(t *testing.T) {
 		{"20", "21"},
 	}
 	var err = table.ExtendData(moreData, nil)
-	if err.Error() != "INVALID_DATA_DIMENTIONS: Table data and headings dimensions do not match" {
+	if err.Error() != "INVALID_DATA_DIMENSIONS: Table data and headings dimensions do not match" {
 		t.Fatalf("Failed to extend data: %v", err)
 	}
 }
@@ -277,7 +277,7 @@ func TestTableExtendData__WithPrivateDataTooManyRows(t *testing.T) {
 	}
 
 	var err = table.ExtendData(moreData, morePrivateData)
-	if err.Error() != "INVALID_DATA_DIMENTIONS: Table data and private data row counts do not match" {
+	if err.Error() != "INVALID_DATA_DIMENSIONS: Table data and private data row counts do not match" {
 		t.Fatalf("Failed to validate privated data row count")
 	}
 }
@@ -307,7 +307,7 @@ func TestTableExtendData__WithPrivateDataTooFewRows(t *testing.T) {
 	}
 
 	var err = table.ExtendData(moreData, morePrivateData)
-	if err.Error() != "INVALID_DATA_DIMENTIONS: Table data and private data row counts do not match" {
+	if err.Error() != "INVALID_DATA_DIMENSIONS: Table data and private data row counts do not match" {
 		t.Fatalf("Failed to validate privated data row count")
 	}
 }
@@ -455,7 +455,7 @@ func TestTableExtendData__PrivateDataNotInitialised(t *testing.T) {
 	var table = newTestSelectableTable(t)
 
 	var err = table.ExtendData([]TableRow{{"30", "31", "32"}}, []string{"p30"})
-	if err == nil || err.Error() != "INVALID_DATA_DIMENTIONS: Table data and private data not initialised in SetData call" {
+	if err == nil || err.Error() != "INVALID_DATA_DIMENSIONS: Table data and private data not initialised in SetData call" {
 		t.Fatalf("Failed to validate uninitialised private data: %v", err)
 	}
 }
@@ -712,7 +712,7 @@ func TestDetailsTableSetData__BadColumnCount(t *testing.T) {
 	var table = NewDetailsTable("details", newTestAppContext())
 
 	var err = table.SetData([]TableRow{{"a", "b", "c"}})
-	if err == nil || err.Error() != "INVALID_DATA_DIMENTIONS: Table data and headings dimensions do not match" {
+	if err == nil || err.Error() != "INVALID_DATA_DIMENSIONS: Table data and headings dimensions do not match" {
 		t.Fatalf("Failed to error on bad data dims: %v", err)
 	}
 }

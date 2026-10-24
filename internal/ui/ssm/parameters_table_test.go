@@ -57,7 +57,7 @@ func TestParametersTable__SelectingRowTracksSelectedParameter(t *testing.T) {
 
 	table.Select(2, 0)
 
-	if got := aws.ToString(table.GetSeletedParameter().Name); got != "/app/db/port" {
+	if got := aws.ToString(table.GetSelectedParameter().Name); got != "/app/db/port" {
 		t.Errorf("selected parameter = %q, want %q", got, "/app/db/port")
 	}
 }
@@ -71,7 +71,7 @@ func TestParametersTable__SelectingHeadingKeepsPreviousSelection(t *testing.T) {
 
 	table.Select(0, 0)
 
-	if got := aws.ToString(table.GetSeletedParameter().Name); got != "/app/db/port" {
+	if got := aws.ToString(table.GetSelectedParameter().Name); got != "/app/db/port" {
 		t.Errorf("selected parameter = %q, want %q", got, "/app/db/port")
 	}
 }

@@ -78,7 +78,7 @@ func (inst *S3BucketsDetailsView) InitInputCapture() {
 		if row < 1 {
 			return
 		}
-		var name = inst.bucketsTable.GetSeletedBucket()
+		var name = inst.bucketsTable.GetSelectedBucket()
 		inst.objectsTable.SetSelectedBucket(name)
 		inst.objectsTable.RefreshObjects(true)
 		inst.serviceCtx.App.SetFocus(inst.objectsTable)
@@ -91,7 +91,7 @@ func (inst *S3BucketsDetailsView) InitInputCapture() {
 			return
 		}
 		inst.objectDetailsTable.RefreshDetails(
-			inst.bucketsTable.GetSeletedBucket(), key,
+			inst.bucketsTable.GetSelectedBucket(), key,
 		)
 	})
 }

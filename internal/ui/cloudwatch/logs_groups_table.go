@@ -129,7 +129,7 @@ func (inst *LogGroupsTable) SetSelectedFunc(handler func(row int, column int)) {
 	})
 }
 
-func (inst *LogGroupsTable) GetSeletedLogGroup() string {
+func (inst *LogGroupsTable) GetSelectedLogGroup() string {
 	return inst.selectedLogGroup
 }
 

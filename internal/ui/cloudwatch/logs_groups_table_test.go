@@ -49,7 +49,7 @@ func TestLogGroupsTable__SelectedFuncTracksSelectedGroup(t *testing.T) {
 	table.Select(2, 0)
 	uitest.PressEnter(table)
 
-	if got := table.GetSeletedLogGroup(); got != "/aws/lambda/billing" {
+	if got := table.GetSelectedLogGroup(); got != "/aws/lambda/billing" {
 		t.Errorf("selected group = %q, want %q", got, "/aws/lambda/billing")
 	}
 }

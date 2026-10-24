@@ -96,14 +96,14 @@ type EventDetails struct {
 	StartTime    time.Time
 	EndTime      time.Time
 	Errors       string
-	Casue        string
+	Cause        string
 	Resource     string
 	ResourceType string
 }
 
 func (e *EventDetails) setError(err, cause *string) {
 	e.Errors = aws.ToString(err)
-	e.Casue = aws.ToString(cause)
+	e.Cause = aws.ToString(cause)
 }
 
 func (e *EventDetails) setResource(resource, resourceType *string) {

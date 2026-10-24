@@ -44,7 +44,7 @@ func TestEventBusListTable__SelectingRowTracksSelectedBus(t *testing.T) {
 
 	table.Select(2, 0)
 
-	if got := aws.ToString(table.GetSeletedEventBus().Name); got != "billing" {
+	if got := aws.ToString(table.GetSelectedEventBus().Name); got != "billing" {
 		t.Errorf("selected bus = %q, want %q", got, "billing")
 	}
 }

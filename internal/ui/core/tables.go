@@ -209,7 +209,7 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 
 	if len(inst.headings) != len(data[0]) {
 		return errors.NewCoreTableError(
-			errors.InvalidDataDimentions,
+			errors.InvalidDataDimensions,
 			"Table data and headings dimensions do not match",
 		)
 	}
@@ -229,14 +229,14 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 
 	if len(privateData) != len(inst.data) {
 		return errors.NewCoreTableError(
-			errors.InvalidDataDimentions,
+			errors.InvalidDataDimensions,
 			"Table data and private data row counts do not match",
 		)
 	}
 
 	if privateDataCol < 0 || privateDataCol >= len(inst.data[0]) {
 		return errors.NewCoreTableError(
-			errors.InvalidDataDimentions,
+			errors.InvalidDataDimensions,
 			"Private data column index out of bounds",
 		)
 	}
@@ -257,7 +257,7 @@ func (inst *SelectableTable[T]) ExtendData(data []TableRow, privateData []T) err
 	if len(data) > 0 && len(inst.headings) != len(data[0]) {
 		log.Println("Table data and headings dimensions do not match")
 		return errors.NewCoreTableError(
-			errors.InvalidDataDimentions,
+			errors.InvalidDataDimensions,
 			"Table data and headings dimensions do not match",
 		)
 	}
@@ -283,14 +283,14 @@ func (inst *SelectableTable[T]) ExtendData(data []TableRow, privateData []T) err
 
 	if inst.privateColumn < 0 {
 		return errors.NewCoreTableError(
-			errors.InvalidDataDimentions,
+			errors.InvalidDataDimensions,
 			"Table data and private data not initialised in SetData call",
 		)
 	}
 
 	if len(privateData) != len(data) {
 		return errors.NewCoreTableError(
-			errors.InvalidDataDimentions,
+			errors.InvalidDataDimensions,
 			"Table data and private data row counts do not match",
 		)
 	}
@@ -508,7 +508,7 @@ func (inst *DetailsTable) SetData(data []TableRow) error {
 		if len(data[0]) != 2 {
 			log.Println("Table data and headings dimensions do not match")
 			return errors.NewCoreTableError(
-				errors.InvalidDataDimentions,
+				errors.InvalidDataDimensions,
 				"Table data and headings dimensions do not match",
 			)
 		}

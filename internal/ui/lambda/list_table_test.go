@@ -42,7 +42,7 @@ func TestListTable__SelectingRowTracksSelectedLambda(t *testing.T) {
 
 	table.Select(2, 0)
 
-	if got := aws.ToString(table.GetSeletedLambda().FunctionName); got != "beta" {
+	if got := aws.ToString(table.GetSelectedLambda().FunctionName); got != "beta" {
 		t.Errorf("selected lambda = %q, want %q", got, "beta")
 	}
 }
@@ -53,7 +53,7 @@ func TestListTable__SelectingHeadingKeepsPreviousSelection(t *testing.T) {
 
 	table.Select(0, 0)
 
-	if got := aws.ToString(table.GetSeletedLambda().FunctionName); got != "beta" {
+	if got := aws.ToString(table.GetSelectedLambda().FunctionName); got != "beta" {
 		t.Errorf("selected lambda = %q, want %q", got, "beta")
 	}
 }
@@ -101,7 +101,7 @@ func TestListTable__SelectedLambdaLogGroup(t *testing.T) {
 			var table = NewLambdasListTable(uitest.NewServiceContext[awsapi.LambdaApi]())
 			table.populateLambdasTable([]types.FunctionConfiguration{tt.function})
 
-			if got := table.GetSeletedLambdaLogGroup(); got != tt.want {
+			if got := table.GetSelectedLambdaLogGroup(); got != tt.want {
 				t.Errorf("log group = %q, want %q", got, tt.want)
 			}
 		})

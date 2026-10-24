@@ -172,6 +172,6 @@ func (inst *VpcEndpointsTable) SetInputCapture(capture func(event *tcell.EventKe
 	})
 }
 
-func (inst *VpcEndpointsTable) GetSeletedVpcEndpoint() types.VpcEndpoint {
+func (inst *VpcEndpointsTable) GetSelectedVpcEndpoint() types.VpcEndpoint {
 	return inst.selectedVpcEndpoint
 }

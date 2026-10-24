@@ -47,7 +47,7 @@ func NewEventBridgeDetailsPageView(
 		SetGetTagsFunc(func() ([]types.Tag, error) {
 			return serviceCtx.Api.ListTags(
 				serviceCtx.Ctx,
-				true, aws.ToString(busListTable.GetSeletedEventBus().Arn),
+				true, aws.ToString(busListTable.GetSelectedEventBus().Arn),
 			)
 		})
 
@@ -97,11 +97,11 @@ func NewEventBridgeDetailsPageView(
 
 func (inst *EventBridgeDetailsPageView) initInputCapture() {
 	inst.EventBusListTable.SetSelectionChangedFunc(func(row, column int) {
-		var selectedEventBus = inst.EventBusListTable.GetSeletedEventBus()
+		var selectedEventBus = inst.EventBusListTable.GetSelectedEventBus()
 		inst.EventBusDetailsTable.RefreshDetails(selectedEventBus)
 		inst.EventBusTagsTable.RefreshDetails()
 
-		inst.EventBusPolicyView.SetText(inst.EventBusListTable.GetSeletedEventBus())
+		inst.EventBusPolicyView.SetText(inst.EventBusListTable.GetSelectedEventBus())
 	})
 }
 

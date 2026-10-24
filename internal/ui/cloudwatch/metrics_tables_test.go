@@ -52,7 +52,7 @@ func TestMetricListTable__SelectingRowTracksSelectedMetric(t *testing.T) {
 
 	table.Select(2, 0)
 
-	if got := aws.ToString(table.GetSeletedMetric().MetricName); got != "BucketSizeBytes" {
+	if got := aws.ToString(table.GetSelectedMetric().MetricName); got != "BucketSizeBytes" {
 		t.Errorf("selected metric = %q, want %q", got, "BucketSizeBytes")
 	}
 }
@@ -66,7 +66,7 @@ func TestMetricListTable__SelectingHeadingKeepsPreviousSelection(t *testing.T) {
 
 	table.Select(0, 0)
 
-	if got := aws.ToString(table.GetSeletedMetric().MetricName); got != "BucketSizeBytes" {
+	if got := aws.ToString(table.GetSelectedMetric().MetricName); got != "BucketSizeBytes" {
 		t.Errorf("selected metric = %q, want %q", got, "BucketSizeBytes")
 	}
 }
