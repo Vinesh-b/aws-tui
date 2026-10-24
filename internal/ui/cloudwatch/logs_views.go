@@ -26,6 +26,8 @@ func NewLogEventsPageView(
 		serviceViewCtx.AppContext, logEventsTable, 1,
 	)
 
+	expandedLogsView.SetJsonHighlighting(true)
+
 	const expandedLogsSize = 7
 	const logTableSize = 13
 
