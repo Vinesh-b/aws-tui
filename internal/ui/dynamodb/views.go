@@ -132,6 +132,7 @@ func NewDynamoDBItemsPageView(
 	var expandItemView = core.CreateJsonTableDataView(
 		serviceCtx.AppContext, itemsTable, -1,
 	)
+	expandItemView.SetJsonHighlighting(true)
 
 	const expandItemViewSize = 3
 	const itemsTableSize = 7
