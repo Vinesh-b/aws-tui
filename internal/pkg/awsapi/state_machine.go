@@ -2,9 +2,7 @@ package awsapi
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"sort"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -13,7 +11,7 @@ import (
 )
 
 type StateMachineApi struct {
-	logger                  *log.Logger
+	baseApi
 	nextExectionsToken      *string
 	listExecutionsPaginator *sfn.ListExecutionsPaginator
 }
@@ -22,41 +20,31 @@ func NewStateMachineApi(
 	logger *log.Logger,
 ) *StateMachineApi {
 	return &StateMachineApi{
-		logger: logger,
+		baseApi: baseApi{logger: logger},
 	}
 }
 
 func (inst *StateMachineApi) ListStateMachines(force bool) ([]types.StateMachineListItem, error) {
-	var client = GetAwsApiClients().sfn
-
 	var paginator = sfn.NewListStateMachinesPaginator(
-		client, &sfn.ListStateMachinesInput{},
+		GetAwsApiClients().sfn, &sfn.ListStateMachinesInput{},
 	)
 
-	var apiErr error = nil
-	var result = []types.StateMachineListItem{}
-
-	for paginator.HasMorePages() {
+	var result, err = collectPaginator(paginator.HasMorePages, func() ([]types.StateMachineListItem, error) {
 		var output, err = paginator.NextPage(context.TODO())
 		if err != nil {
-			inst.logger.Println(err)
-			apiErr = err
-			break
+			return nil, err
 		}
-
-		result = append(result, output.StateMachines...)
-	}
-
-	sort.Slice(result, func(i, j int) bool {
-		return aws.ToString(result[i].Name) < aws.ToString(result[j].Name)
+		return output.StateMachines, nil
 	})
 
-	return result, apiErr
+	sortByKey(result, func(m types.StateMachineListItem) *string { return m.Name })
+
+	return result, inst.logErr(err)
 }
 
 func (inst *StateMachineApi) DescribeStateMachine(stateMachineArn string) (*sfn.DescribeStateMachineOutput, error) {
-	if len(stateMachineArn) == 0 {
-		return nil, fmt.Errorf("state machine ARN not set")
+	if err := requireArg("state machine ARN", stateMachineArn); err != nil {
+		return nil, err
 	}
 
 	var client = GetAwsApiClients().sfn
@@ -80,8 +68,8 @@ func (inst *StateMachineApi) ListExecutions(
 ) ([]types.ExecutionListItem, error) {
 	var empty = []types.ExecutionListItem{}
 
-	if len(stateMachineArn) == 0 {
-		return empty, fmt.Errorf("State machine ARN not set")
+	if err := requireArg("state machine ARN", stateMachineArn); err != nil {
+		return empty, err
 	}
 
 	var client = GetAwsApiClients().sfn
@@ -99,8 +87,7 @@ func (inst *StateMachineApi) ListExecutions(
 	for inst.listExecutionsPaginator.HasMorePages() {
 		var output, err = inst.listExecutionsPaginator.NextPage(context.TODO())
 		if err != nil {
-			inst.logger.Println(err)
-			return empty, err
+			return empty, inst.logErr(err)
 		}
 
 		for _, exec := range output.Executions {
@@ -122,8 +109,8 @@ func (inst *StateMachineApi) ListExecutions(
 }
 
 func (inst *StateMachineApi) DescribeExecution(executionArn string) (*sfn.DescribeExecutionOutput, error) {
-	if len(executionArn) == 0 {
-		return nil, fmt.Errorf("Exeuction ARN not set")
+	if err := requireArg("execution ARN", executionArn); err != nil {
+		return nil, err
 	}
 
 	var client = GetAwsApiClients().sfn
@@ -133,16 +120,15 @@ func (inst *StateMachineApi) DescribeExecution(executionArn string) (*sfn.Descri
 	})
 
 	if err != nil {
-		inst.logger.Println(err)
-		return nil, err
+		return nil, inst.logErr(err)
 	}
 
 	return response, nil
 }
 
 func (inst *StateMachineApi) GetExecutionHistory(executionArn string) (*sfn.GetExecutionHistoryOutput, error) {
-	if len(executionArn) == 0 {
-		return nil, fmt.Errorf("Exeuction ARN not set")
+	if err := requireArg("execution ARN", executionArn); err != nil {
+		return nil, err
 	}
 
 	var client = GetAwsApiClients().sfn
@@ -152,8 +138,7 @@ func (inst *StateMachineApi) GetExecutionHistory(executionArn string) (*sfn.GetE
 	})
 
 	if err != nil {
-		inst.logger.Println(err)
-		return nil, err
+		return nil, inst.logErr(err)
 	}
 
 	return response, nil

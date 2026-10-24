@@ -3,7 +3,6 @@ package awsapi
 import (
 	"context"
 	"log"
-	"sort"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
@@ -11,7 +10,7 @@ import (
 )
 
 type EventBridgeApi struct {
-	logger        *log.Logger
+	baseApi
 	allEventBuses []types.EventBus
 	allBusRules   []types.Rule
 }
@@ -20,45 +19,29 @@ func NewEventBridgeApi(
 	logger *log.Logger,
 ) *EventBridgeApi {
 	return &EventBridgeApi{
-		logger: logger,
+		baseApi: baseApi{logger: logger},
 	}
 }
 
 func (inst *EventBridgeApi) ListEventBuses(force bool) ([]types.EventBus, error) {
-	var nextToken *string = nil
-	var namePrefix *string = nil
-	var apiError error = nil
-	var result = []types.EventBus{}
-	var client = GetAwsApiClients().eventbridge
-
-	for {
-		var output, err = client.ListEventBuses(context.TODO(),
+	var result, err = collectTokenPages(func(token *string) ([]types.EventBus, *string, error) {
+		var output, err = GetAwsApiClients().eventbridge.ListEventBuses(context.TODO(),
 			&eventbridge.ListEventBusesInput{
-				Limit:      aws.Int32(50),
-				NamePrefix: namePrefix,
-				NextToken:  nextToken,
+				Limit:     aws.Int32(50),
+				NextToken: token,
 			},
 		)
-
 		if err != nil {
-			apiError = err
-			break
+			return nil, nil, err
 		}
-
-		result = append(result, output.EventBuses...)
-
-		if output.NextToken == nil {
-			break
-		}
-	}
-
-	sort.Slice(result, func(i, j int) bool {
-		return aws.ToString(result[i].Name) < aws.ToString(result[j].Name)
+		return output.EventBuses, output.NextToken, nil
 	})
+
+	sortByKey(result, func(b types.EventBus) *string { return b.Name })
 
 	inst.allEventBuses = result
 
-	return result, apiError
+	return result, inst.logErr(err)
 }
 
 func (inst *EventBridgeApi) DescribeEventBus(force bool, busArn string) (eventbridge.DescribeEventBusOutput, error) {
@@ -72,53 +55,35 @@ func (inst *EventBridgeApi) DescribeEventBus(force bool, busArn string) (eventbr
 	)
 
 	if err != nil {
-		inst.logger.Println(err)
-		return empty, err
+		return empty, inst.logErr(err)
 	}
 
 	return *output, err
 }
 
 func (inst *EventBridgeApi) ListRules(force bool, busArn string) ([]types.Rule, error) {
-	var nextToken *string = nil
-	var namePrefix *string = nil
-	var apiError error = nil
-	var result = []types.Rule{}
-	var client = GetAwsApiClients().eventbridge
-
-	for {
-		var output, err = client.ListRules(context.TODO(),
-			&eventbridge.ListRulesInput{EventBusName: &busArn,
-				Limit:      aws.Int32(50),
-				NamePrefix: namePrefix,
-				NextToken:  nextToken,
+	var result, err = collectTokenPages(func(token *string) ([]types.Rule, *string, error) {
+		var output, err = GetAwsApiClients().eventbridge.ListRules(context.TODO(),
+			&eventbridge.ListRulesInput{
+				EventBusName: &busArn,
+				Limit:        aws.Int32(50),
+				NextToken:    token,
 			},
 		)
-
 		if err != nil {
-			apiError = err
-			inst.logger.Println(err)
-			break
+			return nil, nil, err
 		}
-
-		result = append(result, output.Rules...)
-
-		if output.NextToken == nil {
-			break
-		}
-	}
-
-	sort.Slice(result, func(i, j int) bool {
-		return aws.ToString(result[i].Name) < aws.ToString(result[j].Name)
+		return output.Rules, output.NextToken, nil
 	})
+
+	sortByKey(result, func(r types.Rule) *string { return r.Name })
 
 	inst.allBusRules = result
 
-	return result, apiError
+	return result, inst.logErr(err)
 }
 
 func (inst *EventBridgeApi) ListTags(force bool, resourceArn string) ([]types.Tag, error) {
-	var apiError error = nil
 	var client = GetAwsApiClients().eventbridge
 
 	var output, err = client.ListTagsForResource(context.TODO(),
@@ -128,9 +93,8 @@ func (inst *EventBridgeApi) ListTags(force bool, resourceArn string) ([]types.Ta
 	)
 
 	if err != nil {
-		inst.logger.Println(err)
-		return nil, err
+		return nil, inst.logErr(err)
 	}
 
-	return output.Tags, apiError
+	return output.Tags, nil
 }

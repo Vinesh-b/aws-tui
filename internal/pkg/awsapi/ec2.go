@@ -3,7 +3,6 @@ package awsapi
 import (
 	"context"
 	"log"
-	"sort"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -11,7 +10,7 @@ import (
 )
 
 type Ec2Api struct {
-	logger  *log.Logger
+	baseApi
 	allVpcs []types.Vpc
 }
 
@@ -19,153 +18,78 @@ func NewEc2Api(
 	logger *log.Logger,
 ) *Ec2Api {
 	return &Ec2Api{
-		logger: logger,
+		baseApi: baseApi{logger: logger},
+	}
+}
+
+func vpcIdFilter(vpcId string) []types.Filter {
+	return []types.Filter{
+		{Name: aws.String("vpc-id"), Values: []string{vpcId}},
 	}
 }
 
 func (inst *Ec2Api) ListVpcs(force bool) ([]types.Vpc, error) {
-	var nextToken *string = nil
-	var apiError error = nil
-	var result = []types.Vpc{}
-	var client = GetAwsApiClients().ec2
-
-	for {
-		var output, err = client.DescribeVpcs(context.TODO(),
-			&ec2.DescribeVpcsInput{
-				NextToken: nextToken,
-			})
-
+	var result, err = collectTokenPages(func(token *string) ([]types.Vpc, *string, error) {
+		var output, err = GetAwsApiClients().ec2.DescribeVpcs(context.TODO(),
+			&ec2.DescribeVpcsInput{NextToken: token},
+		)
 		if err != nil {
-			apiError = err
-			break
+			return nil, nil, err
 		}
-
-		result = append(result, output.Vpcs...)
-
-		if output.NextToken == nil {
-			break
-		}
-	}
-
-	sort.Slice(result, func(i, j int) bool {
-		return aws.ToString(result[i].VpcId) < aws.ToString(result[j].VpcId)
+		return output.Vpcs, output.NextToken, nil
 	})
+
+	sortByKey(result, func(v types.Vpc) *string { return v.VpcId })
 
 	inst.allVpcs = result
 
-	return result, apiError
+	return result, inst.logErr(err)
 }
 
 func (inst *Ec2Api) DescribeVpcEndpoints(force bool, vpcId string) ([]types.VpcEndpoint, error) {
-	var nextToken *string = nil
-	var apiError error = nil
-	var result = []types.VpcEndpoint{}
-	var client = GetAwsApiClients().ec2
-
-	var filterVpcId = "vpc-id"
-
-	for {
-		var output, err = client.DescribeVpcEndpoints(context.TODO(),
-			&ec2.DescribeVpcEndpointsInput{
-				Filters: []types.Filter{
-					{Name: aws.String(filterVpcId), Values: []string{vpcId}},
-				},
-				NextToken: nextToken,
-			},
+	var result, err = collectTokenPages(func(token *string) ([]types.VpcEndpoint, *string, error) {
+		var output, err = GetAwsApiClients().ec2.DescribeVpcEndpoints(context.TODO(),
+			&ec2.DescribeVpcEndpointsInput{Filters: vpcIdFilter(vpcId), NextToken: token},
 		)
-
 		if err != nil {
-			apiError = err
-			inst.logger.Println(err)
-			break
+			return nil, nil, err
 		}
-
-		result = append(result, output.VpcEndpoints...)
-
-		if output.NextToken == nil {
-			break
-		}
-	}
-
-	sort.Slice(result, func(i, j int) bool {
-		return aws.ToString(result[i].ServiceName) < aws.ToString(result[j].ServiceName)
+		return output.VpcEndpoints, output.NextToken, nil
 	})
 
-	return result, apiError
+	sortByKey(result, func(e types.VpcEndpoint) *string { return e.ServiceName })
+
+	return result, inst.logErr(err)
 }
 
 func (inst *Ec2Api) DescribeVpcSubnets(force bool, vpcId string) ([]types.Subnet, error) {
-	var nextToken *string = nil
-	var apiError error = nil
-	var result = []types.Subnet{}
-	var client = GetAwsApiClients().ec2
-
-	var filterVpcId = "vpc-id"
-
-	for {
-		var output, err = client.DescribeSubnets(context.TODO(),
-			&ec2.DescribeSubnetsInput{
-				Filters: []types.Filter{
-					{Name: aws.String(filterVpcId), Values: []string{vpcId}},
-				},
-				NextToken: nextToken,
-			},
+	var result, err = collectTokenPages(func(token *string) ([]types.Subnet, *string, error) {
+		var output, err = GetAwsApiClients().ec2.DescribeSubnets(context.TODO(),
+			&ec2.DescribeSubnetsInput{Filters: vpcIdFilter(vpcId), NextToken: token},
 		)
-
 		if err != nil {
-			apiError = err
-			inst.logger.Println(err)
-			break
+			return nil, nil, err
 		}
-
-		result = append(result, output.Subnets...)
-
-		if output.NextToken == nil {
-			break
-		}
-	}
-
-	sort.Slice(result, func(i, j int) bool {
-		return aws.ToString(result[i].CidrBlock) < aws.ToString(result[j].CidrBlock)
+		return output.Subnets, output.NextToken, nil
 	})
 
-	return result, apiError
+	sortByKey(result, func(s types.Subnet) *string { return s.CidrBlock })
+
+	return result, inst.logErr(err)
 }
 
 func (inst *Ec2Api) DescribeVpcSecurityGroups(force bool, vpcId string) ([]types.SecurityGroup, error) {
-	var nextToken *string = nil
-	var apiError error = nil
-	var result = []types.SecurityGroup{}
-	var client = GetAwsApiClients().ec2
-
-	var filterVpcId = "vpc-id"
-
-	for {
-		var output, err = client.DescribeSecurityGroups(context.TODO(),
-			&ec2.DescribeSecurityGroupsInput{
-				Filters: []types.Filter{
-					{Name: aws.String(filterVpcId), Values: []string{vpcId}},
-				},
-				NextToken: nextToken,
-			},
+	var result, err = collectTokenPages(func(token *string) ([]types.SecurityGroup, *string, error) {
+		var output, err = GetAwsApiClients().ec2.DescribeSecurityGroups(context.TODO(),
+			&ec2.DescribeSecurityGroupsInput{Filters: vpcIdFilter(vpcId), NextToken: token},
 		)
-
 		if err != nil {
-			apiError = err
-			inst.logger.Println(err)
-			break
+			return nil, nil, err
 		}
-
-		result = append(result, output.SecurityGroups...)
-
-		if output.NextToken == nil {
-			break
-		}
-	}
-
-	sort.Slice(result, func(i, j int) bool {
-		return aws.ToString(result[i].GroupId) < aws.ToString(result[j].GroupId)
+		return output.SecurityGroups, output.NextToken, nil
 	})
 
-	return result, apiError
+	sortByKey(result, func(g types.SecurityGroup) *string { return g.GroupId })
+
+	return result, inst.logErr(err)
 }

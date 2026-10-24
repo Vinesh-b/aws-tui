@@ -3,9 +3,7 @@ package awsapi
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
-	"sort"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
@@ -13,7 +11,7 @@ import (
 )
 
 type LambdaApi struct {
-	logger     *log.Logger
+	baseApi
 	allLambdas []types.FunctionConfiguration
 }
 
@@ -21,33 +19,26 @@ func NewLambdaApi(
 	logger *log.Logger,
 ) *LambdaApi {
 	return &LambdaApi{
-		logger: logger,
+		baseApi: baseApi{logger: logger},
 	}
 }
 
 func (inst *LambdaApi) ListLambdas(force bool) ([]types.FunctionConfiguration, error) {
-	var client = GetAwsApiClients().lambda
 	var paginator = lambda.NewListFunctionsPaginator(
-		client, &lambda.ListFunctionsInput{},
+		GetAwsApiClients().lambda, &lambda.ListFunctionsInput{},
 	)
 
-	var result = []types.FunctionConfiguration{}
-	var apiError error = nil
-	for paginator.HasMorePages() {
+	var result, err = collectPaginator(paginator.HasMorePages, func() ([]types.FunctionConfiguration, error) {
 		var output, err = paginator.NextPage(context.TODO())
 		if err != nil {
-			apiError = err
-			break
+			return nil, err
 		}
-
-		result = append(result, output.Functions...)
-	}
-
-	sort.Slice(result, func(i, j int) bool {
-		return aws.ToString(result[i].FunctionName) < aws.ToString(result[j].FunctionName)
+		return output.Functions, nil
 	})
 
-	return result, apiError
+	sortByKey(result, func(f types.FunctionConfiguration) *string { return f.FunctionName })
+
+	return result, inst.logErr(err)
 }
 
 func (inst *LambdaApi) InvokeLambda(
@@ -56,8 +47,8 @@ func (inst *LambdaApi) InvokeLambda(
 ) (*lambda.InvokeOutput, error) {
 	var output *lambda.InvokeOutput = nil
 
-	if len(name) == 0 {
-		return output, fmt.Errorf("lambda name not set")
+	if err := requireArg("lambda name", name); err != nil {
+		return output, err
 	}
 
 	var err error = nil
@@ -65,8 +56,7 @@ func (inst *LambdaApi) InvokeLambda(
 
 	jsonPayload, err = json.Marshal(payload)
 	if err != nil {
-		inst.logger.Println(err)
-		return nil, err
+		return nil, inst.logErr(err)
 	}
 
 	var client = GetAwsApiClients().lambda
@@ -87,8 +77,8 @@ func (inst *LambdaApi) InvokeLambda(
 }
 
 func (inst *LambdaApi) GetPolicy(lambdaArn string) (string, error) {
-	if len(lambdaArn) == 0 {
-		return "", fmt.Errorf("lambda ARN not set")
+	if err := requireArg("lambda ARN", lambdaArn); err != nil {
+		return "", err
 	}
 
 	var client = GetAwsApiClients().lambda
@@ -106,8 +96,8 @@ func (inst *LambdaApi) GetPolicy(lambdaArn string) (string, error) {
 }
 
 func (inst *LambdaApi) ListTags(lambdaArn string) (map[string]string, error) {
-	if len(lambdaArn) == 0 {
-		return nil, fmt.Errorf("lambda ARN not set")
+	if err := requireArg("lambda ARN", lambdaArn); err != nil {
+		return nil, err
 	}
 
 	var client = GetAwsApiClients().lambda

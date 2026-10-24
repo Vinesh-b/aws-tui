@@ -2,9 +2,7 @@ package awsapi
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"sort"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
@@ -12,7 +10,7 @@ import (
 )
 
 type CloudWatchAlarmsApi struct {
-	logger             *log.Logger
+	baseApi
 	allCompositeAlarms map[string]types.CompositeAlarm
 	alarmsPaginator    *cloudwatch.DescribeAlarmsPaginator
 	historyPaginator   *cloudwatch.DescribeAlarmHistoryPaginator
@@ -22,7 +20,7 @@ func NewCloudWatchAlarmsApi(
 	logger *log.Logger,
 ) *CloudWatchAlarmsApi {
 	return &CloudWatchAlarmsApi{
-		logger:             logger,
+		baseApi:            baseApi{logger: logger},
 		allCompositeAlarms: nil,
 		alarmsPaginator:    nil,
 		historyPaginator:   nil,
@@ -30,38 +28,29 @@ func NewCloudWatchAlarmsApi(
 }
 
 func (inst *CloudWatchAlarmsApi) ListAlarms(force bool) ([]types.MetricAlarm, error) {
-	var client = GetAwsApiClients().cloudwatch
-
 	inst.alarmsPaginator = cloudwatch.NewDescribeAlarmsPaginator(
-		client,
+		GetAwsApiClients().cloudwatch,
 		&cloudwatch.DescribeAlarmsInput{
 			MaxRecords: aws.Int32(100),
 		},
 	)
 
-	var apiErr error = nil
-	var result = []types.MetricAlarm{}
-
-	for inst.alarmsPaginator.HasMorePages() {
+	var result, err = collectPaginator(inst.alarmsPaginator.HasMorePages, func() ([]types.MetricAlarm, error) {
 		var output, err = inst.alarmsPaginator.NextPage(context.TODO())
 		if err != nil {
-			apiErr = err
-			break
+			return nil, err
 		}
-
-		result = append(result, output.MetricAlarms...)
-	}
-
-	sort.Slice(result, func(i, j int) bool {
-		return aws.ToString(result[i].AlarmName) < aws.ToString(result[j].AlarmName)
+		return output.MetricAlarms, nil
 	})
 
-	return result, apiErr
+	sortByKey(result, func(a types.MetricAlarm) *string { return a.AlarmName })
+
+	return result, inst.logErr(err)
 }
 
 func (inst *CloudWatchAlarmsApi) ListAlarmHistory(name string, force bool) ([]types.AlarmHistoryItem, error) {
-	if len(name) == 0 {
-		return nil, fmt.Errorf("Alarm name not set")
+	if err := requireArg("alarm name", name); err != nil {
+		return nil, err
 	}
 
 	var client = GetAwsApiClients().cloudwatch
@@ -83,8 +72,7 @@ func (inst *CloudWatchAlarmsApi) ListAlarmHistory(name string, force bool) ([]ty
 
 	var output, err = inst.historyPaginator.NextPage(context.TODO())
 	if err != nil {
-		inst.logger.Println(err)
-		return foundHistory, err
+		return foundHistory, inst.logErr(err)
 	}
 
 	foundHistory = append(foundHistory, output.AlarmHistoryItems...)

@@ -11,7 +11,7 @@ import (
 )
 
 type SystemsManagerApi struct {
-	logger                   *log.Logger
+	baseApi
 	getParamsByPathPaginator *ssm.GetParametersByPathPaginator
 	getParamHistoryPaginator *ssm.GetParameterHistoryPaginator
 }
@@ -20,7 +20,7 @@ func NewSystemsManagerApi(
 	logger *log.Logger,
 ) *SystemsManagerApi {
 	return &SystemsManagerApi{
-		logger: logger,
+		baseApi: baseApi{logger: logger},
 	}
 }
 
@@ -29,8 +29,8 @@ func (inst *SystemsManagerApi) GetParametersByPath(
 ) ([]types.Parameter, error) {
 	var empty []types.Parameter
 
-	if len(path) == 0 {
-		return empty, fmt.Errorf("Parameter path not set")
+	if err := requireArg("parameter path", path); err != nil {
+		return empty, err
 	}
 
 	var client = GetAwsApiClients().ssm
@@ -52,8 +52,7 @@ func (inst *SystemsManagerApi) GetParametersByPath(
 
 	var output, err = inst.getParamsByPathPaginator.NextPage(context.Background())
 	if err != nil {
-		inst.logger.Println(err)
-		return empty, err
+		return empty, inst.logErr(err)
 	}
 
 	return output.Parameters, nil
@@ -64,8 +63,8 @@ func (inst *SystemsManagerApi) GetParameterHistory(
 ) ([]types.ParameterHistory, error) {
 	var empty []types.ParameterHistory
 
-	if len(name) == 0 {
-		return empty, fmt.Errorf("Parameter name not set")
+	if err := requireArg("parameter name", name); err != nil {
+		return empty, err
 	}
 
 	var client = GetAwsApiClients().ssm
@@ -87,8 +86,7 @@ func (inst *SystemsManagerApi) GetParameterHistory(
 
 	var output, err = inst.getParamHistoryPaginator.NextPage(context.Background())
 	if err != nil {
-		inst.logger.Println(err)
-		return empty, err
+		return empty, inst.logErr(err)
 	}
 
 	return output.Parameters, nil

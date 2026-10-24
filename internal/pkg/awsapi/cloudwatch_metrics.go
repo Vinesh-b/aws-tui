@@ -3,24 +3,22 @@ package awsapi
 import (
 	"context"
 	"log"
-	"sort"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 )
 
 type CloudWatchMetricsApi struct {
-	logger          *log.Logger
-	meticsPaginator *cloudwatch.ListMetricsPaginator
+	baseApi
+	metricsPaginator *cloudwatch.ListMetricsPaginator
 }
 
 func NewCloudWatchMetricsApi(
 	logger *log.Logger,
 ) *CloudWatchMetricsApi {
 	return &CloudWatchMetricsApi{
-		logger:          logger,
-		meticsPaginator: nil,
+		baseApi:          baseApi{logger: logger},
+		metricsPaginator: nil,
 	}
 }
 
@@ -40,11 +38,8 @@ func (inst *CloudWatchMetricsApi) ListMetrics(
 		queryMetricName = nil
 	}
 
-	var result = []types.Metric{}
-	var client = GetAwsApiClients().cloudwatch
-
-	inst.meticsPaginator = cloudwatch.NewListMetricsPaginator(
-		client,
+	inst.metricsPaginator = cloudwatch.NewListMetricsPaginator(
+		GetAwsApiClients().cloudwatch,
 		&cloudwatch.ListMetricsInput{
 			Dimensions: dims,
 			MetricName: queryMetricName,
@@ -52,20 +47,15 @@ func (inst *CloudWatchMetricsApi) ListMetrics(
 		},
 	)
 
-	var apiErr error = nil
-	for inst.meticsPaginator.HasMorePages() {
-		var output, err = inst.meticsPaginator.NextPage(context.TODO())
+	var result, err = collectPaginator(inst.metricsPaginator.HasMorePages, func() ([]types.Metric, error) {
+		var output, err = inst.metricsPaginator.NextPage(context.TODO())
 		if err != nil {
-			inst.logger.Println(err)
-			apiErr = err
-			break
+			return nil, err
 		}
-		result = append(result, output.Metrics...)
-	}
-
-	sort.Slice(result, func(i, j int) bool {
-		return aws.ToString(result[i].MetricName) < aws.ToString(result[j].MetricName)
+		return output.Metrics, nil
 	})
 
-	return result, apiErr
+	sortByKey(result, func(m types.Metric) *string { return m.MetricName })
+
+	return result, inst.logErr(err)
 }

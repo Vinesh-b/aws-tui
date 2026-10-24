@@ -2,9 +2,7 @@ package awsapi
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"sort"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
@@ -12,7 +10,7 @@ import (
 )
 
 type CloudFormationApi struct {
-	logger               *log.Logger
+	baseApi
 	stackEventsPaginator *cloudformation.DescribeStackEventsPaginator
 }
 
@@ -20,42 +18,33 @@ func NewCloudFormationApi(
 	logger *log.Logger,
 ) *CloudFormationApi {
 	return &CloudFormationApi{
-		logger: logger,
+		baseApi: baseApi{logger: logger},
 	}
 }
 
 func (inst *CloudFormationApi) ListStacks(force bool) ([]types.StackSummary, error) {
-	var client = GetAwsApiClients().cloudformation
-
 	var paginator = cloudformation.NewListStacksPaginator(
-		client, &cloudformation.ListStacksInput{},
+		GetAwsApiClients().cloudformation, &cloudformation.ListStacksInput{},
 	)
 
-	var apiErr error = nil
-	var result = []types.StackSummary{}
-
-	for paginator.HasMorePages() {
+	var result, err = collectPaginator(paginator.HasMorePages, func() ([]types.StackSummary, error) {
 		var output, err = paginator.NextPage(context.TODO())
 		if err != nil {
-			inst.logger.Println(err)
-			apiErr = err
-			break
+			return nil, err
 		}
-		result = append(result, output.StackSummaries...)
-	}
-
-	sort.Slice(result, func(i, j int) bool {
-		return aws.ToString(result[i].StackName) < aws.ToString(result[j].StackName)
+		return output.StackSummaries, nil
 	})
 
-	return result, apiErr
+	sortByKey(result, func(s types.StackSummary) *string { return s.StackName })
+
+	return result, inst.logErr(err)
 }
 
 func (inst *CloudFormationApi) DescribeStackEvents(stackName string, force bool) ([]types.StackEvent, error) {
 	var empty []types.StackEvent
 
-	if len(stackName) == 0 {
-		return empty, fmt.Errorf("Stack name not set")
+	if err := requireArg("stack name", stackName); err != nil {
+		return empty, err
 	}
 
 	var client = GetAwsApiClients().cloudformation
@@ -74,8 +63,7 @@ func (inst *CloudFormationApi) DescribeStackEvents(stackName string, force bool)
 
 	var output, err = inst.stackEventsPaginator.NextPage(context.TODO())
 	if err != nil {
-		inst.logger.Println(err)
-		return empty, err
+		return empty, inst.logErr(err)
 	}
 
 	return output.StackEvents, nil

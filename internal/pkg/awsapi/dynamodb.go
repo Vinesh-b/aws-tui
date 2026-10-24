@@ -14,7 +14,7 @@ import (
 )
 
 type DynamoDBApi struct {
-	logger         *log.Logger
+	baseApi
 	allTables      []string
 	queryPaginator *dynamodb.QueryPaginator
 	scanPaginator  *dynamodb.ScanPaginator
@@ -25,7 +25,7 @@ func NewDynamoDBApi(
 ) *DynamoDBApi {
 
 	return &DynamoDBApi{
-		logger: logger,
+		baseApi: baseApi{logger: logger},
 	}
 }
 
@@ -58,8 +58,8 @@ func (inst *DynamoDBApi) ListTables(force bool) ([]string, error) {
 }
 
 func (inst *DynamoDBApi) DescribeTable(tableName string) (*types.TableDescription, error) {
-	if len(tableName) == 0 {
-		return nil, fmt.Errorf("Table name not set")
+	if err := requireArg("table name", tableName); err != nil {
+		return nil, err
 	}
 
 	var client = GetAwsApiClients().dynamodb
@@ -81,8 +81,8 @@ func (inst *DynamoDBApi) ScanTable(
 ) ([]map[string]any, error) {
 	var items []map[string]any
 
-	if len(tableName) == 0 {
-		return items, fmt.Errorf("Table name not set")
+	if err := requireArg("table name", tableName); err != nil {
+		return items, err
 	}
 
 	var index *string = nil
@@ -126,8 +126,8 @@ func (inst *DynamoDBApi) QueryTable(
 ) ([]map[string]any, error) {
 	var items []map[string]any
 
-	if len(tableName) == 0 {
-		return items, fmt.Errorf("Table name not set")
+	if err := requireArg("table name", tableName); err != nil {
+		return items, err
 	}
 
 	if inst.queryPaginator == nil || force {
@@ -161,8 +161,7 @@ func (inst *DynamoDBApi) QueryTable(
 	var temp []map[string]any
 	err = attributevalue.UnmarshalListOfMaps(output.Items, &temp)
 	if err != nil {
-		inst.logger.Println(err)
-		return items, err
+		return items, inst.logErr(err)
 	}
 
 	items = append(items, temp...)
@@ -170,32 +169,18 @@ func (inst *DynamoDBApi) QueryTable(
 }
 
 func (inst *DynamoDBApi) ListTags(force bool, resourceArn string) ([]types.Tag, error) {
-	var apiError error = nil
-	var nextToken *string = nil
-	var result = []types.Tag{}
-	var client = GetAwsApiClients().dynamodb
-
-	for {
-		var output, err = client.ListTagsOfResource(context.TODO(),
+	var result, err = collectTokenPages(func(token *string) ([]types.Tag, *string, error) {
+		var output, err = GetAwsApiClients().dynamodb.ListTagsOfResource(context.TODO(),
 			&dynamodb.ListTagsOfResourceInput{
 				ResourceArn: aws.String(resourceArn),
-				NextToken:   nextToken,
+				NextToken:   token,
 			},
 		)
-
 		if err != nil {
-			inst.logger.Println(err)
-			apiError = err
-			break
+			return nil, nil, err
 		}
+		return output.Tags, output.NextToken, nil
+	})
 
-		nextToken = output.NextToken
-		result = append(result, output.Tags...)
-
-		if nextToken == nil {
-			break
-		}
-	}
-
-	return result, apiError
+	return result, inst.logErr(err)
 }

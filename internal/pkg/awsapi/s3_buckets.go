@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"sort"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -14,17 +13,16 @@ import (
 )
 
 type S3BucketsApi struct {
-	logger           *log.Logger
+	baseApi
 	allbuckets       []types.Bucket
 	objectsPaginator *s3.ListObjectsV2Paginator
-	bucketsPaginator *s3.ListBucketsPaginator
 }
 
 func NewS3BucketsApi(
 	logger *log.Logger,
 ) *S3BucketsApi {
 	return &S3BucketsApi{
-		logger:     logger,
+		baseApi:    baseApi{logger: logger},
 		allbuckets: []types.Bucket{},
 	}
 }
@@ -34,31 +32,23 @@ func (inst *S3BucketsApi) ListBuckets(force bool) ([]types.Bucket, error) {
 		return inst.allbuckets, nil
 	}
 
-	var client = GetAwsApiClients().s3
-	if force || inst.bucketsPaginator == nil {
-		inst.bucketsPaginator = s3.NewListBucketsPaginator(
-			client,
-			&s3.ListBucketsInput{},
-		)
-	}
+	var paginator = s3.NewListBucketsPaginator(
+		GetAwsApiClients().s3, &s3.ListBucketsInput{},
+	)
 
-	var err error = nil
-	var output *s3.ListBucketsOutput
-	for inst.bucketsPaginator.HasMorePages() {
-		output, err = inst.bucketsPaginator.NextPage(context.TODO())
+	var result, err = collectPaginator(paginator.HasMorePages, func() ([]types.Bucket, error) {
+		var output, err = paginator.NextPage(context.TODO())
 		if err != nil {
-			inst.logger.Println(err)
-			break
+			return nil, err
 		}
-
-		inst.allbuckets = append(inst.allbuckets, output.Buckets...)
-	}
-
-	sort.Slice(inst.allbuckets, func(i, j int) bool {
-		return aws.ToString(inst.allbuckets[i].Name) < aws.ToString(inst.allbuckets[j].Name)
+		return output.Buckets, nil
 	})
 
-	return inst.allbuckets, nil
+	sortByKey(result, func(b types.Bucket) *string { return b.Name })
+
+	inst.allbuckets = result
+
+	return result, inst.logErr(err)
 }
 
 func (inst *S3BucketsApi) ListObjects(
@@ -66,8 +56,8 @@ func (inst *S3BucketsApi) ListObjects(
 	prefix string,
 	force bool,
 ) ([]types.Object, []types.CommonPrefix, error) {
-	if len(bucketName) == 0 {
-		return nil, nil, fmt.Errorf("Bucket name not set")
+	if err := requireArg("bucket name", bucketName); err != nil {
+		return nil, nil, err
 	}
 
 	var objPrefix = &prefix
@@ -92,24 +82,23 @@ func (inst *S3BucketsApi) ListObjects(
 
 	var output, err = inst.objectsPaginator.NextPage(context.TODO())
 	if err != nil {
-		inst.logger.Println(err)
-		return nil, nil, err
+		return nil, nil, inst.logErr(err)
 	}
 
 	return output.Contents, output.CommonPrefixes, nil
 }
 
 func (inst *S3BucketsApi) DownloadFile(bucketName string, objectKey string, fileName string) error {
-	if len(bucketName) == 0 {
-		return fmt.Errorf("Bucket name not set")
+	if err := requireArg("bucket name", bucketName); err != nil {
+		return err
 	}
 
-	if len(objectKey) == 0 {
-		return fmt.Errorf("Object key not set")
+	if err := requireArg("object key", objectKey); err != nil {
+		return err
 	}
 
-	if len(fileName) == 0 {
-		return fmt.Errorf("File name not set")
+	if err := requireArg("file name", fileName); err != nil {
+		return err
 	}
 
 	var client = GetAwsApiClients().s3
@@ -132,13 +121,13 @@ func (inst *S3BucketsApi) DownloadFile(bucketName string, objectKey string, file
 	}
 
 	defer file.Close()
-	body, err := io.ReadAll(result.Body)
-	if err != nil {
-		inst.logger.Printf("Failed to object body: %v, Error: %v\n", objectKey, err)
+
+	if _, err = io.Copy(file, result.Body); err != nil {
+		inst.logger.Printf("Failed to write object body: %v, Error: %v\n", objectKey, err)
+		return err
 	}
 
-	_, err = file.Write(body)
-	return err
+	return nil
 }
 
 func (inst *S3BucketsApi) GetBucketPolicy(bucketArn string, force bool) (string, error) {
@@ -150,8 +139,7 @@ func (inst *S3BucketsApi) GetBucketPolicy(bucketArn string, force bool) (string,
 		})
 
 	if err != nil {
-		inst.logger.Println(err)
-		return "", err
+		return "", inst.logErr(err)
 	}
 
 	return aws.ToString(output.Policy), nil
@@ -168,8 +156,7 @@ func (inst *S3BucketsApi) GetBucketTags(
 		})
 
 	if err != nil {
-		inst.logger.Println(err)
-		return nil, err
+		return nil, inst.logErr(err)
 	}
 
 	return output.TagSet, nil
@@ -186,8 +173,7 @@ func (inst *S3BucketsApi) HeadBucket(
 		})
 
 	if err != nil {
-		inst.logger.Println(err)
-		return empty, err
+		return empty, inst.logErr(err)
 	}
 
 	return *output, nil
@@ -205,8 +191,7 @@ func (inst *S3BucketsApi) HeadObject(
 		})
 
 	if err != nil {
-		inst.logger.Println(err)
-		return empty, err
+		return empty, inst.logErr(err)
 	}
 
 	return *output, nil

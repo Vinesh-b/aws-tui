@@ -39,19 +39,10 @@ type AwsApiClients struct {
 	s3             *s3.Client
 }
 
-func (inst *AwsApiClients) InitClients(cfg aws.Config) {
-	apiSingletonMtx.Lock()
-	defer apiSingletonMtx.Unlock()
-
-}
-
 var apiClientsSingleton *AwsApiClients
 
-func ResetAwsApiClients(cfg aws.Config, profile string) {
-	apiSingletonMtx.Lock()
-	defer apiSingletonMtx.Unlock()
-
-	apiClientsSingleton = &AwsApiClients{
+func newAwsApiClients(cfg aws.Config, profile string) *AwsApiClients {
+	return &AwsApiClients{
 		Config:  cfg,
 		Sts:     sts.NewFromConfig(cfg),
 		Profile: profile,
@@ -69,13 +60,16 @@ func ResetAwsApiClients(cfg aws.Config, profile string) {
 	}
 }
 
-func GetAwsApiClients() *AwsApiClients {
+func ResetAwsApiClients(cfg aws.Config, profile string) {
 	apiSingletonMtx.Lock()
 	defer apiSingletonMtx.Unlock()
 
-	if apiClientsSingleton != nil {
-		return apiClientsSingleton
-	}
+	apiClientsSingleton = newAwsApiClients(cfg, profile)
+}
+
+func GetAwsApiClients() *AwsApiClients {
+	apiSingletonMtx.Lock()
+	defer apiSingletonMtx.Unlock()
 
 	if apiClientsSingleton == nil {
 		var cfg, err = config.LoadDefaultConfig(context.Background())
@@ -83,21 +77,7 @@ func GetAwsApiClients() *AwsApiClients {
 			log.Fatal(err)
 		}
 
-		apiClientsSingleton = &AwsApiClients{
-			Config: cfg,
-			Sts:    sts.NewFromConfig(cfg),
-
-			cloudformation: cloudformation.NewFromConfig(cfg),
-			cloudwatch:     cloudwatch.NewFromConfig(cfg),
-			cloudwatchlogs: cloudwatchlogs.NewFromConfig(cfg),
-			dynamodb:       dynamodb.NewFromConfig(cfg),
-			ec2:            ec2.NewFromConfig(cfg),
-			eventbridge:    eventbridge.NewFromConfig(cfg),
-			lambda:         lambda.NewFromConfig(cfg),
-			sfn:            sfn.NewFromConfig(cfg),
-			ssm:            ssm.NewFromConfig(cfg),
-			s3:             s3.NewFromConfig(cfg),
-		}
+		apiClientsSingleton = newAwsApiClients(cfg, "")
 	}
 
 	return apiClientsSingleton
