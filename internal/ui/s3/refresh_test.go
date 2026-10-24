@@ -3,6 +3,7 @@ package s3
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 
 	"aws-tui/internal/awsapi"
@@ -20,6 +21,12 @@ type fakeS3BucketsApi struct {
 	dirs    []types.CommonPrefix
 	head    s3.HeadObjectOutput
 	err     error
+
+	content      []byte
+	contentErr   error
+	headCalls    atomic.Int32
+	headTargets  atomic.Value
+	contentCalls atomic.Int32
 }
 
 func (f *fakeS3BucketsApi) ListBuckets(ctx context.Context, force bool) ([]types.Bucket, error) {
@@ -35,7 +42,16 @@ func (f *fakeS3BucketsApi) ListObjects(
 func (f *fakeS3BucketsApi) HeadObject(
 	ctx context.Context, bucketArn string, objectKey string, force bool,
 ) (s3.HeadObjectOutput, error) {
+	f.headCalls.Add(1)
+	f.headTargets.Store(bucketArn + "/" + objectKey)
 	return f.head, f.err
+}
+
+func (f *fakeS3BucketsApi) GetObjectContent(
+	ctx context.Context, bucketName string, objectKey string, maxBytes int64,
+) ([]byte, error) {
+	f.contentCalls.Add(1)
+	return f.content, f.contentErr
 }
 
 func TestBucketListTable__RefreshLoadsBucketsFromApi(t *testing.T) {

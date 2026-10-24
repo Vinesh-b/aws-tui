@@ -94,6 +94,54 @@ func TestS3DownloadFile(t *testing.T) {
 	}
 }
 
+func TestS3GetObjectContentReturnsBody(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "text/plain", "file contents")
+	})
+
+	var got, err = NewS3BucketsApi(testLogger()).GetObjectContent(context.Background(), "bucket", "key", 100)
+
+	if err != nil || string(got) != "file contents" {
+		t.Fatalf("unexpected content %q, err=%v", got, err)
+	}
+}
+
+func TestS3GetObjectContentAcceptsObjectExactlyAtTheLimit(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "text/plain", "12345")
+	})
+
+	var got, err = NewS3BucketsApi(testLogger()).GetObjectContent(context.Background(), "bucket", "key", 5)
+
+	if err != nil || string(got) != "12345" {
+		t.Fatalf("unexpected content %q, err=%v", got, err)
+	}
+}
+
+func TestS3GetObjectContentRejectsObjectOverTheLimit(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "text/plain", "123456")
+	})
+
+	var got, err = NewS3BucketsApi(testLogger()).GetObjectContent(context.Background(), "bucket", "key", 5)
+
+	if err == nil || got != nil {
+		t.Fatalf("expected an error and no content, got %q, err=%v", got, err)
+	}
+}
+
+func TestS3GetObjectContentReportsServiceErrors(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(404, "application/xml", "<Error><Code>NoSuchKey</Code></Error>")
+	})
+
+	var _, err = NewS3BucketsApi(testLogger()).GetObjectContent(context.Background(), "bucket", "key", 5)
+
+	if err == nil {
+		t.Fatal("expected an error for a missing object")
+	}
+}
+
 func TestDynamoDBListTagsFollowsNextToken(t *testing.T) {
 	var fake = useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
 		if call == 1 {
@@ -223,6 +271,14 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 		}, "bucket name not set"},
 		{"s3 download without key", func() error {
 			return s3Api.DownloadFile(context.Background(), "bucket", "", "file")
+		}, "object key not set"},
+		{"s3 content without bucket", func() error {
+			var _, err = s3Api.GetObjectContent(context.Background(), "", "key", 1)
+			return err
+		}, "bucket name not set"},
+		{"s3 content without key", func() error {
+			var _, err = s3Api.GetObjectContent(context.Background(), "bucket", "", 1)
+			return err
 		}, "object key not set"},
 		{"s3 download without file", func() error {
 			return s3Api.DownloadFile(context.Background(), "bucket", "key", "")

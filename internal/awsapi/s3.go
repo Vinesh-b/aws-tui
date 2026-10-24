@@ -21,6 +21,7 @@ type S3BucketsApi interface {
 		force bool,
 	) ([]types.Object, []types.CommonPrefix, error)
 	DownloadFile(ctx context.Context, bucketName string, objectKey string, fileName string) error
+	GetObjectContent(ctx context.Context, bucketName string, objectKey string, maxBytes int64) ([]byte, error)
 	GetBucketPolicy(ctx context.Context, bucketArn string, force bool) (string, error)
 	GetBucketTags(
 		ctx context.Context,
@@ -113,46 +114,77 @@ func (inst *s3BucketsApi) ListObjects(
 	return output.Contents, output.CommonPrefixes, nil
 }
 
-func (inst *s3BucketsApi) DownloadFile(ctx context.Context, bucketName string, objectKey string, fileName string) error {
+// openObject starts a download of an object. The caller must close the body.
+func (inst *s3BucketsApi) openObject(
+	ctx context.Context, bucketName string, objectKey string,
+) (io.ReadCloser, error) {
 	if err := requireArg("bucket name", bucketName); err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := requireArg("object key", objectKey); err != nil {
-		return err
+		return nil, err
 	}
 
+	var result, err = GetAwsApiClients().s3.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(objectKey),
+	})
+	if err != nil {
+		inst.logger.Printf("Failed to get object: %v:%v, Error: %v\n", bucketName, objectKey, err)
+		return nil, err
+	}
+
+	return result.Body, nil
+}
+
+// DownloadFile streams an object to a local file without holding it in memory.
+func (inst *s3BucketsApi) DownloadFile(ctx context.Context, bucketName string, objectKey string, fileName string) error {
 	if err := requireArg("file name", fileName); err != nil {
 		return err
 	}
 
-	var client = GetAwsApiClients().s3
-
-	result, err := client.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(bucketName),
-		Key:    aws.String(objectKey),
-	})
-
+	var body, err = inst.openObject(ctx, bucketName, objectKey)
 	if err != nil {
-		inst.logger.Printf("Failed to get object: %v:%v, Error: %v\n", bucketName, objectKey, err)
 		return err
 	}
+	defer body.Close()
 
-	defer result.Body.Close()
 	file, err := os.Create(fileName)
 	if err != nil {
 		inst.logger.Printf("Failed to create file: %v, Error: %v\n", fileName, err)
 		return err
 	}
-
 	defer file.Close()
 
-	if _, err = io.Copy(file, result.Body); err != nil {
+	if _, err = io.Copy(file, body); err != nil {
 		inst.logger.Printf("Failed to write object body: %v, Error: %v\n", objectKey, err)
 		return err
 	}
 
 	return nil
+}
+
+// GetObjectContent reads a whole object into memory and fails if it is larger
+// than maxBytes.
+func (inst *s3BucketsApi) GetObjectContent(
+	ctx context.Context, bucketName string, objectKey string, maxBytes int64,
+) ([]byte, error) {
+	var body, err = inst.openObject(ctx, bucketName, objectKey)
+	if err != nil {
+		return nil, err
+	}
+	defer body.Close()
+
+	content, err := io.ReadAll(io.LimitReader(body, maxBytes+1))
+	if err != nil {
+		return nil, inst.logErr(err)
+	}
+	if int64(len(content)) > maxBytes {
+		return nil, fmt.Errorf("object is larger than %d bytes", maxBytes)
+	}
+
+	return content, nil
 }
 
 func (inst *s3BucketsApi) GetBucketPolicy(ctx context.Context, bucketArn string, force bool) (string, error) {

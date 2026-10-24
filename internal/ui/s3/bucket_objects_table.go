@@ -137,36 +137,42 @@ func (inst *BucketObjectsTable) FilterByName(name string) {
 
 func (inst *BucketObjectsTable) RefreshObjects(force bool) {
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var bucket, dir = inst.selectedBucket, inst.selectedDir
+	var objects []types.Object
+	var commonPrefixes []types.CommonPrefix
+	var loadFailed = false
 
 	dataLoader.AsyncLoadData(func() {
-		var objects, commonPrefixes, err = inst.serviceCtx.Api.ListObjects(
-			inst.serviceCtx.Ctx,
-			inst.selectedBucket, inst.selectedDir, force,
+		var err error
+		objects, commonPrefixes, err = inst.serviceCtx.Api.ListObjects(
+			inst.serviceCtx.Ctx, bucket, dir, force,
 		)
 
 		if err != nil {
+			loadFailed = true
 			inst.ErrorMessageCallback("%s", err.Error())
 			return
 		}
 
-		var filterObjs = objects
 		// the current dir is retured in the objects list and we don't want that
 		for idx, val := range objects {
-			if aws.ToString(val.Key) == inst.selectedDir {
-				filterObjs = slices.Delete(objects, idx, idx+1)
+			if aws.ToString(val.Key) == dir {
+				objects = slices.Delete(objects, idx, idx+1)
 				break
 			}
-		}
-		if !force {
-			inst.dirs = append(inst.dirs, commonPrefixes...)
-			inst.data = append(inst.data, filterObjs...)
-		} else {
-			inst.dirs = commonPrefixes
-			inst.data = filterObjs
 		}
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
+		if !loadFailed {
+			if !force {
+				inst.dirs = append(inst.dirs, commonPrefixes...)
+				inst.data = append(inst.data, objects...)
+			} else {
+				inst.dirs = commonPrefixes
+				inst.data = objects
+			}
+		}
 		inst.populateS3ObjectsTable(inst.data, inst.dirs)
 	})
 }
@@ -213,6 +219,12 @@ func (inst *BucketObjectsTable) SetSelectedBucket(name string) {
 	inst.selectedBucket = name
 	inst.selectedDir = ""
 	inst.selectedObject = types.Object{}
+}
+
+// GetSelectedBucket is the bucket the listed objects belong to. It does not
+// follow the cursor of the bucket list.
+func (inst *BucketObjectsTable) GetSelectedBucket() string {
+	return inst.selectedBucket
 }
 
 func (inst *BucketObjectsTable) GetSelectedPrefix() string {

@@ -10,11 +10,17 @@ import (
 	"github.com/rivo/tview"
 )
 
+const (
+	S3TabNameDetails = "Details"
+	S3TabNamePreview = "Preview"
+)
+
 type S3BucketsDetailsView struct {
 	*core.ServicePageView
 	bucketsTable       *BucketListTable
 	objectsTable       *BucketObjectsTable
 	objectDetailsTable *S3ObjectDetailsTable
+	objectPreview      *ObjectPreviewView
 	serviceCtx         *core.ServiceContext[awsapi.S3BucketsApi]
 }
 
@@ -22,14 +28,23 @@ func NewS3bucketsDetailsView(
 	bucketListTable *BucketListTable,
 	bucketObjectsTable *BucketObjectsTable,
 	bucketObjectDetailsTable *S3ObjectDetailsTable,
+	objectPreview *ObjectPreviewView,
 	serviceViewCtx *core.ServiceContext[awsapi.S3BucketsApi],
 ) *S3BucketsDetailsView {
 	const objectsTableSize = 4000
 	const bucketsTableSize = 3000
 
+	var tabView = core.NewTabViewHorizontal(serviceViewCtx.AppContext).
+		AddAndSwitchToTab(S3TabNameDetails, bucketObjectDetailsTable, 0, 1, true).
+		AddTab(S3TabNamePreview, objectPreview, 0, 1, true)
+
+	tabView.SetOnTabChangeFunc(func(tabName string, index int) {
+		objectPreview.SetVisible(tabName == S3TabNamePreview)
+	})
+
 	var details = core.NewResizableView(
-		bucketObjectsTable, 6000,
-		bucketObjectDetailsTable, 4000,
+		bucketObjectsTable, 5500,
+		tabView, 4500,
 		tview.FlexColumn,
 	)
 
@@ -44,7 +59,7 @@ func NewS3bucketsDetailsView(
 
 	serviceView.InitViewNavigation(
 		[][]core.View{
-			{bucketObjectsTable, bucketObjectDetailsTable},
+			{bucketObjectsTable, tabView.GetTabDisplayView()},
 			{bucketListTable},
 		},
 	)
@@ -56,12 +71,14 @@ func NewS3bucketsDetailsView(
 	bucketListTable.ErrorMessageCallback = errorHandler
 	bucketObjectsTable.ErrorMessageCallback = errorHandler
 	bucketObjectDetailsTable.ErrorMessageCallback = errorHandler
+	objectPreview.ErrorMessageCallback = errorHandler
 
 	return &S3BucketsDetailsView{
 		ServicePageView:    serviceView,
 		bucketsTable:       bucketListTable,
 		objectsTable:       bucketObjectsTable,
 		objectDetailsTable: bucketObjectDetailsTable,
+		objectPreview:      objectPreview,
 		serviceCtx:         serviceViewCtx,
 	}
 }
@@ -90,9 +107,9 @@ func (inst *S3BucketsDetailsView) InitInputCapture() {
 			// directories and "../" have no object to describe
 			return
 		}
-		inst.objectDetailsTable.RefreshDetails(
-			inst.bucketsTable.GetSelectedBucket(), key,
-		)
+		var bucket = inst.objectsTable.GetSelectedBucket()
+		inst.objectDetailsTable.RefreshDetails(bucket, key)
+		inst.objectPreview.SetObject(bucket, key)
 	})
 }
 
@@ -107,6 +124,7 @@ func NewS3bucketsHomeView(appCtx *core.AppContext, api awsapi.S3BucketsApi) core
 			NewBucketListTable(serviceCtx),
 			NewBucketObjectsTable(serviceCtx),
 			NewS3ObjectDetailsTable(serviceCtx),
+			NewObjectPreviewView(serviceCtx),
 			serviceCtx,
 		)
 	)

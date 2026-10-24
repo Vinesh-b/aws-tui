@@ -192,3 +192,11 @@ func AwaitScreenText(t *testing.T, app *tview.Application, screen tcell.Simulati
 	}
 	t.Fatalf("screen never showed %q", want)
 }
+
+// PressKey sends the key through the whole focus chain, so key handlers on
+// parent views run as they would for a real key press.
+func PressKey(t *testing.T, app *tview.Application, key tcell.Key) {
+	t.Helper()
+	app.QueueEvent(tcell.NewEventKey(key, 0, tcell.ModNone))
+	OnUI(t, app, func() {})
+}
