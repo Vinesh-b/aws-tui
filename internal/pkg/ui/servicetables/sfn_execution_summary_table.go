@@ -45,6 +45,14 @@ func NewSfnExecutionSummaryTable(
 	return table
 }
 
+func formatOptionalTime(t *time.Time) string {
+	// Time can be nill for running executions
+	if t == nil {
+		return ""
+	}
+	return t.Format(time.DateTime)
+}
+
 func (inst *SfnExecutionSummaryTable) populateTable() {
 	var tableData []core.TableRow
 	if inst.data != nil {
@@ -53,8 +61,8 @@ func (inst *SfnExecutionSummaryTable) populateTable() {
 			{"Execution Arn", aws.ToString(inst.data.ExecutionArn)},
 			{"StateMachine Arn", aws.ToString(inst.data.StateMachineArn)},
 			{"Status", string(inst.data.Status)},
-			{"Start Date", inst.data.StartDate.Format(time.DateTime)},
-			{"Stop Date", inst.data.StopDate.Format(time.DateTime)},
+			{"Start Date", formatOptionalTime(inst.data.StartDate)},
+			{"Stop Date", formatOptionalTime(inst.data.StopDate)},
 		}
 	}
 
