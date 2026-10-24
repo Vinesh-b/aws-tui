@@ -31,6 +31,7 @@ const (
 	LambdaTabEnvVars   LambdaTabName = "Environment Vars"
 	LambdaTabVpcConfig LambdaTabName = "VPC Config"
 	LambdaTabTags      LambdaTabName = "Tags"
+	LambdaTabInvoke    LambdaTabName = "Invoke"
 )
 
 type LambdaDetailsPageView struct {
@@ -42,6 +43,7 @@ type LambdaDetailsPageView struct {
 	LambdaVpcConfTable *LambdaVpcConfigTable
 	LambdaTagsTable    *core.TagsTable[LambdaTag, awsapi.LambdaApi]
 	LogStreamsTable    *cloudwatch.LogStreamsTable
+	LambdaInvokeView   *LambdaInvokePageView
 	serviceCtx         *core.ServiceContext[awsapi.LambdaApi]
 }
 
@@ -51,6 +53,7 @@ func NewLambdaDetailsPageView(
 	lambdaEnvVarsTable *LambdaEnvVarsTable,
 	lambdaVpcConfTable *LambdaVpcConfigTable,
 	logStreamsTable *cloudwatch.LogStreamsTable,
+	lambdaInvokeView *LambdaInvokePageView,
 	serviceCtx *core.ServiceContext[awsapi.LambdaApi],
 ) *LambdaDetailsPageView {
 
@@ -76,7 +79,8 @@ func NewLambdaDetailsPageView(
 		AddTab(LambdaTabLogSreams, logStreamsTable, 0, 1, true).
 		AddTab(LambdaTabEnvVars, lambdaEnvVarsTable, 0, 1, true).
 		AddTab(LambdaTabVpcConfig, lambdaVpcConfTable, 0, 1, true).
-		AddTab(LambdaTabTags, lambdaTagsTable, 0, 1, true)
+		AddTab(LambdaTabTags, lambdaTagsTable, 0, 1, true).
+		AddTab(LambdaTabInvoke, lambdaInvokeView, 0, 1, true)
 
 	const detailsViewSize = 3000
 	const tableViewSize = 7000
@@ -99,6 +103,7 @@ func NewLambdaDetailsPageView(
 		LambdaVpcConfTable: lambdaVpcConfTable,
 		LambdaTagsTable:    lambdaTagsTable,
 		LogStreamsTable:    logStreamsTable,
+		LambdaInvokeView:   lambdaInvokeView,
 		serviceCtx:         serviceCtx,
 	}
 
@@ -159,12 +164,20 @@ func NewLambdaInvokePageView(
 
 	payloadInput.SetTitleExtra("NO LAMBDA SELECTED")
 
+	var inputColumn = tview.NewFlex().
+		SetDirection(tview.FlexRow).
+		AddItem(payloadInput, 0, 1, true).
+		AddItem(buttonsView, 3, 0, false)
+	var outputColumn = tview.NewFlex().
+		SetDirection(tview.FlexRow).
+		AddItem(responseOutput, 0, 1, false).
+		AddItem(logResults, 0, 1, false)
+
 	var serviceView = core.NewServicePageView(serviceCtx.AppContext)
 	serviceView.MainPage.
-		AddItem(payloadInput, 0, 4000, false).
-		AddItem(buttonsView, 3, 0, false).
-		AddItem(responseOutput, 0, 4000, false).
-		AddItem(logResults, 0, 5000, false)
+		SetDirection(tview.FlexColumn).
+		AddItem(inputColumn, 0, 1, true).
+		AddItem(outputColumn, 0, 1, false)
 
 	var errorHandler = func(text string, a ...any) {
 		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
@@ -176,10 +189,8 @@ func NewLambdaInvokePageView(
 
 	serviceView.InitViewNavigation(
 		[][]core.View{
-			{payloadInput},
-			{invokeButton, formatButton},
-			{responseOutput},
-			{logResults},
+			{payloadInput, responseOutput},
+			{invokeButton, formatButton, logResults},
 		},
 	)
 	var view = &LambdaInvokePageView{
@@ -255,24 +266,6 @@ func (inst *LambdaInvokePageView) Invoke() {
 	})
 }
 
-type FloatingLambdaInvoke struct {
-	*tview.Flex
-	Input *LambdaInvokePageView
-}
-
-func NewFloatingLambdaInvoke(
-	input *LambdaInvokePageView,
-) *FloatingLambdaInvoke {
-	return &FloatingLambdaInvoke{
-		Flex:  core.FloatingViewRelative("Invoke", input, 90, 90),
-		Input: input,
-	}
-}
-
-func (inst *FloatingLambdaInvoke) GetLastFocusedView() tview.Primitive {
-	return inst.Input.GetLastFocusedView()
-}
-
 func NewLambdaHomeView(
 	appCtx *core.AppContext,
 	api awsapi.LambdaApi,
@@ -286,20 +279,20 @@ func NewLambdaHomeView(
 
 		cwLogsCtx = core.NewServiceViewContext(appCtx, cwlApi)
 
+		lambdaInvokeView = NewLambdaInvokePageView(lambdaCtx)
+
 		lambdasDetailsView = NewLambdaDetailsPageView(
 			NewLambdasListTable(lambdaCtx),
 			NewLambdaDetailsTable(lambdaCtx),
 			NewLambdaEnvVarsTable(lambdaCtx),
 			NewLambdaVpcConfigTable(lambdaCtx),
 			cloudwatch.NewLogStreamsTable(cwLogsCtx),
+			lambdaInvokeView,
 			lambdaCtx,
 		)
 		logEventsView = cloudwatch.NewLogEventsPageView(
 			cloudwatch.NewLogEventsTable(cwLogsCtx),
 			cwLogsCtx,
-		)
-		lambdaInvokeView = NewLambdaInvokePageView(
-			lambdaCtx,
 		)
 	)
 
@@ -308,11 +301,6 @@ func NewLambdaHomeView(
 	serviceRootView.
 		AddAndSwitchToPage("Lambdas", lambdasDetailsView, true).
 		AddPage("Log Events", logEventsView, true, true)
-
-	serviceRootView.AddKeyToggleOverlay(
-		"INVOKE", NewFloatingLambdaInvoke(lambdaInvokeView),
-		tcell.KeyCtrlX, false,
-	)
 
 	serviceRootView.InitPageNavigation()
 	var lambdasListTable = lambdasDetailsView.LambdaListTable
