@@ -60,6 +60,10 @@ func (inst *TextArea) SetJsonHighlighting(enabled bool) {
 	}
 }
 
+func (inst *TextArea) JsonHighlighting() bool {
+	return inst.syntaxTextArea.jsonHighlighting
+}
+
 // SetText replaces the text, keeping the highlighting up to date.
 func (inst *TextArea) SetText(text string, cursorAtTheEnd bool) *tview.TextArea {
 	inst.syntaxTextArea.setText(text, cursorAtTheEnd)

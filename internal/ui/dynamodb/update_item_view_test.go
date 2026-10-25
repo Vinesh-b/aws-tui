@@ -390,24 +390,3 @@ func TestUpdateItemPageView__EmptySelectionLeavesTheEditorAloneWhenShown(t *test
 	default:
 	}
 }
-
-func TestItemsPageView__UpdateTabLoadsTheSelectedItemWhenShown(t *testing.T) {
-	var api = &fakeUpdateItemApi{fakeDynamoDBApi: fakeDynamoDBApi{
-		description: newTableDescription("orders", hashKey("id")),
-		items:       []map[string]any{{"id": "a1", "status": "new"}},
-	}}
-	var serviceCtx = uitest.NewServiceContextWith[awsapi.DynamoDBApi](api)
-	var view = NewDynamoDBItemsPageView(NewDynamoDBGenericTable(serviceCtx), serviceCtx)
-	uitest.RunApp(t, serviceCtx.App)
-	view.LoadTableItems("orders")
-	uitest.Eventually(t, serviceCtx.App, func() bool { return view.ItemsTable.GetTable().GetRowCount() == 2 })
-
-	uitest.OnUI(t, serviceCtx.App, func() { view.TabView.SwitchToTab(DdbTabNameUpdate) })
-
-	if shown := jsonItem(t, view.UpdateItemView.editorText(t)); shown["id"] != "a1" || shown["status"] != "new" {
-		t.Fatalf("editor shows %v", shown)
-	}
-	if view.UpdateItemView.selectedTable != "orders" {
-		t.Errorf("selected table = %q", view.UpdateItemView.selectedTable)
-	}
-}

@@ -19,6 +19,7 @@ type DynamoDBUpdateItemPageView struct {
 	updateButton  *tview.Button
 	reloadButton  *tview.Button
 	formatButton  *tview.Button
+	backButton    *tview.Button
 	itemInput     *core.TextArea
 	resultOutput  *core.SearchableTextView
 	serviceCtx    *core.ServiceContext[awsapi.DynamoDBApi]
@@ -32,6 +33,8 @@ type DynamoDBUpdateItemPageView struct {
 	selectedItem func() (map[string]any, bool)
 	// keyNames returns the names of the key attributes of the table.
 	keyNames func() []string
+	// onBack is called on the UI goroutine when the editor is left.
+	onBack func()
 	// onItemUpdated is called on the UI goroutine after an item was written.
 	onItemUpdated func(tableName string)
 }
@@ -44,14 +47,17 @@ func NewDynamoDBUpdateItemPageView(
 	var updateButton = tview.NewButton("Update Item")
 	var reloadButton = tview.NewButton("Load Selected Item")
 	var formatButton = tview.NewButton("Format Item")
+	var backButton = tview.NewButton("Back")
 	var buttonsView = tview.NewFlex().
 		SetDirection(tview.FlexColumn).
 		AddItem(updateButton, 0, 1, false).
 		AddItem(reloadButton, 0, 1, false).
-		AddItem(formatButton, 0, 1, false)
+		AddItem(formatButton, 0, 1, false).
+		AddItem(backButton, 0, 1, false)
 	buttonsView.SetBorder(true)
 
 	itemInput.SetTitleExtra("NO TABLE SELECTED")
+	itemInput.SetJsonHighlighting(true)
 
 	var inputColumn = tview.NewFlex().
 		SetDirection(tview.FlexRow).
@@ -74,7 +80,7 @@ func NewDynamoDBUpdateItemPageView(
 	serviceView.InitViewNavigation(
 		[][]core.View{
 			{itemInput, resultOutput},
-			{updateButton, reloadButton, formatButton},
+			{updateButton, reloadButton, formatButton, backButton},
 		},
 	)
 
@@ -83,17 +89,20 @@ func NewDynamoDBUpdateItemPageView(
 		updateButton:    updateButton,
 		reloadButton:    reloadButton,
 		formatButton:    formatButton,
+		backButton:      backButton,
 		itemInput:       itemInput,
 		resultOutput:    resultOutput,
 		serviceCtx:      serviceCtx,
 		selectedItem:    func() (map[string]any, bool) { return nil, false },
 		keyNames:        func() []string { return nil },
+		onBack:          func() {},
 		onItemUpdated:   func(string) {},
 	}
 
 	updateButton.SetSelectedFunc(func() { view.UpdateItem() })
 	reloadButton.SetSelectedFunc(func() { view.LoadSelectedItem() })
 	formatButton.SetSelectedFunc(func() { view.FormatItem() })
+	backButton.SetSelectedFunc(func() { view.onBack() })
 
 	return view
 }
@@ -112,6 +121,11 @@ func (inst *DynamoDBUpdateItemPageView) SetSelectedItemFunc(handler func() (map[
 // found.
 func (inst *DynamoDBUpdateItemPageView) SetKeyNamesFunc(handler func() []string) {
 	inst.keyNames = handler
+}
+
+// SetOnBack sets what happens when Back is pressed, to leave the editor.
+func (inst *DynamoDBUpdateItemPageView) SetOnBack(handler func()) {
+	inst.onBack = handler
 }
 
 func (inst *DynamoDBUpdateItemPageView) SetOnItemUpdated(handler func(tableName string)) {

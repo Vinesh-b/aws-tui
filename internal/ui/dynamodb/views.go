@@ -20,7 +20,6 @@ const (
 	DdbTabNameTags    DdbTabName = "Tags"
 	DdbTabNameMessage DdbTabName = "Message"
 	DdbTabNameAddItem DdbTabName = "Add Item"
-	DdbTabNameUpdate  DdbTabName = "Update Item"
 )
 
 type DynamoDBDetailsPageView struct {
@@ -128,6 +127,7 @@ type DynamoDBItemsPageView struct {
 	TabView        *core.TabViewHorizontal
 	AddItemView    *DynamoDBAddItemPageView
 	UpdateItemView *DynamoDBUpdateItemPageView
+	MessageView    *DynamoDBItemMessageView
 	serviceCtx     *core.ServiceContext[awsapi.DynamoDBApi]
 }
 
@@ -142,11 +142,11 @@ func NewDynamoDBItemsPageView(
 
 	var addItemView = NewDynamoDBAddItemPageView(serviceCtx)
 	var updateItemView = NewDynamoDBUpdateItemPageView(serviceCtx)
+	var messageView = NewDynamoDBItemMessageView(serviceCtx.AppContext, expandItemView, updateItemView)
 
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
-		AddAndSwitchToTab(DdbTabNameMessage, expandItemView, 0, 1, true).
-		AddTab(DdbTabNameAddItem, addItemView, 0, 1, true).
-		AddTab(DdbTabNameUpdate, updateItemView, 0, 1, true)
+		AddAndSwitchToTab(DdbTabNameMessage, messageView, 0, 1, true).
+		AddTab(DdbTabNameAddItem, addItemView, 0, 1, true)
 
 	const tabViewSize = 3
 	const itemsTableSize = 7
@@ -165,6 +165,7 @@ func NewDynamoDBItemsPageView(
 		TabView:         tabView,
 		AddItemView:     addItemView,
 		UpdateItemView:  updateItemView,
+		MessageView:     messageView,
 		serviceCtx:      serviceCtx,
 	}
 
@@ -179,17 +180,10 @@ func NewDynamoDBItemsPageView(
 			itemsTable.ExecuteSearch(itemsTable.lastTableOp, itemsTable.lastSearchExpr, true)
 		}
 	})
-	// The item selected in the table is brought into the editor when its tab is
-	// shown, unless that would throw away edits
-	tabView.SetOnTabChangeFunc(func(tabName string, index int) {
-		if tabName == DdbTabNameUpdate {
-			updateItemView.LoadSelectedItemIfUnedited()
-		}
-	})
-
 	itemsTable.ErrorMessageCallback = func(text string, a ...any) {
 		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
 	}
+	expandItemView.ErrorMessageCallback = itemsTable.ErrorMessageCallback
 
 	view.InitViewNavigation(
 		[][]core.View{
