@@ -30,7 +30,6 @@ const (
 type DynamoDBGenericTable struct {
 	*core.SelectableTable[map[string]any]
 	rootView             core.View
-	UpdateView           *FloatingDDBUpdateItemView
 	DeleteView           *core.FloatingConfirmView
 	toDelete             itemRef
 	table                *tview.Table
@@ -64,15 +63,11 @@ func NewDynamoDBGenericTable(
 	selectableTable.AddRuneToggleOverlay(QUERY_PAGE_NAME, queryView, core.APP_KEY_BINDINGS.TableQuery, false)
 	selectableTable.AddRuneToggleOverlay(SCAN_PAGE_NAME, scanView, core.APP_KEY_BINDINGS.TableScan, false)
 
-	var updateView = NewFloatingDDBUpdateItemView(serviceContext.AppContext)
-	selectableTable.AddRuneToggleOverlay(updateItemOverlayId, updateView, updateItemKey, false)
-
 	var deleteView = core.NewFloatingConfirmView(serviceContext.AppContext, "Delete Item", "Delete")
 	selectableTable.AddRuneToggleOverlay(deleteItemOverlayId, deleteView, deleteItemKey, false)
 
 	var table = &DynamoDBGenericTable{
 		SelectableTable:      selectableTable,
-		UpdateView:           updateView,
 		DeleteView:           deleteView,
 		rootView:             selectableTable.Box,
 		table:                selectableTable.GetTable(),
@@ -128,12 +123,6 @@ func NewDynamoDBGenericTable(
 		table.ExecuteSearch(DDBTableScan, expr, true)
 	})
 
-	updateView.Input.SetSourceFunc(table.GetSelectedItem)
-	updateView.Input.SetOnSaveFunc(table.updateItem)
-	updateView.Input.SetOnCloseFunc(func() {
-		table.ToggleOverlay(updateItemOverlayId, true)
-	})
-
 	deleteView.Input.SetOnShowFunc(table.prepareDeleteItem)
 	deleteView.Input.SetOnConfirmFunc(func() {
 		table.ToggleOverlay(deleteItemOverlayId, true)
@@ -144,7 +133,6 @@ func NewDynamoDBGenericTable(
 	})
 
 	table.HelpView.View.
-		AddItem(string(updateItemKey), "Edit and update the selected item", nil).
 		AddItem(string(deleteItemKey), "Delete the selected item", nil).
 		AddItem("f", "Jump to next search result", nil).
 		AddItem("F", "Jump to previous search result", nil).
@@ -297,48 +285,6 @@ func (inst *DynamoDBGenericTable) SetSelectionChangedFunc(
 		handler(row, column)
 	})
 	return inst
-}
-
-// updateItem writes what was edited in the update view to the item, without
-// blocking the UI, then reloads the items. Only the attributes that changed are
-// written. The result is shown in the update view.
-func (inst *DynamoDBGenericTable) updateItem(original map[string]any, edited map[string]any) {
-	var view = inst.UpdateView.Input
-	var tableName = inst.selectedTable
-
-	var keyNames = inst.keyNames()
-
-	var set, remove, err = diffItem(original, edited, keyNames)
-	if err != nil {
-		view.SetStatusMessage(err.Error())
-		return
-	}
-	if len(set) == 0 && len(remove) == 0 {
-		view.SetStatusMessage("No changes to save")
-		return
-	}
-
-	var key = map[string]any{}
-	for _, name := range keyNames {
-		key[name] = edited[name]
-	}
-
-	go func() {
-		var err = inst.serviceCtx.Api.UpdateItem(inst.serviceCtx.Ctx, tableName, key, set, remove)
-
-		inst.serviceCtx.App.QueueUpdateDraw(func() {
-			if err != nil {
-				view.SetStatusMessage(err.Error())
-				return
-			}
-
-			view.SetStatusMessage("Item updated")
-			inst.ToggleOverlay(updateItemOverlayId, true)
-			if inst.selectedTable == tableName {
-				inst.ExecuteSearch(inst.lastTableOp, inst.lastSearchExpr, true)
-			}
-		})
-	}()
 }
 
 // deleteItemKey opens the delete confirmation for the selected item.

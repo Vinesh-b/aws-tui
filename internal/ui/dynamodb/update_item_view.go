@@ -5,156 +5,226 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"time"
 
+	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
 
-	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
-// updateItemKey opens the update view for the selected item on the items table.
-const updateItemKey = 'e'
+type DynamoDBUpdateItemPageView struct {
+	*core.ServicePageView
+	selectedTable string
+	updateButton  *tview.Button
+	reloadButton  *tview.Button
+	formatButton  *tview.Button
+	itemInput     *core.TextArea
+	resultOutput  *core.SearchableTextView
+	serviceCtx    *core.ServiceContext[awsapi.DynamoDBApi]
 
-const updateItemOverlayId = "UPDATE_ITEM"
+	// original is the item as it was loaded into the editor, which edits are
+	// compared against, and loadedText is how it was shown
+	original   map[string]any
+	loadedText string
 
-type DynamoDBUpdateItemView struct {
-	*tview.Flex
-	itemInput    *core.TextArea
-	message      *tview.TextView
-	saveButton   *core.Button
-	closeButton  *core.Button
-	tabNavigator *core.ViewNavigation1D
-	orderedViews []core.View
-
-	// source gives the item selected in the items table
-	source   func() (map[string]any, bool)
-	original map[string]any
-	onSave   func(original map[string]any, edited map[string]any)
+	// selectedItem returns the item selected in the items table, if any.
+	selectedItem func() (map[string]any, bool)
+	// keyNames returns the names of the key attributes of the table.
+	keyNames func() []string
+	// onItemUpdated is called on the UI goroutine after an item was written.
+	onItemUpdated func(tableName string)
 }
 
-func NewDynamoDBUpdateItemView(appCtx *core.AppContext) *DynamoDBUpdateItemView {
-	var layout = tview.NewFlex().SetDirection(tview.FlexRow)
-	var view = &DynamoDBUpdateItemView{
-		Flex:        layout,
-		itemInput:   core.NewTextArea("Item", appCtx.Theme),
-		message:     tview.NewTextView().SetLabel("Status ").SetWordWrap(true),
-		saveButton:  core.NewButton("Save", appCtx.Theme),
-		closeButton: core.NewButton("Close", appCtx.Theme),
-		source:      func() (map[string]any, bool) { return nil, false },
-		onSave:      func(map[string]any, map[string]any) {},
+func NewDynamoDBUpdateItemPageView(
+	serviceCtx *core.ServiceContext[awsapi.DynamoDBApi],
+) *DynamoDBUpdateItemPageView {
+	var itemInput = core.NewTextArea("Item", serviceCtx.Theme)
+	var resultOutput = core.NewSearchableTextView("Result", serviceCtx.AppContext)
+	var updateButton = tview.NewButton("Update Item")
+	var reloadButton = tview.NewButton("Load Selected Item")
+	var formatButton = tview.NewButton("Format Item")
+	var buttonsView = tview.NewFlex().
+		SetDirection(tview.FlexColumn).
+		AddItem(updateButton, 0, 1, false).
+		AddItem(reloadButton, 0, 1, false).
+		AddItem(formatButton, 0, 1, false)
+	buttonsView.SetBorder(true)
+
+	itemInput.SetTitleExtra("NO TABLE SELECTED")
+
+	var inputColumn = tview.NewFlex().
+		SetDirection(tview.FlexRow).
+		AddItem(itemInput, 0, 1, true).
+		AddItem(buttonsView, 3, 0, false)
+
+	var serviceView = core.NewServicePageView(serviceCtx.AppContext)
+	serviceView.MainPage.
+		SetDirection(tview.FlexColumn).
+		AddItem(inputColumn, 0, 1, true).
+		AddItem(resultOutput, 0, 1, false)
+
+	var errorHandler = func(text string, a ...any) {
+		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
 	}
 
-	layout.
-		AddItem(view.itemInput, 0, 1, true).
-		AddItem(view.message, 2, 0, false).
-		AddItem(
-			tview.NewFlex().SetDirection(tview.FlexColumn).
-				AddItem(view.saveButton, 0, 1, true).
-				AddItem(view.closeButton, 0, 1, true),
-			1, 0, true,
-		)
+	resultOutput.ErrorMessageCallback = errorHandler
+	itemInput.ErrorMessageCallback = errorHandler
 
-	view.itemInput.ErrorMessageCallback = func(text string, a ...any) {
-		view.SetStatusMessage(fmt.Sprintf(text, a...))
+	serviceView.InitViewNavigation(
+		[][]core.View{
+			{itemInput, resultOutput},
+			{updateButton, reloadButton, formatButton},
+		},
+	)
+
+	var view = &DynamoDBUpdateItemPageView{
+		ServicePageView: serviceView,
+		updateButton:    updateButton,
+		reloadButton:    reloadButton,
+		formatButton:    formatButton,
+		itemInput:       itemInput,
+		resultOutput:    resultOutput,
+		serviceCtx:      serviceCtx,
+		selectedItem:    func() (map[string]any, bool) { return nil, false },
+		keyNames:        func() []string { return nil },
+		onItemUpdated:   func(string) {},
 	}
 
-	view.orderedViews = []core.View{view.itemInput, view.saveButton, view.closeButton}
-	view.tabNavigator = core.NewViewNavigation1D(layout, view.orderedViews, appCtx.App)
-	// Up and Down move the cursor in the editor, so Tab changes the focus
-	view.tabNavigator.SetNavigationKeys(tcell.KeyTab, tcell.KeyBacktab)
-
-	view.saveButton.SetSelectedFunc(view.save)
+	updateButton.SetSelectedFunc(func() { view.UpdateItem() })
+	reloadButton.SetSelectedFunc(func() { view.LoadSelectedItem() })
+	formatButton.SetSelectedFunc(func() { view.FormatItem() })
 
 	return view
 }
 
-func (inst *DynamoDBUpdateItemView) SetSourceFunc(source func() (map[string]any, bool)) {
-	inst.source = source
+func (inst *DynamoDBUpdateItemPageView) SetSelectedTable(tableName string) {
+	inst.selectedTable = tableName
+	inst.itemInput.SetTitleExtra(tableName)
 }
 
-// SetOnSaveFunc sets what happens when Save is pressed with a valid item. It
-// is given the item as it was when the view was shown and as it was edited.
-func (inst *DynamoDBUpdateItemView) SetOnSaveFunc(handler func(original map[string]any, edited map[string]any)) {
-	inst.onSave = handler
+// SetSelectedItemFunc sets how the item selected in the items table is found.
+func (inst *DynamoDBUpdateItemPageView) SetSelectedItemFunc(handler func() (map[string]any, bool)) {
+	inst.selectedItem = handler
 }
 
-func (inst *DynamoDBUpdateItemView) SetOnCloseFunc(handler func()) {
-	inst.closeButton.SetSelectedFunc(func() {
-		inst.message.SetText("")
-		handler()
-	})
+// SetKeyNamesFunc sets how the names of the key attributes of the table are
+// found.
+func (inst *DynamoDBUpdateItemPageView) SetKeyNamesFunc(handler func() []string) {
+	inst.keyNames = handler
 }
 
-func (inst *DynamoDBUpdateItemView) SetStatusMessage(msg string) {
-	inst.message.SetText(msg)
+func (inst *DynamoDBUpdateItemPageView) SetOnItemUpdated(handler func(tableName string)) {
+	inst.onItemUpdated = handler
 }
 
-func (inst *DynamoDBUpdateItemView) save() {
-	if inst.original == nil {
-		inst.SetStatusMessage("No item selected")
-		return
-	}
-
-	var edited, err = decodeItemJson(inst.itemInput.GetText())
-	if err != nil {
-		inst.SetStatusMessage(err.Error())
-		return
-	}
-
-	inst.SetStatusMessage("Saving...")
-	inst.onSave(inst.original, edited)
+// hasUnsavedEdits tells if the editor was changed since the item was loaded
+func (inst *DynamoDBUpdateItemPageView) hasUnsavedEdits() bool {
+	return inst.itemInput.GetText() != inst.loadedText
 }
 
-// OnShow fills the editor with the selected item. The item is kept as it was
-// then so a changing table can't change what is compared against.
-func (inst *DynamoDBUpdateItemView) OnShow() {
-	inst.tabNavigator.UpdateOrderedViews(inst.orderedViews, 0)
-	inst.message.SetText("")
-
-	var item, ok = inst.source()
+// LoadSelectedItem replaces the contents of the editor with the selected item,
+// which is kept as it is now to compare the edits against.
+func (inst *DynamoDBUpdateItemPageView) LoadSelectedItem() {
+	var item, ok = inst.selectedItem()
 	if !ok {
-		inst.original = nil
-		inst.itemInput.SetText("", false)
-		inst.SetStatusMessage("No item selected")
+		inst.itemInput.ErrorMessageCallback("No item selected")
 		return
 	}
 
 	var formatted, err = json.MarshalIndent(item, "", "  ")
 	if err != nil {
-		inst.original = nil
-		inst.itemInput.SetText("", false)
-		inst.SetStatusMessage(err.Error())
+		inst.itemInput.ErrorMessageCallback("%s", err.Error())
 		return
 	}
 
 	inst.original = item
-	inst.itemInput.SetText(string(formatted), false)
+	inst.loadedText = string(formatted)
+	inst.itemInput.SetText(inst.loadedText, false)
 }
 
-func (inst *DynamoDBUpdateItemView) GetLastFocusedView() tview.Primitive {
-	return inst.tabNavigator.GetLastFocusedView()
-}
-
-type FloatingDDBUpdateItemView struct {
-	*tview.Flex
-	Input *DynamoDBUpdateItemView
-}
-
-func NewFloatingDDBUpdateItemView(appCtx *core.AppContext) *FloatingDDBUpdateItemView {
-	var input = NewDynamoDBUpdateItemView(appCtx)
-
-	return &FloatingDDBUpdateItemView{
-		Flex:  core.FloatingViewRelative("Update Item", input, 80, 80),
-		Input: input,
+// LoadSelectedItemIfUnedited loads the selected item, unless that would throw
+// away edits. It is used when the tab is shown, and does nothing without a
+// selected item.
+func (inst *DynamoDBUpdateItemPageView) LoadSelectedItemIfUnedited() {
+	if inst.hasUnsavedEdits() {
+		return
+	}
+	if _, ok := inst.selectedItem(); ok {
+		inst.LoadSelectedItem()
 	}
 }
 
-func (inst *FloatingDDBUpdateItemView) OnShow() {
-	inst.Input.OnShow()
+func (inst *DynamoDBUpdateItemPageView) FormatItem() {
+	var item, err = decodeItemJson(inst.itemInput.GetText())
+	if err != nil {
+		inst.itemInput.ErrorMessageCallback("%s", err.Error())
+		return
+	}
+
+	var formatted, _ = json.MarshalIndent(item, "", "  ")
+	inst.itemInput.SetText(string(formatted), false)
 }
 
-func (inst *FloatingDDBUpdateItemView) GetLastFocusedView() tview.Primitive {
-	return inst.Input.GetLastFocusedView()
+// UpdateItem writes what was edited to the item, without blocking the UI. Only
+// the attributes that changed are written.
+func (inst *DynamoDBUpdateItemPageView) UpdateItem() {
+	var tableName = inst.selectedTable
+	if tableName == "" {
+		inst.itemInput.ErrorMessageCallback("No table selected")
+		return
+	}
+	if inst.original == nil {
+		inst.itemInput.ErrorMessageCallback("No item loaded, select an item and load it first")
+		return
+	}
+
+	var edited, err = decodeItemJson(inst.itemInput.GetText())
+	if err != nil {
+		inst.itemInput.ErrorMessageCallback("%s", err.Error())
+		return
+	}
+
+	var keyNames = inst.keyNames()
+	var set, remove, diffErr = diffItem(inst.original, edited, keyNames)
+	if diffErr != nil {
+		inst.itemInput.ErrorMessageCallback("%s", diffErr.Error())
+		return
+	}
+	if len(set) == 0 && len(remove) == 0 {
+		inst.resultOutput.SetText("No changes to save", false)
+		return
+	}
+
+	var key = map[string]any{}
+	for _, name := range keyNames {
+		key[name] = edited[name]
+	}
+
+	var apiErr error
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+
+	dataLoader.AsyncLoadData(func() {
+		apiErr = inst.serviceCtx.Api.UpdateItem(inst.serviceCtx.Ctx, tableName, key, set, remove)
+	})
+
+	dataLoader.AsyncUpdateView(inst.resultOutput.Box, func() {
+		if apiErr != nil {
+			inst.resultOutput.SetText(apiErr.Error(), false)
+			inst.resultOutput.ErrorMessageCallback("%s", apiErr.Error())
+			return
+		}
+
+		// Further edits are compared against what was just saved
+		inst.original = edited
+		inst.loadedText = inst.itemInput.GetText()
+
+		inst.resultOutput.SetText(
+			fmt.Sprintf("Item updated in %s at %s", tableName, time.Now().Format(time.TimeOnly)),
+			false,
+		)
+		inst.onItemUpdated(tableName)
+	})
 }
 
 // canonicalJson gives a value the way it is shown in the editor, so binary

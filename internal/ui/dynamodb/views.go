@@ -20,6 +20,7 @@ const (
 	DdbTabNameTags    DdbTabName = "Tags"
 	DdbTabNameMessage DdbTabName = "Message"
 	DdbTabNameAddItem DdbTabName = "Add Item"
+	DdbTabNameUpdate  DdbTabName = "Update Item"
 )
 
 type DynamoDBDetailsPageView struct {
@@ -123,10 +124,11 @@ func (inst *DynamoDBDetailsPageView) initInputCapture() {
 
 type DynamoDBItemsPageView struct {
 	*core.ServicePageView
-	ItemsTable  *DynamoDBGenericTable
-	TabView     *core.TabViewHorizontal
-	AddItemView *DynamoDBAddItemPageView
-	serviceCtx  *core.ServiceContext[awsapi.DynamoDBApi]
+	ItemsTable     *DynamoDBGenericTable
+	TabView        *core.TabViewHorizontal
+	AddItemView    *DynamoDBAddItemPageView
+	UpdateItemView *DynamoDBUpdateItemPageView
+	serviceCtx     *core.ServiceContext[awsapi.DynamoDBApi]
 }
 
 func NewDynamoDBItemsPageView(
@@ -139,10 +141,12 @@ func NewDynamoDBItemsPageView(
 	expandItemView.SetJsonHighlighting(true)
 
 	var addItemView = NewDynamoDBAddItemPageView(serviceCtx)
+	var updateItemView = NewDynamoDBUpdateItemPageView(serviceCtx)
 
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab(DdbTabNameMessage, expandItemView, 0, 1, true).
-		AddTab(DdbTabNameAddItem, addItemView, 0, 1, true)
+		AddTab(DdbTabNameAddItem, addItemView, 0, 1, true).
+		AddTab(DdbTabNameUpdate, updateItemView, 0, 1, true)
 
 	const tabViewSize = 3
 	const itemsTableSize = 7
@@ -160,11 +164,28 @@ func NewDynamoDBItemsPageView(
 		ItemsTable:      itemsTable,
 		TabView:         tabView,
 		AddItemView:     addItemView,
+		UpdateItemView:  updateItemView,
 		serviceCtx:      serviceCtx,
 	}
 
 	addItemView.SetOnItemAdded(view.LoadTableItems)
 	addItemView.SetSelectedItemFunc(itemsTable.GetSelectedItem)
+
+	updateItemView.SetSelectedItemFunc(itemsTable.GetSelectedItem)
+	updateItemView.SetKeyNamesFunc(itemsTable.keyNames)
+	updateItemView.SetOnItemUpdated(func(tableName string) {
+		// Reload with the same search so the changes show
+		if itemsTable.selectedTable == tableName {
+			itemsTable.ExecuteSearch(itemsTable.lastTableOp, itemsTable.lastSearchExpr, true)
+		}
+	})
+	// The item selected in the table is brought into the editor when its tab is
+	// shown, unless that would throw away edits
+	tabView.SetOnTabChangeFunc(func(tabName string, index int) {
+		if tabName == DdbTabNameUpdate {
+			updateItemView.LoadSelectedItemIfUnedited()
+		}
+	})
 
 	itemsTable.ErrorMessageCallback = func(text string, a ...any) {
 		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
@@ -183,6 +204,7 @@ func NewDynamoDBItemsPageView(
 func (inst *DynamoDBItemsPageView) LoadTableItems(tableName string) {
 	inst.ItemsTable.SetSelectedTable(tableName)
 	inst.AddItemView.SetSelectedTable(tableName)
+	inst.UpdateItemView.SetSelectedTable(tableName)
 	inst.ItemsTable.ExecuteSearch(DDBTableScan, expression.Expression{}, true)
 }
 

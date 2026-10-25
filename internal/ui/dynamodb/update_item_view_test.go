@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"aws-tui/internal/awsapi"
-	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
@@ -169,8 +168,6 @@ func newUpdateItemFixture(t *testing.T, api *fakeUpdateItemApi) *updateItemFixtu
 
 func (f *updateItemFixture) app() *tview.Application { return f.table.serviceCtx.App }
 
-func (f *updateItemFixture) view() *DynamoDBUpdateItemView { return f.table.UpdateView.Input }
-
 func (f *updateItemFixture) press(t *testing.T, key tcell.Key, r rune) {
 	t.Helper()
 	// Sent through the whole focus chain, as the keys are handled by parent views
@@ -178,115 +175,239 @@ func (f *updateItemFixture) press(t *testing.T, key tcell.Key, r rune) {
 	uitest.OnUI(t, f.app(), func() {})
 }
 
-func (f *updateItemFixture) open(t *testing.T) {
+func newUpdateItemPageView(t *testing.T, api *fakeUpdateItemApi, item map[string]any) *DynamoDBUpdateItemPageView {
 	t.Helper()
-	f.press(t, tcell.KeyRune, updateItemKey)
-	uitest.Eventually(t, f.app(), func() bool { return f.table.IsAnOverlayVisible() })
+	var serviceCtx = uitest.NewServiceContextWith[awsapi.DynamoDBApi](api)
+	var view = NewDynamoDBUpdateItemPageView(serviceCtx)
+	view.SetSelectedTable("orders")
+	view.SetKeyNamesFunc(func() []string { return []string{"id"} })
+	view.SetSelectedItemFunc(func() (map[string]any, bool) { return item, item != nil })
+	uitest.RunApp(t, serviceCtx.App)
+	return view
 }
 
-// save moves focus from the editor to the Save button and presses it
-func (f *updateItemFixture) save(t *testing.T) {
-	t.Helper()
-	f.press(t, tcell.KeyTab, 0)
-	f.press(t, tcell.KeyEnter, 0)
-}
-
-func (f *updateItemFixture) editor(t *testing.T) string {
+func (v *DynamoDBUpdateItemPageView) editorText(t *testing.T) string {
 	t.Helper()
 	var text string
-	uitest.OnUI(t, f.app(), func() { text = f.view().itemInput.GetText() })
+	uitest.OnUI(t, v.serviceCtx.App, func() { text = v.itemInput.GetText() })
 	return text
 }
 
-func (f *updateItemFixture) statusNow() string { return f.view().message.GetText(true) }
+func TestUpdateItemPageView__LoadsTheSelectedItemAndSavesOnlyTheChanges(t *testing.T) {
+	var api = &fakeUpdateItemApi{}
+	var view = newUpdateItemPageView(t, api, map[string]any{"id": "a1", "status": "new", "note": "x"})
+	var updated = make(chan string, 1)
+	view.SetOnItemUpdated(func(table string) { updated <- table })
 
-func TestUpdateItemView__ShowsTheSelectedItemAndSavesOnlyTheChanges(t *testing.T) {
-	var f = newUpdateItemFixture(t, &fakeUpdateItemApi{})
-	uitest.OnUI(t, f.app(), func() { f.table.Select(1, 0) })
-
-	f.open(t)
-	var shown = jsonItem(t, f.editor(t))
+	uitest.OnUI(t, view.serviceCtx.App, view.LoadSelectedItem)
+	var shown = jsonItem(t, view.editorText(t))
 	if shown["id"] != "a1" || shown["status"] != "new" || shown["note"] != "x" {
 		t.Fatalf("editor shows %v", shown)
 	}
-	uitest.OnUI(t, f.app(), func() {
-		f.view().itemInput.SetText(`{"id":"a1","status":"shipped","extra":1}`, false)
+	uitest.OnUI(t, view.serviceCtx.App, func() {
+		view.itemInput.SetText(`{"id":"a1","status":"shipped","extra":1}`, false)
+		view.UpdateItem()
 	})
-	f.save(t)
 
-	uitest.Eventually(t, f.app(), func() bool { return !f.table.IsAnOverlayVisible() })
-	if f.api.tableName != "orders" || !reflectEqualJson(f.api.key, `{"id":"a1"}`) {
-		t.Errorf("Unexpected target %q %v", f.api.tableName, f.api.key)
+	if table := <-updated; table != "orders" {
+		t.Errorf("updated table = %q", table)
 	}
-	if !reflectEqualJson(f.api.set, `{"status":"shipped","extra":1}`) || !slices.Equal(f.api.remove, []string{"note"}) {
-		t.Errorf("Unexpected update set=%v remove=%v", f.api.set, f.api.remove)
+	if api.tableName != "orders" || !reflectEqualJson(api.key, `{"id":"a1"}`) {
+		t.Errorf("Unexpected target %q %v", api.tableName, api.key)
+	}
+	if !reflectEqualJson(api.set, `{"status":"shipped","extra":1}`) || !slices.Equal(api.remove, []string{"note"}) {
+		t.Errorf("Unexpected update set=%v remove=%v", api.set, api.remove)
+	}
+	uitest.Eventually(t, view.serviceCtx.App, func() bool {
+		return strings.Contains(view.resultOutput.GetText(), "Item updated in orders")
+	})
+}
+
+func TestUpdateItemPageView__FurtherEditsAreComparedAgainstWhatWasSaved(t *testing.T) {
+	var api = &fakeUpdateItemApi{}
+	var view = newUpdateItemPageView(t, api, map[string]any{"id": "a1", "status": "new"})
+	var updated = make(chan string, 2)
+	view.SetOnItemUpdated(func(table string) { updated <- table })
+	uitest.OnUI(t, view.serviceCtx.App, func() {
+		view.LoadSelectedItem()
+		view.itemInput.SetText(`{"id":"a1","status":"shipped"}`, false)
+		view.UpdateItem()
+	})
+	<-updated
+
+	uitest.OnUI(t, view.serviceCtx.App, func() {
+		view.itemInput.SetText(`{"id":"a1","status":"shipped","note":"x"}`, false)
+		view.UpdateItem()
+	})
+
+	<-updated
+	if !reflectEqualJson(api.set, `{"note":"x"}`) || len(api.remove) != 0 {
+		t.Errorf("Unexpected update set=%v remove=%v", api.set, api.remove)
 	}
 }
 
-func TestUpdateItemView__NoChangesDoesNotCallTheApi(t *testing.T) {
-	var f = newUpdateItemFixture(t, &fakeUpdateItemApi{})
-	f.open(t)
+func TestUpdateItemPageView__NoChangesDoesNotCallTheApi(t *testing.T) {
+	var api = &fakeUpdateItemApi{}
+	var view = newUpdateItemPageView(t, api, map[string]any{"id": "a1", "status": "new"})
 
-	f.save(t)
+	uitest.OnUI(t, view.serviceCtx.App, func() {
+		view.LoadSelectedItem()
+		view.UpdateItem()
+	})
 
-	uitest.Eventually(t, f.app(), func() bool { return f.statusNow() == "No changes to save" })
-	if f.api.updateCalls() != 0 {
-		t.Errorf("Expected no api calls but got %d", f.api.updateCalls())
+	uitest.Eventually(t, view.serviceCtx.App, func() bool { return view.resultOutput.GetText() == "No changes to save" })
+	if api.updateCalls() != 0 {
+		t.Errorf("Expected no api calls but got %d", api.updateCalls())
 	}
 }
 
-func TestUpdateItemView__InvalidEditsAreReportedWithoutCallingTheApi(t *testing.T) {
+func TestUpdateItemPageView__InvalidEditsAreReportedWithoutCallingTheApi(t *testing.T) {
 	for name, tc := range map[string]struct{ text, want string }{
 		"not json":    {`{"id":`, "unexpected EOF"},
-		"key changed": {`{"id":"zzz","status":"new","note":"x"}`, "can't be changed"},
+		"key changed": {`{"id":"zzz","status":"new"}`, "can't be changed"},
 		"key removed": {`{"status":"new"}`, "can't be removed"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			var f = newUpdateItemFixture(t, &fakeUpdateItemApi{})
-			f.open(t)
-			uitest.OnUI(t, f.app(), func() { f.view().itemInput.SetText(tc.text, false) })
+			var api = &fakeUpdateItemApi{}
+			var view = newUpdateItemPageView(t, api, map[string]any{"id": "a1", "status": "new"})
+			var callback, received = uitest.CaptureErrors()
+			view.itemInput.ErrorMessageCallback = callback
 
-			f.save(t)
+			uitest.OnUI(t, view.serviceCtx.App, func() {
+				view.LoadSelectedItem()
+				view.itemInput.SetText(tc.text, false)
+				view.UpdateItem()
+			})
 
-			uitest.Eventually(t, f.app(), func() bool { return strings.Contains(f.statusNow(), tc.want) })
-			if f.api.updateCalls() != 0 {
-				t.Errorf("Expected no api calls but got %d", f.api.updateCalls())
+			if message := uitest.AwaitError(t, received); !strings.Contains(message, tc.want) {
+				t.Errorf("error = %q, want one containing %q", message, tc.want)
 			}
-			uitest.Eventually(t, f.app(), func() bool { return f.table.IsAnOverlayVisible() })
+			if api.updateCalls() != 0 {
+				t.Errorf("Expected no api calls but got %d", api.updateCalls())
+			}
 		})
 	}
 }
 
-func TestUpdateItemView__ReportsApiErrorAndStaysOpen(t *testing.T) {
-	var f = newUpdateItemFixture(t, &fakeUpdateItemApi{updateErr: errors.New("ConditionalCheckFailed")})
-	f.open(t)
-	uitest.OnUI(t, f.app(), func() { f.view().itemInput.SetText(`{"id":"a1","status":"x"}`, false) })
+func TestUpdateItemPageView__ReportsApiError(t *testing.T) {
+	var api = &fakeUpdateItemApi{updateErr: errors.New("ConditionalCheckFailed")}
+	var view = newUpdateItemPageView(t, api, map[string]any{"id": "a1", "status": "new"})
+	var callback, received = uitest.CaptureErrors()
+	view.resultOutput.ErrorMessageCallback = callback
+	view.SetOnItemUpdated(func(string) { t.Error("updated callback must not run on failure") })
 
-	f.save(t)
+	uitest.OnUI(t, view.serviceCtx.App, func() {
+		view.LoadSelectedItem()
+		view.itemInput.SetText(`{"id":"a1","status":"x"}`, false)
+		view.UpdateItem()
+	})
 
-	uitest.Eventually(t, f.app(), func() bool { return f.statusNow() == "ConditionalCheckFailed" })
-	uitest.Eventually(t, f.app(), func() bool { return f.table.IsAnOverlayVisible() })
-}
-
-func TestUpdateItemView__NothingSelectedReportsAnError(t *testing.T) {
-	var f = newUpdateItemFixture(t, &fakeUpdateItemApi{fakeDynamoDBApi: fakeDynamoDBApi{items: []map[string]any{}}})
-	f.open(t)
-
-	f.save(t)
-
-	uitest.Eventually(t, f.app(), func() bool { return f.statusNow() == "No item selected" })
-	if f.api.updateCalls() != 0 {
-		t.Errorf("Expected no api calls but got %d", f.api.updateCalls())
+	if message := uitest.AwaitError(t, received); message != "ConditionalCheckFailed" {
+		t.Errorf("error = %q", message)
 	}
 }
 
-func TestUpdateItemView__SavedChangesReloadTheItems(t *testing.T) {
-	var f = newUpdateItemFixture(t, &fakeUpdateItemApi{})
-	f.api.items = []map[string]any{{"id": "a1", "status": "shipped"}}
-	f.open(t)
-	uitest.OnUI(t, f.app(), func() { f.view().itemInput.SetText(`{"id":"a1","status":"shipped"}`, false) })
+func TestUpdateItemPageView__RequiresATableAndALoadedItem(t *testing.T) {
+	for name, tc := range map[string]struct {
+		setup func(view *DynamoDBUpdateItemPageView)
+		want  string
+	}{
+		"no table":       {func(v *DynamoDBUpdateItemPageView) { v.SetSelectedTable("") }, "No table selected"},
+		"nothing loaded": {func(v *DynamoDBUpdateItemPageView) {}, "No item loaded"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var api = &fakeUpdateItemApi{}
+			var view = newUpdateItemPageView(t, api, map[string]any{"id": "a1"})
+			var callback, received = uitest.CaptureErrors()
+			view.itemInput.ErrorMessageCallback = callback
+			tc.setup(view)
 
-	f.save(t)
+			uitest.OnUI(t, view.serviceCtx.App, view.UpdateItem)
 
-	uitest.AwaitRows(t, f.app(), f.table, []core.TableRow{{"id", "status"}, {"a1", "shipped"}})
+			if message := uitest.AwaitError(t, received); !strings.Contains(message, tc.want) {
+				t.Errorf("error = %q, want one containing %q", message, tc.want)
+			}
+			if api.updateCalls() != 0 {
+				t.Errorf("Expected no api calls but got %d", api.updateCalls())
+			}
+		})
+	}
+}
+
+func TestUpdateItemPageView__LoadWithoutASelectedItemReportsAnError(t *testing.T) {
+	var view = newUpdateItemPageView(t, &fakeUpdateItemApi{}, nil)
+	var callback, received = uitest.CaptureErrors()
+	view.itemInput.ErrorMessageCallback = callback
+
+	uitest.OnUI(t, view.serviceCtx.App, view.LoadSelectedItem)
+
+	if message := uitest.AwaitError(t, received); message != "No item selected" {
+		t.Errorf("error = %q", message)
+	}
+}
+
+func TestUpdateItemPageView__ShowingTheTabKeepsUnsavedEdits(t *testing.T) {
+	var item = map[string]any{"id": "a1", "status": "new"}
+	var view = newUpdateItemPageView(t, &fakeUpdateItemApi{}, item)
+
+	uitest.OnUI(t, view.serviceCtx.App, view.LoadSelectedItemIfUnedited)
+	if shown := jsonItem(t, view.editorText(t)); shown["status"] != "new" {
+		t.Fatalf("editor shows %v", shown)
+	}
+
+	// The selection moves on while the editor is untouched
+	view.SetSelectedItemFunc(func() (map[string]any, bool) { return map[string]any{"id": "a2"}, true })
+	uitest.OnUI(t, view.serviceCtx.App, view.LoadSelectedItemIfUnedited)
+	if shown := jsonItem(t, view.editorText(t)); shown["id"] != "a2" {
+		t.Fatalf("editor shows %v, want the newly selected item", shown)
+	}
+
+	// With edits made, it is left alone
+	uitest.OnUI(t, view.serviceCtx.App, func() { view.itemInput.SetText(`{"id":"a2","mine":true}`, false) })
+	view.SetSelectedItemFunc(func() (map[string]any, bool) { return map[string]any{"id": "a3"}, true })
+	uitest.OnUI(t, view.serviceCtx.App, view.LoadSelectedItemIfUnedited)
+	if shown := jsonItem(t, view.editorText(t)); shown["mine"] != true {
+		t.Fatalf("editor shows %v, want the edits kept", shown)
+	}
+
+	// The explicit load always replaces them
+	uitest.OnUI(t, view.serviceCtx.App, view.LoadSelectedItem)
+	if shown := jsonItem(t, view.editorText(t)); shown["id"] != "a3" {
+		t.Fatalf("editor shows %v, want the selected item", shown)
+	}
+}
+
+func TestUpdateItemPageView__EmptySelectionLeavesTheEditorAloneWhenShown(t *testing.T) {
+	var view = newUpdateItemPageView(t, &fakeUpdateItemApi{}, nil)
+	var callback, received = uitest.CaptureErrors()
+	view.itemInput.ErrorMessageCallback = callback
+
+	uitest.OnUI(t, view.serviceCtx.App, view.LoadSelectedItemIfUnedited)
+
+	select {
+	case message := <-received:
+		t.Fatalf("Unexpected error %q", message)
+	default:
+	}
+}
+
+func TestItemsPageView__UpdateTabLoadsTheSelectedItemWhenShown(t *testing.T) {
+	var api = &fakeUpdateItemApi{fakeDynamoDBApi: fakeDynamoDBApi{
+		description: newTableDescription("orders", hashKey("id")),
+		items:       []map[string]any{{"id": "a1", "status": "new"}},
+	}}
+	var serviceCtx = uitest.NewServiceContextWith[awsapi.DynamoDBApi](api)
+	var view = NewDynamoDBItemsPageView(NewDynamoDBGenericTable(serviceCtx), serviceCtx)
+	uitest.RunApp(t, serviceCtx.App)
+	view.LoadTableItems("orders")
+	uitest.Eventually(t, serviceCtx.App, func() bool { return view.ItemsTable.GetTable().GetRowCount() == 2 })
+
+	uitest.OnUI(t, serviceCtx.App, func() { view.TabView.SwitchToTab(DdbTabNameUpdate) })
+
+	if shown := jsonItem(t, view.UpdateItemView.editorText(t)); shown["id"] != "a1" || shown["status"] != "new" {
+		t.Fatalf("editor shows %v", shown)
+	}
+	if view.UpdateItemView.selectedTable != "orders" {
+		t.Errorf("selected table = %q", view.UpdateItemView.selectedTable)
+	}
 }
