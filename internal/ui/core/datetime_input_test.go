@@ -6,11 +6,9 @@ import (
 )
 
 func TestDateTimeInputField__ReadsBackTheInstantItWasGiven(t *testing.T) {
-	var saved = time.Local
-	time.Local = time.FixedZone("UTC+5", 5*60*60)
-	defer func() { time.Local = saved }()
-
 	var field = NewDateTimeInputField(&AppTheme{})
+	// Set on the field, as changing time.Local races with other goroutines
+	field.location = time.FixedZone("UTC+5", 5*60*60)
 	var instant = time.Date(2026, 7, 1, 12, 30, 15, 0, time.UTC)
 
 	field.SetTextTime(instant)

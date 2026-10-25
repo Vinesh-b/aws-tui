@@ -265,6 +265,8 @@ type DateTimeInputField struct {
 	*tview.InputField
 	appTheme *AppTheme
 	layout   string
+	// location is the time zone the text is written and read in
+	location *time.Location
 }
 
 func NewDateTimeInputField(appTheme *AppTheme) *DateTimeInputField {
@@ -272,6 +274,7 @@ func NewDateTimeInputField(appTheme *AppTheme) *DateTimeInputField {
 		InputField: tview.NewInputField(),
 		appTheme:   appTheme,
 		layout:     "2006-01-02 15:04:05",
+		location:   time.Local,
 	}
 
 	view.InputField.
@@ -301,12 +304,12 @@ func NewDateTimeInputField(appTheme *AppTheme) *DateTimeInputField {
 // zone SetTextTime writes it in.
 func (inst *DateTimeInputField) ValidateInput() (time.Time, error) {
 	var input = inst.GetText()
-	return time.ParseInLocation(inst.layout, input, time.Local)
+	return time.ParseInLocation(inst.layout, input, inst.location)
 }
 
 // SetTextTime shows a time in the local time zone, whatever zone it is in.
 func (inst *DateTimeInputField) SetTextTime(datetime time.Time) {
-	inst.SetText(datetime.In(time.Local).Format(inst.layout))
+	inst.SetText(datetime.In(inst.location).Format(inst.layout))
 }
 
 type OverlayView interface {
