@@ -12,6 +12,7 @@ import (
 	"aws-tui/internal/ui/s3"
 	"aws-tui/internal/ui/services"
 	"aws-tui/internal/ui/sfn"
+	"aws-tui/internal/ui/sns"
 	"aws-tui/internal/ui/sqs"
 	"aws-tui/internal/ui/ssm"
 	"aws-tui/internal/ui/vpc"
@@ -260,6 +261,9 @@ func CreateApplication(
 		}),
 		newServiceItem("󱃔 "+string(core.SQS), "Queues and their attributes", rune('󰯉'), func() core.ServicePage {
 			return sqs.NewSqsHomeView(appContext, awsapi.NewSqsApi(appContext.Logger))
+		}),
+		newServiceItem("󰂚 "+string(core.SNS), "Topics and their attributes", rune('󰯉'), func() core.ServicePage {
+			return sns.NewSnsHomeView(appContext, awsapi.NewSnsApi(appContext.Logger))
 		}),
 		themedServiceItem("󰘥 "+string(core.HELP), "Help docs on how to use this app", rune('?'), func() core.ServicePage {
 			return services.NewHelpHomeView(appContext)

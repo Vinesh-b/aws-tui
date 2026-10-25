@@ -13,6 +13,7 @@ const (
 	DYNAMODB                 ViewId = "DynamoDB"
 	EVENTBRIDGE              ViewId = "EventBridge"
 	S3BUCKETS                ViewId = "S3 Buckets"
+	SNS                      ViewId = "SNS"
 	SQS                      ViewId = "SQS"
 	STATE_MACHINES           ViewId = "State Machines"
 	SYSTEMS_MANAGER          ViewId = "Systems Manager"
