@@ -3,10 +3,12 @@ package sns
 import (
 	"context"
 	"errors"
+	"slices"
 	"sync"
 
 	"aws-tui/internal/awsapi"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sns/types"
 )
 
@@ -93,6 +95,22 @@ func (f *fakeSnsApi) Subscribe(ctx context.Context, arn string, protocol string,
 		SubscriptionArn: &subscriptionArn,
 	})
 	return subscriptionArn, nil
+}
+
+func (f *fakeSnsApi) Unsubscribe(ctx context.Context, arn string) error {
+	f.record("unsubscribe " + arn)
+	if arn == pendingConfirmation {
+		return errors.New("a subscription that is pending confirmation can't be deleted")
+	}
+	if f.err != nil {
+		return f.err
+	}
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	f.subscriptions = slices.DeleteFunc(f.subscriptions, func(s types.Subscription) bool {
+		return aws.ToString(s.SubscriptionArn) == arn
+	})
+	return nil
 }
 
 func (f *fakeSnsApi) recorded() []string {

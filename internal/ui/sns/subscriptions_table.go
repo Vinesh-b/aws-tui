@@ -1,6 +1,7 @@
 package sns
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -14,14 +15,28 @@ import (
 // pendingConfirmation is what the api gives as the ARN of a subscription that
 // has not been confirmed yet.
 const subscribeOverlayId = "SUBSCRIBE"
+const unsubscribeOverlayId = "UNSUBSCRIBE"
+
+// unsubscribeKey opens the unsubscribe confirmation for the selected row.
+const unsubscribeKey = 'u'
 
 const pendingConfirmation = "PendingConfirmation"
 
 type SubscriptionsTable struct {
 	*core.SelectableTable[string]
-	SubscribeView *FloatingSubscribeView
-	topicArn      string
+	SubscribeView   *FloatingSubscribeView
+	UnsubscribeView *core.FloatingConfirmView
+	topicArn        string
+	// toUnsubscribe is what the unsubscribe view was shown for
+	toUnsubscribe subscriptionRef
 	serviceCtx    *core.ServiceContext[awsapi.SnsApi]
+}
+
+type subscriptionRef struct {
+	topicArn string
+	arn      string
+	protocol string
+	endpoint string
 }
 
 func NewSubscriptionsTable(
@@ -33,8 +48,9 @@ func NewSubscriptionsTable(
 			core.TableRow{"Protocol", "Endpoint", "Status", "Subscription Arn"},
 			serviceCtx.AppContext,
 		),
-		SubscribeView: NewFloatingSubscribeView(serviceCtx.AppContext),
-		serviceCtx:    serviceCtx,
+		SubscribeView:   NewFloatingSubscribeView(serviceCtx.AppContext),
+		UnsubscribeView: core.NewFloatingConfirmView(serviceCtx.AppContext, "Unsubscribe", "Unsubscribe"),
+		serviceCtx:      serviceCtx,
 	}
 
 	table.AddRuneToggleOverlay(subscribeOverlayId, table.SubscribeView, subscribeKey, false)
@@ -43,6 +59,17 @@ func NewSubscriptionsTable(
 		table.ToggleOverlay(subscribeOverlayId, true)
 	})
 	table.HelpView.View.AddItem(string(subscribeKey), "Subscribe to the topic", nil)
+
+	table.AddRuneToggleOverlay(unsubscribeOverlayId, table.UnsubscribeView, unsubscribeKey, false)
+	table.UnsubscribeView.Input.SetOnShowFunc(table.prepareUnsubscribe)
+	table.UnsubscribeView.Input.SetOnConfirmFunc(func() {
+		table.ToggleOverlay(unsubscribeOverlayId, true)
+		table.unsubscribe(table.toUnsubscribe)
+	})
+	table.UnsubscribeView.Input.SetOnCancelFunc(func() {
+		table.ToggleOverlay(unsubscribeOverlayId, true)
+	})
+	table.HelpView.View.AddItem(string(unsubscribeKey), "Unsubscribe the selected subscription", nil)
 
 	table.populateSubscriptionsTable(nil)
 
@@ -131,6 +158,56 @@ func (inst *SubscriptionsTable) subscribe(protocol string, endpoint string) {
 			view.SetStatusMessage("Subscription created: " + subscriptionArn)
 			if topicArn == inst.topicArn {
 				inst.RefreshSubscriptions(topicArn)
+			}
+		})
+	}()
+}
+
+// prepareUnsubscribe notes the selected subscription and asks about it. It is
+// kept so the table changing underneath can't change what is deleted.
+func (inst *SubscriptionsTable) prepareUnsubscribe() {
+	var row, _ = inst.GetTable().GetSelection()
+	inst.toUnsubscribe = subscriptionRef{}
+
+	if row < 1 || row >= inst.GetTable().GetRowCount() {
+		inst.UnsubscribeView.Input.SetMessage("No subscription selected")
+		return
+	}
+
+	inst.toUnsubscribe = subscriptionRef{
+		topicArn: inst.topicArn,
+		arn:      inst.GetCellText(row, 3),
+		protocol: inst.GetCellText(row, 0),
+		endpoint: inst.GetCellText(row, 1),
+	}
+
+	var message = fmt.Sprintf("Unsubscribe %s %s from %s?", inst.toUnsubscribe.protocol,
+		inst.toUnsubscribe.endpoint, topicName(inst.topicArn))
+	if inst.toUnsubscribe.arn == pendingConfirmation {
+		message += "\n\nIt is pending confirmation and can't be deleted until it is confirmed."
+	}
+	inst.UnsubscribeView.Input.SetMessage(message)
+}
+
+// unsubscribe deletes the subscription without blocking the UI, then reloads
+// the subscriptions. Failures are shown as errors.
+func (inst *SubscriptionsTable) unsubscribe(ref subscriptionRef) {
+	if ref.arn == "" {
+		inst.ErrorMessageCallback("No subscription selected")
+		return
+	}
+
+	go func() {
+		var err = inst.serviceCtx.Api.Unsubscribe(inst.serviceCtx.Ctx, ref.arn)
+
+		inst.serviceCtx.App.QueueUpdateDraw(func() {
+			if err != nil {
+				inst.ErrorMessageCallback("%s", err.Error())
+				return
+			}
+
+			if ref.topicArn == inst.topicArn {
+				inst.RefreshSubscriptions(ref.topicArn)
 			}
 		})
 	}()
