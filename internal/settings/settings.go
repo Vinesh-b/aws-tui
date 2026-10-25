@@ -23,6 +23,9 @@ const (
 // chosen, and the app uses its default.
 type Settings struct {
 	Theme string `json:"theme,omitempty"`
+	// DownloadDir is the directory proposed when saving a table to a file. It
+	// is not set in the app, but by editing the settings file.
+	DownloadDir string `json:"downloadDir,omitempty"`
 }
 
 // DefaultPath is where the settings file is kept, in the config directory of the

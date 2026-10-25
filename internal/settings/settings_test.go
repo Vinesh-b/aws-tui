@@ -112,3 +112,16 @@ func TestDefaultPath__IsInsideTheConfigDirectory(t *testing.T) {
 		t.Errorf("DefaultPath = %q, %v, want a path ending in aws-tui/settings.json", path, err)
 	}
 }
+
+func TestSave__ThenLoadKeepsTheDownloadDir(t *testing.T) {
+	var path = filepath.Join(t.TempDir(), "settings.json")
+
+	if err := Save(path, Settings{Theme: "Nord", DownloadDir: "~/Downloads"}); err != nil {
+		t.Fatal(err)
+	}
+	var loaded, err = Load(path)
+
+	if err != nil || loaded.DownloadDir != "~/Downloads" {
+		t.Errorf("Load = %+v, %v, want the download dir", loaded, err)
+	}
+}

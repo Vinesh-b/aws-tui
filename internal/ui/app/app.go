@@ -202,6 +202,7 @@ func CreateApplication(
 		appContext = core.NewAppContext(ctx, app, &config, inAppLogger, &appTheme)
 	)
 	appContext.PollSessionAtStart = options.pollSessionAtStart
+	appContext.DownloadDir = saved.DownloadDir
 
 	for _, problem := range problems {
 		inAppLogger.Print(problem)

@@ -25,6 +25,8 @@ Other targets: `make build-all` (linux, darwin, windows), `make test`, `make cle
 
 The theme chosen in the Settings page is saved and used the next time the app starts. It is kept in `settings.json` in the config directory of the user (`~/.config/aws-tui/` on Linux, `~/Library/Application Support/aws-tui/` on macOS, `%AppData%\aws-tui\` on Windows). If the file cannot be read, or names a theme that does not exist, the app starts with the default theme and logs why in the Debug Logs page.
 
+To choose the directory proposed when saving a table to csv, set `downloadDir` in `settings.json`, for example `{"downloadDir": "~/Downloads"}`. Without it the working directory is used, and either way the directory follows the last file saved. Existing files are never overwritten.
+
 ## Project layout
 
 ```
