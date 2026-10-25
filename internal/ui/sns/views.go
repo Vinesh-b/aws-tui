@@ -86,6 +86,18 @@ func NewSnsDetailsPageView(
 	tagsTable.ErrorMessageCallback = errorHandler
 	subscriptionsTable.ErrorMessageCallback = errorHandler
 
+	// The views of a deleted topic are emptied, the reloaded list then shows
+	// whatever is selected next
+	topicListTable.SetOnTopicDeleted(func(topicArn string) {
+		if topicArn != view.PublishView.selectedTopicArn {
+			return
+		}
+		topicDetailsTable.ClearDetails()
+		tagsTable.ClearDetails()
+		subscriptionsTable.RefreshSubscriptions("")
+		publishView.SetSelectedTopic("")
+	})
+
 	view.InitViewNavigation(
 		[][]core.View{
 			{tabView},

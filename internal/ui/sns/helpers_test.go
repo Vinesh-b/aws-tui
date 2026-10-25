@@ -52,7 +52,9 @@ func (f *fakeSnsApi) record(call string) {
 }
 
 func (f *fakeSnsApi) ListTopics(ctx context.Context, force bool) ([]string, error) {
-	return f.topics, f.err
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return slices.Clone(f.topics), f.err
 }
 
 func (f *fakeSnsApi) GetTopicAttributes(ctx context.Context, arn string) (map[string]string, error) {
@@ -110,6 +112,17 @@ func (f *fakeSnsApi) Unsubscribe(ctx context.Context, arn string) error {
 	f.subscriptions = slices.DeleteFunc(f.subscriptions, func(s types.Subscription) bool {
 		return aws.ToString(s.SubscriptionArn) == arn
 	})
+	return nil
+}
+
+func (f *fakeSnsApi) DeleteTopic(ctx context.Context, arn string) error {
+	f.record("delete " + arn)
+	if f.err != nil {
+		return f.err
+	}
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	f.topics = slices.DeleteFunc(f.topics, func(topic string) bool { return topic == arn })
 	return nil
 }
 

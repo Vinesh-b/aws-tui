@@ -80,3 +80,10 @@ func (inst *TopicDetailsTable) RefreshDetails(topicArn string) {
 		inst.populateTopicDetailsTable()
 	})
 }
+
+// ClearDetails empties the table, e.g. after the topic was deleted.
+func (inst *TopicDetailsTable) ClearDetails() {
+	inst.topicArn = ""
+	inst.attributes = nil
+	inst.populateTopicDetailsTable()
+}
