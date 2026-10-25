@@ -81,6 +81,17 @@ func (inst *ViewNavigation1D) GetLastFocusedView() tview.Primitive {
 	return inst.orderedViews[inst.viewIdx]
 }
 
+// NestedNavigation is implemented by views that contain their own navigation,
+// such as a tab view, allowing a parent navigation to move focus into, within
+// and out of them.
+type NestedNavigation interface {
+	// NavigateWithin moves focus inside the view. Returns false when focus is
+	// already at the edge in that direction so the parent navigation can move.
+	NavigateWithin(key tcell.Key) bool
+	// FocusFrom focuses the inner view nearest the edge being entered from.
+	FocusFrom(key tcell.Key)
+}
+
 type ViewNavigation2D struct {
 	app          *tview.Application
 	rootView     RootView
@@ -112,58 +123,23 @@ func NewViewNavigation2D(
 		keyRight:     APP_KEY_BINDINGS.ViewFocusRight,
 	}
 	if len(view.orderedViews) > 0 {
+		view.numRow = len(orderedViews)
 		view.numCol = len(orderedViews[0])
 	}
 
-	// Focus can be changed by a mouse selection bypassing the input capture handler
-	var currentFocus = func(views [][]View) (int, int) {
-		for r_idx, row := range views {
-			for c_idx, v := range row {
-				if v.HasFocus() {
-					return r_idx, c_idx
-				}
-			}
-		}
-
-		return 0, 0
-	}
-
 	view.rootView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if view.orderedViews == nil || len(view.orderedViews) == 0 {
+		if len(view.orderedViews) == 0 {
 			return event
 		}
 
 		switch event.Key() {
 		case view.keyUp, view.keyDown, view.keyLeft, view.keyRight:
-			view.rowIdx, view.colIdx = currentFocus(view.orderedViews)
-		}
-
-		switch event.Key() {
-		case view.keyUp:
-			view.rowIdx = (view.rowIdx - 1 + view.numRow) % view.numRow
-			var colIdx = view.colIdx
-			if colIdx >= len(view.orderedViews[view.rowIdx]) {
-				colIdx = len(view.orderedViews[view.rowIdx]) - 1
+			var rowIdx, colIdx = view.currentFocus()
+			var focused = view.orderedViews[rowIdx][colIdx]
+			if nested, ok := focused.(NestedNavigation); ok && nested.NavigateWithin(event.Key()) {
+				return nil
 			}
-			view.app.SetFocus(view.orderedViews[view.rowIdx][colIdx])
-			return nil
-		case view.keyDown:
-			view.rowIdx = (view.rowIdx + 1) % view.numRow
-			var colIdx = view.colIdx
-			if colIdx >= len(view.orderedViews[view.rowIdx]) {
-				colIdx = len(view.orderedViews[view.rowIdx]) - 1
-			}
-			view.app.SetFocus(view.orderedViews[view.rowIdx][colIdx])
-			return nil
-		case view.keyRight:
-			view.numCol = len(view.orderedViews[view.rowIdx])
-			view.colIdx = (view.colIdx + 1) % view.numCol
-			view.app.SetFocus(view.orderedViews[view.rowIdx][view.colIdx])
-			return nil
-		case view.keyLeft:
-			view.numCol = len(view.orderedViews[view.rowIdx])
-			view.colIdx = (view.colIdx - 1 + view.numCol) % view.numCol
-			view.app.SetFocus(view.orderedViews[view.rowIdx][view.colIdx])
+			view.move(event.Key(), true)
 			return nil
 		}
 
@@ -171,6 +147,112 @@ func NewViewNavigation2D(
 	})
 
 	return view
+}
+
+// Focus can be changed by a mouse selection bypassing the input capture handler
+func (inst *ViewNavigation2D) currentFocus() (int, int) {
+	for rowIdx, row := range inst.orderedViews {
+		for colIdx, v := range row {
+			if v.HasFocus() {
+				return rowIdx, colIdx
+			}
+		}
+	}
+
+	return 0, 0
+}
+
+// move shifts focus one view in the direction of key. When wrap is false and
+// focus is at the edge in that direction, focus is left unchanged and false is
+// returned.
+func (inst *ViewNavigation2D) move(key tcell.Key, wrap bool) bool {
+	var rowIdx, colIdx = inst.currentFocus()
+	var nextRow, nextCol = rowIdx, colIdx
+
+	switch key {
+	case inst.keyUp:
+		nextRow--
+	case inst.keyDown:
+		nextRow++
+	case inst.keyLeft:
+		nextCol--
+	case inst.keyRight:
+		nextCol++
+	default:
+		return false
+	}
+
+	if nextRow < 0 || nextRow >= inst.numRow {
+		if !wrap {
+			return false
+		}
+		nextRow = (nextRow + inst.numRow) % inst.numRow
+	}
+
+	var rowLen = len(inst.orderedViews[nextRow])
+	if nextRow != rowIdx {
+		nextCol = min(nextCol, rowLen-1)
+	} else if nextCol < 0 || nextCol >= rowLen {
+		if !wrap {
+			return false
+		}
+		nextCol = (nextCol + rowLen) % rowLen
+	}
+
+	inst.rowIdx, inst.colIdx = nextRow, nextCol
+	inst.numCol = rowLen
+	inst.focus(inst.orderedViews[nextRow][nextCol], key)
+	return true
+}
+
+func (inst *ViewNavigation2D) focus(view View, key tcell.Key) {
+	if nested, ok := view.(NestedNavigation); ok {
+		nested.FocusFrom(key)
+		return
+	}
+	inst.app.SetFocus(view)
+}
+
+func (inst *ViewNavigation2D) NavigateWithin(key tcell.Key) bool {
+	if len(inst.orderedViews) == 0 {
+		return false
+	}
+
+	var rowIdx, colIdx = inst.currentFocus()
+	var focused = inst.orderedViews[rowIdx][colIdx]
+	if nested, ok := focused.(NestedNavigation); ok && nested.NavigateWithin(key) {
+		return true
+	}
+
+	return inst.move(key, false)
+}
+
+func (inst *ViewNavigation2D) FocusFrom(key tcell.Key) {
+	if len(inst.orderedViews) == 0 {
+		inst.app.SetFocus(inst.rootView)
+		return
+	}
+
+	var rowIdx = inst.rowIdx % inst.numRow
+	switch key {
+	case inst.keyDown:
+		rowIdx = 0
+	case inst.keyUp:
+		rowIdx = inst.numRow - 1
+	}
+
+	var rowLen = len(inst.orderedViews[rowIdx])
+	var colIdx = min(inst.colIdx, rowLen-1)
+	switch key {
+	case inst.keyRight:
+		colIdx = 0
+	case inst.keyLeft:
+		colIdx = rowLen - 1
+	}
+
+	inst.rowIdx, inst.colIdx = rowIdx, colIdx
+	inst.numCol = rowLen
+	inst.focus(inst.orderedViews[rowIdx][colIdx], key)
 }
 
 func (inst *ViewNavigation2D) UpdateOrderedViews(orderedViews [][]View, intitalIxd int) {
