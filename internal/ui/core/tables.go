@@ -232,9 +232,8 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 	}
 	inst.colourRows(1, data, privateData)
 
-	inst.table.Select(1, 0)
-
 	if len(privateData) == 0 {
+		inst.table.Select(1, 0)
 		return nil
 	}
 
@@ -260,6 +259,9 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 			GetReference().(*CellData[T])
 		cellData.ref = &privateData[rowIdx]
 	}
+
+	// Select last, as the selection changed handlers read the private data
+	inst.table.Select(1, 0)
 
 	return nil
 }

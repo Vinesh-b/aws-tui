@@ -926,3 +926,20 @@ func TestSaveFileView__ProposesNameAndDirectoryWhenShown(t *testing.T) {
 		t.Fatalf("Unexpected proposed path %q", proposed)
 	}
 }
+
+func TestSetData__SelectionChangedHandlerSeesPrivateDataOnFirstLoad(t *testing.T) {
+	var table = NewSelectableTable[string]("test", TableRow{"col0"}, newTestAppContext())
+	var seen []string
+	table.SetSelectionChangedFunc(func(row, column int) {
+		seen = append(seen, table.GetPrivateData(row, 0))
+	})
+
+	var err = table.SetData([]TableRow{{"a"}, {"b"}}, []string{"url-a", "url-b"}, 0)
+
+	if err != nil {
+		t.Fatalf("Failed to set data: %v", err)
+	}
+	if len(seen) != 1 || seen[0] != "url-a" {
+		t.Fatalf("Expected the handler to see the private data of the first row but got %q", seen)
+	}
+}
