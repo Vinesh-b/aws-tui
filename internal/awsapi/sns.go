@@ -14,6 +14,7 @@ type SnsApi interface {
 	ListTopics(ctx context.Context, force bool) ([]string, error)
 	GetTopicAttributes(ctx context.Context, topicArn string) (map[string]string, error)
 	ListTopicTags(ctx context.Context, topicArn string) ([]types.Tag, error)
+	ListTopicSubscriptions(ctx context.Context, topicArn string) ([]types.Subscription, error)
 	// Publish sends a message to the topic. The subject, group and
 	// deduplication IDs and message attributes are optional, and are only sent
 	// when they are not empty.
@@ -123,4 +124,25 @@ func (inst *snsApi) Publish(
 	}
 
 	return output, nil
+}
+
+func (inst *snsApi) ListTopicSubscriptions(ctx context.Context, topicArn string) ([]types.Subscription, error) {
+	if err := requireArg("topicArn", topicArn); err != nil {
+		return nil, err
+	}
+
+	var paginator = sns.NewListSubscriptionsByTopicPaginator(
+		GetAwsApiClients().sns,
+		&sns.ListSubscriptionsByTopicInput{TopicArn: &topicArn},
+	)
+
+	var result, err = collectPaginator(paginator.HasMorePages, func() ([]types.Subscription, error) {
+		var output, err = paginator.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return output.Subscriptions, nil
+	})
+
+	return result, inst.logErr(err)
 }

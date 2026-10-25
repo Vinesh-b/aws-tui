@@ -305,6 +305,10 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			var _, err = NewSnsApi(logger).ListTopicTags(context.Background(), "")
 			return err
 		}, "topicArn not set"},
+		{"sns subscriptions", func() error {
+			var _, err = NewSnsApi(logger).ListTopicSubscriptions(context.Background(), "")
+			return err
+		}, "topicArn not set"},
 		{"sns publish without topic", func() error {
 			var _, err = NewSnsApi(logger).Publish(context.Background(), "", "hi", "", "", "", nil)
 			return err
@@ -692,6 +696,39 @@ func TestSnsPublishReportsServiceErrors(t *testing.T) {
 	})
 
 	var _, err = NewSnsApi(testLogger()).Publish(context.Background(), "arn", "hello", "", "", "", nil)
+
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+}
+
+func TestSnsListTopicSubscriptionsFollowsNextToken(t *testing.T) {
+	var fake = useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+		if call == 1 {
+			return response(200, "text/xml", `<ListSubscriptionsByTopicResponse><ListSubscriptionsByTopicResult><Subscriptions><member><SubscriptionArn>arn:sub:1</SubscriptionArn><Protocol>email</Protocol><Endpoint>a@example.com</Endpoint></member></Subscriptions><NextToken>t</NextToken></ListSubscriptionsByTopicResult></ListSubscriptionsByTopicResponse>`)
+		}
+		return response(200, "text/xml", `<ListSubscriptionsByTopicResponse><ListSubscriptionsByTopicResult><Subscriptions><member><SubscriptionArn>PendingConfirmation</SubscriptionArn><Protocol>sqs</Protocol><Endpoint>arn:aws:sqs:q</Endpoint></member></Subscriptions></ListSubscriptionsByTopicResult></ListSubscriptionsByTopicResponse>`)
+	})
+
+	var subs, err = NewSnsApi(testLogger()).ListTopicSubscriptions(context.Background(), "arn:aws:sns:us-east-1:1:orders")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if fake.calls() != 2 || !strings.Contains(fake.requests[1], "NextToken=t") {
+		t.Fatalf("second request did not send the next token: %v", fake.requests)
+	}
+	if len(subs) != 2 || aws.ToString(subs[0].Endpoint) != "a@example.com" || aws.ToString(subs[1].Protocol) != "sqs" {
+		t.Fatalf("unexpected subscriptions %v", subs)
+	}
+}
+
+func TestSnsListTopicSubscriptionsReportsServiceErrors(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(404, "text/xml", `<ErrorResponse><Error><Type>Sender</Type><Code>NotFound</Code><Message>gone</Message></Error></ErrorResponse>`)
+	})
+
+	var _, err = NewSnsApi(testLogger()).ListTopicSubscriptions(context.Background(), "arn")
 
 	if err == nil {
 		t.Fatal("expected an error")
