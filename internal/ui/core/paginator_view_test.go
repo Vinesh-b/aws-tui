@@ -136,9 +136,9 @@ func TestPaginatorView__ColoursSessionDetails(t *testing.T) {
 		text     string
 		fg       tcell.Color
 	}{
-		{"no expiry", math.MinInt64, "Inf", theme.PrimaryTextColour},
-		{"plenty left", time.Hour, "1h0m0s", theme.PrimaryTextColour},
-		{"expiring soon", 10 * time.Minute, "10m0s", theme.TertiaryTextColour},
+		{"no expiry", math.MinInt64, "no expiry", theme.PrimaryTextColour},
+		{"plenty left", time.Hour, "1h00m", theme.PrimaryTextColour},
+		{"expiring soon", 10 * time.Minute, "10m", theme.TertiaryTextColour},
 		{"expired", 0, "Expired", theme.ErrorTextColour},
 	} {
 		view.session = &sessionInfo{
@@ -174,11 +174,11 @@ func TestPaginatorView__ShowsCredentialErrorsInTheErrorColour(t *testing.T) {
 func TestPaginatorView__CutsSessionDetailsOffBeforeThePills(t *testing.T) {
 	var view, _ = newTestPaginator(t, tcell.ColorBlue)
 	view.session = &sessionInfo{profile: "dev", accountId: "123456789012", userId: "AROA:me", duration: time.Hour}
-	var screen = drawPaginator(t, view, 70)
+	var screen = drawPaginator(t, view, 80)
 
 	var line = screenLine(screen)
-	if !strings.Contains(line, "🭃Execution Details🭎  Profile") {
-		t.Errorf("line = %q, want the pills kept and the session details after them", line)
+	if !strings.Contains(line, "🭃Execution Details🭎  Alt+[ ]  Profile") {
+		t.Errorf("line = %q, want the pills and hint kept and the session details after them", line)
 	}
 }
 
@@ -205,7 +205,7 @@ func TestPaginatorView__ClickingAPagePillSelectsThePage(t *testing.T) {
 	if !clickAt(view, executionDetailsX+pillWidth("Execution Details")-1) || selected != "Execution Details" {
 		t.Errorf("selected = %q, want Execution Details", selected)
 	}
-	if !clickAt(view, 110) {
+	if !clickAt(view, 70) {
 		t.Error("expected a click on the empty bar to be consumed so it does not take the focus")
 	}
 }
@@ -226,5 +226,66 @@ func TestServiceRootView__PaginatorPillSwitchesPage(t *testing.T) {
 
 	if name, _ := view.pages.GetFrontPage(); name != "Second" || view.paginatorView.pageBar.GetCurrent() != 1 {
 		t.Errorf("front page = %q, current pill = %d, want Second and 1", name, view.paginatorView.pageBar.GetCurrent())
+	}
+}
+
+func TestPaginatorView__ShowsLoadingUntilTheFirstPoll(t *testing.T) {
+	var view, theme = newTestPaginator(t, tcell.ColorBlue)
+	var screen = drawPaginator(t, view, 120)
+
+	if line := strings.TrimRight(screenLine(screen), " "); !strings.HasSuffix(line, "Loading session…") {
+		t.Errorf("line = %q, want the session loading right aligned", line)
+	}
+	if fg, _ := lineColours(t, screen, "Loading session…"); fg != theme.PlaceholderTextColour {
+		t.Errorf("loading fg = %x, want %x", fg.Hex(), theme.PlaceholderTextColour.Hex())
+	}
+}
+
+func TestPaginatorView__ShowsPageKeysOnlyWithMoreThanOnePage(t *testing.T) {
+	var view, theme = newTestPaginator(t, tcell.ColorBlue)
+
+	var screen = drawPaginator(t, view, 120)
+	if !strings.Contains(screenLine(screen), "🭃Execution Details🭎  Alt+[ ]") {
+		t.Errorf("line = %q, want the page keys after the pills", screenLine(screen))
+	}
+	if fg, _ := lineColours(t, screen, "Alt+[ ]"); fg != theme.PlaceholderTextColour {
+		t.Errorf("hint fg = %x, want %x", fg.Hex(), theme.PlaceholderTextColour.Hex())
+	}
+
+	view.SetPages([]string{"Only"})
+	view.SetCurrentPage(0)
+	screen = drawPaginator(t, view, 120)
+	if strings.Contains(screenLine(screen), "Alt+") {
+		t.Errorf("line = %q, want no page keys for a single page", screenLine(screen))
+	}
+}
+
+func TestFormatSessionDuration__ShowsSecondsOnlyInTheLastMinute(t *testing.T) {
+	for _, test := range []struct {
+		duration time.Duration
+		want     string
+	}{
+		{2*time.Hour + 5*time.Minute + 59*time.Second, "2h05m"},
+		{time.Hour, "1h00m"},
+		{59*time.Minute + 59*time.Second, "59m"},
+		{time.Minute, "1m"},
+		{59 * time.Second, "59s"},
+		{time.Second, "1s"},
+	} {
+		if got := formatSessionDuration(test.duration); got != test.want {
+			t.Errorf("formatSessionDuration(%s) = %q, want %q", test.duration, got, test.want)
+		}
+	}
+}
+
+func TestFirstPollDelay__IsImmediateOnlyWhenPollingAtStart(t *testing.T) {
+	var appCtx = newTestAppContext()
+	if got := firstPollDelay(appCtx); got != CredsPollRate {
+		t.Errorf("delay = %s, want the poll rate by default", got)
+	}
+
+	appCtx.PollSessionAtStart = true
+	if got := firstPollDelay(appCtx); got != 0 {
+		t.Errorf("delay = %s, want no delay when polling at start", got)
 	}
 }

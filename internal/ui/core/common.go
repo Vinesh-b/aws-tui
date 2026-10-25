@@ -20,6 +20,9 @@ type AppContext struct {
 	App    *tview.Application
 	Logger *log.Logger
 	Theme  *AppTheme
+	// PollSessionAtStart looks up the session details shown on the paginator as
+	// soon as it is built, instead of after the first poll interval
+	PollSessionAtStart bool
 
 	apiResetListeners []func()
 	themeListeners    []func()

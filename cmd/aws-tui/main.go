@@ -53,7 +53,7 @@ func main() {
 	}
 
 	// Without a settings file the app still runs, it just forgets the settings
-	var appOptions []app.Option
+	var appOptions = []app.Option{app.WithSessionPollAtStart()}
 	if settingsPath, err := settings.DefaultPath(); err != nil {
 		log.Printf("settings will not be saved: %v", err)
 	} else {

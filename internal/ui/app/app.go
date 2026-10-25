@@ -134,7 +134,8 @@ func rebuildPages(pages *tview.Pages, items []*ServiceItem, include func(*Servic
 }
 
 type appOptions struct {
-	settingsPath string
+	settingsPath       string
+	pollSessionAtStart bool
 }
 
 // Option changes how the application is created.
@@ -145,6 +146,13 @@ type Option func(*appOptions)
 // change. Without it nothing is read or written.
 func WithSettingsFile(path string) Option {
 	return func(options *appOptions) { options.settingsPath = path }
+}
+
+// WithSessionPollAtStart shows the session details as soon as a service is
+// opened, instead of after the first poll interval. It is left out of tests so
+// they do not look up the credentials.
+func WithSessionPollAtStart() Option {
+	return func(options *appOptions) { options.pollSessionAtStart = true }
 }
 
 // loadSettings reads the saved settings. Problems with them are returned to be
@@ -193,6 +201,7 @@ func CreateApplication(
 		)
 		appContext = core.NewAppContext(ctx, app, &config, inAppLogger, &appTheme)
 	)
+	appContext.PollSessionAtStart = options.pollSessionAtStart
 
 	for _, problem := range problems {
 		inAppLogger.Print(problem)

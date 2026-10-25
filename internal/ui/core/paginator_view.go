@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"math"
 	"os"
 	"sync"
@@ -67,24 +68,37 @@ func CreatePaginatorView(service string, appContext *AppContext) *PaginatorView 
 	return view
 }
 
+// firstPollDelay is how long the session details are loading for.
+func firstPollDelay(appContext *AppContext) time.Duration {
+	if appContext.PollSessionAtStart {
+		return 0
+	}
+	return CredsPollRate
+}
+
 func (inst *PaginatorView) pollSession(appContext *AppContext) {
-	// sleep returns false when the view has been stopped
-	var sleep = func() bool {
+	// wait returns false when the view has been stopped
+	var wait = func(delay time.Duration) bool {
 		select {
 		case <-inst.stop:
 			return false
-		case <-time.After(CredsPollRate):
+		case <-time.After(delay):
 			return true
 		}
 	}
+	var sleep = func() bool { return wait(CredsPollRate) }
 
 	var app = appContext.App
 	var setSession = func(session sessionInfo) {
 		app.QueueUpdateDraw(func() { inst.session = &session })
 	}
 
-	for {
-		if !sleep() {
+	if !wait(firstPollDelay(appContext)) {
+		return
+	}
+
+	for first := true; ; first = false {
+		if !first && !sleep() {
 			return
 		}
 
@@ -174,18 +188,37 @@ func (inst *PaginatorView) pageBarOffset() int {
 	return pillWidth(inst.serviceName) + 1
 }
 
-// sessionSegments is the text of the session details, empty until the first
-// poll.
-func (inst *PaginatorView) sessionSegments() []textSegment {
-	var session = inst.session
-	if session == nil {
-		return nil
-	}
+// pageKeysHint is the keys that change page, shown after the page pills.
+func pageKeysHint() string {
+	return fmt.Sprintf("Alt+%c %c", APP_KEY_BINDINGS.PageBack, APP_KEY_BINDINGS.PageForward)
+}
 
+// formatSessionDuration shows hours and minutes, or minutes, and seconds only
+// in the last minute, so the duration does not tick every poll.
+func formatSessionDuration(duration time.Duration) string {
+	switch {
+	case duration >= time.Hour:
+		var minutes = duration.Truncate(time.Minute)
+		return fmt.Sprintf("%dh%02dm", int(minutes.Hours()), int(minutes.Minutes())%60)
+	case duration >= time.Minute:
+		return fmt.Sprintf("%dm", int(duration.Minutes()))
+	default:
+		return fmt.Sprintf("%ds", int(duration.Seconds()))
+	}
+}
+
+// sessionSegments is the text of the session details, or that they are loading
+// until the first poll.
+func (inst *PaginatorView) sessionSegments() []textSegment {
 	var theme = inst.theme
 	var background = tcell.StyleDefault.Background(theme.BackgroundColour)
 	var label = background.Foreground(theme.PlaceholderTextColour)
 	var value = background.Foreground(theme.PrimaryTextColour)
+
+	var session = inst.session
+	if session == nil {
+		return []textSegment{{"Loading session…", label}}
+	}
 
 	if len(session.err) > 0 {
 		return []textSegment{
@@ -197,12 +230,12 @@ func (inst *PaginatorView) sessionSegments() []textSegment {
 	var durationStyle = value
 	switch {
 	case session.duration == math.MinInt64:
-		durationText = "Inf"
+		durationText = "no expiry"
 	case session.duration <= 0:
 		durationText = "Expired"
 		durationStyle = background.Foreground(theme.ErrorTextColour)
 	default:
-		durationText = session.duration.String()
+		durationText = formatSessionDuration(session.duration)
 		if session.duration <= SessionExpiryWarning {
 			durationStyle = background.Foreground(theme.TertiaryTextColour)
 		}
@@ -232,6 +265,13 @@ func (inst *PaginatorView) Draw(screen tcell.Screen) {
 		Foreground(theme.SecondaryTextColour)
 	drawPill(screen, x, y, maxX, inst.serviceName, serviceStyle, theme.BackgroundColour)
 	var pos = inst.pageBar.Draw(screen, min(x+inst.pageBarOffset(), maxX), y, maxX)
+
+	if len(inst.pageBar.GetPills()) > 1 {
+		var hintStyle = tcell.StyleDefault.
+			Background(theme.BackgroundColour).
+			Foreground(theme.PlaceholderTextColour)
+		pos = drawText(screen, min(pos+2, maxX), y, maxX, pageKeysHint(), hintStyle)
+	}
 
 	var segments = inst.sessionSegments()
 	var sessionWidth = 0
