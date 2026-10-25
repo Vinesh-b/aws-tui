@@ -26,6 +26,7 @@ type SearchableTextView struct {
 	syntaxArea           *syntaxTextArea
 	lineCount            int
 	searchPositions      [][]int
+	searchLines          []int
 	nextSearchPosition   int
 	title                string
 	vimMode              VimMode
@@ -45,6 +46,7 @@ func NewSearchableTextView(title string, appContext *AppContext) *SearchableText
 		syntaxArea:           syntaxArea,
 		lineCount:            0,
 		searchPositions:      nil,
+		searchLines:          nil,
 		nextSearchPosition:   0,
 		title:                title,
 		vimMode:              VimModeNormal,
@@ -82,6 +84,7 @@ func NewSearchableTextView(title string, appContext *AppContext) *SearchableText
 		switch key {
 		case APP_KEY_BINDINGS.Done:
 			view.searchPositions = nil
+			view.searchLines = nil
 			view.nextSearchPosition = 0
 			var search = searchableView.GetSearchText()
 			var text = textArea.GetText()
@@ -91,6 +94,7 @@ func NewSearchableTextView(title string, appContext *AppContext) *SearchableText
 			}
 			if expr, err := regexp.Compile(search); err == nil {
 				view.searchPositions = expr.FindAllStringIndex(text, -1)
+				view.searchLines = matchLines(text, view.searchPositions)
 				view.updateSearchPosition()
 			}
 		}
@@ -129,6 +133,38 @@ func countRune(s string, r rune, limit int) int {
 	return count
 }
 
+// matchLines returns countRune(text, '\n', pos[0]) for every match, computed in
+// a single pass while the text is at hand. This avoids copying the whole text
+// out of the text area each time the search jumps to the next match.
+func matchLines(text string, positions [][]int) []int {
+	var lines = make([]int, len(positions))
+	var next, count, runeIdx = 0, 0, 0
+
+	for next < len(positions) && positions[next][0] == 0 {
+		next++
+	}
+	for _, c := range text {
+		if next >= len(positions) {
+			break
+		}
+		if c == '\n' {
+			count++
+		}
+		runeIdx++
+		for next < len(positions) && positions[next][0] == runeIdx {
+			lines[next] = count
+			next++
+		}
+	}
+	// Matches whose offset is past the rune count behave like countRune and
+	// see every newline in the text.
+	for ; next < len(positions); next++ {
+		lines[next] = count
+	}
+
+	return lines
+}
+
 func (inst *SearchableTextView) middleTextOffset(currentRow int) int {
 	var _, _, _, height = inst.textArea.GetInnerRect()
 	var halfVisible = height / 2
@@ -155,7 +191,7 @@ func (inst *SearchableTextView) updateSearchPosition() {
 
 	var pos = inst.searchPositions[inst.nextSearchPosition]
 	inst.textArea.Select(pos[0], pos[1])
-	var selectedLine = countRune(inst.GetText(), '\n', pos[0]) - 1
+	var selectedLine = inst.searchLines[inst.nextSearchPosition] - 1
 	var scrollOffset = inst.middleTextOffset(selectedLine)
 	inst.textArea.SetOffset(scrollOffset, 0)
 }
