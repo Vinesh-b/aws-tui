@@ -321,6 +321,12 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			var _, err = NewSnsApi(logger).Subscribe(context.Background(), "arn", "email", "")
 			return err
 		}, "endpoint not set"},
+		{"sns unsubscribe without arn", func() error {
+			return NewSnsApi(logger).Unsubscribe(context.Background(), "")
+		}, "subscriptionArn not set"},
+		{"sns unsubscribe pending", func() error {
+			return NewSnsApi(logger).Unsubscribe(context.Background(), "PendingConfirmation")
+		}, "a subscription that is pending confirmation can't be deleted"},
 		{"sns publish without topic", func() error {
 			var _, err = NewSnsApi(logger).Publish(context.Background(), "", "hi", "", "", "", nil)
 			return err
@@ -779,6 +785,36 @@ func TestSnsSubscribeReportsServiceErrors(t *testing.T) {
 	})
 
 	var _, err = NewSnsApi(testLogger()).Subscribe(context.Background(), "arn", "email", "nope")
+
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+}
+
+func TestSnsUnsubscribeDeletesTheSubscription(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "text/xml", `<UnsubscribeResponse><ResponseMetadata><RequestId>r</RequestId></ResponseMetadata></UnsubscribeResponse>`)
+	})
+
+	var err = NewSnsApi(testLogger()).Unsubscribe(context.Background(), "arn:aws:sns:us-east-1:1:orders:abc")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var body = fake.requests[0]
+	for _, want := range []string{"Action=Unsubscribe", "SubscriptionArn=arn%3Aaws%3Asns%3Aus-east-1%3A1%3Aorders%3Aabc"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("request %s does not contain %s", body, want)
+		}
+	}
+}
+
+func TestSnsUnsubscribeReportsServiceErrors(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(404, "text/xml", `<ErrorResponse><Error><Type>Sender</Type><Code>NotFound</Code><Message>gone</Message></Error></ErrorResponse>`)
+	})
+
+	var err = NewSnsApi(testLogger()).Unsubscribe(context.Background(), "arn:aws:sns:us-east-1:1:orders:abc")
 
 	if err == nil {
 		t.Fatal("expected an error")

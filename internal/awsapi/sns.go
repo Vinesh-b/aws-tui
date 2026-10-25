@@ -2,6 +2,7 @@ package awsapi
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sort"
 
@@ -19,6 +20,9 @@ type SnsApi interface {
 	// subscription, which is not active until the endpoint confirms it for
 	// protocols that need that, such as email.
 	Subscribe(ctx context.Context, topicArn string, protocol string, endpoint string) (string, error)
+	// Unsubscribe deletes the subscription. Subscriptions that are still
+	// pending confirmation have no ARN to delete by.
+	Unsubscribe(ctx context.Context, subscriptionArn string) error
 	// Publish sends a message to the topic. The subject, group and
 	// deduplication IDs and message attributes are optional, and are only sent
 	// when they are not empty.
@@ -173,4 +177,18 @@ func (inst *snsApi) Subscribe(ctx context.Context, topicArn string, protocol str
 	}
 
 	return aws.ToString(output.SubscriptionArn), nil
+}
+
+func (inst *snsApi) Unsubscribe(ctx context.Context, subscriptionArn string) error {
+	if err := requireArg("subscriptionArn", subscriptionArn); err != nil {
+		return err
+	}
+	if subscriptionArn == "PendingConfirmation" {
+		return fmt.Errorf("a subscription that is pending confirmation can't be deleted")
+	}
+
+	var _, err = GetAwsApiClients().sns.Unsubscribe(ctx, &sns.UnsubscribeInput{
+		SubscriptionArn: &subscriptionArn,
+	})
+	return inst.logErr(err)
 }
