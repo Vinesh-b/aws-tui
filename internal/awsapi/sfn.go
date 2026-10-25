@@ -3,6 +3,7 @@ package awsapi
 import (
 	"context"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -19,6 +20,11 @@ type StateMachineApi interface {
 	) ([]types.ExecutionListItem, error)
 	DescribeExecution(ctx context.Context, executionArn string) (*sfn.DescribeExecutionOutput, error)
 	GetExecutionHistory(ctx context.Context, executionArn string) (*sfn.GetExecutionHistoryOutput, error)
+	// StartExecution starts an execution of the state machine. The name is
+	// optional, and an empty input is sent as an empty JSON object.
+	StartExecution(
+		ctx context.Context, stateMachineArn string, name string, input string,
+	) (*sfn.StartExecutionOutput, error)
 }
 
 type stateMachineApi struct {
@@ -149,6 +155,33 @@ func (inst *stateMachineApi) GetExecutionHistory(ctx context.Context, executionA
 		IncludeExecutionData: aws.Bool(true),
 	})
 
+	if err != nil {
+		return nil, inst.logErr(err)
+	}
+
+	return response, nil
+}
+
+func (inst *stateMachineApi) StartExecution(
+	ctx context.Context, stateMachineArn string, name string, input string,
+) (*sfn.StartExecutionOutput, error) {
+	if err := requireArg("state machine ARN", stateMachineArn); err != nil {
+		return nil, err
+	}
+
+	if strings.TrimSpace(input) == "" {
+		input = "{}"
+	}
+
+	var startInput = &sfn.StartExecutionInput{
+		StateMachineArn: aws.String(stateMachineArn),
+		Input:           aws.String(input),
+	}
+	if name != "" {
+		startInput.Name = aws.String(name)
+	}
+
+	var response, err = GetAwsApiClients().sfn.StartExecution(ctx, startInput)
 	if err != nil {
 		return nil, inst.logErr(err)
 	}

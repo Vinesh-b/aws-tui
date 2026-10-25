@@ -267,6 +267,10 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			var _, err = sfnApi.GetExecutionHistory(context.Background(), "")
 			return err
 		}, "execution ARN not set"},
+		{"start execution", func() error {
+			var _, err = sfnApi.StartExecution(context.Background(), "", "", "{}")
+			return err
+		}, "state machine ARN not set"},
 		{"s3 list objects", func() error {
 			var _, _, err = s3Api.ListObjects(context.Background(), "", "", true)
 			return err
@@ -351,6 +355,56 @@ func TestDynamoDBPutItemReportsServiceErrors(t *testing.T) {
 	})
 
 	var err = NewDynamoDBApi(testLogger()).PutItem(context.Background(), "orders", map[string]any{"id": "a"})
+
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+}
+
+func TestSfnStartExecutionSendsInputAndName(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return jsonResponse(`{"executionArn":"arn:exec","startDate":1700000000}`)
+	})
+
+	var output, err = NewStateMachineApi(testLogger()).
+		StartExecution(context.Background(), "arn:sm", "run-1", `{"a":1}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if aws.ToString(output.ExecutionArn) != "arn:exec" {
+		t.Errorf("unexpected execution ARN %q", aws.ToString(output.ExecutionArn))
+	}
+	var body = fake.requests[0]
+	for _, want := range []string{`"stateMachineArn":"arn:sm"`, `"name":"run-1"`, `"input":"{\"a\":1}"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("request %s does not contain %s", body, want)
+		}
+	}
+}
+
+func TestSfnStartExecutionDefaultsToEmptyObjectWithoutName(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return jsonResponse(`{"executionArn":"arn:exec","startDate":1700000000}`)
+	})
+
+	var _, err = NewStateMachineApi(testLogger()).StartExecution(context.Background(), "arn:sm", "", "  ")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var body = fake.requests[0]
+	if !strings.Contains(body, `"input":"{}"`) || strings.Contains(body, `"name"`) {
+		t.Errorf("unexpected request %s", body)
+	}
+}
+
+func TestSfnStartExecutionReportsServiceErrors(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(400, "application/x-amz-json-1.0", `{"__type":"InvalidArn","message":"bad"}`)
+	})
+
+	var _, err = NewStateMachineApi(testLogger()).StartExecution(context.Background(), "arn:sm", "", "{}")
 
 	if err == nil {
 		t.Fatal("expected an error")
