@@ -25,6 +25,10 @@ type SnsApi interface {
 	Unsubscribe(ctx context.Context, subscriptionArn string) error
 	// DeleteTopic deletes the topic and all of its subscriptions.
 	DeleteTopic(ctx context.Context, topicArn string) error
+	// CreateTopic creates a topic and returns its ARN. A FIFO topic needs a name
+	// ending in .fifo. Creating a topic that already exists with the same
+	// settings returns the existing one.
+	CreateTopic(ctx context.Context, name string, fifo bool, contentBasedDeduplication bool) (string, error)
 	// Publish sends a message to the topic. The subject, group and
 	// deduplication IDs and message attributes are optional, and are only sent
 	// when they are not empty.
@@ -204,4 +208,32 @@ func (inst *snsApi) DeleteTopic(ctx context.Context, topicArn string) error {
 		TopicArn: &topicArn,
 	})
 	return inst.logErr(err)
+}
+
+func (inst *snsApi) CreateTopic(
+	ctx context.Context, name string, fifo bool, contentBasedDeduplication bool,
+) (string, error) {
+	if err := requireArg("topic name", name); err != nil {
+		return "", err
+	}
+
+	var attributes = map[string]string{}
+	if fifo {
+		attributes["FifoTopic"] = "true"
+		if contentBasedDeduplication {
+			attributes["ContentBasedDeduplication"] = "true"
+		}
+	}
+
+	var input = &sns.CreateTopicInput{Name: &name}
+	if len(attributes) > 0 {
+		input.Attributes = attributes
+	}
+
+	var output, err = GetAwsApiClients().sns.CreateTopic(ctx, input)
+	if err != nil {
+		return "", inst.logErr(err)
+	}
+
+	return aws.ToString(output.TopicArn), nil
 }

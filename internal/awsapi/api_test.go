@@ -330,6 +330,10 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 		{"sns delete topic without arn", func() error {
 			return NewSnsApi(logger).DeleteTopic(context.Background(), "")
 		}, "topicArn not set"},
+		{"sns create topic without name", func() error {
+			var _, err = NewSnsApi(logger).CreateTopic(context.Background(), "", false, false)
+			return err
+		}, "topic name not set"},
 		{"sns publish without topic", func() error {
 			var _, err = NewSnsApi(logger).Publish(context.Background(), "", "hi", "", "", "", nil)
 			return err
@@ -848,6 +852,79 @@ func TestSnsDeleteTopicReportsServiceErrors(t *testing.T) {
 	})
 
 	var err = NewSnsApi(testLogger()).DeleteTopic(context.Background(), "arn:aws:sns:us-east-1:1:orders")
+
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+}
+
+const snsCreateTopicResponse = `<CreateTopicResponse><CreateTopicResult><TopicArn>arn:aws:sns:us-east-1:1:orders</TopicArn></CreateTopicResult></CreateTopicResponse>`
+
+func TestSnsCreateTopicCreatesAStandardTopic(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "text/xml", snsCreateTopicResponse)
+	})
+
+	var arn, err = NewSnsApi(testLogger()).CreateTopic(context.Background(), "orders", false, true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if arn != "arn:aws:sns:us-east-1:1:orders" {
+		t.Errorf("topic ARN = %q", arn)
+	}
+	var body = fake.requests[0]
+	if !strings.Contains(body, "Name=orders") {
+		t.Errorf("request %s does not contain the name", body)
+	}
+	if strings.Contains(body, "FifoTopic") || strings.Contains(body, "ContentBasedDeduplication") {
+		t.Errorf("request %s has FIFO settings for a standard topic", body)
+	}
+}
+
+func TestSnsCreateTopicCreatesAFifoTopic(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "text/xml", snsCreateTopicResponse)
+	})
+
+	var _, err = NewSnsApi(testLogger()).CreateTopic(context.Background(), "orders.fifo", true, true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var body = fake.requests[0]
+	for _, want := range []string{
+		"Name=orders.fifo", "Attributes.entry.1.key=ContentBasedDeduplication", "Attributes.entry.2.key=FifoTopic",
+		"Attributes.entry.1.value=true", "Attributes.entry.2.value=true",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("request %s does not contain %s", body, want)
+		}
+	}
+}
+
+func TestSnsCreateTopicOmitsContentBasedDeduplicationUnlessAsked(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "text/xml", snsCreateTopicResponse)
+	})
+
+	var _, err = NewSnsApi(testLogger()).CreateTopic(context.Background(), "orders.fifo", true, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var body = fake.requests[0]
+	if !strings.Contains(body, "FifoTopic") || strings.Contains(body, "ContentBasedDeduplication") {
+		t.Errorf("unexpected request %s", body)
+	}
+}
+
+func TestSnsCreateTopicReportsServiceErrors(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(400, "text/xml", `<ErrorResponse><Error><Type>Sender</Type><Code>InvalidParameter</Code><Message>bad name</Message></Error></ErrorResponse>`)
+	})
+
+	var _, err = NewSnsApi(testLogger()).CreateTopic(context.Background(), "bad name", false, false)
 
 	if err == nil {
 		t.Fatal("expected an error")
