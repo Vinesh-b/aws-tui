@@ -47,6 +47,21 @@ func (inst *DebugLogView) GetLastFocusedView() tview.Primitive {
 	return inst.TextView
 }
 
+const maxDebugLogLines = 5000
+
+// NewDebugLogView follows the end of the log as lines arrive until the user
+// scrolls up, and G follows again. The logger writes from background
+// goroutines, so redraws are queued to the app.
+func NewDebugLogView(app *tview.Application) *DebugLogView {
+	var textView = tview.NewTextView().
+		SetWordWrap(false).
+		SetMaxLines(maxDebugLogLines).
+		SetChangedFunc(func() { app.QueueUpdateDraw(func() {}) })
+	textView.ScrollToEnd()
+
+	return &DebugLogView{TextView: textView}
+}
+
 type ServiceItem struct {
 	MainText      string
 	SecondaryText string
@@ -111,7 +126,7 @@ func CreateApplication(ctx context.Context, config aws.Config, version string) *
 
 	var (
 		app           = tview.NewApplication()
-		errorTextArea = &DebugLogView{TextView: tview.NewTextView().SetWordWrap(false)}
+		errorTextArea = NewDebugLogView(app)
 		inAppLogger   = log.New(
 			errorTextArea,
 			log.Default().Prefix(),

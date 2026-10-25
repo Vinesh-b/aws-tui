@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/smithy-go/logging"
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -147,4 +149,30 @@ func TestResetApiClients__ClearsDataLoadedByServicePages(t *testing.T) {
 	uitest.Eventually(t, appCtx.App, func() bool {
 		return !strings.Contains(uitest.ScreenText(screen), "orders-queue")
 	})
+}
+
+func TestNewDebugLogView__KeepsOnlyTheNewestLines(t *testing.T) {
+	var view = NewDebugLogView(tview.NewApplication())
+	for i := 0; i < maxDebugLogLines+100; i++ {
+		fmt.Fprintf(view, "line %d\n", i)
+	}
+
+	var screen = tcell.NewSimulationScreen("")
+	if err := screen.Init(); err != nil {
+		t.Fatal(err)
+	}
+	defer screen.Fini()
+	view.SetRect(0, 0, 40, 10)
+	view.Draw(screen)
+
+	var text = view.GetText(true)
+	if strings.Contains(text, "line 0\n") {
+		t.Error("oldest line was not dropped")
+	}
+	if !strings.Contains(text, fmt.Sprintf("line %d\n", maxDebugLogLines+99)) {
+		t.Error("newest line is missing")
+	}
+	if got := strings.Count(text, "\n"); got > maxDebugLogLines {
+		t.Errorf("kept %d lines, want at most %d", got, maxDebugLogLines)
+	}
 }
