@@ -2,6 +2,7 @@ package awsapi
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -15,6 +16,12 @@ type EventBridgeApi interface {
 	ListRules(ctx context.Context, force bool, busArn string) ([]types.Rule, error)
 	ListTargetsByRule(ctx context.Context, force bool, busArn string, ruleName string) ([]types.Target, error)
 	ListTags(ctx context.Context, force bool, resourceArn string) ([]types.Tag, error)
+	// PutEvent sends a single event to the bus, given by name or ARN, and
+	// returns its event ID. The detail is a JSON object, and the resources are
+	// optional ARNs the event is about.
+	PutEvent(
+		ctx context.Context, busName string, source string, detailType string, detail string, resources []string,
+	) (string, error)
 }
 
 type eventBridgeApi struct {
@@ -130,4 +137,47 @@ func (inst *eventBridgeApi) ListTargetsByRule(
 	})
 
 	return result, inst.logErr(err)
+}
+
+func (inst *eventBridgeApi) PutEvent(
+	ctx context.Context, busName string, source string, detailType string, detail string, resources []string,
+) (string, error) {
+	if err := requireArg("event bus", busName); err != nil {
+		return "", err
+	}
+	if err := requireArg("event source", source); err != nil {
+		return "", err
+	}
+	if err := requireArg("event detail type", detailType); err != nil {
+		return "", err
+	}
+	if err := requireArg("event detail", detail); err != nil {
+		return "", err
+	}
+
+	var output, err = GetAwsApiClients().eventbridge.PutEvents(ctx, &eventbridge.PutEventsInput{
+		Entries: []types.PutEventsRequestEntry{{
+			EventBusName: aws.String(busName),
+			Source:       aws.String(source),
+			DetailType:   aws.String(detailType),
+			Detail:       aws.String(detail),
+			Resources:    resources,
+		}},
+	})
+	if err != nil {
+		return "", inst.logErr(err)
+	}
+
+	// The call succeeds even when an entry is rejected, so check the entry
+	if len(output.Entries) == 0 || output.FailedEntryCount > 0 {
+		var failure = fmt.Errorf("event was not accepted")
+		if len(output.Entries) > 0 {
+			var entry = output.Entries[0]
+			failure = fmt.Errorf("event was not accepted: %s: %s",
+				aws.ToString(entry.ErrorCode), aws.ToString(entry.ErrorMessage))
+		}
+		return "", inst.logErr(failure)
+	}
+
+	return aws.ToString(output.Entries[0].EventId), nil
 }

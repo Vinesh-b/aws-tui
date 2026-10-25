@@ -280,6 +280,22 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			var _, err = NewSqsApi(logger).SendMessage(context.Background(), "https://q", "", "", "", nil)
 			return err
 		}, "message body not set"},
+		{"put event without bus", func() error {
+			var _, err = NewEventBridgeApi(logger).PutEvent(context.Background(), "", "src", "type", "{}", nil)
+			return err
+		}, "event bus not set"},
+		{"put event without source", func() error {
+			var _, err = NewEventBridgeApi(logger).PutEvent(context.Background(), "bus", "", "type", "{}", nil)
+			return err
+		}, "event source not set"},
+		{"put event without detail type", func() error {
+			var _, err = NewEventBridgeApi(logger).PutEvent(context.Background(), "bus", "src", "", "{}", nil)
+			return err
+		}, "event detail type not set"},
+		{"put event without detail", func() error {
+			var _, err = NewEventBridgeApi(logger).PutEvent(context.Background(), "bus", "src", "type", "", nil)
+			return err
+		}, "event detail not set"},
 		{"s3 list objects", func() error {
 			var _, _, err = s3Api.ListObjects(context.Background(), "", "", true)
 			return err
@@ -488,5 +504,56 @@ func TestSqsSendMessageSendsMessageAttributes(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Errorf("request %s does not contain %s", body, want)
 		}
+	}
+}
+
+func TestEventBridgePutEventSendsTheEventToTheBus(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return jsonResponse(`{"FailedEntryCount":0,"Entries":[{"EventId":"e-1"}]}`)
+	})
+
+	var id, err = NewEventBridgeApi(testLogger()).PutEvent(
+		context.Background(), "arn:aws:events:us-east-1:1:event-bus/orders", "my.app", "OrderPlaced",
+		`{"id":1}`, []string{"arn:aws:s3:::b"},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if id != "e-1" {
+		t.Errorf("event ID = %q, want e-1", id)
+	}
+	var body = fake.requests[0]
+	for _, want := range []string{
+		`"EventBusName":"arn:aws:events:us-east-1:1:event-bus/orders"`, `"Source":"my.app"`,
+		`"DetailType":"OrderPlaced"`, `"Detail":"{\"id\":1}"`, `"Resources":["arn:aws:s3:::b"]`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("request %s does not contain %s", body, want)
+		}
+	}
+}
+
+func TestEventBridgePutEventReportsARejectedEvent(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return jsonResponse(`{"FailedEntryCount":1,"Entries":[{"ErrorCode":"InvalidArgument","ErrorMessage":"bad detail"}]}`)
+	})
+
+	var _, err = NewEventBridgeApi(testLogger()).PutEvent(context.Background(), "bus", "src", "type", "{}", nil)
+
+	if err == nil || !strings.Contains(err.Error(), "InvalidArgument") || !strings.Contains(err.Error(), "bad detail") {
+		t.Fatalf("error = %v, want one with the rejection code and message", err)
+	}
+}
+
+func TestEventBridgePutEventReportsServiceErrors(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(400, "application/x-amz-json-1.1", `{"__type":"ResourceNotFoundException","message":"gone"}`)
+	})
+
+	var _, err = NewEventBridgeApi(testLogger()).PutEvent(context.Background(), "bus", "src", "type", "{}", nil)
+
+	if err == nil {
+		t.Fatal("expected an error")
 	}
 }
