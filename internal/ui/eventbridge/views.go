@@ -17,6 +17,7 @@ const (
 	EventBridgeTabNamePolicy  EventBridgeTabName = "Policy"
 	EventBridgeTabNameRules   EventBridgeTabName = "Rules"
 	EventBridgeTabNameTags    EventBridgeTabName = "Tags"
+	EventBridgeTabNameSend    EventBridgeTabName = "Send Event"
 )
 
 type EventBridgeDetailsPageView struct {
@@ -26,6 +27,8 @@ type EventBridgeDetailsPageView struct {
 	RulesTabView         *RulesTabView
 	EventBusTagsTable    *core.TagsTable[types.Tag, awsapi.EventBridgeApi]
 	EventBusPolicyView   *core.JsonTextView[types.EventBus]
+	SendEventView        *SendEventPageView
+	TabView              *core.TabViewHorizontal
 	serviceCtx           *core.ServiceContext[awsapi.EventBridgeApi]
 }
 
@@ -54,11 +57,14 @@ func NewEventBridgeDetailsPageView(
 			}
 		})
 
+	var sendEventView = NewSendEventPageView(serviceCtx)
+
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab(EventBridgeTabNameDetails, busDetailsTable, 0, 1, true).
 		AddTab(EventBridgeTabNamePolicy, policyView.TextView, 0, 1, true).
 		AddTab(EventBridgeTabNameRules, rulesTabView, 0, 1, true).
-		AddTab(EventBridgeTabNameTags, tagsTable, 0, 1, true)
+		AddTab(EventBridgeTabNameTags, tagsTable, 0, 1, true).
+		AddTab(EventBridgeTabNameSend, sendEventView, 0, 1, true)
 
 	tabView.GetTab(EventBridgeTabNameRules).InitViewNavigation(
 		[][]core.View{
@@ -85,6 +91,8 @@ func NewEventBridgeDetailsPageView(
 		RulesTabView:         rulesTabView,
 		EventBusTagsTable:    tagsTable,
 		EventBusPolicyView:   &policyView,
+		SendEventView:        sendEventView,
+		TabView:              tabView,
 		serviceCtx:           serviceCtx,
 	}
 
@@ -115,6 +123,9 @@ func (inst *EventBridgeDetailsPageView) initInputCapture() {
 		inst.RulesTabView.RefreshRules(aws.ToString(selectedEventBus.Arn))
 
 		inst.EventBusPolicyView.SetText(inst.EventBusListTable.GetSelectedEventBus())
+		inst.SendEventView.SetSelectedBus(
+			aws.ToString(selectedEventBus.Name), aws.ToString(selectedEventBus.Arn),
+		)
 	})
 }
 
