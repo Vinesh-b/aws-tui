@@ -85,6 +85,7 @@ type SelectableTable[T any] struct {
 	rowCount             int
 	privateData          []T
 	privateColumn        int
+	rowColourFunc        func(row TableRow, private T) (tcell.Color, bool)
 	searchPositions      []CellPosition
 	currentSearchIdx     int
 	HelpView             *FloatingHelpView
@@ -212,6 +213,7 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 			inst.table.SetCell(rowIdx+1, colIdx, cell)
 		}
 	}
+	inst.colourRows(1, data, privateData)
 
 	inst.table.Select(1, 0)
 
@@ -245,6 +247,59 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 	return nil
 }
 
+// SetRowColourFunc sets a function that picks the text colour of a row when it
+// is added to the table. It is given the row text and the row's private data,
+// which is the zero value if the data was added without any. Rows it returns
+// false for keep their normal colour.
+func (inst *SelectableTable[T]) SetRowColourFunc(
+	colourFunc func(row TableRow, private T) (tcell.Color, bool),
+) *SelectableTable[T] {
+	inst.rowColourFunc = colourFunc
+	return inst
+}
+
+// rowColourAt gives the colour the row colour func picks for a row that is in
+// the table, which includes the heading as row 0.
+func (inst *SelectableTable[T]) rowColourAt(row int) (tcell.Color, bool) {
+	if inst.rowColourFunc == nil || row < 1 {
+		return 0, false
+	}
+
+	var text = make(TableRow, len(inst.headings))
+	for col := range text {
+		text[col] = inst.GetCellText(row, col)
+	}
+
+	var private T
+	if inst.privateColumn >= 0 {
+		private = inst.GetPrivateData(row, inst.privateColumn)
+	}
+
+	return inst.rowColourFunc(text, private)
+}
+
+// colourRows colours the rows of data that were added starting at firstRow.
+func (inst *SelectableTable[T]) colourRows(firstRow int, data []TableRow, privateData []T) {
+	if inst.rowColourFunc == nil {
+		return
+	}
+
+	for i, rowData := range data {
+		var private T
+		if i < len(privateData) {
+			private = privateData[i]
+		}
+
+		var colour, ok = inst.rowColourFunc(rowData, private)
+		if !ok {
+			continue
+		}
+		for col := range rowData {
+			inst.table.GetCell(firstRow+i, col).SetTextColor(colour)
+		}
+	}
+}
+
 func (inst *SelectableTable[T]) ExtendData(data []TableRow, privateData []T) error {
 	if len(data) > 0 && len(inst.headings) != len(data[0]) {
 		log.Println("Table data and headings dimensions do not match")
@@ -267,6 +322,7 @@ func (inst *SelectableTable[T]) ExtendData(data []TableRow, privateData []T) err
 			table.SetCell(rowIdx+rows, colIdx, cell)
 		}
 	}
+	inst.colourRows(rows, data, privateData)
 
 	if len(privateData) == 0 {
 		inst.table.Select(rows-1, 0)
@@ -407,6 +463,7 @@ func (inst *SelectableTable[T]) SetSearchDoneFunc(handler func(key tcell.Key)) {
 				inst.appCtx.Theme,
 				inst.GetSearchText(),
 				[]int{},
+				inst.rowColourAt,
 			)
 		}
 	}
@@ -603,13 +660,26 @@ func searchTextInTable[T any](table *tview.Table, theme *AppTheme, searchCols []
 	return resultPositions
 }
 
-func clearSearchHighlights(table *tview.Table, theme *AppTheme) {
+// rowColourLookup returns the colour the row colour func gives a row of the
+// table, if there is one.
+type rowColourLookup func(row int) (tcell.Color, bool)
+
+// clearSearchHighlights puts every row back to its normal colour, which is the
+// colour from rowColour if it has one for the row, else the primary colour.
+func clearSearchHighlights(table *tview.Table, theme *AppTheme, rowColour rowColourLookup) {
 	var rows = table.GetRowCount()
 	var cols = table.GetColumnCount()
 
 	for r := 1; r < rows; r++ {
+		var colour = theme.PrimaryTextColour
+		if rowColour != nil {
+			if rowColor, ok := rowColour(r); ok {
+				colour = rowColor
+			}
+		}
+
 		for c := range cols {
-			table.GetCell(r, c).SetTextColor(theme.PrimaryTextColour)
+			table.GetCell(r, c).SetTextColor(colour)
 		}
 	}
 }
@@ -619,8 +689,9 @@ func highlightTableSearch[T any](
 	theme *AppTheme,
 	search string,
 	cols []int,
+	rowColour rowColourLookup,
 ) []CellPosition {
-	clearSearchHighlights(table, theme)
+	clearSearchHighlights(table, theme, rowColour)
 
 	var foundPositions []CellPosition
 	if len(search) > 0 {

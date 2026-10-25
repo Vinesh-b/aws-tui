@@ -40,6 +40,9 @@ func NewAlarmListTable(
 		serviceCtx:    serviceContext,
 	}
 
+	view.SetRowColourFunc(func(_ core.TableRow, alarm types.MetricAlarm) (tcell.Color, bool) {
+		return alarmStateColour, alarm.StateValue == types.StateValueAlarm
+	})
 	view.populateAlarmsTable(view.data)
 	view.SetSelectedFunc(func(row, column int) {})
 	view.SetSelectionChangedFunc(func(row, column int) {})
@@ -81,12 +84,6 @@ func (inst *AlarmListTable) populateAlarmsTable(data []types.MetricAlarm) {
 	}
 
 	inst.SetData(tableData, data, 0)
-	for i, alarm := range data {
-		if alarm.StateValue == types.StateValueAlarm {
-			inst.GetCell(i+1, 0).SetTextColor(alarmStateColour)
-			inst.GetCell(i+1, 1).SetTextColor(alarmStateColour)
-		}
-	}
 	inst.GetCell(0, 0).SetExpansion(1)
 	inst.Select(1, 0)
 	inst.ScrollToBeginning()

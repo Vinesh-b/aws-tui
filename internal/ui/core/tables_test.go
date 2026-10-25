@@ -524,7 +524,7 @@ func TestHighlightTableSearch(t *testing.T) {
 	var table = newTestSelectableTable(t)
 	var theme = table.appCtx.Theme
 
-	var foundPos = highlightTableSearch[string](table.GetTable(), theme, "21", []int{})
+	var foundPos = highlightTableSearch[string](table.GetTable(), theme, "21", []int{}, nil)
 	if len(foundPos) != 1 {
 		t.Fatalf("Expected 1 match but got: %v", foundPos)
 	}
@@ -536,7 +536,7 @@ func TestHighlightTableSearch(t *testing.T) {
 	}
 
 	// A new search should clear the previous highlights
-	foundPos = highlightTableSearch[string](table.GetTable(), theme, "00", []int{})
+	foundPos = highlightTableSearch[string](table.GetTable(), theme, "00", []int{}, nil)
 	if len(foundPos) != 1 {
 		t.Fatalf("Expected 1 match but got: %v", foundPos)
 	}
@@ -548,7 +548,7 @@ func TestHighlightTableSearch(t *testing.T) {
 func TestHighlightTableSearch__EmptySearch(t *testing.T) {
 	var table = newTestSelectableTable(t)
 
-	if foundPos := highlightTableSearch[string](table.GetTable(), table.appCtx.Theme, "", []int{}); foundPos != nil {
+	if foundPos := highlightTableSearch[string](table.GetTable(), table.appCtx.Theme, "", []int{}, nil); foundPos != nil {
 		t.Fatalf("Expected no matches but got: %v", foundPos)
 	}
 }
@@ -714,5 +714,79 @@ func TestDetailsTableSetData__BadColumnCount(t *testing.T) {
 	var err = table.SetData([]TableRow{{"a", "b", "c"}})
 	if err == nil || err.Error() != "INVALID_DATA_DIMENSIONS: Table data and headings dimensions do not match" {
 		t.Fatalf("Failed to error on bad data dims: %v", err)
+	}
+}
+
+func cellForeground(table *SelectableTable[string], row, col int) tcell.Color {
+	var fg, _, _ = table.GetCell(row, col).Style.Decompose()
+	return fg
+}
+
+func TestTableRowColourFunc__ColoursSetAndExtendedRows(t *testing.T) {
+	var appCtx = NewAppContext(context.Background(), tview.NewApplication(), nil, nil, &AppTheme{})
+	var table = NewSelectableTable[string]("test", TableRow{"name", "state"}, appCtx)
+	table.SetRowColourFunc(func(row TableRow, private string) (tcell.Color, bool) {
+		return tcell.ColorRed, private == "bad"
+	})
+
+	table.SetData(
+		[]TableRow{{"a", "x"}, {"b", "y"}},
+		[]string{"bad", "good"}, 0,
+	)
+	table.ExtendData(
+		[]TableRow{{"c", "z"}, {"d", "w"}},
+		[]string{"good", "bad"},
+	)
+
+	var want = map[int]bool{1: true, 2: false, 3: false, 4: true}
+	for row, red := range want {
+		for col := 0; col < 2; col++ {
+			if got := cellForeground(table, row, col) == tcell.ColorRed; got != red {
+				t.Errorf("row %d column %d red = %v, want %v", row, col, got, red)
+			}
+		}
+	}
+}
+
+func TestTableRowColourFunc__RowsWithoutPrivateDataGetTheZeroValue(t *testing.T) {
+	var appCtx = NewAppContext(context.Background(), tview.NewApplication(), nil, nil, &AppTheme{})
+	var table = NewSelectableTable[string]("test", TableRow{"name", "state"}, appCtx)
+	var seen []string
+	table.SetRowColourFunc(func(row TableRow, private string) (tcell.Color, bool) {
+		seen = append(seen, private)
+		return tcell.ColorRed, false
+	})
+
+	table.SetData([]TableRow{{"a", "x"}}, nil, 0)
+
+	if len(seen) != 1 || seen[0] != "" {
+		t.Errorf("colour func saw %q, want one empty private value", seen)
+	}
+}
+
+func TestTableRowColourFunc__SurvivesClearingSearchHighlights(t *testing.T) {
+	var appCtx = NewAppContext(context.Background(), tview.NewApplication(), nil, nil, &AppTheme{})
+	var table = NewSelectableTable[string]("test", TableRow{"name", "state"}, appCtx)
+	table.SetRowColourFunc(func(row TableRow, private string) (tcell.Color, bool) {
+		return tcell.ColorRed, private == "bad"
+	})
+	table.SetData(
+		[]TableRow{{"a", "x"}, {"b", "y"}},
+		[]string{"bad", "good"}, 0,
+	)
+
+	highlightTableSearch[string](table.GetTable(), appCtx.Theme, "a", []int{}, table.rowColourAt)
+	if got := cellForeground(table, 1, 0); got == tcell.ColorRed {
+		t.Fatal("matching cell should show the search colour")
+	}
+
+	highlightTableSearch[string](table.GetTable(), appCtx.Theme, "", []int{}, table.rowColourAt)
+	for col := 0; col < 2; col++ {
+		if got := cellForeground(table, 1, col); got != tcell.ColorRed {
+			t.Errorf("coloured row column %d = %v after clearing, want red", col, got)
+		}
+		if got := cellForeground(table, 2, col); got == tcell.ColorRed {
+			t.Errorf("plain row column %d became red", col)
+		}
 	}
 }
