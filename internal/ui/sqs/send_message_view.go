@@ -19,6 +19,7 @@ type SendMessagePageView struct {
 	sendButton       *tview.Button
 	formatButton     *tview.Button
 	bodyArea         *core.TextArea
+	attributesArea   *core.TextArea
 	groupIdInput     *core.InputField
 	dedupIdInput     *core.InputField
 	resultOutput     *core.SearchableTextView
@@ -31,12 +32,14 @@ func NewSendMessagePageView(
 	serviceCtx *core.ServiceContext[awsapi.SqsApi],
 ) *SendMessagePageView {
 	var bodyArea = core.NewTextArea("Message Body", serviceCtx.Theme)
+	var attributesArea = core.NewTextArea("Message Attributes", serviceCtx.Theme)
 	var resultOutput = core.NewSearchableTextView("Result", serviceCtx.AppContext)
 	var groupIdInput = core.NewInputField(serviceCtx.Theme)
 	var dedupIdInput = core.NewInputField(serviceCtx.Theme)
 	var sendButton = tview.NewButton("Send Message")
 	var formatButton = tview.NewButton("Format Body")
 
+	attributesArea.SetPlaceholder("One per line: Name=Value, Name:Number=1 or Name:Binary=<base64>")
 	groupIdInput.SetLabel("Group ID ")
 	dedupIdInput.SetLabel("Deduplication ID ")
 
@@ -56,7 +59,8 @@ func NewSendMessagePageView(
 
 	var inputColumn = tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(bodyArea, 0, 1, true).
+		AddItem(bodyArea, 0, 2, true).
+		AddItem(attributesArea, 0, 1, false).
 		AddItem(optionsView, 4, 0, false).
 		AddItem(buttonsView, 3, 0, false)
 
@@ -72,10 +76,12 @@ func NewSendMessagePageView(
 
 	resultOutput.ErrorMessageCallback = errorHandler
 	bodyArea.ErrorMessageCallback = errorHandler
+	attributesArea.ErrorMessageCallback = errorHandler
 
 	serviceView.InitViewNavigation(
 		[][]core.View{
 			{bodyArea, resultOutput},
+			{attributesArea},
 			{groupIdInput, dedupIdInput},
 			{sendButton, formatButton},
 		},
@@ -86,6 +92,7 @@ func NewSendMessagePageView(
 		sendButton:      sendButton,
 		formatButton:    formatButton,
 		bodyArea:        bodyArea,
+		attributesArea:  attributesArea,
 		groupIdInput:    groupIdInput,
 		dedupIdInput:    dedupIdInput,
 		resultOutput:    resultOutput,
@@ -139,13 +146,19 @@ func (inst *SendMessagePageView) SendMessage() {
 		return
 	}
 
+	var attributes, err = parseMessageAttributes(inst.attributesArea.GetText())
+	if err != nil {
+		inst.bodyArea.ErrorMessageCallback("%s", err.Error())
+		return
+	}
+
 	var output *sqs.SendMessageOutput
 	var apiErr error
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		output, apiErr = inst.serviceCtx.Api.SendMessage(
-			inst.serviceCtx.Ctx, queueUrl, body, groupId, dedupId, nil,
+			inst.serviceCtx.Ctx, queueUrl, body, groupId, dedupId, attributes,
 		)
 	})
 

@@ -194,3 +194,41 @@ func TestDetailsPageView__SelectingAQueueSelectsItForSending(t *testing.T) {
 		t.Fatalf("Expected a %q tab", SqsTabNameSend)
 	}
 }
+
+func TestSendMessageView__SendsMessageAttributes(t *testing.T) {
+	var api = &fakeSendMessageApi{}
+	var view = newSendMessageView(t, api)
+	var sent = make(chan string, 1)
+	view.SetOnMessageSent(func(queueUrl string) { sent <- queueUrl })
+	view.SetSelectedQueue(queueUrl("orders"))
+	view.bodyArea.SetText("hello", false)
+	view.attributesArea.SetText("Source=tui\nCount:Number=3", false)
+
+	uitest.OnUI(t, view.serviceCtx.App, view.SendMessage)
+
+	<-sent
+	if len(api.attrs) != 2 ||
+		aws.ToString(api.attrs["Source"].StringValue) != "tui" ||
+		aws.ToString(api.attrs["Count"].DataType) != "Number" {
+		t.Errorf("Unexpected attributes %v", api.attrs)
+	}
+}
+
+func TestSendMessageView__InvalidAttributesAreReportedWithoutCallingTheApi(t *testing.T) {
+	var api = &fakeSendMessageApi{}
+	var view = newSendMessageView(t, api)
+	var callback, received = uitest.CaptureErrors()
+	view.bodyArea.ErrorMessageCallback = callback
+	view.SetSelectedQueue(queueUrl("orders"))
+	view.bodyArea.SetText("hello", false)
+	view.attributesArea.SetText("Count:Number=abc", false)
+
+	uitest.OnUI(t, view.serviceCtx.App, view.SendMessage)
+
+	if message := uitest.AwaitError(t, received); !strings.Contains(message, "line 1") {
+		t.Fatalf("Unexpected error %q", message)
+	}
+	if api.sendCalls() != 0 {
+		t.Fatalf("Expected no api calls but got %d", api.sendCalls())
+	}
+}
