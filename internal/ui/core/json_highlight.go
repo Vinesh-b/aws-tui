@@ -118,6 +118,13 @@ func (inst *syntaxTextArea) setJsonHighlighting(enabled bool) {
 	}
 }
 
+// refreshLines lexes the current text, for text that is edited
+func (inst *syntaxTextArea) refreshLines() {
+	if inst.jsonHighlighting {
+		inst.lines = strings.Split(inst.TextArea.GetText(), "\n")
+	}
+}
+
 func (inst *syntaxTextArea) setText(text string, cursorAtTheEnd bool) {
 	inst.TextArea.SetText(text, cursorAtTheEnd)
 	if inst.jsonHighlighting {

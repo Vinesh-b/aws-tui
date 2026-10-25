@@ -10,7 +10,7 @@ import (
 )
 
 type TextArea struct {
-	*tview.TextArea
+	*syntaxTextArea
 	ErrorMessageCallback func(text string, a ...any)
 	appTheme             *AppTheme
 	lineCount            int
@@ -19,9 +19,9 @@ type TextArea struct {
 }
 
 func NewTextArea(title string, appTheme *AppTheme) *TextArea {
-	var t = tview.NewTextArea()
+	var t = newSyntaxTextArea()
 	var view = &TextArea{
-		TextArea:             t,
+		syntaxTextArea:       t,
 		ErrorMessageCallback: func(text string, a ...any) {},
 		appTheme:             appTheme,
 		lineCount:            0,
@@ -47,6 +47,23 @@ func NewTextArea(title string, appTheme *AppTheme) *TextArea {
 		SetBorder(true)
 
 	return view
+}
+
+// SetJsonHighlighting colours json keys, strings, numbers and literals as the
+// text is typed. It turns line wrapping off.
+func (inst *TextArea) SetJsonHighlighting(enabled bool) {
+	inst.syntaxTextArea.setJsonHighlighting(enabled)
+	if enabled {
+		inst.syntaxTextArea.TextArea.SetChangedFunc(inst.syntaxTextArea.refreshLines)
+	} else {
+		inst.syntaxTextArea.TextArea.SetChangedFunc(nil)
+	}
+}
+
+// SetText replaces the text, keeping the highlighting up to date.
+func (inst *TextArea) SetText(text string, cursorAtTheEnd bool) *tview.TextArea {
+	inst.syntaxTextArea.setText(text, cursorAtTheEnd)
+	return inst.syntaxTextArea.TextArea
 }
 
 func (inst *TextArea) SetTitleExtra(text string) {

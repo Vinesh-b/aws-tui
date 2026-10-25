@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 )
 
 func lexKinds(line string) map[string]jsonTokenKind {
@@ -157,5 +158,72 @@ func TestJsonTextView__HighlightsByDefaultAndCanBeDisabled(t *testing.T) {
 	}
 	if disabled.TextView.JsonHighlighting() {
 		t.Error("DisableHighlighting did not turn highlighting off")
+	}
+}
+
+func drawTextArea(t *testing.T, area *TextArea, width, height int) tcell.SimulationScreen {
+	t.Helper()
+	var screen = tcell.NewSimulationScreen("UTF-8")
+	if err := screen.Init(); err != nil {
+		t.Fatalf("failed to init screen: %v", err)
+	}
+	t.Cleanup(screen.Fini)
+	screen.SetSize(width, height)
+	area.SetBorder(false)
+	area.SetRect(0, 0, width, height)
+	area.Draw(screen)
+	return screen
+}
+
+func TestTextArea__JsonHighlightingColoursTheText(t *testing.T) {
+	var area = NewTextArea("json", newTestAppContext().Theme)
+	area.SetJsonHighlighting(true)
+	area.SetText(sampleJson, false)
+
+	var screen = drawTextArea(t, area, 30, 6)
+
+	if got := foregroundAt(screen, 3, 1); got != jsonTokenColours[jsonKey] {
+		t.Errorf("key colour = %v, want %v", got, jsonTokenColours[jsonKey])
+	}
+	if got := foregroundAt(screen, 11, 2); got != jsonTokenColours[jsonNumber] {
+		t.Errorf("number colour = %v, want %v", got, jsonTokenColours[jsonNumber])
+	}
+}
+
+func TestTextArea__HighlightingFollowsTypedText(t *testing.T) {
+	var area = NewTextArea("json", newTestAppContext().Theme)
+	area.SetJsonHighlighting(true)
+	area.SetText("", false)
+
+	// Typing goes through the input handler, which does not call SetText
+	var handler = area.InputHandler()
+	for _, r := range `"a": 1` {
+		handler(tcell.NewEventKey(tcell.KeyRune, r, tcell.ModNone), func(p tview.Primitive) {})
+	}
+	var screen = drawTextArea(t, area, 20, 3)
+
+	if got := foregroundAt(screen, 1, 0); got != jsonTokenColours[jsonKey] {
+		t.Errorf("key colour = %v, want %v", got, jsonTokenColours[jsonKey])
+	}
+	if got := foregroundAt(screen, 5, 0); got != jsonTokenColours[jsonNumber] {
+		t.Errorf("number colour = %v, want %v", got, jsonTokenColours[jsonNumber])
+	}
+}
+
+func TestTextArea__NoHighlightingByDefaultOrWhenDisabled(t *testing.T) {
+	var area = NewTextArea("json", newTestAppContext().Theme)
+	area.SetText(sampleJson, false)
+
+	for _, enabled := range []bool{false, true} {
+		area.SetJsonHighlighting(enabled)
+		if enabled {
+			area.SetJsonHighlighting(false)
+		}
+		var screen = drawTextArea(t, area, 30, 6)
+		for _, colour := range jsonTokenColours {
+			if got := foregroundAt(screen, 3, 1); got == colour {
+				t.Errorf("key was coloured %v with highlighting off", got)
+			}
+		}
 	}
 }
