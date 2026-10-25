@@ -5,7 +5,7 @@ import (
 	"aws-tui/internal/utils"
 	"encoding/csv"
 	"os"
-	"path"
+	"path/filepath"
 
 	"fmt"
 	"log"
@@ -136,9 +136,11 @@ func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppConte
 	view.SaveFileView.Input.SetOnSaveFunc(func(filename string) {
 		var rows = view.snapshotRows()
 		go func() {
-			var message = "File Saved"
-			if err := writeCsvFile(filename, rows); err != nil {
+			var message string
+			if savedPath, err := writeCsvFile(filename, rows); err != nil {
 				message = err.Error()
+			} else {
+				message = "Saved to " + savedPath
 			}
 			appCtx.App.QueueUpdateDraw(func() {
 				view.SaveFileView.Input.SetStatusMessage(message)
@@ -398,15 +400,50 @@ func (inst *SelectableTable[T]) snapshotRows() [][]string {
 	return rows
 }
 
-func writeCsvFile(filename string, rows [][]string) (err error) {
-	filename = path.Clean(filename)
+// resolveSavePath turns the path typed by the user into an absolute one,
+// expanding a leading ~ to the home directory.
+func resolveSavePath(input string) (string, error) {
+	var name = strings.TrimSpace(input)
+	if name == "" {
+		return "", fmt.Errorf("file path is empty")
+	}
+
+	if name == "~" || strings.HasPrefix(name, "~/") || strings.HasPrefix(name, "~"+string(filepath.Separator)) {
+		var home, err = os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("cannot expand ~: %w", err)
+		}
+		name = filepath.Join(home, name[1:])
+	}
+
+	var abs, err = filepath.Abs(name)
+	if err != nil {
+		return "", err
+	}
+	if info, err := os.Stat(abs); err == nil && info.IsDir() {
+		return "", fmt.Errorf("%s is a directory", abs)
+	}
+	return abs, nil
+}
+
+// writeCsvFile writes the rows to a new file, creating its parent directories,
+// and returns the absolute path that was written.
+func writeCsvFile(filename string, rows [][]string) (savedPath string, err error) {
+	savedPath, err = resolveSavePath(filename)
+	if err != nil {
+		return "", err
+	}
+	if err = os.MkdirAll(filepath.Dir(savedPath), 0o755); err != nil {
+		return "", err
+	}
+
 	var file *os.File
-	file, err = os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	file, err = os.OpenFile(savedPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if err != nil {
 		if os.IsExist(err) {
-			return fmt.Errorf("%s already exists", filename)
+			return "", fmt.Errorf("%s already exists", savedPath)
 		}
-		return err
+		return "", err
 	}
 	defer func() {
 		if closeErr := file.Close(); err == nil {
@@ -416,13 +453,14 @@ func writeCsvFile(filename string, rows [][]string) (err error) {
 
 	var csvWriter = csv.NewWriter(file)
 	if err = csvWriter.WriteAll(rows); err != nil {
-		return err
+		return "", err
 	}
-	return csvWriter.Error()
+	return savedPath, csvWriter.Error()
 }
 
 func (inst *SelectableTable[T]) DumpTableToCsv(filename string) error {
-	return writeCsvFile(filename, inst.snapshotRows())
+	var _, err = writeCsvFile(filename, inst.snapshotRows())
+	return err
 }
 
 func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {

@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -672,9 +673,65 @@ func TestDumpTableToCsv__NoRows(t *testing.T) {
 func TestDumpTableToCsv__InvalidPath(t *testing.T) {
 	var table = newTestSelectableTable(t)
 
-	var filename = path.Join(t.TempDir(), "missing", "table.csv")
-	if err := table.DumpTableToCsv(filename); err == nil {
-		t.Fatalf("Expected error for invalid path")
+	var blocker = path.Join(t.TempDir(), "file")
+	if err := os.WriteFile(blocker, nil, 0o644); err != nil {
+		t.Fatalf("Failed to create file: %v", err)
+	}
+
+	if err := table.DumpTableToCsv(path.Join(blocker, "table.csv")); err == nil {
+		t.Fatalf("Expected error when a parent is not a directory")
+	}
+}
+
+func TestDumpTableToCsv__CreatesParentDirectories(t *testing.T) {
+	var table = newTestSelectableTable(t)
+
+	var filename = path.Join(t.TempDir(), "a", "b", "table.csv")
+	if err := table.DumpTableToCsv(filename); err != nil {
+		t.Fatalf("Failed to dump table: %v", err)
+	}
+	if _, err := os.Stat(filename); err != nil {
+		t.Fatalf("Expected csv file to be created: %v", err)
+	}
+}
+
+func TestDumpTableToCsv__EmptyPath(t *testing.T) {
+	var table = newTestSelectableTable(t)
+
+	if err := table.DumpTableToCsv("  "); err == nil {
+		t.Fatalf("Expected error for empty path")
+	}
+}
+
+func TestDumpTableToCsv__Directory(t *testing.T) {
+	var table = newTestSelectableTable(t)
+
+	if err := table.DumpTableToCsv(t.TempDir()); err == nil {
+		t.Fatalf("Expected error when the path is a directory")
+	}
+}
+
+func TestResolveSavePath__ExpandsHome(t *testing.T) {
+	var home = t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+
+	var resolved, err = resolveSavePath("~/out/table.csv")
+	if err != nil {
+		t.Fatalf("Failed to resolve path: %v", err)
+	}
+	if want := filepath.Join(home, "out", "table.csv"); resolved != want {
+		t.Fatalf("Expected %q but got %q", want, resolved)
+	}
+}
+
+func TestResolveSavePath__MakesRelativePathsAbsolute(t *testing.T) {
+	var resolved, err = resolveSavePath("./table.csv")
+	if err != nil {
+		t.Fatalf("Failed to resolve path: %v", err)
+	}
+	if !filepath.IsAbs(resolved) {
+		t.Fatalf("Expected an absolute path but got %q", resolved)
 	}
 }
 
