@@ -59,15 +59,19 @@ func NewLogEventsTable(
 }
 
 func (inst *LogEventsTable) populateLogEventsTable(reset bool) {
-	var tableData []core.TableRow
-	var privateData []string
+	var tableData = make([]core.TableRow, 0, len(inst.data))
+	var privateData = make([]string, 0, len(inst.data))
 	for _, row := range inst.data {
+		var message = aws.ToString(row.Message)
 		tableData = append(tableData, core.TableRow{
 			time.UnixMilli(aws.ToInt64(row.Timestamp)).Format("2006-01-02 15:04:05.000"),
-			aws.ToString(row.Message),
+			message,
 		})
-		privateData = append(privateData, aws.ToString(row.Message))
+		privateData = append(privateData, message)
 	}
+
+	// The table now owns the text, don't keep the raw events alive as well
+	inst.data = nil
 
 	if !reset {
 		inst.ExtendData(tableData, privateData)
