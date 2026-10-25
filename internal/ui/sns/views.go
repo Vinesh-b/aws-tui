@@ -15,6 +15,7 @@ type SnsTabName = string
 const (
 	SnsTabNameDetails SnsTabName = "Details"
 	SnsTabNameTags    SnsTabName = "Tags"
+	SnsTabNamePublish SnsTabName = "Publish"
 )
 
 type SnsDetailsPageView struct {
@@ -22,6 +23,7 @@ type SnsDetailsPageView struct {
 	TopicListTable    *TopicListTable
 	TopicDetailsTable *TopicDetailsTable
 	TopicTagsTable    *core.TagsTable[types.Tag, awsapi.SnsApi]
+	PublishView       *PublishPageView
 	TabView           *core.TabViewHorizontal
 	serviceCtx        *core.ServiceContext[awsapi.SnsApi]
 }
@@ -42,9 +44,12 @@ func NewSnsDetailsPageView(
 			}
 		})
 
+	var publishView = NewPublishPageView(serviceCtx)
+
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab(SnsTabNameDetails, topicDetailsTable, 0, 1, true).
-		AddTab(SnsTabNameTags, tagsTable, 0, 1, true)
+		AddTab(SnsTabNameTags, tagsTable, 0, 1, true).
+		AddTab(SnsTabNamePublish, publishView, 0, 1, true)
 
 	const detailsViewSize = 5000
 	const tableViewSize = 5000
@@ -62,6 +67,7 @@ func NewSnsDetailsPageView(
 		TopicListTable:    topicListTable,
 		TopicDetailsTable: topicDetailsTable,
 		TopicTagsTable:    tagsTable,
+		PublishView:       publishView,
 		TabView:           tabView,
 		serviceCtx:        serviceCtx,
 	}
@@ -94,6 +100,7 @@ func (inst *SnsDetailsPageView) initInputCapture() {
 		}
 		inst.TopicDetailsTable.RefreshDetails(topicArn)
 		inst.TopicTagsTable.RefreshDetails()
+		inst.PublishView.SetSelectedTopic(topicArn)
 	})
 }
 
