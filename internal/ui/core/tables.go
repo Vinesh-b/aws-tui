@@ -6,6 +6,8 @@ import (
 	"encoding/csv"
 	"os"
 	"path/filepath"
+	"regexp"
+	"time"
 
 	"fmt"
 	"log"
@@ -15,6 +17,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
+
+var nonAlphanumeric = regexp.MustCompile(`[^a-z0-9]+`)
 
 type TableRow = []string
 
@@ -133,16 +137,22 @@ func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppConte
 		AddRuneToggleOverlay("HELP", view.HelpView, APP_KEY_BINDINGS.Help, true).
 		AddRuneToggleOverlay("DOWNLOAD", view.SaveFileView, APP_KEY_BINDINGS.SaveTable, false)
 
+	view.SaveFileView.Input.SetDefaultPathFunc(func() string {
+		return filepath.Join(appCtx.DownloadDir, defaultCsvName(view.title, time.Now()))
+	})
+
 	view.SaveFileView.Input.SetOnSaveFunc(func(filename string) {
 		var rows = view.snapshotRows()
 		go func() {
-			var message string
-			if savedPath, err := writeCsvFile(filename, rows); err != nil {
+			var savedPath, err = writeCsvFile(filename, rows)
+			var message = "Saved to " + savedPath
+			if err != nil {
 				message = err.Error()
-			} else {
-				message = "Saved to " + savedPath
 			}
 			appCtx.App.QueueUpdateDraw(func() {
+				if err == nil {
+					appCtx.DownloadDir = filepath.Dir(savedPath)
+				}
 				view.SaveFileView.Input.SetStatusMessage(message)
 			})
 		}()
@@ -383,6 +393,16 @@ func escapeCsvFormula(text string) string {
 		return "'" + text
 	}
 	return text
+}
+
+// defaultCsvName names the file after the table and the time it is saved, so
+// saving twice doesn't collide with the existing file.
+func defaultCsvName(title string, now time.Time) string {
+	var slug = strings.Trim(nonAlphanumeric.ReplaceAllString(strings.ToLower(title), "-"), "-")
+	if slug == "" {
+		slug = "table"
+	}
+	return slug + "-" + now.Format("20060102-150405") + ".csv"
 }
 
 // snapshotRows copies the displayed cell text so the table can be written

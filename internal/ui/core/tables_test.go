@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -897,5 +898,31 @@ func TestDumpTableToCsv__EscapesFormulas(t *testing.T) {
 	var last = records[len(records)-1]
 	if strings.Join(last, "|") != "'=SUM(A1)|'@cmd|plain" {
 		t.Fatalf("Unexpected escaped row: %v", last)
+	}
+}
+
+func TestDefaultCsvName(t *testing.T) {
+	var now = time.Date(2026, 10, 25, 14, 32, 5, 0, time.UTC)
+
+	for title, want := range map[string]string{
+		"S3 Objects": "s3-objects-20261025-143205.csv",
+		" / ":        "table-20261025-143205.csv",
+	} {
+		if got := defaultCsvName(title, now); got != want {
+			t.Errorf("defaultCsvName(%q) = %q, want %q", title, got, want)
+		}
+	}
+}
+
+func TestSaveFileView__ProposesNameAndDirectoryWhenShown(t *testing.T) {
+	var appCtx = newTestAppContext()
+	appCtx.DownloadDir = t.TempDir()
+	var table = NewSelectableTable[string]("Buckets", TableRow{"col0"}, appCtx)
+
+	table.SaveFileView.OnShow()
+
+	var proposed = table.SaveFileView.Input.GetInputFlePath()
+	if !strings.HasPrefix(proposed, filepath.Join(appCtx.DownloadDir, "buckets-")) || !strings.HasSuffix(proposed, ".csv") {
+		t.Fatalf("Unexpected proposed path %q", proposed)
 	}
 }

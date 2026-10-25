@@ -25,6 +25,10 @@ type AppContext struct {
 	// PollSessionAtStart looks up the session details shown on the paginator as
 	// soon as it is built, instead of after the first poll interval
 	PollSessionAtStart bool
+	// DownloadDir is the directory proposed when saving a file. It is empty for
+	// the working directory, and follows the directory of the last file saved.
+	// It is only used on the UI goroutine.
+	DownloadDir string
 
 	listenersMtx      sync.Mutex
 	apiResetListeners []*func()
@@ -485,6 +489,9 @@ func (inst *BaseView) ToggleOverlay(id string, hide bool) {
 func (inst *BaseView) showOverlay(overlay *OverlayInfo) {
 	inst.SendToFront(overlay.Id)
 	inst.ShowPage(overlay.Id)
+	if shown, ok := overlay.View.(interface{ OnShow() }); ok {
+		shown.OnShow()
+	}
 	inst.appCtx.App.SetFocus(overlay.View.GetLastFocusedView())
 	overlay.IsHidden = false
 }
@@ -502,6 +509,7 @@ type WriteToFileView struct {
 	closeButton  *Button
 	tabNavigator *ViewNavigation1D
 	appCtx       *AppContext
+	defaultPath  func() string
 }
 
 func NewWriteToFileView(appContext *AppContext) *WriteToFileView {
@@ -549,6 +557,19 @@ func (inst *WriteToFileView) GetInputFlePath() string {
 	return inst.inputField.GetText()
 }
 
+// SetDefaultPathFunc sets how the proposed path is made each time the view is
+// shown.
+func (inst *WriteToFileView) SetDefaultPathFunc(defaultPath func() string) {
+	inst.defaultPath = defaultPath
+}
+
+func (inst *WriteToFileView) OnShow() {
+	if inst.defaultPath != nil {
+		inst.inputField.SetText(inst.defaultPath())
+	}
+	inst.message.SetText("")
+}
+
 func (inst *WriteToFileView) SetOnSaveFunc(handler func(filename string)) {
 	inst.saveButton.SetSelectedFunc(func() {
 		inst.message.SetText("Saving...")
@@ -583,6 +604,10 @@ func NewFloatingWriteToFileView(appContext *AppContext) *FloatingWriteToFileView
 		Flex:  FloatingView("Save", input, 70, 8),
 		Input: input,
 	}
+}
+
+func (inst *FloatingWriteToFileView) OnShow() {
+	inst.Input.OnShow()
 }
 
 func (inst *FloatingWriteToFileView) GetLastFocusedView() tview.Primitive {
