@@ -34,10 +34,14 @@ type TimeSeriesChart struct {
 }
 
 func NewTimeSeriesChart(title string, appContext *AppContext) *TimeSeriesChart {
+	// The background is set as cells drawn with the default style, such as the
+	// space above a partly filled bar, show the terminal background instead
+	var background = tcell.StyleDefault.Background(appContext.Theme.BackgroundColour)
+
 	var chart = &TimeSeriesChart{
 		Box:         tview.NewBox(),
-		barStyle:    tcell.StyleDefault.Foreground(appContext.Theme.TertiaryTextColour),
-		axisStyle:   tcell.StyleDefault.Foreground(appContext.Theme.PrimaryTextColour),
+		barStyle:    background.Foreground(appContext.Theme.TertiaryTextColour),
+		axisStyle:   background.Foreground(appContext.Theme.PrimaryTextColour),
 		FormatValue: FormatCompactNumber,
 		FormatTime:  formatChartTime,
 	}

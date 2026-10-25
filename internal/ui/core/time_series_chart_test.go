@@ -168,3 +168,33 @@ func TestChartSummary__DescribesLastMinAndMax(t *testing.T) {
 		t.Error("empty data should have no summary")
 	}
 }
+
+func TestTimeSeriesChart__DrawnCellsUseTheThemeBackground(t *testing.T) {
+	var themeBackground = tcell.NewHexColor(0x2E3440)
+	var appCtx = newTestAppContext()
+	appCtx.Theme.BackgroundColour = themeBackground
+	var chart = NewTimeSeriesChart("chart", appCtx)
+	chart.SetBorder(false)
+
+	var screen = tcell.NewSimulationScreen("UTF-8")
+	if err := screen.Init(); err != nil {
+		t.Fatalf("failed to init screen: %v", err)
+	}
+	t.Cleanup(screen.Fini)
+	screen.SetSize(12, 6)
+	chart.SetRect(0, 0, 12, 6)
+	chart.SetData(chartPoints(0, 3, 5, 8))
+	chart.Draw(screen)
+
+	for row := range 6 {
+		for col := range 12 {
+			var str, style, _ = screen.Get(col, row)
+			if strings.TrimSpace(str) == "" {
+				continue
+			}
+			if _, bg, _ := style.Decompose(); bg != themeBackground {
+				t.Errorf("cell (%d,%d) %q background = %v, want the theme background", col, row, str, bg)
+			}
+		}
+	}
+}
