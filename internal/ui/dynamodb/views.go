@@ -19,6 +19,7 @@ const (
 	DdbTabNameDetails DdbTabName = "Details"
 	DdbTabNameTags    DdbTabName = "Tags"
 	DdbTabNameMessage DdbTabName = "Message"
+	DdbTabNameAddItem DdbTabName = "Add Item"
 )
 
 type DynamoDBDetailsPageView struct {
@@ -122,9 +123,10 @@ func (inst *DynamoDBDetailsPageView) initInputCapture() {
 
 type DynamoDBItemsPageView struct {
 	*core.ServicePageView
-	ItemsTable *DynamoDBGenericTable
-	TabView    *core.TabViewHorizontal
-	serviceCtx *core.ServiceContext[awsapi.DynamoDBApi]
+	ItemsTable  *DynamoDBGenericTable
+	TabView     *core.TabViewHorizontal
+	AddItemView *DynamoDBAddItemPageView
+	serviceCtx  *core.ServiceContext[awsapi.DynamoDBApi]
 }
 
 func NewDynamoDBItemsPageView(
@@ -136,8 +138,11 @@ func NewDynamoDBItemsPageView(
 	)
 	expandItemView.SetJsonHighlighting(true)
 
+	var addItemView = NewDynamoDBAddItemPageView(serviceCtx)
+
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
-		AddAndSwitchToTab(DdbTabNameMessage, expandItemView, 0, 1, true)
+		AddAndSwitchToTab(DdbTabNameMessage, expandItemView, 0, 1, true).
+		AddTab(DdbTabNameAddItem, addItemView, 0, 1, true)
 
 	const tabViewSize = 3
 	const itemsTableSize = 7
@@ -154,8 +159,11 @@ func NewDynamoDBItemsPageView(
 		ServicePageView: serviceView,
 		ItemsTable:      itemsTable,
 		TabView:         tabView,
+		AddItemView:     addItemView,
 		serviceCtx:      serviceCtx,
 	}
+
+	addItemView.SetOnItemAdded(view.LoadTableItems)
 
 	itemsTable.ErrorMessageCallback = func(text string, a ...any) {
 		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
@@ -173,6 +181,7 @@ func NewDynamoDBItemsPageView(
 
 func (inst *DynamoDBItemsPageView) LoadTableItems(tableName string) {
 	inst.ItemsTable.SetSelectedTable(tableName)
+	inst.AddItemView.SetSelectedTable(tableName)
 	inst.ItemsTable.ExecuteSearch(DDBTableScan, expression.Expression{}, true)
 }
 
