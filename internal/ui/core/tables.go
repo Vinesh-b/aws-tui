@@ -19,7 +19,7 @@ import (
 type TableRow = []string
 
 type CellData[T any] struct {
-	text *string
+	text string
 	ref  *T
 }
 
@@ -30,10 +30,10 @@ type CellPosition struct {
 
 func NewTableCell[T any](text string, ref *T) *tview.TableCell {
 	// the table render processes the full string making it extremly slow so
-	// we have to clamp the text length
-	var cellData = CellData[T]{text: &text, ref: ref}
-	var cell = tview.NewTableCell(text).
-		SetText(utils.ClampStringLen(cellData.text, 180)).
+	// we have to clamp the text length. The full text is only held in the
+	// cell data, the displayed text shares it unless it needs clamping.
+	var cellData = CellData[T]{text: text, ref: ref}
+	var cell = tview.NewTableCell(utils.ClampStringLen(&cellData.text, 180)).
 		SetAlign(tview.AlignLeft).
 		SetReference(&cellData)
 	return cell
@@ -62,18 +62,10 @@ func GetCellText[T any](cell *tview.TableCell) string {
 	}
 	switch pd := privateData.(type) {
 	case *CellData[T]:
-		var cellDataText = pd.text
-		if cellDataText != nil {
-			return *cellDataText
-		}
+		return pd.text
 	default:
-		var cellDataText = pd.(*CellData[any]).text
-		if cellDataText != nil {
-			return *cellDataText
-		}
+		return pd.(*CellData[any]).text
 	}
-
-	return ""
 }
 
 func SetTableHeading(table *tview.Table, theme *AppTheme, heading string, column int) {
@@ -90,7 +82,7 @@ type SelectableTable[T any] struct {
 	title                string
 	titleExtra           string
 	headings             TableRow
-	data                 []TableRow
+	rowCount             int
 	privateData          []T
 	privateColumn        int
 	searchPositions      []CellPosition
@@ -111,7 +103,7 @@ func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppConte
 		title:                title,
 		titleExtra:           "",
 		headings:             headings,
-		data:                 nil,
+		rowCount:             0,
 		privateData:          nil,
 		privateColumn:        -1,
 		searchPositions:      []CellPosition{},
@@ -167,7 +159,7 @@ func (inst *SelectableTable[T]) RefreshTitle(rowcount int) {
 	var tableTitle = ""
 
 	if rowcount == 0 {
-		rowcount = len(inst.data)
+		rowcount = inst.rowCount
 	}
 
 	if len(inst.titleExtra) == 0 {
@@ -190,7 +182,7 @@ func (inst *SelectableTable[T]) RefreshTitle(rowcount int) {
 }
 
 func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privateDataCol int) error {
-	inst.data = data
+	inst.rowCount = len(data)
 	inst.table.Clear()
 
 	inst.RefreshTitle(0)
@@ -227,14 +219,14 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 		return nil
 	}
 
-	if len(privateData) != len(inst.data) {
+	if len(privateData) != inst.rowCount {
 		return errors.NewCoreTableError(
 			errors.InvalidDataDimensions,
 			"Table data and private data row counts do not match",
 		)
 	}
 
-	if privateDataCol < 0 || privateDataCol >= len(inst.data[0]) {
+	if privateDataCol < 0 || privateDataCol >= len(inst.headings) {
 		return errors.NewCoreTableError(
 			errors.InvalidDataDimensions,
 			"Private data column index out of bounds",
@@ -244,7 +236,7 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 	inst.privateData = privateData
 	inst.privateColumn = privateDataCol
 
-	for rowIdx := range inst.data {
+	for rowIdx := 0; rowIdx < inst.rowCount; rowIdx++ {
 		var cellData = inst.table.GetCell(rowIdx+1, inst.privateColumn).
 			GetReference().(*CellData[T])
 		cellData.ref = &privateData[rowIdx]
@@ -262,7 +254,7 @@ func (inst *SelectableTable[T]) ExtendData(data []TableRow, privateData []T) err
 		)
 	}
 
-	inst.data = append(inst.data, data...)
+	inst.rowCount += len(data)
 
 	inst.RefreshTitle(0)
 
