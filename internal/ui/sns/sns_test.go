@@ -3,6 +3,7 @@ package sns
 import (
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -203,7 +204,7 @@ func TestDetailsPageView__FirstLoadDoesNotLoadDetailsWithoutATopicArn(t *testing
 				t.Fatalf("Unexpected error on first load: %q", message)
 			default:
 			}
-			if slices.Contains(api.recorded(), "attributes ") || slices.Contains(api.recorded(), "tags ") {
+			if slices.ContainsFunc(api.recorded(), func(call string) bool { return strings.HasSuffix(call, " ") }) {
 				t.Fatalf("Details were loaded without a topic ARN: %v", api.recorded())
 			}
 		})

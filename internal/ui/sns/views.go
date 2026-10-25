@@ -13,19 +13,21 @@ import (
 type SnsTabName = string
 
 const (
-	SnsTabNameDetails SnsTabName = "Details"
-	SnsTabNameTags    SnsTabName = "Tags"
-	SnsTabNamePublish SnsTabName = "Publish"
+	SnsTabNameDetails       SnsTabName = "Details"
+	SnsTabNameSubscriptions SnsTabName = "Subscriptions"
+	SnsTabNameTags          SnsTabName = "Tags"
+	SnsTabNamePublish       SnsTabName = "Publish"
 )
 
 type SnsDetailsPageView struct {
 	*core.ServicePageView
-	TopicListTable    *TopicListTable
-	TopicDetailsTable *TopicDetailsTable
-	TopicTagsTable    *core.TagsTable[types.Tag, awsapi.SnsApi]
-	PublishView       *PublishPageView
-	TabView           *core.TabViewHorizontal
-	serviceCtx        *core.ServiceContext[awsapi.SnsApi]
+	TopicListTable     *TopicListTable
+	TopicDetailsTable  *TopicDetailsTable
+	TopicTagsTable     *core.TagsTable[types.Tag, awsapi.SnsApi]
+	SubscriptionsTable *SubscriptionsTable
+	PublishView        *PublishPageView
+	TabView            *core.TabViewHorizontal
+	serviceCtx         *core.ServiceContext[awsapi.SnsApi]
 }
 
 func NewSnsDetailsPageView(
@@ -44,10 +46,12 @@ func NewSnsDetailsPageView(
 			}
 		})
 
+	var subscriptionsTable = NewSubscriptionsTable(serviceCtx)
 	var publishView = NewPublishPageView(serviceCtx)
 
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab(SnsTabNameDetails, topicDetailsTable, 0, 1, true).
+		AddTab(SnsTabNameSubscriptions, subscriptionsTable, 0, 1, true).
 		AddTab(SnsTabNameTags, tagsTable, 0, 1, true).
 		AddTab(SnsTabNamePublish, publishView, 0, 1, true)
 
@@ -63,13 +67,14 @@ func NewSnsDetailsPageView(
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	var view = &SnsDetailsPageView{
-		ServicePageView:   serviceView,
-		TopicListTable:    topicListTable,
-		TopicDetailsTable: topicDetailsTable,
-		TopicTagsTable:    tagsTable,
-		PublishView:       publishView,
-		TabView:           tabView,
-		serviceCtx:        serviceCtx,
+		ServicePageView:    serviceView,
+		TopicListTable:     topicListTable,
+		TopicDetailsTable:  topicDetailsTable,
+		TopicTagsTable:     tagsTable,
+		SubscriptionsTable: subscriptionsTable,
+		PublishView:        publishView,
+		TabView:            tabView,
+		serviceCtx:         serviceCtx,
 	}
 
 	var errorHandler = func(text string, a ...any) {
@@ -79,6 +84,7 @@ func NewSnsDetailsPageView(
 	topicDetailsTable.ErrorMessageCallback = errorHandler
 	topicListTable.ErrorMessageCallback = errorHandler
 	tagsTable.ErrorMessageCallback = errorHandler
+	subscriptionsTable.ErrorMessageCallback = errorHandler
 
 	view.InitViewNavigation(
 		[][]core.View{
@@ -100,6 +106,7 @@ func (inst *SnsDetailsPageView) initInputCapture() {
 		}
 		inst.TopicDetailsTable.RefreshDetails(topicArn)
 		inst.TopicTagsTable.RefreshDetails()
+		inst.SubscriptionsTable.RefreshSubscriptions(topicArn)
 		inst.PublishView.SetSelectedTopic(topicArn)
 	})
 }

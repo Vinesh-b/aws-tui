@@ -32,10 +32,11 @@ func newTopicAttributes() map[string]string {
 
 type fakeSnsApi struct {
 	awsapi.SnsApi
-	topics     []string
-	attributes map[string]string
-	tags       []types.Tag
-	err        error
+	topics        []string
+	attributes    map[string]string
+	tags          []types.Tag
+	subscriptions []types.Subscription
+	err           error
 
 	mtx   sync.Mutex
 	calls []string
@@ -65,6 +66,14 @@ func (f *fakeSnsApi) ListTopicTags(ctx context.Context, arn string) ([]types.Tag
 		return nil, errTopicArnNotSet
 	}
 	return f.tags, f.err
+}
+
+func (f *fakeSnsApi) ListTopicSubscriptions(ctx context.Context, arn string) ([]types.Subscription, error) {
+	f.record("subscriptions " + arn)
+	if arn == "" {
+		return nil, errTopicArnNotSet
+	}
+	return f.subscriptions, f.err
 }
 
 func (f *fakeSnsApi) recorded() []string {
