@@ -22,6 +22,7 @@ type AppContext struct {
 	Theme  *AppTheme
 
 	apiResetListeners []func()
+	themeListeners    []func()
 }
 
 func (inst *AppContext) GetApiClients() *awsapi.AwsApiClients {
@@ -40,6 +41,22 @@ func (inst *AppContext) ResetApiClients(cfg aws.Config, profile string) {
 
 func (inst *AppContext) OnApiClientsReset(listener func()) {
 	inst.apiResetListeners = append(inst.apiResetListeners, listener)
+}
+
+// SetTheme changes the colours of the app and then tells the listeners, so they
+// can build the views again. Views take their colours when they are built,
+// so the ones that exist keep the old colours until then. Call it on the UI
+// goroutine as the listeners change views.
+func (inst *AppContext) SetTheme(theme AppTheme) {
+	*inst.Theme = theme
+	inst.Theme.ResetGlobalStyle()
+	for _, listener := range inst.themeListeners {
+		listener()
+	}
+}
+
+func (inst *AppContext) OnThemeChanged(listener func()) {
+	inst.themeListeners = append(inst.themeListeners, listener)
 }
 
 func NewAppContext(

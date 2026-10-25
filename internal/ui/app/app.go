@@ -2,6 +2,7 @@ package app
 
 import (
 	"aws-tui/internal/awsapi"
+	"aws-tui/internal/settings"
 	"aws-tui/internal/ui/cloudformation"
 	"aws-tui/internal/ui/cloudwatch"
 	"aws-tui/internal/ui/core"
@@ -15,6 +16,7 @@ import (
 	"aws-tui/internal/ui/ssm"
 	"aws-tui/internal/ui/vpc"
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -30,14 +32,6 @@ const (
 	SELECTED_SERVICE      PageName = "ServiceHome"
 	FLOATING_SERVICE_LIST PageName = "FloatingServices"
 )
-
-type EmptyPlaceholderView struct {
-	*tview.Box
-}
-
-func (inst *EmptyPlaceholderView) GetLastFocusedView() tview.Primitive {
-	return inst.Box
-}
 
 type DebugLogView struct {
 	*tview.TextView
@@ -67,33 +61,55 @@ type ServiceItem struct {
 	SecondaryText string
 	Shortcut      rune
 	ServicePage   core.ServicePage
-	// Build creates the page again, with new api objects. It is nil for pages
-	// that hold no data from AWS.
+	// Build creates the page again, with new api objects and the current theme.
+	// It is nil for pages that can be neither.
 	Build func() core.ServicePage
+	// HoldsAwsData is true for pages that must be built again when the api
+	// clients change. Pages that are only built again for a new theme leave it
+	// false, so switching profile does not replace the page being used.
+	HoldsAwsData bool
 }
 
 func newServiceItem(
 	mainText string, secondaryText string, shortcut rune, build func() core.ServicePage,
 ) *ServiceItem {
-	return &ServiceItem{mainText, secondaryText, shortcut, build(), build}
+	return &ServiceItem{mainText, secondaryText, shortcut, build(), build, true}
+}
+
+// themedServiceItem is a page that holds no data from AWS but takes its colours
+// from the theme, so it is built again when the theme changes.
+func themedServiceItem(
+	mainText string, secondaryText string, shortcut rune, build func() core.ServicePage,
+) *ServiceItem {
+	return &ServiceItem{mainText, secondaryText, shortcut, build(), build, false}
 }
 
 func staticServiceItem(
 	mainText string, secondaryText string, shortcut rune, page core.ServicePage,
 ) *ServiceItem {
-	return &ServiceItem{mainText, secondaryText, shortcut, page, nil}
+	return &ServiceItem{mainText, secondaryText, shortcut, page, nil, false}
 }
 
 // rebuildServicePages replaces every page that holds AWS data with a new one,
 // which drops what was loaded and the caches of its api objects.
 func rebuildServicePages(pages *tview.Pages, items []*ServiceItem) {
+	rebuildPages(pages, items, func(item *ServiceItem) bool { return item.HoldsAwsData })
+}
+
+// rebuildThemedPages replaces every page that can be built again, so they take
+// the colours of the current theme.
+func rebuildThemedPages(pages *tview.Pages, items []*ServiceItem) {
+	rebuildPages(pages, items, func(item *ServiceItem) bool { return true })
+}
+
+func rebuildPages(pages *tview.Pages, items []*ServiceItem, include func(*ServiceItem) bool) {
 	var visible = map[string]bool{}
 	for _, name := range pages.GetPageNames(true) {
 		visible[name] = true
 	}
 
 	for _, item := range items {
-		if item.Build == nil {
+		if item.Build == nil || !include(item) {
 			continue
 		}
 		if closer, ok := item.ServicePage.(interface{ Close() }); ok {
@@ -105,21 +121,64 @@ func rebuildServicePages(pages *tview.Pages, items []*ServiceItem) {
 		// Service pages sit below the floating service list and the home page
 		pages.SendToBack(item.MainText)
 	}
+
+	// Removing the only visible page makes the last page visible, which is the
+	// home page, so put the visibility of every page back as it was
+	for _, name := range pages.GetPageNames(false) {
+		if visible[name] {
+			pages.ShowPage(name)
+		} else {
+			pages.HidePage(name)
+		}
+	}
 }
 
-func CreateApplication(ctx context.Context, config aws.Config, version string) *tview.Application {
+type appOptions struct {
+	settingsPath string
+}
 
-	var appTheme = core.AppTheme{
-		PrimaryTextColour:           tcell.NewHexColor(0xBFBFBF),
-		SecondaryTextColour:         tcell.NewHexColor(0xFFFFFF),
-		TertiaryTextColour:          tcell.NewHexColor(0xCC8B00),
-		TitleColour:                 tcell.NewHexColor(0x43B143),
-		BorderColour:                tcell.NewHexColor(0x404040),
-		InverseTextColour:           tcell.NewHexColor(0x404040),
-		BackgroundColour:            tcell.ColorDefault,
-		ContrastBackgroundColor:     tcell.NewHexColor(0x303030),
-		MoreContrastBackgroundColor: tcell.NewHexColor(0x404040),
-		PlaceholderTextColour:       tcell.NewHexColor(0x717171),
+// Option changes how the application is created.
+type Option func(*appOptions)
+
+// WithSettingsFile keeps the settings the user chooses, such as the theme, in the
+// file. They are read when the application is created and written when they
+// change. Without it nothing is read or written.
+func WithSettingsFile(path string) Option {
+	return func(options *appOptions) { options.settingsPath = path }
+}
+
+// loadSettings reads the saved settings. Problems with them are returned to be
+// logged, since the app still starts, with the defaults for what is missing.
+func loadSettings(path string) (settings.Settings, []error) {
+	if path == "" {
+		return settings.Settings{}, nil
+	}
+
+	var saved, err = settings.Load(path)
+	if err != nil {
+		return settings.Settings{}, []error{err}
+	}
+
+	return saved, nil
+}
+
+func CreateApplication(
+	ctx context.Context, config aws.Config, version string, opts ...Option,
+) *tview.Application {
+	var options appOptions
+	for _, opt := range opts {
+		opt(&options)
+	}
+
+	var saved, problems = loadSettings(options.settingsPath)
+
+	var appTheme = core.DefaultTheme()
+	if saved.Theme != "" {
+		if preset, ok := core.FindThemePreset(saved.Theme); ok {
+			appTheme = preset
+		} else {
+			problems = append(problems, fmt.Errorf("unknown theme %q in the settings file", saved.Theme))
+		}
 	}
 
 	appTheme.ResetGlobalStyle()
@@ -134,6 +193,10 @@ func CreateApplication(ctx context.Context, config aws.Config, version string) *
 		)
 		appContext = core.NewAppContext(ctx, app, &config, inAppLogger, &appTheme)
 	)
+
+	for _, problem := range problems {
+		inAppLogger.Print(problem)
+	}
 
 	config.Logger = logging.StandardLogger{Logger: inAppLogger}
 	// The api clients must log to the in-app view; SDK warnings written to the
@@ -188,18 +251,18 @@ func CreateApplication(ctx context.Context, config aws.Config, version string) *
 		newServiceItem("󱃔 "+string(core.SQS), "Queues and their attributes", rune('󰯉'), func() core.ServicePage {
 			return sqs.NewSqsHomeView(appContext, awsapi.NewSqsApi(appContext.Logger))
 		}),
-		staticServiceItem("󰘥 "+string(core.HELP), "Help docs on how to use this app", rune('?'),
-			services.NewHelpHomeView(appContext),
-		),
-		staticServiceItem(" "+string(core.SETTINGS), "Configure and tweak the app", rune('s'),
-			&EmptyPlaceholderView{Box: tview.NewBox()},
-		),
+		themedServiceItem("󰘥 "+string(core.HELP), "Help docs on how to use this app", rune('?'), func() core.ServicePage {
+			return services.NewHelpHomeView(appContext)
+		}),
+		themedServiceItem(" "+string(core.SETTINGS), "Configure and tweak the app", rune('s'), func() core.ServicePage {
+			return services.NewSettingsView(appContext)
+		}),
 		staticServiceItem(" "+string(core.DEBUG_LOGS), "View debug logs", rune('0'),
 			errorTextArea,
 		),
-		staticServiceItem(" "+string(core.PROFILE_SELECTION), "AWS Profile selection", rune('p'),
-			services.NewProfileSelectionView(appContext),
-		),
+		themedServiceItem(" "+string(core.PROFILE_SELECTION), "AWS Profile selection", rune('p'), func() core.ServicePage {
+			return services.NewProfileSelectionView(appContext)
+		}),
 	}
 
 	errorTextArea.
@@ -208,13 +271,12 @@ func CreateApplication(ctx context.Context, config aws.Config, version string) *
 		SetTitleAlign(tview.AlignLeft)
 
 	var servicesList = services.NewServicesHomeView(appContext)
+	var versionView = tview.NewTextView().
+		SetText(version).
+		SetTextColor(tcell.ColorGrey)
 	var flexLanding = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(servicesList, 0, 1, true).
-		AddItem(tview.NewTextView().
-			SetText(version).
-			SetTextColor(tcell.ColorGrey),
-			5, 0, false,
-		)
+		AddItem(versionView, 5, 0, false)
 	flexLanding.SetBorder(true)
 
 	var pages = tview.NewPages()
@@ -231,11 +293,10 @@ func CreateApplication(ctx context.Context, config aws.Config, version string) *
 		})
 	}
 
+	var floatingServices = core.FloatingView("Quick select", servicesList, 70, 27)
+
 	pages.
-		AddPage(FLOATING_SERVICE_LIST,
-			core.FloatingView("Quick select", servicesList, 70, 27),
-			true, true,
-		).
+		AddPage(FLOATING_SERVICE_LIST, floatingServices, true, true).
 		AddAndSwitchToPage(HOME_PAGE, flexLanding, true)
 
 	var lastFocus = app.GetFocus()
@@ -277,6 +338,36 @@ func CreateApplication(ctx context.Context, config aws.Config, version string) *
 
 	appContext.OnApiClientsReset(func() {
 		rebuildServicePages(pages, serviceViews)
+	})
+
+	// Views take their colours when they are built, so the pages are built
+	// again for a new theme. The views that stay, as they hold the log or
+	// are used to switch pages, are given the colours of the theme.
+	appContext.OnThemeChanged(func() {
+		if options.settingsPath != "" {
+			saved.Theme = appContext.Theme.Name
+			if err := settings.Save(options.settingsPath, saved); err != nil {
+				appContext.Logger.Print(err)
+			}
+		}
+
+		rebuildThemedPages(pages, serviceViews)
+
+		var theme = appContext.Theme
+		pages.SetBackgroundColor(theme.BackgroundColour)
+		core.RestyleChrome(floatingServices, theme)
+		core.RestyleChrome(flexLanding, theme)
+		core.RestyleChrome(errorTextArea.TextView, theme)
+		versionView.SetTextColor(tcell.ColorGrey)
+
+		// The page the theme was picked on has been replaced
+		if name, _ := pages.GetFrontPage(); serviceListHidden {
+			for _, item := range serviceViews {
+				if item.MainText == name {
+					app.SetFocus(item.ServicePage.GetLastFocusedView())
+				}
+			}
+		}
 	})
 
 	app.SetRoot(pages, true)

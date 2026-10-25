@@ -6,6 +6,7 @@ import (
 )
 
 type AppTheme struct {
+	Name                        string
 	PrimaryTextColour           tcell.Color
 	SecondaryTextColour         tcell.Color
 	TertiaryTextColour          tcell.Color

@@ -3,11 +3,15 @@ package app
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"aws-tui/internal/awsapi"
+	"aws-tui/internal/settings"
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/sqs"
 	"aws-tui/internal/ui/uitest"
@@ -175,4 +179,204 @@ func TestNewDebugLogView__KeepsOnlyTheNewestLines(t *testing.T) {
 	if got := strings.Count(text, "\n"); got > maxDebugLogLines {
 		t.Errorf("kept %d lines, want at most %d", got, maxDebugLogLines)
 	}
+}
+
+func TestRebuildThemedPages__ReplacesEveryPageThatCanBeBuiltAgain(t *testing.T) {
+	var pages = tview.NewPages()
+	var build = func() core.ServicePage { return &countingPage{Box: tview.NewBox()} }
+	var data = newServiceItem("data", "", 'd', build)
+	var themed = themedServiceItem("themed", "", 't', build)
+	var static = staticServiceItem("static", "", 's', &countingPage{Box: tview.NewBox()})
+	var oldData, oldThemed, oldStatic = data.ServicePage, themed.ServicePage, static.ServicePage
+	for _, item := range []*ServiceItem{data, themed, static} {
+		pages.AddPage(item.MainText, item.ServicePage, true, item.MainText == "themed")
+	}
+
+	rebuildThemedPages(pages, []*ServiceItem{data, themed, static})
+
+	if data.ServicePage == oldData || themed.ServicePage == oldThemed {
+		t.Error("pages that can be built again should have been")
+	}
+	if static.ServicePage != oldStatic {
+		t.Error("a static page should be left alone")
+	}
+	if got := pages.GetPageNames(true); !slices.Equal(got, []string{"themed"}) {
+		t.Errorf("visible pages = %v, want only themed", got)
+	}
+}
+
+func TestRebuildServicePages__LeavesPagesThatOnlyTakeTheThemeAlone(t *testing.T) {
+	var pages = tview.NewPages()
+	var themed = themedServiceItem("themed", "", 't', func() core.ServicePage {
+		return &countingPage{Box: tview.NewBox()}
+	})
+	var old = themed.ServicePage
+	pages.AddPage("themed", themed.ServicePage, true, true)
+
+	rebuildServicePages(pages, []*ServiceItem{themed})
+
+	if themed.ServicePage != old {
+		t.Error("changing profile must not replace a page that holds no AWS data")
+	}
+}
+
+func TestRebuildThemedPages__KeepsTheHomePageHiddenWhenTheVisiblePageIsReplaced(t *testing.T) {
+	var pages = tview.NewPages()
+	var settings = themedServiceItem("settings", "", 's', func() core.ServicePage {
+		return &countingPage{Box: tview.NewBox()}
+	})
+	pages.AddPage("settings", settings.ServicePage, true, true)
+	pages.AddPage("floating", tview.NewBox(), true, false)
+	pages.AddPage("home", tview.NewBox(), true, false)
+
+	rebuildThemedPages(pages, []*ServiceItem{settings})
+
+	if got := pages.GetPageNames(true); !slices.Equal(got, []string{"settings"}) {
+		t.Errorf("visible pages = %v, want only settings", got)
+	}
+}
+
+// startApp creates the application on a simulated screen, the way the tests of
+// the settings page need it: with credentials, so nothing polls without any.
+func startApp(t *testing.T, opts ...Option) (*tview.Application, tcell.SimulationScreen) {
+	t.Helper()
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("AWS_CONFIG_FILE", "")
+	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", "")
+	var styles, borders = tview.Styles, tview.Borders
+	t.Cleanup(func() { tview.Styles, tview.Borders = styles, borders })
+
+	var tuiApp = CreateApplication(context.Background(), aws.Config{
+		Region:      "us-east-1",
+		Credentials: credentials.NewStaticCredentialsProvider("key", "secret", ""),
+	}, "test-version", opts...)
+
+	return tuiApp, uitest.RunApp(t, tuiApp)
+}
+
+func openSettings(app *tview.Application) {
+	// The home page starts with the services list focused, 's' opens Settings
+	app.QueueEvent(tcell.NewEventKey(tcell.KeyRune, 's', tcell.ModNone))
+}
+
+func TestCreateApplication__PickingAThemeInSettingsKeepsTheSettingsPage(t *testing.T) {
+	var tuiApp, screen = startApp(t)
+	openSettings(tuiApp)
+	awaitInUse(t, tuiApp, screen, "Default")
+
+	uitest.PressKey(t, tuiApp, tcell.KeyDown)
+	uitest.PressKey(t, tuiApp, tcell.KeyEnter)
+
+	uitest.Eventually(t, tuiApp, func() bool {
+		return tview.Styles.BorderColor == core.ThemePresets()[1].BorderColour
+	})
+	awaitInUse(t, tuiApp, screen, "High Contrast")
+	if text := uitest.ScreenText(screen); strings.Contains(text, "test-version") {
+		t.Errorf("the home page came back over the settings page:\n%s", text)
+	}
+
+	// The cursor is still in the rebuilt page, so keys still reach it
+	uitest.PressKey(t, tuiApp, tcell.KeyDown)
+	uitest.PressKey(t, tuiApp, tcell.KeyEnter)
+	awaitInUse(t, tuiApp, screen, "Nord")
+}
+
+func TestCreateApplication__SavesTheThemeWhenItChanges(t *testing.T) {
+	var path = filepath.Join(t.TempDir(), "config", "settings.json")
+	var tuiApp, screen = startApp(t, WithSettingsFile(path))
+	openSettings(tuiApp)
+	awaitInUse(t, tuiApp, screen, "Default")
+
+	uitest.PressKey(t, tuiApp, tcell.KeyDown)
+	uitest.PressKey(t, tuiApp, tcell.KeyEnter)
+	awaitInUse(t, tuiApp, screen, "High Contrast")
+
+	var saved, err = settings.Load(path)
+	if err != nil || saved.Theme != "High Contrast" {
+		t.Errorf("saved settings = %+v, %v, want the High Contrast theme", saved, err)
+	}
+
+	uitest.PressKey(t, tuiApp, tcell.KeyDown)
+	uitest.PressKey(t, tuiApp, tcell.KeyEnter)
+	awaitInUse(t, tuiApp, screen, "Nord")
+	if saved, _ = settings.Load(path); saved.Theme != "Nord" {
+		t.Errorf("saved theme = %q, want Nord", saved.Theme)
+	}
+}
+
+func TestCreateApplication__StartsWithTheSavedTheme(t *testing.T) {
+	var path = filepath.Join(t.TempDir(), "settings.json")
+	if err := settings.Save(path, settings.Settings{Theme: "Nord"}); err != nil {
+		t.Fatal(err)
+	}
+
+	var tuiApp, screen = startApp(t, WithSettingsFile(path))
+	openSettings(tuiApp)
+
+	awaitInUse(t, tuiApp, screen, "Nord")
+	var nord, _ = core.FindThemePreset("Nord")
+	if tview.Styles.BorderColor != nord.BorderColour {
+		t.Error("the global style was not set from the saved theme")
+	}
+}
+
+func TestCreateApplication__StartsWithTheDefaultThemeForSettingsItCannotUse(t *testing.T) {
+	for name, content := range map[string]string{
+		"unknown theme":  `{"theme": "Does Not Exist"}`,
+		"invalid json":   `{not json`,
+		"missing":        "",
+		"no theme saved": `{}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			var path = filepath.Join(t.TempDir(), "settings.json")
+			if content != "" {
+				os.WriteFile(path, []byte(content), 0o600)
+			}
+
+			var tuiApp, screen = startApp(t, WithSettingsFile(path))
+			openSettings(tuiApp)
+
+			awaitInUse(t, tuiApp, screen, "Default")
+			if content != "" {
+				if data, _ := os.ReadFile(path); string(data) != content {
+					t.Errorf("starting the app changed the settings file to %q", data)
+				}
+			}
+		})
+	}
+}
+
+func TestCreateApplication__WithoutASettingsFileNothingIsSaved(t *testing.T) {
+	var configDir = t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", configDir)
+	t.Setenv("AppData", configDir)
+	var tuiApp, screen = startApp(t)
+	openSettings(tuiApp)
+	awaitInUse(t, tuiApp, screen, "Default")
+
+	uitest.PressKey(t, tuiApp, tcell.KeyDown)
+	uitest.PressKey(t, tuiApp, tcell.KeyEnter)
+	awaitInUse(t, tuiApp, screen, "High Contrast")
+
+	if entries, _ := os.ReadDir(configDir); len(entries) != 0 {
+		t.Errorf("config directory holds %d entries, want none", len(entries))
+	}
+}
+
+// awaitInUse waits for the settings page to show the theme as the one in use,
+// which is on the line below its name.
+func awaitInUse(t *testing.T, app *tview.Application, screen tcell.SimulationScreen, theme string) {
+	t.Helper()
+	var deadline = time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		app.QueueUpdateDraw(func() {})
+		var lines = strings.Split(uitest.ScreenText(screen), "\n")
+		for i, line := range lines[:len(lines)-1] {
+			if strings.Contains(line, theme) && strings.Contains(lines[i+1], "in use") {
+				return
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("settings never showed %s as in use:\n%s", theme, uitest.ScreenText(screen))
 }

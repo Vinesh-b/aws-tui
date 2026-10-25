@@ -27,6 +27,8 @@ func NewFilterableList(list *tview.List, appContext *AppContext) *FilterableList
 		items:          []FilterableListItem{},
 	}
 
+	view.ApplyTheme(appContext.Theme)
+
 	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		var numItems = list.GetItemCount()
 		if numItems == 0 || event.Key() != tcell.KeyRune {
@@ -60,6 +62,38 @@ func (inst *FilterableList) AddItem(
 		Shortcut:      shortcut,
 		SelectedFunc:  selected,
 	})
+}
+
+// ApplyTheme colours the list from the theme: the text, the second line and the
+// shortcut of each item, and the selected row, which is lit by the background
+// that is used for the selected row of the tables. It replaces the colours the
+// list was given.
+func (inst *FilterableList) ApplyTheme(theme *AppTheme) {
+	applyListTheme(inst.list, theme)
+	inst.list.
+		SetSecondaryTextStyle(textStyle(theme.PlaceholderTextColour, theme)).
+		SetSelectedTextColor(theme.SecondaryTextColour).
+		SetSelectedBackgroundColor(theme.MoreContrastBackgroundColor)
+}
+
+// textStyle is a style for text of the given colour on the background of the
+// theme. A style carries the background it was made with, so a colour that is
+// changed on its own leaves the background of the theme the view was built with.
+func textStyle(colour tcell.Color, theme *AppTheme) tcell.Style {
+	return tcell.StyleDefault.Foreground(colour).Background(theme.BackgroundColour)
+}
+
+// applyListTheme sets the text and the shortcuts of a list, whose styles each
+// hold a background that is not changed by the one of the list.
+func applyListTheme(list *tview.List, theme *AppTheme) {
+	list.
+		SetMainTextStyle(textStyle(theme.PrimaryTextColour, theme)).
+		SetShortcutStyle(textStyle(theme.SecondaryTextColour, theme))
+}
+
+// SetCurrentItem moves the cursor to the item at the index.
+func (inst *FilterableList) SetCurrentItem(index int) {
+	inst.list.SetCurrentItem(index)
 }
 
 func (inst *FilterableList) IsEscapable() bool {

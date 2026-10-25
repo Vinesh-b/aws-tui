@@ -16,8 +16,6 @@ func NewProfileSelectionView(appCtx *core.AppContext) core.ServicePage {
 	defer appCtx.Theme.ResetGlobalStyle()
 
 	var listView = tview.NewList().
-		SetSecondaryTextColor(tcell.ColorDarkGray).
-		SetSelectedTextColor(appCtx.Theme.SecondaryTextColour).
 		SetHighlightFullLine(true)
 
 	listView.

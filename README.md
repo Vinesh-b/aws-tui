@@ -21,12 +21,17 @@ make build        # outputs ./bin/aws-tui
 
 Other targets: `make build-all` (linux, darwin, windows), `make test`, `make clean`.
 
+## Settings
+
+The theme chosen in the Settings page is saved and used the next time the app starts. It is kept in `settings.json` in the config directory of the user (`~/.config/aws-tui/` on Linux, `~/Library/Application Support/aws-tui/` on macOS, `%AppData%\aws-tui\` on Windows). If the file cannot be read, or names a theme that does not exist, the app starts with the default theme and logs why in the Debug Logs page.
+
 ## Project layout
 
 ```
 cmd/aws-tui/        entry point (flags, AWS config loading)
 internal/awsapi/    thin wrappers around the AWS SDK clients, one file per service
 internal/errors/    shared error types
+internal/settings/  the settings file that keeps the user's choices between runs
 internal/utils/     small generic helpers
 internal/ui/app/    wires the services together into the tview application
 internal/ui/core/   reusable widgets, table infrastructure and app-wide state
