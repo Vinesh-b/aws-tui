@@ -3,6 +3,7 @@ package sns
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"sync"
 
@@ -124,6 +125,17 @@ func (f *fakeSnsApi) DeleteTopic(ctx context.Context, arn string) error {
 	defer f.mtx.Unlock()
 	f.topics = slices.DeleteFunc(f.topics, func(topic string) bool { return topic == arn })
 	return nil
+}
+
+func (f *fakeSnsApi) CreateTopic(ctx context.Context, name string, fifo bool, dedup bool) (string, error) {
+	f.record(fmt.Sprintf("create %s fifo=%t dedup=%t", name, fifo, dedup))
+	if f.err != nil {
+		return "", f.err
+	}
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	f.topics = append(f.topics, topicArn(name))
+	return topicArn(name), nil
 }
 
 func (f *fakeSnsApi) recorded() []string {

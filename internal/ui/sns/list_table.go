@@ -21,6 +21,7 @@ const deleteTopicOverlayId = "DELETE_TOPIC"
 type TopicListTable struct {
 	*core.SelectableTable[string]
 	DeleteView    *core.FloatingConfirmView
+	CreateView    *FloatingCreateTopicView
 	data          []string
 	filtered      []string
 	selectedTopic string
@@ -43,12 +44,20 @@ func NewTopicListTable(
 			},
 			serviceCtx.AppContext,
 		),
+		CreateView:     NewFloatingCreateTopicView(serviceCtx.AppContext),
 		DeleteView:     core.NewFloatingConfirmView(serviceCtx.AppContext, "Delete Topic", "Delete"),
 		data:           nil,
 		selectedTopic:  "",
 		onTopicDeleted: func(string) {},
 		serviceCtx:     serviceCtx,
 	}
+
+	view.AddRuneToggleOverlay(createTopicOverlayId, view.CreateView, createTopicKey, false)
+	view.CreateView.Input.SetOnCreateFunc(view.createTopic)
+	view.CreateView.Input.SetOnCloseFunc(func() {
+		view.ToggleOverlay(createTopicOverlayId, true)
+	})
+	view.HelpView.View.AddItem(string(createTopicKey), "Create a topic", nil)
 
 	view.AddRuneToggleOverlay(deleteTopicOverlayId, view.DeleteView, deleteTopicKey, false)
 	view.DeleteView.Input.SetOnShowFunc(view.prepareDelete)
@@ -218,6 +227,35 @@ func (inst *TopicListTable) deleteTopic(topicArn string) {
 				inst.selectedTopic = ""
 			}
 			inst.onTopicDeleted(topicArn)
+			inst.RefreshTopics(true)
+		})
+	}()
+}
+
+// createTopic creates the topic without blocking the UI, then reloads the
+// topics. The result is shown in the create view.
+func (inst *TopicListTable) createTopic(name string, fifo bool, contentBasedDeduplication bool) {
+	var view = inst.CreateView.Input
+
+	var newName, err = validTopicName(name, fifo)
+	if err != nil {
+		view.SetStatusMessage(err.Error())
+		return
+	}
+	view.SetStatusMessage("Creating...")
+
+	go func() {
+		var topicArn, err = inst.serviceCtx.Api.CreateTopic(
+			inst.serviceCtx.Ctx, newName, fifo, contentBasedDeduplication,
+		)
+
+		inst.serviceCtx.App.QueueUpdateDraw(func() {
+			if err != nil {
+				view.SetStatusMessage(err.Error())
+				return
+			}
+
+			view.SetStatusMessage("Topic created: " + topicArn)
 			inst.RefreshTopics(true)
 		})
 	}()
