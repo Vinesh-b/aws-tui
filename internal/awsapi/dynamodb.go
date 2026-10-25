@@ -31,6 +31,9 @@ type DynamoDBApi interface {
 		force bool,
 	) ([]map[string]any, error)
 	ListTags(ctx context.Context, force bool, resourceArn string) ([]types.Tag, error)
+	// PutItem writes the item to the table, replacing any item that has the
+	// same key.
+	PutItem(ctx context.Context, tableName string, item map[string]any) error
 }
 
 type dynamoDBApi struct {
@@ -205,4 +208,24 @@ func (inst *dynamoDBApi) ListTags(ctx context.Context, force bool, resourceArn s
 	})
 
 	return result, inst.logErr(err)
+}
+
+func (inst *dynamoDBApi) PutItem(ctx context.Context, tableName string, item map[string]any) error {
+	if err := requireArg("table name", tableName); err != nil {
+		return err
+	}
+	if len(item) == 0 {
+		return fmt.Errorf("item has no attributes")
+	}
+
+	var attributes, err = attributevalue.MarshalMap(item)
+	if err != nil {
+		return inst.logErr(err)
+	}
+
+	_, err = GetAwsApiClients().dynamodb.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(tableName),
+		Item:      attributes,
+	})
+	return inst.logErr(err)
 }

@@ -2,6 +2,7 @@ package awsapi
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log"
 	"net/http"
@@ -307,3 +308,51 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 }
 
 var testTime = time.Unix(0, 0)
+
+func TestDynamoDBPutItemSendsTheItemToTheTable(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return jsonResponse(`{}`)
+	})
+	var item = map[string]any{"id": "a1", "count": json.Number("12345678901234567890"), "tags": []any{"x"}}
+
+	var err = NewDynamoDBApi(testLogger()).PutItem(context.Background(), "orders", item)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var body = fake.requests[0]
+	for _, want := range []string{`"TableName":"orders"`, `"id":{"S":"a1"}`, `"count":{"N":"12345678901234567890"}`, `"tags":{"L":[{"S":"x"}]}`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("request %s does not contain %s", body, want)
+		}
+	}
+}
+
+func TestDynamoDBPutItemRejectsMissingArguments(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return jsonResponse(`{}`)
+	})
+	var api = NewDynamoDBApi(testLogger())
+
+	if err := api.PutItem(context.Background(), "", map[string]any{"id": "a"}); err == nil {
+		t.Error("expected an error without a table name")
+	}
+	if err := api.PutItem(context.Background(), "orders", nil); err == nil {
+		t.Error("expected an error without attributes")
+	}
+	if fake.calls() != 0 {
+		t.Errorf("expected no requests but got %d", fake.calls())
+	}
+}
+
+func TestDynamoDBPutItemReportsServiceErrors(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(400, "application/x-amz-json-1.0", `{"__type":"ResourceNotFoundException","message":"missing"}`)
+	})
+
+	var err = NewDynamoDBApi(testLogger()).PutItem(context.Background(), "orders", map[string]any{"id": "a"})
+
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+}
