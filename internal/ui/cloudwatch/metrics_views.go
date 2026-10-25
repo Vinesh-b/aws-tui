@@ -49,7 +49,7 @@ func NewMetricsDetailsView(
 
 	serviceView.InitViewNavigation(
 		[][]core.View{
-			{tabView.GetTabDisplayView()},
+			{tabView},
 			{metricListTable},
 		},
 	)

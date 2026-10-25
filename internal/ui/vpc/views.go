@@ -84,7 +84,7 @@ func NewVpcDetailsPageView(
 
 	view.InitViewNavigation(
 		[][]core.View{
-			{tabView.GetTabDisplayView()},
+			{tabView},
 			{vpcListTable},
 		},
 	)

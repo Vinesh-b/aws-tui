@@ -119,7 +119,7 @@ func NewLambdaDetailsPageView(
 
 	view.InitViewNavigation(
 		[][]core.View{
-			{tabView.GetTabDisplayView()},
+			{tabView},
 			{lambdaListTable},
 		},
 	)

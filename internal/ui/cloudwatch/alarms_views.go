@@ -50,7 +50,7 @@ func NewAlarmsDetailsPageView(
 
 	serviceView.InitViewNavigation(
 		[][]core.View{
-			{tabView.GetTabDisplayView()},
+			{tabView},
 			{alarmListTable},
 		},
 	)

@@ -78,7 +78,7 @@ func NewDynamoDBDetailsPageView(
 
 	view.InitViewNavigation(
 		[][]core.View{
-			{tabView.GetTabDisplayView()},
+			{tabView},
 			{tablesTable},
 		},
 	)

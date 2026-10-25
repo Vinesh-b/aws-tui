@@ -65,7 +65,7 @@ func NewSfnDetailsPageView(
 
 	serviceView.InitViewNavigation(
 		[][]core.View{
-			{tabView.GetTabDisplayView()},
+			{tabView},
 			{sfnListTable},
 		},
 	)
@@ -193,7 +193,7 @@ func NewSfnExecutionDetailsPage(
 
 	serviceView.InitViewNavigation(
 		[][]core.View{
-			{tabView.GetTabDisplayView()},
+			{tabView},
 			{executionStates, executionStateEvents},
 		},
 	)

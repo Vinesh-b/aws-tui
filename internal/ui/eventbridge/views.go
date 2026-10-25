@@ -60,6 +60,12 @@ func NewEventBridgeDetailsPageView(
 		AddTab(EventBridgeTabNameRules, rulesTabView, 0, 1, true).
 		AddTab(EventBridgeTabNameTags, tagsTable, 0, 1, true)
 
+	tabView.GetTab(EventBridgeTabNameRules).InitViewNavigation(
+		[][]core.View{
+			{rulesTabView.RulesTable, rulesTabView.JsonView.TextView},
+		},
+	)
+
 	const detailsViewSize = 5000
 	const tableViewSize = 5000
 
@@ -92,7 +98,7 @@ func NewEventBridgeDetailsPageView(
 
 	view.InitViewNavigation(
 		[][]core.View{
-			{tabView.GetTabDisplayView()},
+			{tabView},
 			{busListTable},
 		},
 	)

@@ -9,7 +9,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 
-	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -99,18 +98,6 @@ func NewRulesTabView(
 		JsonView:   jsonView,
 		serviceCtx: serviceCtx,
 	}
-
-	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch {
-		case event.Key() == core.APP_KEY_BINDINGS.ViewFocusRight && rulesTable.HasFocus():
-			serviceCtx.App.SetFocus(jsonView.TextView)
-			return nil
-		case event.Key() == core.APP_KEY_BINDINGS.ViewFocusLeft && jsonView.TextView.HasFocus():
-			serviceCtx.App.SetFocus(rulesTable)
-			return nil
-		}
-		return event
-	})
 
 	rulesTable.SetSelectionChangedFunc(func(row, column int) {
 		view.RefreshRuleDetail()

@@ -302,3 +302,25 @@ func (inst *TabViewHorizontal) GetDefaultTab() (string, int) {
 func (inst *TabViewHorizontal) GetCurrentTab() (string, int) {
 	return inst.orderedTabs[inst.currentTabIdx], inst.currentTabIdx
 }
+
+func (inst *TabViewHorizontal) currentPage() *ServicePageView {
+	if len(inst.orderedTabs) == 0 {
+		return nil
+	}
+	return inst.pageViewMap[inst.orderedTabs[inst.currentTabIdx]]
+}
+
+func (inst *TabViewHorizontal) NavigateWithin(key tcell.Key) bool {
+	if page := inst.currentPage(); page != nil {
+		return page.NavigateWithin(key)
+	}
+	return false
+}
+
+func (inst *TabViewHorizontal) FocusFrom(key tcell.Key) {
+	if page := inst.currentPage(); page != nil {
+		page.FocusFrom(key)
+		return
+	}
+	inst.appCtx.App.SetFocus(inst.Flex)
+}

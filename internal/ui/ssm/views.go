@@ -86,7 +86,7 @@ func NewSystemManagerDetailsPageView(
 	view.InitViewNavigation(
 		[][]core.View{
 			{paramValueView.TextView},
-			{tabView.GetTabDisplayView()},
+			{tabView},
 		},
 	)
 	view.initInputCapture()

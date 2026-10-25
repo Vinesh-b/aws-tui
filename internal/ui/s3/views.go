@@ -59,7 +59,7 @@ func NewS3bucketsDetailsView(
 
 	serviceView.InitViewNavigation(
 		[][]core.View{
-			{bucketObjectsTable, tabView.GetTabDisplayView()},
+			{bucketObjectsTable, tabView},
 			{bucketListTable},
 		},
 	)

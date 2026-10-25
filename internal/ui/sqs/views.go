@@ -82,7 +82,7 @@ func NewSqsDetailsPageView(
 
 	view.InitViewNavigation(
 		[][]core.View{
-			{tabView.GetTabDisplayView()},
+			{tabView},
 			{queueListTable},
 		},
 	)
