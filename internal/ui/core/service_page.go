@@ -108,3 +108,30 @@ func (inst *ServicePageView) DisplayMessage(messageType MessagePromptType, text 
 func (inst *ServicePageView) GetLastFocusedView() tview.Primitive {
 	return inst.viewNavigation.GetLastFocusedView()
 }
+
+// nestedContent returns the content of a page without its own navigation when
+// the content has navigation, such as a ServicePageView added as a tab.
+func (inst *ServicePageView) nestedContent() NestedNavigation {
+	if len(inst.viewNavigation.GetOrderedViews()) != 0 || inst.MainPage.GetItemCount() != 1 {
+		return nil
+	}
+	if nested, ok := inst.MainPage.GetItem(0).(NestedNavigation); ok {
+		return nested
+	}
+	return nil
+}
+
+func (inst *ServicePageView) NavigateWithin(key tcell.Key) bool {
+	if nested := inst.nestedContent(); nested != nil {
+		return nested.NavigateWithin(key)
+	}
+	return inst.viewNavigation.NavigateWithin(key)
+}
+
+func (inst *ServicePageView) FocusFrom(key tcell.Key) {
+	if nested := inst.nestedContent(); nested != nil {
+		nested.FocusFrom(key)
+		return
+	}
+	inst.viewNavigation.FocusFrom(key)
+}
