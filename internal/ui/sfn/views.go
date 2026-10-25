@@ -18,6 +18,7 @@ const (
 	SfnTabNameDefinition       SfnTabName = "Definition"
 	SfnTabNameStates           SfnTabName = "States"
 	SfnTabNameExecutions       SfnTabName = "Executions"
+	SfnTabNameStartExecution   SfnTabName = "Start Execution"
 	SfnTabNameExecutionSummary SfnTabName = "Summary"
 	SfnTabNameStateIO          SfnTabName = "Input/Output"
 	SfnTabNameStateFlow        SfnTabName = "State Flow"
@@ -29,6 +30,8 @@ type SfnDetailsPageView struct {
 	sfnListTable         *SfnListTable
 	sfnExecutionsTable   *SfnExecutionsTable
 	sfnDetailsTable      *SfnDetailsTable
+	startExecutionView   *SfnStartExecutionPageView
+	tabView              *core.TabViewHorizontal
 	serviceCtx           *core.ServiceContext[awsapi.StateMachineApi]
 }
 
@@ -45,11 +48,14 @@ func NewSfnDetailsPageView(
 		statesView.SetStateMachine(stateMachine)
 	})
 
+	var startExecutionView = NewSfnStartExecutionPageView(serviceViewCtx)
+
 	var tabView = core.NewTabViewHorizontal(serviceViewCtx.AppContext).
 		AddTab(SfnTabNameDetails, stateMachineDetailsTable, 0, 1, true).
 		AddTab(SfnTabNameStates, statesView, 0, 1, true).
 		AddTab(SfnTabNameDefinition, definitionView, 0, 1, true).
-		AddAndSwitchToTab(SfnTabNameExecutions, sfnExecutionsTable, 0, 1, true)
+		AddAndSwitchToTab(SfnTabNameExecutions, sfnExecutionsTable, 0, 1, true).
+		AddTab(SfnTabNameStartExecution, startExecutionView, 0, 1, true)
 
 	const detailsViewSize = 4000
 	const tableViewSize = 6000
@@ -84,6 +90,8 @@ func NewSfnDetailsPageView(
 		sfnListTable:         sfnListTable,
 		sfnExecutionsTable:   sfnExecutionsTable,
 		sfnDetailsTable:      stateMachineDetailsTable,
+		startExecutionView:   startExecutionView,
+		tabView:              tabView,
 		serviceCtx:           serviceViewCtx,
 	}
 
@@ -94,22 +102,27 @@ func NewSfnDetailsPageView(
 
 func (inst *SfnDetailsPageView) initInputCapture() {
 	inst.sfnListTable.SetSelectedFunc(func(row, column int) {
-		var smTable = inst.sfnListTable
-		var smExeTable = inst.sfnExecutionsTable
-		var smDetTable = inst.sfnDetailsTable
-
-		var selectedFunc = smTable.GetSelectedFunction()
-		smExeTable.SetSelectedFunction(selectedFunc)
-		smDetTable.RefreshDetails(selectedFunc)
-
-		switch smTable.GetSelectedFunctionType() {
-		case types.StateMachineTypeStandard:
-			smExeTable.RefreshExecutions(true)
-		case types.StateMachineTypeExpress:
-			var group = smDetTable.GetSelectedSmLogGroup()
-			smExeTable.RefreshExpressExecutions(group, true)
-		}
+		var selectedFunc = inst.sfnListTable.GetSelectedFunction()
+		inst.sfnExecutionsTable.SetSelectedFunction(selectedFunc)
+		inst.sfnDetailsTable.RefreshDetails(selectedFunc)
+		inst.startExecutionView.SetSelectedStateMachine(
+			inst.sfnListTable.GetSelectedFunctionName(),
+			inst.sfnListTable.GetSelectedFunctionArn(),
+		)
+		inst.refreshExecutions()
 	})
+
+	inst.startExecutionView.SetOnExecutionStarted(inst.refreshExecutions)
+}
+
+func (inst *SfnDetailsPageView) refreshExecutions() {
+	switch inst.sfnListTable.GetSelectedFunctionType() {
+	case types.StateMachineTypeStandard:
+		inst.sfnExecutionsTable.RefreshExecutions(true)
+	case types.StateMachineTypeExpress:
+		var group = inst.sfnDetailsTable.GetSelectedSmLogGroup()
+		inst.sfnExecutionsTable.RefreshExpressExecutions(group, true)
+	}
 }
 
 type SfnExecutionDetailsPageView struct {
