@@ -817,3 +817,28 @@ func TestDumpTableToCsv__ExistingFile(t *testing.T) {
 		t.Fatalf("Expected existing file to be untouched but got %q", content)
 	}
 }
+
+func TestDumpTableToCsv__EscapesFormulas(t *testing.T) {
+	var table = newTestSelectableTable(t)
+	table.ExtendData([]TableRow{{"=SUM(A1)", "@cmd", "plain"}}, nil)
+
+	var filename = path.Join(t.TempDir(), "table.csv")
+	if err := table.DumpTableToCsv(filename); err != nil {
+		t.Fatalf("Failed to dump table: %v", err)
+	}
+
+	var file, err = os.Open(filename)
+	if err != nil {
+		t.Fatalf("Failed to open csv: %v", err)
+	}
+	defer file.Close()
+
+	records, err := csv.NewReader(file).ReadAll()
+	if err != nil {
+		t.Fatalf("Failed to read csv: %v", err)
+	}
+	var last = records[len(records)-1]
+	if strings.Join(last, "|") != "'=SUM(A1)|'@cmd|plain" {
+		t.Fatalf("Unexpected escaped row: %v", last)
+	}
+}

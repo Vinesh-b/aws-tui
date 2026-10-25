@@ -367,6 +367,17 @@ func (inst *SelectableTable[T]) GetPrivateData(row int, column int) T {
 	return GetPrivateData[T](inst.table.GetCell(row, column))
 }
 
+// escapeCsvFormula prefixes cells that spreadsheet applications would
+// interpret as formulas, so values such as object keys can't execute on open.
+func escapeCsvFormula(text string) string {
+	if strings.HasPrefix(text, "=") || strings.HasPrefix(text, "+") ||
+		strings.HasPrefix(text, "-") || strings.HasPrefix(text, "@") ||
+		strings.HasPrefix(text, "\t") || strings.HasPrefix(text, "\r") {
+		return "'" + text
+	}
+	return text
+}
+
 func (inst *SelectableTable[T]) DumpTableToCsv(filename string) (err error) {
 	filename = path.Clean(filename)
 	var file *os.File
@@ -388,7 +399,7 @@ func (inst *SelectableTable[T]) DumpTableToCsv(filename string) (err error) {
 		var rowdata = []string{}
 		for c := range inst.table.GetColumnCount() {
 			var text = GetCellText[T](inst.table.GetCell(r, c))
-			rowdata = append(rowdata, text)
+			rowdata = append(rowdata, escapeCsvFormula(text))
 		}
 		if err = csvWriter.Write(rowdata); err != nil {
 			return err
