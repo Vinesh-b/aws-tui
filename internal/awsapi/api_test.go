@@ -309,6 +309,18 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			var _, err = NewSnsApi(logger).ListTopicSubscriptions(context.Background(), "")
 			return err
 		}, "topicArn not set"},
+		{"sns subscribe without topic", func() error {
+			var _, err = NewSnsApi(logger).Subscribe(context.Background(), "", "email", "a@example.com")
+			return err
+		}, "topicArn not set"},
+		{"sns subscribe without protocol", func() error {
+			var _, err = NewSnsApi(logger).Subscribe(context.Background(), "arn", "", "a@example.com")
+			return err
+		}, "protocol not set"},
+		{"sns subscribe without endpoint", func() error {
+			var _, err = NewSnsApi(logger).Subscribe(context.Background(), "arn", "email", "")
+			return err
+		}, "endpoint not set"},
 		{"sns publish without topic", func() error {
 			var _, err = NewSnsApi(logger).Publish(context.Background(), "", "hi", "", "", "", nil)
 			return err
@@ -729,6 +741,44 @@ func TestSnsListTopicSubscriptionsReportsServiceErrors(t *testing.T) {
 	})
 
 	var _, err = NewSnsApi(testLogger()).ListTopicSubscriptions(context.Background(), "arn")
+
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+}
+
+func TestSnsSubscribeSendsTheSubscriptionAndReturnsItsArn(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "text/xml", `<SubscribeResponse><SubscribeResult><SubscriptionArn>arn:aws:sns:us-east-1:1:orders:abc</SubscriptionArn></SubscribeResult></SubscribeResponse>`)
+	})
+
+	var arn, err = NewSnsApi(testLogger()).Subscribe(
+		context.Background(), "arn:aws:sns:us-east-1:1:orders", "email", "a@example.com",
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if arn != "arn:aws:sns:us-east-1:1:orders:abc" {
+		t.Errorf("subscription ARN = %q", arn)
+	}
+	var body = fake.requests[0]
+	for _, want := range []string{
+		"Action=Subscribe", "Protocol=email", "Endpoint=a%40example.com", "ReturnSubscriptionArn=true",
+		"TopicArn=arn%3Aaws%3Asns%3Aus-east-1%3A1%3Aorders",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("request %s does not contain %s", body, want)
+		}
+	}
+}
+
+func TestSnsSubscribeReportsServiceErrors(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(400, "text/xml", `<ErrorResponse><Error><Type>Sender</Type><Code>InvalidParameter</Code><Message>bad endpoint</Message></Error></ErrorResponse>`)
+	})
+
+	var _, err = NewSnsApi(testLogger()).Subscribe(context.Background(), "arn", "email", "nope")
 
 	if err == nil {
 		t.Fatal("expected an error")

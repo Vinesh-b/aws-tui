@@ -15,6 +15,10 @@ type SnsApi interface {
 	GetTopicAttributes(ctx context.Context, topicArn string) (map[string]string, error)
 	ListTopicTags(ctx context.Context, topicArn string) ([]types.Tag, error)
 	ListTopicSubscriptions(ctx context.Context, topicArn string) ([]types.Subscription, error)
+	// Subscribe subscribes the endpoint to the topic and returns the ARN of the
+	// subscription, which is not active until the endpoint confirms it for
+	// protocols that need that, such as email.
+	Subscribe(ctx context.Context, topicArn string, protocol string, endpoint string) (string, error)
 	// Publish sends a message to the topic. The subject, group and
 	// deduplication IDs and message attributes are optional, and are only sent
 	// when they are not empty.
@@ -145,4 +149,28 @@ func (inst *snsApi) ListTopicSubscriptions(ctx context.Context, topicArn string)
 	})
 
 	return result, inst.logErr(err)
+}
+
+func (inst *snsApi) Subscribe(ctx context.Context, topicArn string, protocol string, endpoint string) (string, error) {
+	if err := requireArg("topicArn", topicArn); err != nil {
+		return "", err
+	}
+	if err := requireArg("protocol", protocol); err != nil {
+		return "", err
+	}
+	if err := requireArg("endpoint", endpoint); err != nil {
+		return "", err
+	}
+
+	var output, err = GetAwsApiClients().sns.Subscribe(ctx, &sns.SubscribeInput{
+		TopicArn:              &topicArn,
+		Protocol:              &protocol,
+		Endpoint:              &endpoint,
+		ReturnSubscriptionArn: true,
+	})
+	if err != nil {
+		return "", inst.logErr(err)
+	}
+
+	return aws.ToString(output.SubscriptionArn), nil
 }
