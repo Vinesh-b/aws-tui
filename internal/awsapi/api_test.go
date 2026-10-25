@@ -930,3 +930,67 @@ func TestSnsCreateTopicReportsServiceErrors(t *testing.T) {
 		t.Fatal("expected an error")
 	}
 }
+
+func TestDynamoDBUpdateItemOnlyChangesTheGivenAttributes(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return jsonResponse(`{}`)
+	})
+
+	var err = NewDynamoDBApi(testLogger()).UpdateItem(
+		context.Background(), "orders",
+		map[string]any{"id": "a1"},
+		map[string]any{"status": "shipped", "count": json.Number("12345678901234567890")},
+		[]string{"note"},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var body = fake.requests[0]
+	for _, want := range []string{
+		`"TableName":"orders"`, `"Key":{"id":{"S":"a1"}}`, `"UpdateExpression":"REMOVE #`, `\nSET #`,
+		`"ConditionExpression":"attribute_exists (#`, `{"S":"shipped"}`, `{"N":"12345678901234567890"}`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("request %s does not contain %s", body, want)
+		}
+	}
+}
+
+func TestDynamoDBUpdateItemRejectsInvalidArguments(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return jsonResponse(`{}`)
+	})
+	var api = NewDynamoDBApi(testLogger())
+	var key = map[string]any{"id": "a1"}
+	var set = map[string]any{"status": "shipped"}
+
+	for name, err := range map[string]error{
+		"no table":     api.UpdateItem(context.Background(), "", key, set, nil),
+		"no key":       api.UpdateItem(context.Background(), "orders", nil, set, nil),
+		"no changes":   api.UpdateItem(context.Background(), "orders", key, nil, nil),
+		"dotted name":  api.UpdateItem(context.Background(), "orders", key, map[string]any{"a.b": 1}, nil),
+		"bracket name": api.UpdateItem(context.Background(), "orders", key, nil, []string{"a[0]"}),
+	} {
+		if err == nil {
+			t.Errorf("%s: expected an error", name)
+		}
+	}
+	if fake.calls() != 0 {
+		t.Errorf("expected no requests but got %d", fake.calls())
+	}
+}
+
+func TestDynamoDBUpdateItemReportsServiceErrors(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(400, "application/x-amz-json-1.0", `{"__type":"com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException","message":"The conditional request failed"}`)
+	})
+
+	var err = NewDynamoDBApi(testLogger()).UpdateItem(
+		context.Background(), "orders", map[string]any{"id": "a1"}, map[string]any{"status": "x"}, nil,
+	)
+
+	if err == nil || !strings.Contains(err.Error(), "ConditionalCheckFailed") {
+		t.Fatalf("error = %v, want the conditional check failure", err)
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -34,6 +35,13 @@ type DynamoDBApi interface {
 	// PutItem writes the item to the table, replacing any item that has the
 	// same key.
 	PutItem(ctx context.Context, tableName string, item map[string]any) error
+	// UpdateItem changes only the given attributes of the item with the key:
+	// those in set are written and those in remove are deleted, the rest of the
+	// item is left as it is. It fails if the item no longer exists. Attribute
+	// names can't have '.', '[' or ']' as these are read as paths.
+	UpdateItem(
+		ctx context.Context, tableName string, key map[string]any, set map[string]any, remove []string,
+	) error
 }
 
 type dynamoDBApi struct {
@@ -228,4 +236,64 @@ func (inst *dynamoDBApi) PutItem(ctx context.Context, tableName string, item map
 		Item:      attributes,
 	})
 	return inst.logErr(err)
+}
+
+func (inst *dynamoDBApi) UpdateItem(
+	ctx context.Context, tableName string, key map[string]any, set map[string]any, remove []string,
+) error {
+	if err := requireArg("table name", tableName); err != nil {
+		return err
+	}
+	if len(key) == 0 {
+		return fmt.Errorf("item key not set")
+	}
+	if len(set) == 0 && len(remove) == 0 {
+		return fmt.Errorf("no attributes to update")
+	}
+
+	var names = append(sortedKeys(set), remove...)
+	for _, name := range names {
+		if strings.ContainsAny(name, ".[]") {
+			return fmt.Errorf("attribute %q can't be updated as its name has '.', '[' or ']'", name)
+		}
+	}
+
+	var update expression.UpdateBuilder
+	for _, name := range sortedKeys(set) {
+		update = update.Set(expression.Name(name), expression.Value(set[name]))
+	}
+	for _, name := range remove {
+		update = update.Remove(expression.Name(name))
+	}
+
+	// Without the condition updating an item that was deleted would create it
+	var condition = expression.AttributeExists(expression.Name(sortedKeys(key)[0]))
+	var built, err = expression.NewBuilder().WithUpdate(update).WithCondition(condition).Build()
+	if err != nil {
+		return inst.logErr(err)
+	}
+
+	var keyAttributes map[string]types.AttributeValue
+	if keyAttributes, err = attributevalue.MarshalMap(key); err != nil {
+		return inst.logErr(err)
+	}
+
+	_, err = GetAwsApiClients().dynamodb.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		TableName:                 aws.String(tableName),
+		Key:                       keyAttributes,
+		UpdateExpression:          built.Update(),
+		ConditionExpression:       built.Condition(),
+		ExpressionAttributeNames:  built.Names(),
+		ExpressionAttributeValues: built.Values(),
+	})
+	return inst.logErr(err)
+}
+
+func sortedKeys[V any](m map[string]V) []string {
+	var keys = make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
