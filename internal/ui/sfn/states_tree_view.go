@@ -2,6 +2,7 @@ package sfn
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
@@ -27,12 +28,21 @@ type transitionNodeRef struct {
 // order they run, with where each can go next below it. The workflows nested in
 // Parallel and Map states are shown below their state. Enter on a transition
 // jumps to the state it leads to.
+//
+// The states an execution went through can be shown on the tree. They are
+// coloured by how they ended, with how long they took and how many times they
+// ran, and the states it never reached are dimmed.
 type SfnStatesTreeView struct {
 	*tview.TreeView
+	stateNodes map[string]*tview.TreeNode
+	runs       map[string]stateRun
 }
 
 func NewSfnStatesTreeView() *SfnStatesTreeView {
-	var view = &SfnStatesTreeView{TreeView: tview.NewTreeView()}
+	var view = &SfnStatesTreeView{
+		TreeView:   tview.NewTreeView(),
+		stateNodes: map[string]*tview.TreeNode{},
+	}
 
 	view.SetBorder(true).
 		SetTitle("State Machine States").
@@ -58,6 +68,9 @@ func (inst *SfnStatesTreeView) nodeSelected(node *tview.TreeNode) {
 // SetStateMachine shows the states of a described state machine, or a hint if
 // there is none.
 func (inst *SfnStatesTreeView) SetStateMachine(stateMachine *sfn.DescribeStateMachineOutput) {
+	inst.runs = nil
+	inst.stateNodes = map[string]*tview.TreeNode{}
+
 	if stateMachine == nil || stateMachine.Definition == nil {
 		inst.showMessage(noStatesMessage)
 		return
@@ -74,12 +87,75 @@ func (inst *SfnStatesTreeView) SetStateMachine(stateMachine *sfn.DescribeStateMa
 	if workflow.Comment != "" {
 		root.SetText(fmt.Sprintf("%s  %s", aws.ToString(stateMachine.Name), workflow.Comment))
 	}
-	addWorkflowNodes(root, workflow)
+	addWorkflowNodes(root, workflow, inst.stateNodes)
 
 	inst.SetRoot(root)
 	if children := root.GetChildren(); len(children) > 0 {
 		inst.SetCurrentNode(children[0])
 	}
+}
+
+// SetExecution shows what an execution did on the tree, from the states it went
+// through. No states shows the tree as it is without an execution.
+func (inst *SfnStatesTreeView) SetExecution(states []StateDetails) {
+	inst.runs = nil
+	if len(states) > 0 {
+		inst.runs = summariseStates(states)
+	}
+
+	for name, node := range inst.stateNodes {
+		var state = node.GetReference().(*stateNodeRef).state
+		inst.styleStateNode(node, state, name)
+	}
+}
+
+// SelectState moves the cursor to a state, if the tree has it.
+func (inst *SfnStatesTreeView) SelectState(name string) {
+	if node, ok := inst.stateNodes[name]; ok {
+		inst.SetCurrentNode(node)
+	}
+}
+
+func (inst *SfnStatesTreeView) styleStateNode(node *tview.TreeNode, state *aslState, name string) {
+	if inst.runs == nil {
+		node.SetText(stateText(state)).SetColor(stateColour(state.Type))
+		return
+	}
+
+	var run, reached = inst.runs[name]
+	if !reached {
+		node.SetText(stateText(state)).SetColor(tcell.ColorGrey)
+		return
+	}
+
+	node.SetText(stateText(state) + "  " + runSummary(run)).SetColor(outcomeColour(run.Outcome))
+}
+
+func outcomeColour(outcome stateOutcome) tcell.Color {
+	switch outcome {
+	case outcomeSucceeded:
+		return tcell.ColorGreen
+	case outcomeFailed:
+		return tcell.ColorRed
+	case outcomeRunning:
+		return tcell.ColorYellow
+	default:
+		return tcell.ColorGrey
+	}
+}
+
+func runSummary(run stateRun) string {
+	var marker = map[stateOutcome]string{
+		outcomeSucceeded: "✔",
+		outcomeFailed:    "✘",
+		outcomeRunning:   "…",
+	}[run.Outcome]
+
+	var summary = fmt.Sprintf("%s %s", marker, run.Duration.Round(time.Millisecond))
+	if run.Count > 1 {
+		summary += fmt.Sprintf(" ×%d", run.Count)
+	}
+	return summary
 }
 
 func (inst *SfnStatesTreeView) showMessage(message string) {
@@ -116,9 +192,9 @@ func stateText(state *aslState) string {
 }
 
 // addWorkflowNodes adds a node for each state of the workflow below parent.
-// Transitions are linked to the node of the state they lead to once all the
+// Every state node is also added to allStateNodes, by name. Transitions are linked to the node of the state they lead to once all the
 // nodes of the workflow exist.
-func addWorkflowNodes(parent *tview.TreeNode, workflow *aslWorkflow) {
+func addWorkflowNodes(parent *tview.TreeNode, workflow *aslWorkflow, allStateNodes map[string]*tview.TreeNode) {
 	var stateNodes = map[string]*tview.TreeNode{}
 	var transitionNodes = map[string][]*tview.TreeNode{}
 
@@ -128,6 +204,7 @@ func addWorkflowNodes(parent *tview.TreeNode, workflow *aslWorkflow) {
 			SetColor(stateColour(state.Type)).
 			SetExpanded(true)
 		stateNodes[state.Name] = node
+		allStateNodes[state.Name] = node
 		parent.AddChild(node)
 
 		for _, transition := range state.Transitions {
@@ -144,7 +221,7 @@ func addWorkflowNodes(parent *tview.TreeNode, workflow *aslWorkflow) {
 				SetSelectable(false).
 				SetColor(tcell.ColorGrey)
 			node.AddChild(groupNode)
-			addWorkflowNodes(groupNode, group.Workflow)
+			addWorkflowNodes(groupNode, group.Workflow, allStateNodes)
 		}
 	}
 

@@ -304,3 +304,22 @@ func TestStateMachineStep__DecodesLogEntry(t *testing.T) {
 		t.Errorf("step = %+v", step)
 	}
 }
+
+func TestStatesTable__ReportsTheStatesWhenShown(t *testing.T) {
+	var table = newStatesTable(
+		stateEntered(2, types.HistoryEventTypePassStateEntered, 1, "First", "{}"),
+		stateExited(3, types.HistoryEventTypePassStateExited, 2, "First", "{}"),
+	)
+	var names []string
+	table.SetStatesLoadedFunc(func(states []StateDetails) {
+		for _, state := range states {
+			names = append(names, state.Name)
+		}
+	})
+
+	table.reloadFromHistory()
+
+	if len(names) != 1 || names[0] != "First" {
+		t.Errorf("loaded func saw %v, want [First]", names)
+	}
+}

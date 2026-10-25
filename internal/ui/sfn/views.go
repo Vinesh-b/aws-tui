@@ -20,6 +20,7 @@ const (
 	SfnTabNameExecutions       SfnTabName = "Executions"
 	SfnTabNameExecutionSummary SfnTabName = "Summary"
 	SfnTabNameStateIO          SfnTabName = "Input/Output"
+	SfnTabNameStateFlow        SfnTabName = "State Flow"
 )
 
 type SfnDetailsPageView struct {
@@ -39,7 +40,7 @@ func NewSfnDetailsPageView(
 ) *SfnDetailsPageView {
 	var definitionView = NewSfnDefinitionView(serviceViewCtx.AppContext)
 	var statesView = NewSfnStatesTreeView()
-	stateMachineDetailsTable.SetDetailsLoadedFunc(func(stateMachine *sfn.DescribeStateMachineOutput) {
+	stateMachineDetailsTable.AddDetailsLoadedFunc(func(stateMachine *sfn.DescribeStateMachineOutput) {
 		definitionView.SetDefinition(stateMachine)
 		statesView.SetStateMachine(stateMachine)
 	})
@@ -117,6 +118,7 @@ type SfnExecutionDetailsPageView struct {
 	summaryTable      *SfnExecutionSummaryTable
 	detailsTable      *SfnExecutionStatesTable
 	searchInput       *tview.InputField
+	stateFlowView     *SfnStatesTreeView
 	serviceCtx        *core.ServiceContext[awsapi.StateMachineApi]
 }
 
@@ -134,8 +136,14 @@ func NewSfnExecutionDetailsPage(
 		},
 	}
 
+	var stateFlowView = NewSfnStatesTreeView()
+	stateFlowView.SetTitle("State Flow")
+	executionStates.SetStatesLoadedFunc(stateFlowView.SetExecution)
+
 	var stateSelectionFunc = func(_row, _col int) {
-		executionStateEvents.RefreshExecutionState(executionStates.GetSelectedState())
+		var selectedState = executionStates.GetSelectedState()
+		executionStateEvents.RefreshExecutionState(selectedState)
+		stateFlowView.SelectState(selectedState.Name)
 	}
 
 	executionStates.SetSelectedFunc(stateSelectionFunc)
@@ -159,6 +167,7 @@ func NewSfnExecutionDetailsPage(
 
 	var tabView = core.NewTabViewHorizontal(serviceViewCtx.AppContext).
 		AddTab(SfnTabNameExecutionSummary, executionSummary, 0, 1, true).
+		AddTab(SfnTabNameStateFlow, stateFlowView, 0, 1, true).
 		AddAndSwitchToTab(SfnTabNameStateIO, inputOutputExpandedView.TextView, 0, 1, true)
 
 	const statesViewSize = 45
@@ -201,6 +210,7 @@ func NewSfnExecutionDetailsPage(
 		selectedExecution: "",
 		summaryTable:      executionSummary,
 		detailsTable:      executionStates,
+		stateFlowView:     stateFlowView,
 		serviceCtx:        serviceViewCtx,
 	}
 	detailsView.initInputCapture()
@@ -209,6 +219,12 @@ func NewSfnExecutionDetailsPage(
 }
 
 func (inst *SfnExecutionDetailsPageView) initInputCapture() {
+}
+
+// SetStateMachine sets the state machine the executions shown are of. The State
+// Flow tab shows the execution on its states.
+func (inst *SfnExecutionDetailsPageView) SetStateMachine(stateMachine *sfn.DescribeStateMachineOutput) {
+	inst.stateFlowView.SetStateMachine(stateMachine)
 }
 
 func NewStepFunctionsHomeView(
@@ -244,6 +260,8 @@ func NewStepFunctionsHomeView(
 		AddPage("Execution Details", SfnExeDetailsView, true, true)
 
 	serviceRootView.InitPageNavigation()
+
+	SfnDetailsView.sfnDetailsTable.AddDetailsLoadedFunc(SfnExeDetailsView.SetStateMachine)
 
 	SfnDetailsView.sfnExecutionsTable.SetSelectedFunc(func(row, column int) {
 		var selectedExecution = SfnDetailsView.

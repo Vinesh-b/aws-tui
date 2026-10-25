@@ -254,13 +254,16 @@ func NewDateTimeInputField(appTheme *AppTheme) *DateTimeInputField {
 	return view
 }
 
+// ValidateInput reads the text as a time in the local time zone, which is the
+// zone SetTextTime writes it in.
 func (inst *DateTimeInputField) ValidateInput() (time.Time, error) {
 	var input = inst.GetText()
-	return time.Parse(inst.layout, input)
+	return time.ParseInLocation(inst.layout, input, time.Local)
 }
 
+// SetTextTime shows a time in the local time zone, whatever zone it is in.
 func (inst *DateTimeInputField) SetTextTime(datetime time.Time) {
-	inst.SetText(datetime.Format(inst.layout))
+	inst.SetText(datetime.In(time.Local).Format(inst.layout))
 }
 
 type OverlayView interface {

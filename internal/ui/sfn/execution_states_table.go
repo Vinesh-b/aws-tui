@@ -44,6 +44,7 @@ type SfnExecutionStatesTable struct {
 	events               []EventDetails
 	selectedExecutionArn string
 	selectedState        StateDetails
+	onStatesLoaded       func([]StateDetails)
 	appCtx               *core.AppContext
 	api                  awsapi.StateMachineApi
 	cwlApi               awsapi.CloudWatchLogsApi
@@ -211,7 +212,17 @@ func (inst *SfnExecutionStatesTable) parseExecutionHistory() []EventDetails {
 	return results
 }
 
+// SetStatesLoadedFunc sets a function called with the states of the execution
+// each time they are shown.
+func (inst *SfnExecutionStatesTable) SetStatesLoadedFunc(handler func([]StateDetails)) {
+	inst.onStatesLoaded = handler
+}
+
 func (inst *SfnExecutionStatesTable) populateTable() {
+	if inst.onStatesLoaded != nil {
+		inst.onStatesLoaded(inst.States)
+	}
+
 	var tableData []core.TableRow
 
 	for _, row := range inst.States {

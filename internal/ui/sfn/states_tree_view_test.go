@@ -6,6 +6,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -94,5 +95,92 @@ func TestStatesTreeView__ExplainsADefinitionItCannotShow(t *testing.T) {
 
 	if got := view.GetRoot().GetText(); !strings.HasPrefix(got, "Cannot show the states") {
 		t.Errorf("root = %q, want an explanation", got)
+	}
+}
+
+func stateNode(t *testing.T, view *SfnStatesTreeView, name string) *tview.TreeNode {
+	t.Helper()
+	var node, ok = view.stateNodes[name]
+	if !ok {
+		t.Fatalf("no node for state %q", name)
+	}
+	return node
+}
+
+func newExecutionTree(t *testing.T) *SfnStatesTreeView {
+	t.Helper()
+	var view = NewSfnStatesTreeView()
+	view.SetStateMachine(describedWith(orderDefinition))
+	view.SetExecution([]StateDetails{
+		stateWith("Validate", SfnStateTypePass, 1, "PassStateEntered", "PassStateExited"),
+		stateWith("Route", SfnStateTypeChoice, 0, "ChoiceStateEntered", "ChoiceStateExited"),
+		stateWith("Charge", SfnStateTypeTask, 2, "TaskStateEntered", "TaskFailed"),
+	})
+	return view
+}
+
+func TestStatesTreeView__ExecutionColoursStatesByOutcome(t *testing.T) {
+	var view = newExecutionTree(t)
+
+	for name, want := range map[string]tcell.Color{
+		"Validate": tcell.ColorGreen,
+		"Charge":   tcell.ColorRed,
+		"Done":     tcell.ColorGrey,
+		"Unused":   tcell.ColorGrey,
+	} {
+		if got := stateNode(t, view, name).GetColor(); got != want {
+			t.Errorf("%s colour = %v, want %v", name, got, want)
+		}
+	}
+}
+
+func TestStatesTreeView__ExecutionShowsDurationOnReachedStatesOnly(t *testing.T) {
+	var view = newExecutionTree(t)
+
+	if got := stateNode(t, view, "Validate").GetText(); !strings.HasSuffix(got, "✔ 1s") {
+		t.Errorf("validate text = %q, want it to end with the outcome and duration", got)
+	}
+	if got := stateNode(t, view, "Done").GetText(); strings.Contains(got, "✔") || strings.Contains(got, "✘") {
+		t.Errorf("done was not reached but shows %q", got)
+	}
+}
+
+func TestStatesTreeView__NoExecutionStatesRestoresTheTree(t *testing.T) {
+	var view = newExecutionTree(t)
+
+	view.SetExecution(nil)
+
+	if got := stateNode(t, view, "Failed").GetColor(); got != tcell.ColorRed {
+		t.Errorf("failed colour = %v, want its own red", got)
+	}
+	if got := stateNode(t, view, "Validate").GetText(); strings.Contains(got, "✔") {
+		t.Errorf("validate still shows an outcome: %q", got)
+	}
+	if got := stateNode(t, view, "Done").GetColor(); got != tcell.ColorGreen {
+		t.Errorf("done colour = %v, want the succeed green", got)
+	}
+}
+
+func TestStatesTreeView__NewStateMachineDropsTheExecution(t *testing.T) {
+	var view = newExecutionTree(t)
+
+	view.SetStateMachine(describedWith(orderDefinition))
+
+	if got := stateNode(t, view, "Validate").GetText(); strings.Contains(got, "✔") {
+		t.Errorf("validate still shows the old execution: %q", got)
+	}
+}
+
+func TestStatesTreeView__SelectStateMovesTheCursor(t *testing.T) {
+	var view = newExecutionTree(t)
+
+	view.SelectState("Charge")
+	if got := view.GetCurrentNode().GetText(); !strings.HasPrefix(got, "Charge") {
+		t.Errorf("cursor on %q, want Charge", got)
+	}
+
+	view.SelectState("Nope")
+	if got := view.GetCurrentNode().GetText(); !strings.HasPrefix(got, "Charge") {
+		t.Errorf("cursor moved to %q for an unknown state", got)
 	}
 }

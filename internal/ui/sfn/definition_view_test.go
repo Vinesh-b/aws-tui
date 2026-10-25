@@ -69,7 +69,7 @@ func TestDefinitionView__ClearingTheStateMachineShowsTheHintAgain(t *testing.T) 
 func TestDetailsTable__ReportsTheDescribedStateMachineWhenShown(t *testing.T) {
 	var table = newDetailsTable()
 	var got = "never called"
-	table.SetDetailsLoadedFunc(func(machine *sfn.DescribeStateMachineOutput) {
+	table.AddDetailsLoadedFunc(func(machine *sfn.DescribeStateMachineOutput) {
 		got = aws.ToString(machine.Name)
 	})
 	table.data = newStateMachineDescription()
