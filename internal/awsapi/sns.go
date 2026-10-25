@@ -23,6 +23,8 @@ type SnsApi interface {
 	// Unsubscribe deletes the subscription. Subscriptions that are still
 	// pending confirmation have no ARN to delete by.
 	Unsubscribe(ctx context.Context, subscriptionArn string) error
+	// DeleteTopic deletes the topic and all of its subscriptions.
+	DeleteTopic(ctx context.Context, topicArn string) error
 	// Publish sends a message to the topic. The subject, group and
 	// deduplication IDs and message attributes are optional, and are only sent
 	// when they are not empty.
@@ -189,6 +191,17 @@ func (inst *snsApi) Unsubscribe(ctx context.Context, subscriptionArn string) err
 
 	var _, err = GetAwsApiClients().sns.Unsubscribe(ctx, &sns.UnsubscribeInput{
 		SubscriptionArn: &subscriptionArn,
+	})
+	return inst.logErr(err)
+}
+
+func (inst *snsApi) DeleteTopic(ctx context.Context, topicArn string) error {
+	if err := requireArg("topicArn", topicArn); err != nil {
+		return err
+	}
+
+	var _, err = GetAwsApiClients().sns.DeleteTopic(ctx, &sns.DeleteTopicInput{
+		TopicArn: &topicArn,
 	})
 	return inst.logErr(err)
 }

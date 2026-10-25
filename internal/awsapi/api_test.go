@@ -327,6 +327,9 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 		{"sns unsubscribe pending", func() error {
 			return NewSnsApi(logger).Unsubscribe(context.Background(), "PendingConfirmation")
 		}, "a subscription that is pending confirmation can't be deleted"},
+		{"sns delete topic without arn", func() error {
+			return NewSnsApi(logger).DeleteTopic(context.Background(), "")
+		}, "topicArn not set"},
 		{"sns publish without topic", func() error {
 			var _, err = NewSnsApi(logger).Publish(context.Background(), "", "hi", "", "", "", nil)
 			return err
@@ -815,6 +818,36 @@ func TestSnsUnsubscribeReportsServiceErrors(t *testing.T) {
 	})
 
 	var err = NewSnsApi(testLogger()).Unsubscribe(context.Background(), "arn:aws:sns:us-east-1:1:orders:abc")
+
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+}
+
+func TestSnsDeleteTopicDeletesTheTopic(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "text/xml", `<DeleteTopicResponse><ResponseMetadata><RequestId>r</RequestId></ResponseMetadata></DeleteTopicResponse>`)
+	})
+
+	var err = NewSnsApi(testLogger()).DeleteTopic(context.Background(), "arn:aws:sns:us-east-1:1:orders")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var body = fake.requests[0]
+	for _, want := range []string{"Action=DeleteTopic", "TopicArn=arn%3Aaws%3Asns%3Aus-east-1%3A1%3Aorders"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("request %s does not contain %s", body, want)
+		}
+	}
+}
+
+func TestSnsDeleteTopicReportsServiceErrors(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(403, "text/xml", `<ErrorResponse><Error><Type>Sender</Type><Code>AuthorizationError</Code><Message>denied</Message></Error></ErrorResponse>`)
+	})
+
+	var err = NewSnsApi(testLogger()).DeleteTopic(context.Background(), "arn:aws:sns:us-east-1:1:orders")
 
 	if err == nil {
 		t.Fatal("expected an error")
