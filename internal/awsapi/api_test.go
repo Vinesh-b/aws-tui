@@ -296,6 +296,14 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			var _, err = NewEventBridgeApi(logger).PutEvent(context.Background(), "bus", "src", "type", "", nil)
 			return err
 		}, "event detail not set"},
+		{"sns topic attributes", func() error {
+			var _, err = NewSnsApi(logger).GetTopicAttributes(context.Background(), "")
+			return err
+		}, "topicArn not set"},
+		{"sns topic tags", func() error {
+			var _, err = NewSnsApi(logger).ListTopicTags(context.Background(), "")
+			return err
+		}, "topicArn not set"},
 		{"s3 list objects", func() error {
 			var _, _, err = s3Api.ListObjects(context.Background(), "", "", true)
 			return err
@@ -552,6 +560,66 @@ func TestEventBridgePutEventReportsServiceErrors(t *testing.T) {
 	})
 
 	var _, err = NewEventBridgeApi(testLogger()).PutEvent(context.Background(), "bus", "src", "type", "{}", nil)
+
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+}
+
+func TestSnsListTopicsSortedAcrossPages(t *testing.T) {
+	useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+		if call == 1 {
+			return response(200, "text/xml", `<ListTopicsResponse><ListTopicsResult><Topics><member><TopicArn>arn:aws:sns:us-east-1:1:zeta</TopicArn></member></Topics><NextToken>t</NextToken></ListTopicsResult></ListTopicsResponse>`)
+		}
+		return response(200, "text/xml", `<ListTopicsResponse><ListTopicsResult><Topics><member><TopicArn>arn:aws:sns:us-east-1:1:alpha</TopicArn></member></Topics></ListTopicsResult></ListTopicsResponse>`)
+	})
+
+	var topics, err = NewSnsApi(testLogger()).ListTopics(context.Background(), true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(topics) != 2 || !strings.HasSuffix(topics[0], ":alpha") || !strings.HasSuffix(topics[1], ":zeta") {
+		t.Fatalf("unexpected topics %v", topics)
+	}
+}
+
+func TestSnsGetTopicAttributes(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "text/xml", `<GetTopicAttributesResponse><GetTopicAttributesResult><Attributes><entry><key>DisplayName</key><value>Orders</value></entry></Attributes></GetTopicAttributesResult></GetTopicAttributesResponse>`)
+	})
+
+	var attributes, err = NewSnsApi(testLogger()).GetTopicAttributes(context.Background(), "arn:aws:sns:us-east-1:1:orders")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if attributes["DisplayName"] != "Orders" {
+		t.Fatalf("unexpected attributes %v", attributes)
+	}
+}
+
+func TestSnsListTopicTags(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "text/xml", `<ListTagsForResourceResponse><ListTagsForResourceResult><Tags><member><Key>env</Key><Value>prod</Value></member></Tags></ListTagsForResourceResult></ListTagsForResourceResponse>`)
+	})
+
+	var tags, err = NewSnsApi(testLogger()).ListTopicTags(context.Background(), "arn:aws:sns:us-east-1:1:orders")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(tags) != 1 || aws.ToString(tags[0].Key) != "env" || aws.ToString(tags[0].Value) != "prod" {
+		t.Fatalf("unexpected tags %v", tags)
+	}
+}
+
+func TestSnsGetTopicAttributesReportsServiceErrors(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(404, "text/xml", `<ErrorResponse><Error><Type>Sender</Type><Code>NotFound</Code><Message>gone</Message></Error></ErrorResponse>`)
+	})
+
+	var _, err = NewSnsApi(testLogger()).GetTopicAttributes(context.Background(), "arn:aws:sns:us-east-1:1:orders")
 
 	if err == nil {
 		t.Fatal("expected an error")
