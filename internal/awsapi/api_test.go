@@ -994,3 +994,58 @@ func TestDynamoDBUpdateItemReportsServiceErrors(t *testing.T) {
 		t.Fatalf("error = %v, want the conditional check failure", err)
 	}
 }
+
+func TestDynamoDBDeleteItemDeletesTheItemWithTheKey(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return jsonResponse(`{}`)
+	})
+
+	var err = NewDynamoDBApi(testLogger()).DeleteItem(
+		context.Background(), "orders", map[string]any{"id": "a1", "ts": json.Number("5")},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var body = fake.requests[0]
+	for _, want := range []string{
+		`"TableName":"orders"`, `"id":{"S":"a1"}`, `"ts":{"N":"5"}`,
+		`"ConditionExpression":"attribute_exists (#0)"`, `"ExpressionAttributeNames":{"#0":"id"}`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("request %s does not contain %s", body, want)
+		}
+	}
+}
+
+func TestDynamoDBDeleteItemRejectsInvalidArguments(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return jsonResponse(`{}`)
+	})
+	var api = NewDynamoDBApi(testLogger())
+
+	for name, err := range map[string]error{
+		"no table":    api.DeleteItem(context.Background(), "", map[string]any{"id": "a1"}),
+		"no key":      api.DeleteItem(context.Background(), "orders", nil),
+		"dotted name": api.DeleteItem(context.Background(), "orders", map[string]any{"a.b": "x"}),
+	} {
+		if err == nil {
+			t.Errorf("%s: expected an error", name)
+		}
+	}
+	if fake.calls() != 0 {
+		t.Errorf("expected no requests but got %d", fake.calls())
+	}
+}
+
+func TestDynamoDBDeleteItemReportsAMissingItem(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(400, "application/x-amz-json-1.0", `{"__type":"com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException","message":"The conditional request failed"}`)
+	})
+
+	var err = NewDynamoDBApi(testLogger()).DeleteItem(context.Background(), "orders", map[string]any{"id": "a1"})
+
+	if err == nil || !strings.Contains(err.Error(), "ConditionalCheckFailed") {
+		t.Fatalf("error = %v, want the conditional check failure", err)
+	}
+}

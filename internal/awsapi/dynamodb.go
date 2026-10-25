@@ -42,6 +42,9 @@ type DynamoDBApi interface {
 	UpdateItem(
 		ctx context.Context, tableName string, key map[string]any, set map[string]any, remove []string,
 	) error
+	// DeleteItem deletes the item with the key. It fails if there is no such
+	// item, so a key that doesn't match can't look like a delete that worked.
+	DeleteItem(ctx context.Context, tableName string, key map[string]any) error
 }
 
 type dynamoDBApi struct {
@@ -251,11 +254,8 @@ func (inst *dynamoDBApi) UpdateItem(
 		return fmt.Errorf("no attributes to update")
 	}
 
-	var names = append(sortedKeys(set), remove...)
-	for _, name := range names {
-		if strings.ContainsAny(name, ".[]") {
-			return fmt.Errorf("attribute %q can't be updated as its name has '.', '[' or ']'", name)
-		}
+	if err := rejectPathCharacters(append(sortedKeys(set), remove...)); err != nil {
+		return err
 	}
 
 	var update expression.UpdateBuilder
@@ -296,4 +296,46 @@ func sortedKeys[V any](m map[string]V) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+// rejectPathCharacters fails for names the expression builder would read as a
+// path to a nested attribute.
+func rejectPathCharacters(names []string) error {
+	for _, name := range names {
+		if strings.ContainsAny(name, ".[]") {
+			return fmt.Errorf("attribute %q can't be used as its name has '.', '[' or ']'", name)
+		}
+	}
+	return nil
+}
+
+func (inst *dynamoDBApi) DeleteItem(ctx context.Context, tableName string, key map[string]any) error {
+	if err := requireArg("table name", tableName); err != nil {
+		return err
+	}
+	if len(key) == 0 {
+		return fmt.Errorf("item key not set")
+	}
+	if err := rejectPathCharacters(sortedKeys(key)); err != nil {
+		return err
+	}
+
+	var condition = expression.AttributeExists(expression.Name(sortedKeys(key)[0]))
+	var built, err = expression.NewBuilder().WithCondition(condition).Build()
+	if err != nil {
+		return inst.logErr(err)
+	}
+
+	var keyAttributes map[string]types.AttributeValue
+	if keyAttributes, err = attributevalue.MarshalMap(key); err != nil {
+		return inst.logErr(err)
+	}
+
+	_, err = GetAwsApiClients().dynamodb.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+		TableName:                aws.String(tableName),
+		Key:                      keyAttributes,
+		ConditionExpression:      built.Condition(),
+		ExpressionAttributeNames: built.Names(),
+	})
+	return inst.logErr(err)
 }
