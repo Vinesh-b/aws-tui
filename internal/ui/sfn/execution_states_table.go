@@ -389,6 +389,7 @@ func historyEventFromStep(stateMachineStep StateMachineStep) types.HistoryEvent 
 		types.HistoryEventTypeParallelStateEntered,
 		types.HistoryEventTypeMapStateEntered,
 		types.HistoryEventTypeChoiceStateEntered,
+		types.HistoryEventTypeWaitStateEntered,
 		types.HistoryEventTypeSucceedStateEntered,
 		types.HistoryEventTypeFailStateEntered:
 
@@ -403,6 +404,7 @@ func historyEventFromStep(stateMachineStep StateMachineStep) types.HistoryEvent 
 		types.HistoryEventTypeParallelStateExited,
 		types.HistoryEventTypeMapStateExited,
 		types.HistoryEventTypeChoiceStateExited,
+		types.HistoryEventTypeWaitStateExited,
 		types.HistoryEventTypeSucceedStateExited:
 
 		event.StateExitedEventDetails = &types.StateExitedEventDetails{
