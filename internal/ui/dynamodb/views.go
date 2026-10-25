@@ -164,6 +164,7 @@ func NewDynamoDBItemsPageView(
 	}
 
 	addItemView.SetOnItemAdded(view.LoadTableItems)
+	addItemView.SetSelectedItemFunc(itemsTable.GetSelectedItem)
 
 	itemsTable.ErrorMessageCallback = func(text string, a ...any) {
 		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)

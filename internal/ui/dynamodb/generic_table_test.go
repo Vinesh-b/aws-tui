@@ -103,3 +103,34 @@ func TestGenericTable__SelectingRowRemembersIt(t *testing.T) {
 		t.Errorf("last selected row = %d, want 2", table.lastSelectedRowIdx)
 	}
 }
+
+func TestGenericTable__SelectedItemHasAllAttributes(t *testing.T) {
+	var table = newResultsTable(
+		map[string]any{"id": "u1", "name": "alice"},
+		map[string]any{"id": "u2", "name": "bob"},
+	)
+	table.tableDescription = newTableDescription("users", hashKey("id"))
+	table.populateDynamoDBTable(false)
+
+	table.GetTable().Select(2, 1)
+	var item, ok = table.GetSelectedItem()
+
+	if !ok || item["id"] != "u2" || item["name"] != "bob" {
+		t.Errorf("GetSelectedItem = %v, %v, want the second item", item, ok)
+	}
+}
+
+func TestGenericTable__NoSelectedItemWhenOnlyHeadingsOrEmpty(t *testing.T) {
+	var table = newResultsTable()
+	if _, ok := table.GetSelectedItem(); ok {
+		t.Error("expected no item from an empty table")
+	}
+
+	table = newResultsTable(map[string]any{"id": "u1"})
+	table.tableDescription = newTableDescription("users", hashKey("id"))
+	table.populateDynamoDBTable(false)
+	table.GetTable().Select(0, 0)
+	if _, ok := table.GetSelectedItem(); ok {
+		t.Error("expected no item for the heading row")
+	}
+}

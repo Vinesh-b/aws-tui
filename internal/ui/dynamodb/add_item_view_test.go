@@ -147,3 +147,34 @@ func TestItemsPageView__HasAnAddItemTab(t *testing.T) {
 		t.Fatalf("Expected a %q tab", DdbTabNameAddItem)
 	}
 }
+
+func TestAddItemView__CopiesTheSelectedItemAsATemplate(t *testing.T) {
+	var view = newAddItemView(t, &fakePutItemApi{})
+	view.SetSelectedItemFunc(func() (map[string]any, bool) {
+		return map[string]any{"id": "u1", "age": float64(30)}, true
+	})
+	view.itemInput.SetText("old", false)
+
+	uitest.OnUI(t, view.serviceCtx.App, view.CopySelectedItem)
+
+	var item, err = decodeItemJson(view.itemInput.GetText())
+	if err != nil || item["id"] != "u1" || item["age"] != json.Number("30") {
+		t.Fatalf("Unexpected editor contents %q (%v)", view.itemInput.GetText(), err)
+	}
+}
+
+func TestAddItemView__CopyWithoutSelectedItemReportsError(t *testing.T) {
+	var view = newAddItemView(t, &fakePutItemApi{})
+	var callback, received = uitest.CaptureErrors()
+	view.itemInput.ErrorMessageCallback = callback
+	view.itemInput.SetText("keep", false)
+
+	uitest.OnUI(t, view.serviceCtx.App, view.CopySelectedItem)
+
+	if message := uitest.AwaitError(t, received); !strings.Contains(message, "No item selected") {
+		t.Fatalf("Unexpected error %q", message)
+	}
+	if view.itemInput.GetText() != "keep" {
+		t.Fatalf("Expected the editor to be untouched")
+	}
+}

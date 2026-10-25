@@ -16,12 +16,15 @@ type DynamoDBAddItemPageView struct {
 	*core.ServicePageView
 	selectedTable string
 	addButton     *tview.Button
+	copyButton    *tview.Button
 	formatButton  *tview.Button
 	itemInput     *core.TextArea
 	resultOutput  *core.SearchableTextView
 	serviceCtx    *core.ServiceContext[awsapi.DynamoDBApi]
 	// onItemAdded is called on the UI goroutine after an item was written.
 	onItemAdded func(tableName string)
+	// selectedItem returns the item selected in the items table, if any.
+	selectedItem func() (map[string]any, bool)
 }
 
 func NewDynamoDBAddItemPageView(
@@ -30,10 +33,12 @@ func NewDynamoDBAddItemPageView(
 	var itemInput = core.NewTextArea("Item", serviceCtx.Theme)
 	var resultOutput = core.NewSearchableTextView("Result", serviceCtx.AppContext)
 	var addButton = tview.NewButton("Add Item")
+	var copyButton = tview.NewButton("Copy Selected Item")
 	var formatButton = tview.NewButton("Format Item")
 	var buttonsView = tview.NewFlex().
 		SetDirection(tview.FlexColumn).
 		AddItem(addButton, 0, 1, false).
+		AddItem(copyButton, 0, 1, false).
 		AddItem(formatButton, 0, 1, false)
 	buttonsView.SetBorder(true)
 
@@ -60,21 +65,24 @@ func NewDynamoDBAddItemPageView(
 	serviceView.InitViewNavigation(
 		[][]core.View{
 			{itemInput, resultOutput},
-			{addButton, formatButton},
+			{addButton, copyButton, formatButton},
 		},
 	)
 
 	var view = &DynamoDBAddItemPageView{
 		ServicePageView: serviceView,
 		addButton:       addButton,
+		copyButton:      copyButton,
 		formatButton:    formatButton,
 		itemInput:       itemInput,
 		resultOutput:    resultOutput,
 		serviceCtx:      serviceCtx,
 		onItemAdded:     func(string) {},
+		selectedItem:    func() (map[string]any, bool) { return nil, false },
 	}
 
 	addButton.SetSelectedFunc(func() { view.AddItem() })
+	copyButton.SetSelectedFunc(func() { view.CopySelectedItem() })
 	formatButton.SetSelectedFunc(func() { view.FormatItem() })
 
 	return view
@@ -87,6 +95,29 @@ func (inst *DynamoDBAddItemPageView) SetSelectedTable(tableName string) {
 
 func (inst *DynamoDBAddItemPageView) SetOnItemAdded(handler func(tableName string)) {
 	inst.onItemAdded = handler
+}
+
+// SetSelectedItemFunc sets how the item selected in the items table is found,
+// for use as a template.
+func (inst *DynamoDBAddItemPageView) SetSelectedItemFunc(handler func() (map[string]any, bool)) {
+	inst.selectedItem = handler
+}
+
+// CopySelectedItem replaces the contents of the editor with the selected item
+// so it can be edited into a new one.
+func (inst *DynamoDBAddItemPageView) CopySelectedItem() {
+	var item, ok = inst.selectedItem()
+	if !ok {
+		inst.itemInput.ErrorMessageCallback("No item selected")
+		return
+	}
+
+	var formatted, err = json.MarshalIndent(item, "", "  ")
+	if err != nil {
+		inst.itemInput.ErrorMessageCallback("%s", err.Error())
+		return
+	}
+	inst.itemInput.SetText(string(formatted), false)
 }
 
 // decodeItemJson reads a JSON object, keeping numbers as written so large

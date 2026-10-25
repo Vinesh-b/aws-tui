@@ -239,6 +239,18 @@ func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expre
 	})
 }
 
+// GetSelectedItem returns all the attributes of the item in the selected row.
+func (inst *DynamoDBGenericTable) GetSelectedItem() (map[string]any, bool) {
+	var row, _ = inst.table.GetSelection()
+	if row < 1 || row >= inst.table.GetRowCount() {
+		return nil, false
+	}
+
+	// The first column is the partition key, which holds the full item
+	var item = inst.GetPrivateData(row, 0)
+	return item, len(item) > 0
+}
+
 func (inst *DynamoDBGenericTable) SetSelectedTable(tableName string) {
 	inst.queryInputView.Input.SetSelectedTable(tableName)
 	inst.scanInputView.Input.SetSelectedTable(tableName)
