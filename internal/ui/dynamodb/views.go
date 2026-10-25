@@ -18,6 +18,7 @@ type DdbTabName = string
 const (
 	DdbTabNameDetails DdbTabName = "Details"
 	DdbTabNameTags    DdbTabName = "Tags"
+	DdbTabNameMessage DdbTabName = "Message"
 )
 
 type DynamoDBDetailsPageView struct {
@@ -122,6 +123,7 @@ func (inst *DynamoDBDetailsPageView) initInputCapture() {
 type DynamoDBItemsPageView struct {
 	*core.ServicePageView
 	ItemsTable *DynamoDBGenericTable
+	TabView    *core.TabViewHorizontal
 	serviceCtx *core.ServiceContext[awsapi.DynamoDBApi]
 }
 
@@ -134,11 +136,14 @@ func NewDynamoDBItemsPageView(
 	)
 	expandItemView.SetJsonHighlighting(true)
 
-	const expandItemViewSize = 3
+	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
+		AddAndSwitchToTab(DdbTabNameMessage, expandItemView, 0, 1, true)
+
+	const tabViewSize = 3
 	const itemsTableSize = 7
 
 	var mainPage = core.NewResizableView(
-		expandItemView, expandItemViewSize,
+		tabView, tabViewSize,
 		itemsTable, itemsTableSize,
 		tview.FlexRow,
 	)
@@ -148,6 +153,7 @@ func NewDynamoDBItemsPageView(
 	var view = &DynamoDBItemsPageView{
 		ServicePageView: serviceView,
 		ItemsTable:      itemsTable,
+		TabView:         tabView,
 		serviceCtx:      serviceCtx,
 	}
 
@@ -157,7 +163,7 @@ func NewDynamoDBItemsPageView(
 
 	view.InitViewNavigation(
 		[][]core.View{
-			{expandItemView},
+			{tabView},
 			{itemsTable},
 		},
 	)
