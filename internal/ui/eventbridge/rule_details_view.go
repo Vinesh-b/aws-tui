@@ -78,7 +78,6 @@ type RulesTabView struct {
 	RulesTable *RulesTable
 	JsonView   *core.JsonTextView[RuleDetail]
 	serviceCtx *core.ServiceContext[awsapi.EventBridgeApi]
-	busArn     string
 }
 
 func NewRulesTabView(
@@ -107,40 +106,15 @@ func NewRulesTabView(
 }
 
 func (inst *RulesTabView) RefreshRules(busArn string) {
-	inst.busArn = busArn
 	inst.JsonView.TextView.SetText("", false)
 	inst.RulesTable.RefreshRules(busArn)
 }
 
 func (inst *RulesTabView) RefreshRuleDetail() {
-	var rule = inst.RulesTable.GetSelectedRule()
-	var busArn = inst.busArn
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
-	var targets []types.Target
-
-	dataLoader.AsyncLoadData(func() {
-		if len(aws.ToString(rule.Name)) == 0 {
-			return
-		}
-
-		var err error
-		targets, err = inst.serviceCtx.Api.ListTargetsByRule(
-			inst.serviceCtx.Ctx, true, busArn, aws.ToString(rule.Name),
-		)
-		if err != nil {
-			inst.RulesTable.ErrorMessageCallback("%s", err.Error())
-		}
-	})
-
-	dataLoader.AsyncUpdateView(inst.JsonView.TextView, func() {
-		var selected = inst.RulesTable.GetSelectedRule()
-		if aws.ToString(selected.Name) != aws.ToString(rule.Name) {
-			return
-		}
-		if len(aws.ToString(rule.Name)) == 0 {
-			inst.JsonView.TextView.SetText("", false)
-			return
-		}
-		inst.JsonView.SetText(newRuleDetail(rule, targets))
-	})
+	var detail, ok = inst.RulesTable.GetSelectedRuleDetail()
+	if !ok {
+		inst.JsonView.TextView.SetText("", false)
+		return
+	}
+	inst.JsonView.SetText(detail)
 }

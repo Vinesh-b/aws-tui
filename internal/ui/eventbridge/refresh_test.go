@@ -3,6 +3,7 @@ package eventbridge
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 
 	"aws-tui/internal/awsapi"
@@ -19,6 +20,9 @@ type fakeEventBridgeApi struct {
 	targets    []types.Target
 	err        error
 	targetsErr error
+	// Per rule targets; falls back to targets when the rule is not present
+	targetsByRule map[string][]types.Target
+	targetCalls   atomic.Int32
 }
 
 func (f *fakeEventBridgeApi) ListEventBuses(ctx context.Context, force bool) ([]types.EventBus, error) {
@@ -32,6 +36,10 @@ func (f *fakeEventBridgeApi) ListRules(ctx context.Context, force bool, busArn s
 func (f *fakeEventBridgeApi) ListTargetsByRule(
 	ctx context.Context, force bool, busArn string, ruleName string,
 ) ([]types.Target, error) {
+	f.targetCalls.Add(1)
+	if targets, ok := f.targetsByRule[ruleName]; ok {
+		return targets, f.targetsErr
+	}
 	return f.targets, f.targetsErr
 }
 

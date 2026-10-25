@@ -185,3 +185,63 @@ func TestRulesTabView__NoRulesLeavesJsonViewEmpty(t *testing.T) {
 		return view.RulesTable.GetTable().GetRowCount() == 1 && view.JsonView.TextView.GetText() == ""
 	})
 }
+
+func newLoadedRulesTabView(t *testing.T, api *fakeEventBridgeApi) *RulesTabView {
+	var view = newRunningRulesTabView(t, api)
+	view.RefreshRules("arn:aws:events:us-east-1:123456789012:event-bus/orders")
+	uitest.Eventually(t, view.serviceCtx.App, func() bool {
+		return view.RulesTable.GetTable().GetRowCount() == len(api.rules)+1 &&
+			view.JsonView.TextView.GetText() != ""
+	})
+	return view
+}
+
+func TestRulesTabView__RefreshPreloadsTargetsForEveryRule(t *testing.T) {
+	var api = &fakeEventBridgeApi{rules: []types.Rule{newRule("orders"), newRule("billing"), newRule("audit")}}
+
+	newLoadedRulesTabView(t, api)
+
+	if got := api.targetCalls.Load(); got != 3 {
+		t.Errorf("target calls = %d, want 3", got)
+	}
+}
+
+func TestRulesTabView__ChangingRowShowsPreloadedDetailWithoutApiCalls(t *testing.T) {
+	var api = &fakeEventBridgeApi{
+		rules: []types.Rule{newRule("orders"), newRule("billing")},
+		targetsByRule: map[string][]types.Target{
+			"orders":  {newTarget("orders-handler")},
+			"billing": {newTarget("billing-handler")},
+		},
+	}
+	var view = newLoadedRulesTabView(t, api)
+	var callsAfterLoad = api.targetCalls.Load()
+
+	var text string
+	uitest.OnUI(t, view.serviceCtx.App, func() {
+		view.RulesTable.Select(2, 0)
+		text = view.JsonView.TextView.GetText()
+	})
+
+	if !strings.Contains(text, "billing.service") || !strings.Contains(text, "function:billing-handler") {
+		t.Errorf("unexpected detail: %s", text)
+	}
+	if got := api.targetCalls.Load(); got != callsAfterLoad {
+		t.Errorf("target calls = %d, want %d", got, callsAfterLoad)
+	}
+}
+
+func TestRulesTable__SelectionHandlerOnlyCalledOnRowChange(t *testing.T) {
+	var table = newPopulatedRulesTable(newRule("orders"), newRule("billing"))
+	var calls = 0
+	table.SetSelectionChangedFunc(func(row, column int) { calls++ })
+
+	table.Select(2, 0)
+	table.Select(2, 1)
+	table.Select(2, 0)
+	table.Select(1, 0)
+
+	if calls != 2 {
+		t.Errorf("handler calls = %d, want 2", calls)
+	}
+}
