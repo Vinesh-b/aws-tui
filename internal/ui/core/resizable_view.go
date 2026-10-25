@@ -22,7 +22,7 @@ func NewResizableView(
 		view1:           view1,
 		view1Defaultlen: view1Len,
 		view2:           view2,
-		view2Defaultlen: view1Len,
+		view2Defaultlen: view2Len,
 		direction:       direction,
 	}
 	view.SetDirection(direction).
