@@ -134,11 +134,16 @@ func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppConte
 		AddRuneToggleOverlay("DOWNLOAD", view.SaveFileView, APP_KEY_BINDINGS.SaveTable, false)
 
 	view.SaveFileView.Input.SetOnSaveFunc(func(filename string) {
-		if err := view.DumpTableToCsv(filename); err != nil {
-			view.SaveFileView.Input.SetStatusMessage(err.Error())
-		} else {
-			view.SaveFileView.Input.SetStatusMessage("File Saved")
-		}
+		var rows = view.snapshotRows()
+		go func() {
+			var message = "File Saved"
+			if err := writeCsvFile(filename, rows); err != nil {
+				message = err.Error()
+			}
+			appCtx.App.QueueUpdateDraw(func() {
+				view.SaveFileView.Input.SetStatusMessage(message)
+			})
+		}()
 	})
 
 	view.SaveFileView.Input.SetOnCloseFunc(func() {
@@ -378,7 +383,22 @@ func escapeCsvFormula(text string) string {
 	return text
 }
 
-func (inst *SelectableTable[T]) DumpTableToCsv(filename string) (err error) {
+// snapshotRows copies the displayed cell text so the table can be written
+// to file off the UI goroutine.
+func (inst *SelectableTable[T]) snapshotRows() [][]string {
+	var rows = [][]string{}
+	for r := range inst.table.GetRowCount() {
+		var rowdata = []string{}
+		for c := range inst.table.GetColumnCount() {
+			var text = GetCellText[T](inst.table.GetCell(r, c))
+			rowdata = append(rowdata, escapeCsvFormula(text))
+		}
+		rows = append(rows, rowdata)
+	}
+	return rows
+}
+
+func writeCsvFile(filename string, rows [][]string) (err error) {
 	filename = path.Clean(filename)
 	var file *os.File
 	file, err = os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
@@ -395,19 +415,14 @@ func (inst *SelectableTable[T]) DumpTableToCsv(filename string) (err error) {
 	}()
 
 	var csvWriter = csv.NewWriter(file)
-	for r := range inst.table.GetRowCount() {
-		var rowdata = []string{}
-		for c := range inst.table.GetColumnCount() {
-			var text = GetCellText[T](inst.table.GetCell(r, c))
-			rowdata = append(rowdata, escapeCsvFormula(text))
-		}
-		if err = csvWriter.Write(rowdata); err != nil {
-			return err
-		}
+	if err = csvWriter.WriteAll(rows); err != nil {
+		return err
 	}
-
-	csvWriter.Flush()
 	return csvWriter.Error()
+}
+
+func (inst *SelectableTable[T]) DumpTableToCsv(filename string) error {
+	return writeCsvFile(filename, inst.snapshotRows())
 }
 
 func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
