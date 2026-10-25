@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -287,5 +288,69 @@ func TestFirstPollDelay__IsImmediateOnlyWhenPollingAtStart(t *testing.T) {
 	appCtx.PollSessionAtStart = true
 	if got := firstPollDelay(appCtx); got != 0 {
 		t.Errorf("delay = %s, want no delay when polling at start", got)
+	}
+}
+
+// notifyApiReset calls the listeners as ResetApiClients does, without
+// replacing the global api clients the other tests use
+func notifyApiReset(appCtx *AppContext) {
+	for _, listener := range slices.Clone(appCtx.apiResetListeners) {
+		(*listener)()
+	}
+}
+
+func TestSessionProfileName__PickedProfileIsShownOverEnvironment(t *testing.T) {
+	t.Setenv("AWS_PROFILE", "from-env")
+
+	if got := sessionProfileName("picked"); got != "picked" {
+		t.Errorf("profile = %q, want %q", got, "picked")
+	}
+	if got := sessionProfileName(""); got != "from-env" {
+		t.Errorf("profile = %q, want %q", got, "from-env")
+	}
+
+	t.Setenv("AWS_PROFILE", "")
+	if got := sessionProfileName(""); got != "unset" {
+		t.Errorf("profile = %q, want %q", got, "unset")
+	}
+}
+
+func TestPaginatorView__ApiResetClearsSessionAndDropsStaleUpdates(t *testing.T) {
+	var appCtx = newTestAppContext()
+	// Not polled, as a woken poller would call AWS
+	var view = newPaginatorView("service", appCtx)
+	t.Cleanup(view.Stop)
+	view.session = &sessionInfo{profile: "old"}
+
+	notifyApiReset(appCtx)
+
+	if view.session != nil {
+		t.Errorf("session = %+v, want it cleared until the new profile is polled", view.session)
+	}
+	if got := view.generation.Load(); got != 1 {
+		t.Errorf("generation = %d, want 1", got)
+	}
+	select {
+	case <-view.refresh:
+	default:
+		t.Error("expected the poller to be woken")
+	}
+}
+
+func TestPaginatorView__StopRemovesApiResetListener(t *testing.T) {
+	var appCtx = newTestAppContext()
+	var first = newPaginatorView("first", appCtx)
+	var second = newPaginatorView("second", appCtx)
+	t.Cleanup(second.Stop)
+
+	first.Stop()
+	first.Stop()
+
+	if got := len(appCtx.apiResetListeners); got != 1 {
+		t.Fatalf("listeners = %d, want 1", got)
+	}
+	notifyApiReset(appCtx)
+	if first.generation.Load() != 0 || second.generation.Load() != 1 {
+		t.Error("only the running paginator should be told of the reset")
 	}
 }

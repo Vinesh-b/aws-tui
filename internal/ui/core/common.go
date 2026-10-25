@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"slices"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -24,7 +26,8 @@ type AppContext struct {
 	// soon as it is built, instead of after the first poll interval
 	PollSessionAtStart bool
 
-	apiResetListeners []func()
+	listenersMtx      sync.Mutex
+	apiResetListeners []*func()
 	themeListeners    []func()
 }
 
@@ -37,13 +40,33 @@ func (inst *AppContext) GetApiClients() *awsapi.AwsApiClients {
 // goroutine as the listeners change views.
 func (inst *AppContext) ResetApiClients(cfg aws.Config, profile string) {
 	awsapi.ResetAwsApiClients(cfg, profile)
-	for _, listener := range inst.apiResetListeners {
-		listener()
+
+	// A copy is used as listeners can remove themselves, such as when the
+	// views they belong to are replaced
+	inst.listenersMtx.Lock()
+	var listeners = slices.Clone(inst.apiResetListeners)
+	inst.listenersMtx.Unlock()
+
+	for _, listener := range listeners {
+		(*listener)()
 	}
 }
 
-func (inst *AppContext) OnApiClientsReset(listener func()) {
-	inst.apiResetListeners = append(inst.apiResetListeners, listener)
+// OnApiClientsReset adds a listener and returns a func that removes it
+func (inst *AppContext) OnApiClientsReset(listener func()) (remove func()) {
+	var entry = &listener
+
+	inst.listenersMtx.Lock()
+	defer inst.listenersMtx.Unlock()
+	inst.apiResetListeners = append(inst.apiResetListeners, entry)
+
+	return func() {
+		inst.listenersMtx.Lock()
+		defer inst.listenersMtx.Unlock()
+		inst.apiResetListeners = slices.DeleteFunc(inst.apiResetListeners, func(l *func()) bool {
+			return l == entry
+		})
+	}
 }
 
 // SetTheme changes the colours of the app and then tells the listeners, so they

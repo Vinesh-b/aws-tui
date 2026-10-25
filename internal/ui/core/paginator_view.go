@@ -5,6 +5,7 @@ import (
 	"math"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -48,9 +49,22 @@ type PaginatorView struct {
 	serviceColour  tcell.Color
 	stop           chan struct{}
 	stopOnce       *sync.Once
+	// refresh wakes the poller when the api clients are reset
+	refresh chan struct{}
+	// generation counts the api client resets, so a poll made with the old
+	// clients is not shown once they are replaced
+	generation       atomic.Int64
+	removeOnApiReset func()
 }
 
 func CreatePaginatorView(service string, appContext *AppContext) *PaginatorView {
+	var view = newPaginatorView(service, appContext)
+	go view.pollSession(appContext)
+	return view
+}
+
+// newPaginatorView is the view without the polling of the session started
+func newPaginatorView(service string, appContext *AppContext) *PaginatorView {
 	var view = &PaginatorView{
 		Box:         tview.NewBox(),
 		serviceName: service,
@@ -60,10 +74,19 @@ func CreatePaginatorView(service string, appContext *AppContext) *PaginatorView 
 		serviceColour: tview.Styles.BorderColor,
 		stop:          make(chan struct{}),
 		stopOnce:      &sync.Once{},
+		refresh:       make(chan struct{}, 1),
 	}
 	view.SetBorderPadding(0, 0, 1, 1)
 
-	go view.pollSession(appContext)
+	// Called on the UI goroutine, so the session can be cleared directly
+	view.removeOnApiReset = appContext.OnApiClientsReset(func() {
+		view.generation.Add(1)
+		view.session = nil
+		select {
+		case view.refresh <- struct{}{}:
+		default:
+		}
+	})
 
 	return view
 }
@@ -77,29 +100,36 @@ func firstPollDelay(appContext *AppContext) time.Duration {
 }
 
 func (inst *PaginatorView) pollSession(appContext *AppContext) {
-	// wait returns false when the view has been stopped
+	// wait returns false when the view has been stopped, and returns early when
+	// the api clients are reset
 	var wait = func(delay time.Duration) bool {
 		select {
 		case <-inst.stop:
 			return false
+		case <-inst.refresh:
+			return true
 		case <-time.After(delay):
 			return true
 		}
 	}
-	var sleep = func() bool { return wait(CredsPollRate) }
 
 	var app = appContext.App
-	var setSession = func(session sessionInfo) {
-		app.QueueUpdateDraw(func() { inst.session = &session })
-	}
+	var delay = firstPollDelay(appContext)
 
-	if !wait(firstPollDelay(appContext)) {
-		return
-	}
-
-	for first := true; ; first = false {
-		if !first && !sleep() {
+	for {
+		if !wait(delay) {
 			return
+		}
+		delay = CredsPollRate
+
+		var generation = inst.generation.Load()
+		var isStale = func() bool { return inst.generation.Load() != generation }
+		var setSession = func(session sessionInfo) {
+			app.QueueUpdateDraw(func() {
+				if !isStale() {
+					inst.session = &session
+				}
+			})
 		}
 
 		var logger = appContext.Logger
@@ -121,16 +151,9 @@ func (inst *PaginatorView) pollSession(appContext *AppContext) {
 			setSession(sessionInfo{err: err.Error()})
 			continue
 		}
-		var profileName = os.Getenv("AWS_PROFILE")
-		if len(profileName) == 0 {
-			profileName = apiClients.Profile
-			if len(profileName) == 0 {
-				profileName = "unset"
-			}
-		}
 
 		var session = sessionInfo{
-			profile:   profileName,
+			profile:   sessionProfileName(apiClients.Profile),
 			accountId: aws.ToString(identity.Account),
 			userId:    aws.ToString(identity.UserId),
 		}
@@ -141,25 +164,42 @@ func (inst *PaginatorView) pollSession(appContext *AppContext) {
 			continue
 		}
 
-		for time.Now().Before(creds.Expires) {
+		for time.Now().Before(creds.Expires) && !isStale() {
 			session.duration = creds.Expires.Sub(time.Now()).Truncate(time.Second)
 			setSession(session)
-			if appContext.GetApiClients().Profile != profileName {
-				//Profile updated by user
-				break
-			}
-			if !sleep() {
+			if !wait(CredsPollRate) {
 				return
 			}
+		}
+
+		if isStale() {
+			// Poll the new clients straight away
+			delay = 0
+			continue
 		}
 		session.duration = 0
 		setSession(session)
 	}
 }
 
+// sessionProfileName is the profile picked by the user, or the one the clients
+// were loaded with from the environment when none has been picked.
+func sessionProfileName(clientsProfile string) string {
+	if len(clientsProfile) > 0 {
+		return clientsProfile
+	}
+	if envProfile := os.Getenv("AWS_PROFILE"); len(envProfile) > 0 {
+		return envProfile
+	}
+	return "unset"
+}
+
 // Stop ends the polling of the session details.
 func (inst *PaginatorView) Stop() {
-	inst.stopOnce.Do(func() { close(inst.stop) })
+	inst.stopOnce.Do(func() {
+		inst.removeOnApiReset()
+		close(inst.stop)
+	})
 }
 
 func (inst *PaginatorView) SetServiceName(text string) {
