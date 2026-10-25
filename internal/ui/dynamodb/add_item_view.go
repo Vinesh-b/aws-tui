@@ -120,6 +120,18 @@ func (inst *DynamoDBAddItemPageView) CopySelectedItem() {
 	inst.itemInput.SetText(string(formatted), false)
 }
 
+// decodeJsonValue reads any JSON value, keeping numbers as written.
+func decodeJsonValue(data []byte) (any, error) {
+	var decoder = json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+
+	var value any
+	if err := decoder.Decode(&value); err != nil {
+		return nil, err
+	}
+	return value, nil
+}
+
 // decodeItemJson reads a JSON object, keeping numbers as written so large
 // values aren't rounded by a float conversion.
 func decodeItemJson(text string) (map[string]any, error) {
