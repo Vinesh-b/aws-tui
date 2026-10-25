@@ -367,33 +367,33 @@ func (inst *SelectableTable[T]) GetPrivateData(row int, column int) T {
 	return GetPrivateData[T](inst.table.GetCell(row, column))
 }
 
-func (inst *SelectableTable[T]) DumpTableToCsv(filename string) error {
+func (inst *SelectableTable[T]) DumpTableToCsv(filename string) (err error) {
 	filename = path.Clean(filename)
-	var file, err = os.Create(filename)
+	var file *os.File
+	file, err = os.Create(filename)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if closeErr := file.Close(); err == nil {
+			err = closeErr
+		}
+	}()
 
 	var csvWriter = csv.NewWriter(file)
-	var rows = inst.table.GetRowCount()
-	if rows == 0 {
-		return file.Close()
-	}
-
 	for r := range inst.table.GetRowCount() {
 		var rowdata = []string{}
 		for c := range inst.table.GetColumnCount() {
 			var text = GetCellText[T](inst.table.GetCell(r, c))
 			rowdata = append(rowdata, text)
 		}
-		csvWriter.Write(rowdata)
+		if err = csvWriter.Write(rowdata); err != nil {
+			return err
+		}
 	}
 
 	csvWriter.Flush()
-	if err := file.Close(); err != nil {
-		return err
-	}
-	return nil
+	return csvWriter.Error()
 }
 
 func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {

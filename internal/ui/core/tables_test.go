@@ -790,3 +790,14 @@ func TestTableRowColourFunc__SurvivesClearingSearchHighlights(t *testing.T) {
 		}
 	}
 }
+
+func TestDumpTableToCsv__WriteError(t *testing.T) {
+	if _, err := os.Stat("/dev/full"); err != nil {
+		t.Skip("/dev/full not available")
+	}
+	var table = newTestSelectableTable(t)
+
+	if err := table.DumpTableToCsv("/dev/full"); err == nil {
+		t.Fatalf("Expected error when the write fails")
+	}
+}
