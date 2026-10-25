@@ -14,6 +14,7 @@ type SfnTabName = string
 
 const (
 	SfnTabNameDetails          SfnTabName = "Details"
+	SfnTabNameDefinition       SfnTabName = "Definition"
 	SfnTabNameExecutions       SfnTabName = "Executions"
 	SfnTabNameExecutionSummary SfnTabName = "Summary"
 	SfnTabNameStateIO          SfnTabName = "Input/Output"
@@ -34,8 +35,12 @@ func NewSfnDetailsPageView(
 	stateMachineDetailsTable *SfnDetailsTable,
 	serviceViewCtx *core.ServiceContext[awsapi.StateMachineApi],
 ) *SfnDetailsPageView {
+	var definitionView = NewSfnDefinitionView(serviceViewCtx.AppContext)
+	stateMachineDetailsTable.SetDetailsLoadedFunc(definitionView.SetDefinition)
+
 	var tabView = core.NewTabViewHorizontal(serviceViewCtx.AppContext).
 		AddTab(SfnTabNameDetails, stateMachineDetailsTable, 0, 1, true).
+		AddTab(SfnTabNameDefinition, definitionView, 0, 1, true).
 		AddAndSwitchToTab(SfnTabNameExecutions, sfnExecutionsTable, 0, 1, true)
 
 	const detailsViewSize = 4000

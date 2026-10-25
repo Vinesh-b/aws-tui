@@ -20,6 +20,7 @@ type SfnDetailsTable struct {
 	selectedStateMachineArn string
 	logGroups               []string
 	logGroupsChan           chan []string
+	onDetailsLoaded         func(*sfn.DescribeStateMachineOutput)
 	serviceCtx              *core.ServiceContext[awsapi.StateMachineApi]
 }
 
@@ -40,7 +41,17 @@ func NewSfnDetailsTable(
 	return table
 }
 
+// SetDetailsLoadedFunc sets a function called with the described state machine
+// each time the details are shown, which is nil once they are cleared.
+func (inst *SfnDetailsTable) SetDetailsLoadedFunc(handler func(*sfn.DescribeStateMachineOutput)) {
+	inst.onDetailsLoaded = handler
+}
+
 func (inst *SfnDetailsTable) populateTable() {
+	if inst.onDetailsLoaded != nil {
+		inst.onDetailsLoaded(inst.data)
+	}
+
 	var tableData []core.TableRow
 	if inst.data != nil {
 		tableData = []core.TableRow{
