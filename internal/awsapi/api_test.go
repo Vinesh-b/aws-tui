@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	cwTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
+	snsTypes "github.com/aws/aws-sdk-go-v2/service/sns/types"
 	sqsTypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 )
 
@@ -304,6 +305,14 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			var _, err = NewSnsApi(logger).ListTopicTags(context.Background(), "")
 			return err
 		}, "topicArn not set"},
+		{"sns publish without topic", func() error {
+			var _, err = NewSnsApi(logger).Publish(context.Background(), "", "hi", "", "", "", nil)
+			return err
+		}, "topicArn not set"},
+		{"sns publish without message", func() error {
+			var _, err = NewSnsApi(logger).Publish(context.Background(), "arn", "", "", "", "", nil)
+			return err
+		}, "message not set"},
 		{"s3 list objects", func() error {
 			var _, _, err = s3Api.ListObjects(context.Background(), "", "", true)
 			return err
@@ -620,6 +629,69 @@ func TestSnsGetTopicAttributesReportsServiceErrors(t *testing.T) {
 	})
 
 	var _, err = NewSnsApi(testLogger()).GetTopicAttributes(context.Background(), "arn:aws:sns:us-east-1:1:orders")
+
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+}
+
+const snsPublishResponse = `<PublishResponse><PublishResult><MessageId>m-1</MessageId><SequenceNumber>42</SequenceNumber></PublishResult></PublishResponse>`
+
+func TestSnsPublishSendsMessageAndOptions(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "text/xml", snsPublishResponse)
+	})
+	var attributes = map[string]snsTypes.MessageAttributeValue{
+		"Source": {DataType: aws.String("String"), StringValue: aws.String("tui")},
+	}
+
+	var output, err = NewSnsApi(testLogger()).Publish(
+		context.Background(), "arn:aws:sns:us-east-1:1:orders.fifo", "hello", "Greeting", "g1", "d1", attributes,
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if aws.ToString(output.MessageId) != "m-1" || aws.ToString(output.SequenceNumber) != "42" {
+		t.Errorf("unexpected output %v", output)
+	}
+	var body = fake.requests[0]
+	for _, want := range []string{
+		"TopicArn=arn%3Aaws%3Asns%3Aus-east-1%3A1%3Aorders.fifo", "Message=hello", "Subject=Greeting",
+		"MessageGroupId=g1", "MessageDeduplicationId=d1",
+		"MessageAttributes.entry.1.Name=Source", "MessageAttributes.entry.1.Value.DataType=String",
+		"MessageAttributes.entry.1.Value.StringValue=tui",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("request %s does not contain %s", body, want)
+		}
+	}
+}
+
+func TestSnsPublishOmitsEmptyOptions(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "text/xml", snsPublishResponse)
+	})
+
+	var _, err = NewSnsApi(testLogger()).Publish(context.Background(), "arn", "hello", "", "", "", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var body = fake.requests[0]
+	for _, unwanted := range []string{"Subject", "MessageGroupId", "MessageDeduplicationId", "MessageAttributes"} {
+		if strings.Contains(body, unwanted) {
+			t.Errorf("request %s contains %s", body, unwanted)
+		}
+	}
+}
+
+func TestSnsPublishReportsServiceErrors(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(404, "text/xml", `<ErrorResponse><Error><Type>Sender</Type><Code>NotFound</Code><Message>gone</Message></Error></ErrorResponse>`)
+	})
+
+	var _, err = NewSnsApi(testLogger()).Publish(context.Background(), "arn", "hello", "", "", "", nil)
 
 	if err == nil {
 		t.Fatal("expected an error")

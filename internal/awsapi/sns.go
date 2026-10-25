@@ -14,6 +14,13 @@ type SnsApi interface {
 	ListTopics(ctx context.Context, force bool) ([]string, error)
 	GetTopicAttributes(ctx context.Context, topicArn string) (map[string]string, error)
 	ListTopicTags(ctx context.Context, topicArn string) ([]types.Tag, error)
+	// Publish sends a message to the topic. The subject, group and
+	// deduplication IDs and message attributes are optional, and are only sent
+	// when they are not empty.
+	Publish(
+		ctx context.Context, topicArn string, message string, subject string,
+		groupId string, deduplicationId string, attributes map[string]types.MessageAttributeValue,
+	) (*sns.PublishOutput, error)
 }
 
 type snsApi struct {
@@ -80,4 +87,40 @@ func (inst *snsApi) ListTopicTags(ctx context.Context, topicArn string) ([]types
 	}
 
 	return output.Tags, nil
+}
+
+func (inst *snsApi) Publish(
+	ctx context.Context, topicArn string, message string, subject string,
+	groupId string, deduplicationId string, attributes map[string]types.MessageAttributeValue,
+) (*sns.PublishOutput, error) {
+	if err := requireArg("topicArn", topicArn); err != nil {
+		return nil, err
+	}
+	if err := requireArg("message", message); err != nil {
+		return nil, err
+	}
+
+	var input = &sns.PublishInput{
+		TopicArn: &topicArn,
+		Message:  &message,
+	}
+	if subject != "" {
+		input.Subject = &subject
+	}
+	if groupId != "" {
+		input.MessageGroupId = &groupId
+	}
+	if deduplicationId != "" {
+		input.MessageDeduplicationId = &deduplicationId
+	}
+	if len(attributes) > 0 {
+		input.MessageAttributes = attributes
+	}
+
+	var output, err = GetAwsApiClients().sns.Publish(ctx, input)
+	if err != nil {
+		return nil, inst.logErr(err)
+	}
+
+	return output, nil
 }
