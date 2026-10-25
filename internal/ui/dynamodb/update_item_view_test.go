@@ -109,6 +109,22 @@ type fakeUpdateItemApi struct {
 	remove    []string
 	calls     int
 	updateErr error
+
+	deleted   []itemRef
+	deleteErr error
+}
+
+func (f *fakeUpdateItemApi) DeleteItem(ctx context.Context, tableName string, key map[string]any) error {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	f.deleted = append(f.deleted, itemRef{tableName: tableName, key: key})
+	return f.deleteErr
+}
+
+func (f *fakeUpdateItemApi) deletedItems() []itemRef {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return slices.Clone(f.deleted)
 }
 
 func (f *fakeUpdateItemApi) UpdateItem(

@@ -1,6 +1,7 @@
 package dynamodb
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"aws-tui/internal/awsapi"
@@ -30,6 +31,8 @@ type DynamoDBGenericTable struct {
 	*core.SelectableTable[map[string]any]
 	rootView             core.View
 	UpdateView           *FloatingDDBUpdateItemView
+	DeleteView           *core.FloatingConfirmView
+	toDelete             itemRef
 	table                *tview.Table
 	ErrorMessageCallback func(text string, a ...any)
 	data                 []map[string]any
@@ -64,9 +67,13 @@ func NewDynamoDBGenericTable(
 	var updateView = NewFloatingDDBUpdateItemView(serviceContext.AppContext)
 	selectableTable.AddRuneToggleOverlay(updateItemOverlayId, updateView, updateItemKey, false)
 
+	var deleteView = core.NewFloatingConfirmView(serviceContext.AppContext, "Delete Item", "Delete")
+	selectableTable.AddRuneToggleOverlay(deleteItemOverlayId, deleteView, deleteItemKey, false)
+
 	var table = &DynamoDBGenericTable{
 		SelectableTable:      selectableTable,
 		UpdateView:           updateView,
+		DeleteView:           deleteView,
 		rootView:             selectableTable.Box,
 		table:                selectableTable.GetTable(),
 		ErrorMessageCallback: func(text string, a ...any) {},
@@ -127,8 +134,18 @@ func NewDynamoDBGenericTable(
 		table.ToggleOverlay(updateItemOverlayId, true)
 	})
 
+	deleteView.Input.SetOnShowFunc(table.prepareDeleteItem)
+	deleteView.Input.SetOnConfirmFunc(func() {
+		table.ToggleOverlay(deleteItemOverlayId, true)
+		table.deleteItem(table.toDelete)
+	})
+	deleteView.Input.SetOnCancelFunc(func() {
+		table.ToggleOverlay(deleteItemOverlayId, true)
+	})
+
 	table.HelpView.View.
 		AddItem(string(updateItemKey), "Edit and update the selected item", nil).
+		AddItem(string(deleteItemKey), "Delete the selected item", nil).
 		AddItem("f", "Jump to next search result", nil).
 		AddItem("F", "Jump to previous search result", nil).
 		AddItem("q", "To show query view", nil).
@@ -289,12 +306,7 @@ func (inst *DynamoDBGenericTable) updateItem(original map[string]any, edited map
 	var view = inst.UpdateView.Input
 	var tableName = inst.selectedTable
 
-	var keyNames []string
-	for _, name := range []string{inst.pkName, inst.skName} {
-		if name != "" {
-			keyNames = append(keyNames, name)
-		}
-	}
+	var keyNames = inst.keyNames()
 
 	var set, remove, err = diffItem(original, edited, keyNames)
 	if err != nil {
@@ -323,6 +335,86 @@ func (inst *DynamoDBGenericTable) updateItem(original map[string]any, edited map
 			view.SetStatusMessage("Item updated")
 			inst.ToggleOverlay(updateItemOverlayId, true)
 			if inst.selectedTable == tableName {
+				inst.ExecuteSearch(inst.lastTableOp, inst.lastSearchExpr, true)
+			}
+		})
+	}()
+}
+
+// deleteItemKey opens the delete confirmation for the selected item.
+const deleteItemKey = 'x'
+
+const deleteItemOverlayId = "DELETE_ITEM"
+
+// itemRef is an item to delete, by its key
+type itemRef struct {
+	tableName string
+	key       map[string]any
+}
+
+// keyNames are the names of the key attributes of the table
+func (inst *DynamoDBGenericTable) keyNames() []string {
+	var names []string
+	for _, name := range []string{inst.pkName, inst.skName} {
+		if name != "" {
+			names = append(names, name)
+		}
+	}
+	return names
+}
+
+// prepareDeleteItem notes the key of the selected item and asks about it. It is
+// kept so the table changing underneath can't change what is deleted.
+func (inst *DynamoDBGenericTable) prepareDeleteItem() {
+	var view = inst.DeleteView.Input
+	inst.toDelete = itemRef{}
+
+	var item, ok = inst.GetSelectedItem()
+	if !ok {
+		view.SetMessage("No item selected")
+		return
+	}
+
+	var key = map[string]any{}
+	for _, name := range inst.keyNames() {
+		var value, found = item[name]
+		if !found {
+			view.SetMessage(fmt.Sprintf("The key attribute %q isn't in the selected item", name))
+			return
+		}
+		key[name] = value
+	}
+	if len(key) == 0 {
+		view.SetMessage("The key of the table is unknown")
+		return
+	}
+
+	inst.toDelete = itemRef{tableName: inst.selectedTable, key: key}
+
+	var keyText, _ = json.Marshal(key)
+	view.SetMessage(fmt.Sprintf(
+		"Delete the item %s from %s?\n\nThis can't be undone.", keyText, inst.selectedTable,
+	))
+}
+
+// deleteItem deletes the item without blocking the UI, then reloads the items.
+// Failures are shown as errors.
+func (inst *DynamoDBGenericTable) deleteItem(item itemRef) {
+	if item.tableName == "" {
+		inst.ErrorMessageCallback("No item selected")
+		return
+	}
+
+	go func() {
+		var err = inst.serviceCtx.Api.DeleteItem(inst.serviceCtx.Ctx, item.tableName, item.key)
+
+		inst.serviceCtx.App.QueueUpdateDraw(func() {
+			if err != nil {
+				inst.ErrorMessageCallback("%s", err.Error())
+				return
+			}
+
+			if inst.selectedTable == item.tableName {
 				inst.ExecuteSearch(inst.lastTableOp, inst.lastSearchExpr, true)
 			}
 		})
