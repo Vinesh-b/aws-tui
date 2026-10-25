@@ -145,7 +145,7 @@ func (inst *SendMessagePageView) SendMessage() {
 
 	dataLoader.AsyncLoadData(func() {
 		output, apiErr = inst.serviceCtx.Api.SendMessage(
-			inst.serviceCtx.Ctx, queueUrl, body, groupId, dedupId,
+			inst.serviceCtx.Ctx, queueUrl, body, groupId, dedupId, nil,
 		)
 	})
 

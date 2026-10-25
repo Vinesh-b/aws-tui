@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	cwTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
+	sqsTypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 )
 
 // fakeHttp serves canned responses to the SDK clients so the api methods can be
@@ -272,11 +273,11 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			return err
 		}, "state machine ARN not set"},
 		{"sqs send without queue", func() error {
-			var _, err = NewSqsApi(logger).SendMessage(context.Background(), "", "body", "", "")
+			var _, err = NewSqsApi(logger).SendMessage(context.Background(), "", "body", "", "", nil)
 			return err
 		}, "queueUrl not set"},
 		{"sqs send without body", func() error {
-			var _, err = NewSqsApi(logger).SendMessage(context.Background(), "https://q", "", "", "")
+			var _, err = NewSqsApi(logger).SendMessage(context.Background(), "https://q", "", "", "", nil)
 			return err
 		}, "message body not set"},
 		{"s3 list objects", func() error {
@@ -425,7 +426,7 @@ func TestSqsSendMessageSendsBodyGroupAndDeduplicationId(t *testing.T) {
 	})
 
 	var output, err = NewSqsApi(testLogger()).
-		SendMessage(context.Background(), "https://sqs.us-east-1.amazonaws.com/1/q.fifo", `{"a":1}`, "g1", "d1")
+		SendMessage(context.Background(), "https://sqs.us-east-1.amazonaws.com/1/q.fifo", `{"a":1}`, "g1", "d1", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -446,7 +447,7 @@ func TestSqsSendMessageOmitsEmptyGroupAndDeduplicationId(t *testing.T) {
 		return response(200, "application/x-amz-json-1.0", `{"MessageId":"m-1"}`)
 	})
 
-	var _, err = NewSqsApi(testLogger()).SendMessage(context.Background(), "https://q", "hello", "", "")
+	var _, err = NewSqsApi(testLogger()).SendMessage(context.Background(), "https://q", "hello", "", "", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -461,9 +462,31 @@ func TestSqsSendMessageReportsServiceErrors(t *testing.T) {
 		return response(400, "application/x-amz-json-1.0", `{"__type":"QueueDoesNotExist","message":"gone"}`)
 	})
 
-	var _, err = NewSqsApi(testLogger()).SendMessage(context.Background(), "https://q", "hello", "", "")
+	var _, err = NewSqsApi(testLogger()).SendMessage(context.Background(), "https://q", "hello", "", "", nil)
 
 	if err == nil {
 		t.Fatal("expected an error")
+	}
+}
+
+func TestSqsSendMessageSendsMessageAttributes(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "application/x-amz-json-1.0", `{"MessageId":"m-1"}`)
+	})
+	var attributes = map[string]sqsTypes.MessageAttributeValue{
+		"Source": {DataType: aws.String("String"), StringValue: aws.String("tui")},
+		"Count":  {DataType: aws.String("Number"), StringValue: aws.String("3")},
+	}
+
+	var _, err = NewSqsApi(testLogger()).SendMessage(context.Background(), "https://q", "hello", "", "", attributes)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var body = fake.requests[0]
+	for _, want := range []string{`"Source":{"DataType":"String","StringValue":"tui"}`, `"Count":{"DataType":"Number","StringValue":"3"}`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("request %s does not contain %s", body, want)
+		}
 	}
 }

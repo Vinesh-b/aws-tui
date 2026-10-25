@@ -12,6 +12,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 )
 
 type fakeSendMessageApi struct {
@@ -21,17 +22,19 @@ type fakeSendMessageApi struct {
 	body     string
 	groupId  string
 	dedupId  string
+	attrs    map[string]types.MessageAttributeValue
 	calls    int
 	sendErr  error
 }
 
 func (f *fakeSendMessageApi) SendMessage(
 	ctx context.Context, queueUrl string, body string, groupId string, deduplicationId string,
+	attributes map[string]types.MessageAttributeValue,
 ) (*sqs.SendMessageOutput, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 	f.calls++
-	f.queueUrl, f.body, f.groupId, f.dedupId = queueUrl, body, groupId, deduplicationId
+	f.queueUrl, f.body, f.groupId, f.dedupId, f.attrs = queueUrl, body, groupId, deduplicationId, attributes
 	if f.sendErr != nil {
 		return nil, f.sendErr
 	}

@@ -14,9 +14,11 @@ type SqsApi interface {
 	GetQueueAttributes(ctx context.Context, queueUrl string) (map[string]string, error)
 	ListQueueTags(ctx context.Context, queueUrl string) (map[string]string, error)
 	// SendMessage puts a message on the queue. The group and deduplication IDs
-	// are optional, and are only sent when they are not empty.
+	// are optional, and are only sent when they are not empty. The same goes for
+	// the message attributes.
 	SendMessage(
 		ctx context.Context, queueUrl string, body string, groupId string, deduplicationId string,
+		attributes map[string]types.MessageAttributeValue,
 	) (*sqs.SendMessageOutput, error)
 }
 
@@ -86,6 +88,7 @@ func (inst *sqsApi) ListQueueTags(ctx context.Context, queueUrl string) (map[str
 
 func (inst *sqsApi) SendMessage(
 	ctx context.Context, queueUrl string, body string, groupId string, deduplicationId string,
+	attributes map[string]types.MessageAttributeValue,
 ) (*sqs.SendMessageOutput, error) {
 	if err := requireArg("queueUrl", queueUrl); err != nil {
 		return nil, err
@@ -103,6 +106,9 @@ func (inst *sqsApi) SendMessage(
 	}
 	if deduplicationId != "" {
 		input.MessageDeduplicationId = &deduplicationId
+	}
+	if len(attributes) > 0 {
+		input.MessageAttributes = attributes
 	}
 
 	var output, err = GetAwsApiClients().sqs.SendMessage(ctx, input)
