@@ -19,11 +19,6 @@ const CredsPollRate = time.Second * 5
 // shown as a warning.
 const SessionExpiryWarning = time.Minute * 15
 
-const (
-	pillLeft  = "🭃"
-	pillRight = "🭎"
-)
-
 // sessionInfo is the state of the credentials shown on the paginator.
 type sessionInfo struct {
 	profile   string
@@ -39,22 +34,13 @@ type textSegment struct {
 	style tcell.Style
 }
 
-// pagePill is where the pill of a page is drawn, relative to the left of the
-// view.
-type pagePill struct {
-	name  string
-	start int
-	end   int
-}
-
 // PaginatorView is the status bar of a service. It shows the service and its
 // pages as pills, which can be clicked to switch page, and the details of the
 // session.
 type PaginatorView struct {
 	*tview.Box
 	serviceName    string
-	pageNames      []string
-	currentPage    int
+	pageBar        *PillBar
 	session        *sessionInfo
 	onPageSelected func(name string)
 	theme          AppTheme
@@ -67,7 +53,7 @@ func CreatePaginatorView(service string, appContext *AppContext) *PaginatorView 
 	var view = &PaginatorView{
 		Box:         tview.NewBox(),
 		serviceName: service,
-		pageNames:   []string{},
+		pageBar:     NewPillBar(appContext.Theme).SetGap(1),
 		theme:       *appContext.Theme,
 		// The colour scheme of a service is set while its views are built
 		serviceColour: tview.Styles.BorderColor,
@@ -168,12 +154,12 @@ func (inst *PaginatorView) SetServiceName(text string) {
 
 // SetPages sets the pages shown, in order.
 func (inst *PaginatorView) SetPages(names []string) {
-	inst.pageNames = append([]string{}, names...)
+	inst.pageBar.SetPills(names)
 }
 
 // SetCurrentPage sets the index of the page that is shown.
 func (inst *PaginatorView) SetCurrentPage(index int) {
-	inst.currentPage = index
+	inst.pageBar.SetCurrent(index)
 }
 
 // SetPageSelectedFunc sets the handler called with the name of a page when its
@@ -182,27 +168,10 @@ func (inst *PaginatorView) SetPageSelectedFunc(handler func(name string)) {
 	inst.onPageSelected = handler
 }
 
-func (inst *PaginatorView) pillStyle(background tcell.Color) (text tcell.Style, edge tcell.Style) {
-	text = tcell.StyleDefault.Background(background)
-	edge = tcell.StyleDefault.Foreground(background).Background(inst.theme.BackgroundColour)
-	return text, edge
-}
-
-func pillWidth(name string) int {
-	return uniseg.StringWidth(pillLeft) + uniseg.StringWidth(name) + uniseg.StringWidth(pillRight)
-}
-
-// pagePills is where the pill of each page is drawn, after the one of the
-// service.
-func (inst *PaginatorView) pagePills() []pagePill {
-	var pills = make([]pagePill, 0, len(inst.pageNames))
-	var pos = pillWidth(inst.serviceName) + 1
-	for _, name := range inst.pageNames {
-		var width = pillWidth(name)
-		pills = append(pills, pagePill{name: name, start: pos, end: pos + width})
-		pos += width + 1
-	}
-	return pills
+// pageBarOffset is where the page pills start, after the pill of the service,
+// from the left of the view.
+func (inst *PaginatorView) pageBarOffset() int {
+	return pillWidth(inst.serviceName) + 1
 }
 
 // sessionSegments is the text of the session details, empty until the first
@@ -248,32 +217,6 @@ func (inst *PaginatorView) sessionSegments() []textSegment {
 	}
 }
 
-// drawText draws text from x, up to maxX, and returns the x after it.
-func drawText(screen tcell.Screen, x int, y int, maxX int, text string, style tcell.Style) int {
-	var state = -1
-	var cluster string
-	for len(text) > 0 {
-		var width int
-		cluster, text, width, state = uniseg.FirstGraphemeClusterInString(text, state)
-		if x+width > maxX {
-			return maxX
-		}
-		var runes = []rune(cluster)
-		screen.SetContent(x, y, runes[0], runes[1:], style)
-		x += width
-	}
-	return x
-}
-
-func (inst *PaginatorView) drawPill(
-	screen tcell.Screen, x int, y int, maxX int, name string, background tcell.Color, foreground tcell.Color,
-) int {
-	var textStyle, edgeStyle = inst.pillStyle(background)
-	x = drawText(screen, x, y, maxX, pillLeft, edgeStyle)
-	x = drawText(screen, x, y, maxX, name, textStyle.Foreground(foreground))
-	return drawText(screen, x, y, maxX, pillRight, edgeStyle)
-}
-
 func (inst *PaginatorView) Draw(screen tcell.Screen) {
 	inst.Box.DrawForSubclass(screen, inst)
 
@@ -284,17 +227,11 @@ func (inst *PaginatorView) Draw(screen tcell.Screen) {
 	var maxX = x + width
 	var theme = inst.theme
 
-	var pos = inst.drawPill(screen, x, y, maxX,
-		inst.serviceName, inst.serviceColour, theme.SecondaryTextColour,
-	)
-
-	for idx, pill := range inst.pagePills() {
-		var background, foreground = theme.ContrastBackgroundColor, theme.PrimaryTextColour
-		if idx == inst.currentPage {
-			background, foreground = theme.MoreContrastBackgroundColor, theme.SecondaryTextColour
-		}
-		pos = inst.drawPill(screen, x+pill.start, y, maxX, pill.name, background, foreground)
-	}
+	var serviceStyle = tcell.StyleDefault.
+		Background(inst.serviceColour).
+		Foreground(theme.SecondaryTextColour)
+	drawPill(screen, x, y, maxX, inst.serviceName, serviceStyle, theme.BackgroundColour)
+	var pos = inst.pageBar.Draw(screen, min(x+inst.pageBarOffset(), maxX), y, maxX)
 
 	var segments = inst.sessionSegments()
 	var sessionWidth = 0
@@ -326,11 +263,8 @@ func (inst *PaginatorView) MouseHandler() func(
 		}
 
 		var innerX, _, _, _ = inst.GetInnerRect()
-		for _, pill := range inst.pagePills() {
-			if x >= innerX+pill.start && x < innerX+pill.end {
-				inst.onPageSelected(pill.name)
-				break
-			}
+		if idx, ok := inst.pageBar.PillAt(x - innerX - inst.pageBarOffset()); ok {
+			inst.onPageSelected(inst.pageBar.GetPills()[idx])
 		}
 		return true, nil
 	})

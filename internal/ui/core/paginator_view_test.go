@@ -72,7 +72,12 @@ func screenLine(screen tcell.SimulationScreen) string {
 	var cells, width, _ = screen.GetContents()
 	var line strings.Builder
 	for col := 0; col < width; col++ {
-		line.WriteString(string(cells[col].Runes))
+		if runes := cells[col].Runes; len(runes) > 0 {
+			line.WriteString(string(runes))
+		} else {
+			// A cell that was never drawn
+			line.WriteString(" ")
+		}
 	}
 	return line.String()
 }
@@ -219,7 +224,7 @@ func TestServiceRootView__PaginatorPillSwitchesPage(t *testing.T) {
 	var secondX = 1 + pillWidth("service") + 1 + pillWidth("First") + 1
 	clickAt(view.paginatorView, secondX)
 
-	if name, _ := view.pages.GetFrontPage(); name != "Second" || view.paginatorView.currentPage != 1 {
-		t.Errorf("front page = %q, current pill = %d, want Second and 1", name, view.paginatorView.currentPage)
+	if name, _ := view.pages.GetFrontPage(); name != "Second" || view.paginatorView.pageBar.GetCurrent() != 1 {
+		t.Errorf("front page = %q, current pill = %d, want Second and 1", name, view.paginatorView.pageBar.GetCurrent())
 	}
 }

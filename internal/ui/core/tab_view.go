@@ -1,8 +1,6 @@
 package core
 
 import (
-	"unicode/utf8"
-
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -117,6 +115,7 @@ type TabViewHorizontal struct {
 	pageIdxMap      map[string]int
 	pageViewMap     map[string]*ServicePageView
 	orderedTabs     []string
+	tabBar          *PillBar
 	currentTabIdx   int
 	defaultTabIdx   int
 	onTabChangeFunc func(tabName string, index int)
@@ -130,6 +129,7 @@ func NewTabViewHorizontal(appCtx *AppContext) *TabViewHorizontal {
 		pageIdxMap:    map[string]int{},
 		pageViewMap:   map[string]*ServicePageView{},
 		orderedTabs:   []string{},
+		tabBar:        NewPillBar(appCtx.Theme),
 		currentTabIdx: 0,
 		appCtx:        appCtx,
 	}
@@ -151,50 +151,14 @@ func NewTabViewHorizontal(appCtx *AppContext) *TabViewHorizontal {
 	view.Flex.SetDirection(tview.FlexRow).
 		AddItem(view.pages, 0, 1, true)
 
-	var TAB_BAR_OFFSET = 1
-	var TAB_LEFT = "🭃"
-	var TAB_RIGHT = "🭎"
-
-	var tabActiveStyle = tcell.StyleDefault.
-		Background(appCtx.Theme.MoreContrastBackgroundColor).
-		Foreground(appCtx.Theme.SecondaryTextColour)
-
-	var tabInactiveStyle = tcell.StyleDefault.
-		Background(appCtx.Theme.ContrastBackgroundColor).
-		Foreground(appCtx.Theme.PrimaryTextColour)
+	const TAB_BAR_OFFSET = 1
 
 	view.pages.SetDrawFunc(
 		func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
 			var rectX, rectY, rectW, rectH = view.pages.GetRect()
-			var tabPos = rectX + TAB_BAR_OFFSET
-
-			for idx, tabName := range view.orderedTabs {
-				var tabStyle = tabInactiveStyle
-
-				if idx == view.currentTabIdx {
-					tabStyle = tabActiveStyle
-				}
-
-				var textLen = utf8.RuneCountInString(tabName)
-				var leftPadLen = utf8.RuneCountInString(TAB_LEFT)
-				var rightPadLen = utf8.RuneCountInString(TAB_RIGHT)
-
-				for x := range textLen {
-					// Fill the tab name text background
-					screen.SetContent(tabPos+leftPadLen+x, rectY, ' ', nil, tabStyle)
-				}
-
-				var fg, bg, _ = tabStyle.Decompose()
-
-				tview.Print(screen, TAB_LEFT, tabPos, rectY, rectW, tview.AlignLeft, bg)
-				tabPos += leftPadLen
-
-				tview.Print(screen, tabName, tabPos, rectY, rectW, tview.AlignLeft, fg)
-				tabPos += textLen
-
-				tview.Print(screen, TAB_RIGHT, tabPos, rectY, rectW, tview.AlignLeft, bg)
-				tabPos += rightPadLen
-			}
+			view.tabBar.
+				SetCurrent(view.currentTabIdx).
+				Draw(screen, rectX+TAB_BAR_OFFSET, rectY, rectX+rectW)
 
 			return rectX, rectY + 1, rectW, rectH - 1
 		},
@@ -218,18 +182,9 @@ func NewTabViewHorizontal(appCtx *AppContext) *TabViewHorizontal {
 			return action, event
 		}
 
-		var tabPos = rectX + TAB_BAR_OFFSET
-		for _, tabName := range view.orderedTabs {
-			var tabLen = utf8.RuneCountInString(tabName) +
-				utf8.RuneCountInString(TAB_LEFT) +
-				utf8.RuneCountInString(TAB_RIGHT)
-
-			if x >= tabPos && x < tabPos+tabLen {
-				view.SwitchToTab(tabName)
-				return tview.MouseConsumed, nil
-			}
-
-			tabPos += tabLen
+		if idx, ok := view.tabBar.PillAt(x - rectX - TAB_BAR_OFFSET); ok {
+			view.SwitchToTab(view.orderedTabs[idx])
+			return tview.MouseConsumed, nil
 		}
 
 		return action, event
@@ -246,6 +201,7 @@ func (inst *TabViewHorizontal) AddTab(
 	inst.pages.AddPage(name, servicePage, true, false)
 	inst.pageViewMap[name] = servicePage
 	inst.orderedTabs = append(inst.orderedTabs, name)
+	inst.tabBar.SetPills(inst.orderedTabs)
 
 	return inst
 }
