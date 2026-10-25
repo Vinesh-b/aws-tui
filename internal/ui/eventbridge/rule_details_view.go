@@ -74,7 +74,7 @@ func extractRuleDetailJson(detail RuleDetail) string {
 }
 
 type RulesTabView struct {
-	*tview.Flex
+	*core.ResizableView
 	RulesTable *RulesTable
 	JsonView   *core.JsonTextView[RuleDetail]
 	serviceCtx *core.ServiceContext[awsapi.EventBridgeApi]
@@ -89,10 +89,15 @@ func NewRulesTabView(
 		ExtractTextFunc: extractRuleDetailJson,
 	}
 
+	const rulesTableSize = 4000
+	const ruleDetailSize = 6000
+
 	var view = &RulesTabView{
-		Flex: tview.NewFlex().
-			AddItem(rulesTable, 0, 1, true).
-			AddItem(jsonView.TextView, 0, 2, false),
+		ResizableView: core.NewResizableView(
+			rulesTable, rulesTableSize,
+			jsonView.TextView, ruleDetailSize,
+			tview.FlexColumn,
+		),
 		RulesTable: rulesTable,
 		JsonView:   jsonView,
 		serviceCtx: serviceCtx,
