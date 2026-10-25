@@ -17,6 +17,7 @@ type AppTheme struct {
 	ContrastBackgroundColor     tcell.Color
 	MoreContrastBackgroundColor tcell.Color
 	PlaceholderTextColour       tcell.Color
+	ErrorTextColour             tcell.Color
 }
 
 func (inst *AppTheme) ResetGlobalStyle() {

@@ -18,6 +18,7 @@ func DefaultTheme() AppTheme {
 		ContrastBackgroundColor:     tcell.NewHexColor(0x303030),
 		MoreContrastBackgroundColor: tcell.NewHexColor(0x404040),
 		PlaceholderTextColour:       tcell.NewHexColor(0x717171),
+		ErrorTextColour:             tcell.NewHexColor(0xE05252),
 	}
 }
 
@@ -50,6 +51,7 @@ func ThemePresets() []AppTheme {
 			ContrastBackgroundColor:     tcell.NewHexColor(0x1C1C1C),
 			MoreContrastBackgroundColor: tcell.NewHexColor(0x505050),
 			PlaceholderTextColour:       tcell.NewHexColor(0x9E9E9E),
+			ErrorTextColour:             tcell.NewHexColor(0xFF4040),
 		},
 		{
 			Name:                        "Nord",
@@ -63,6 +65,7 @@ func ThemePresets() []AppTheme {
 			ContrastBackgroundColor:     tcell.NewHexColor(0x3B4252),
 			MoreContrastBackgroundColor: tcell.NewHexColor(0x434C5E),
 			PlaceholderTextColour:       tcell.NewHexColor(0x7B88A1),
+			ErrorTextColour:             tcell.NewHexColor(0xBF616A),
 		},
 		{
 			Name:                        "Solarized Dark",
@@ -76,6 +79,7 @@ func ThemePresets() []AppTheme {
 			ContrastBackgroundColor:     tcell.NewHexColor(0x073642),
 			MoreContrastBackgroundColor: tcell.NewHexColor(0x124A58),
 			PlaceholderTextColour:       tcell.NewHexColor(0x586E75),
+			ErrorTextColour:             tcell.NewHexColor(0xDC322F),
 		},
 	}
 }
