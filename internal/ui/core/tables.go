@@ -370,8 +370,11 @@ func (inst *SelectableTable[T]) GetPrivateData(row int, column int) T {
 func (inst *SelectableTable[T]) DumpTableToCsv(filename string) (err error) {
 	filename = path.Clean(filename)
 	var file *os.File
-	file, err = os.Create(filename)
+	file, err = os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if err != nil {
+		if os.IsExist(err) {
+			return fmt.Errorf("%s already exists", filename)
+		}
 		return err
 	}
 	defer func() {

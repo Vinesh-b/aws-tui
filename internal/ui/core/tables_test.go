@@ -801,3 +801,19 @@ func TestDumpTableToCsv__WriteError(t *testing.T) {
 		t.Fatalf("Expected error when the write fails")
 	}
 }
+
+func TestDumpTableToCsv__ExistingFile(t *testing.T) {
+	var table = newTestSelectableTable(t)
+
+	var filename = path.Join(t.TempDir(), "table.csv")
+	if err := os.WriteFile(filename, []byte("keep"), 0o644); err != nil {
+		t.Fatalf("Failed to create file: %v", err)
+	}
+
+	if err := table.DumpTableToCsv(filename); err == nil {
+		t.Fatalf("Expected error for existing file")
+	}
+	if content, _ := os.ReadFile(filename); string(content) != "keep" {
+		t.Fatalf("Expected existing file to be untouched but got %q", content)
+	}
+}
