@@ -2,6 +2,7 @@ package sns
 
 import (
 	"sort"
+	"strings"
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
@@ -12,11 +13,15 @@ import (
 
 // pendingConfirmation is what the api gives as the ARN of a subscription that
 // has not been confirmed yet.
+const subscribeOverlayId = "SUBSCRIBE"
+
 const pendingConfirmation = "PendingConfirmation"
 
 type SubscriptionsTable struct {
 	*core.SelectableTable[string]
-	serviceCtx *core.ServiceContext[awsapi.SnsApi]
+	SubscribeView *FloatingSubscribeView
+	topicArn      string
+	serviceCtx    *core.ServiceContext[awsapi.SnsApi]
 }
 
 func NewSubscriptionsTable(
@@ -28,8 +33,16 @@ func NewSubscriptionsTable(
 			core.TableRow{"Protocol", "Endpoint", "Status", "Subscription Arn"},
 			serviceCtx.AppContext,
 		),
-		serviceCtx: serviceCtx,
+		SubscribeView: NewFloatingSubscribeView(serviceCtx.AppContext),
+		serviceCtx:    serviceCtx,
 	}
+
+	table.AddRuneToggleOverlay(subscribeOverlayId, table.SubscribeView, subscribeKey, false)
+	table.SubscribeView.Input.SetOnSubscribeFunc(table.subscribe)
+	table.SubscribeView.Input.SetOnCloseFunc(func() {
+		table.ToggleOverlay(subscribeOverlayId, true)
+	})
+	table.HelpView.View.AddItem(string(subscribeKey), "Subscribe to the topic", nil)
 
 	table.populateSubscriptionsTable(nil)
 
@@ -69,6 +82,7 @@ func (inst *SubscriptionsTable) populateSubscriptionsTable(subscriptions []types
 // RefreshSubscriptions loads the subscriptions of the topic. Without a topic
 // the table is cleared.
 func (inst *SubscriptionsTable) RefreshSubscriptions(topicArn string) {
+	inst.topicArn = topicArn
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 	var subscriptions []types.Subscription
 
@@ -87,4 +101,37 @@ func (inst *SubscriptionsTable) RefreshSubscriptions(topicArn string) {
 	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateSubscriptionsTable(subscriptions)
 	})
+}
+
+// subscribe subscribes the endpoint to the topic of the table without blocking
+// the UI, then reloads the subscriptions.
+func (inst *SubscriptionsTable) subscribe(protocol string, endpoint string) {
+	var topicArn = inst.topicArn
+	var view = inst.SubscribeView.Input
+
+	if topicArn == "" {
+		view.SetStatusMessage("No topic selected")
+		return
+	}
+	endpoint = strings.TrimSpace(endpoint)
+	if endpoint == "" {
+		view.SetStatusMessage("Endpoint is empty")
+		return
+	}
+
+	go func() {
+		var subscriptionArn, err = inst.serviceCtx.Api.Subscribe(inst.serviceCtx.Ctx, topicArn, protocol, endpoint)
+
+		inst.serviceCtx.App.QueueUpdateDraw(func() {
+			if err != nil {
+				view.SetStatusMessage(err.Error())
+				return
+			}
+
+			view.SetStatusMessage("Subscription created: " + subscriptionArn)
+			if topicArn == inst.topicArn {
+				inst.RefreshSubscriptions(topicArn)
+			}
+		})
+	}()
 }

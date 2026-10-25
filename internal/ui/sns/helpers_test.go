@@ -36,6 +36,7 @@ type fakeSnsApi struct {
 	attributes    map[string]string
 	tags          []types.Tag
 	subscriptions []types.Subscription
+	subscribeArn  string
 	err           error
 
 	mtx   sync.Mutex
@@ -73,7 +74,25 @@ func (f *fakeSnsApi) ListTopicSubscriptions(ctx context.Context, arn string) ([]
 	if arn == "" {
 		return nil, errTopicArnNotSet
 	}
-	return f.subscriptions, f.err
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return append([]types.Subscription(nil), f.subscriptions...), f.err
+}
+
+func (f *fakeSnsApi) Subscribe(ctx context.Context, arn string, protocol string, endpoint string) (string, error) {
+	f.record("subscribe " + arn + " " + protocol + " " + endpoint)
+	if f.err != nil {
+		return "", f.err
+	}
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	var subscriptionArn = f.subscribeArn
+	f.subscriptions = append(f.subscriptions, types.Subscription{
+		Protocol:        &protocol,
+		Endpoint:        &endpoint,
+		SubscriptionArn: &subscriptionArn,
+	})
+	return subscriptionArn, nil
 }
 
 func (f *fakeSnsApi) recorded() []string {
