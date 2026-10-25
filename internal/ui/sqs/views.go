@@ -13,6 +13,7 @@ type SqsTabName = string
 const (
 	SqsTabNameDetails SqsTabName = "Details"
 	SqsTabNameTags    SqsTabName = "Tags"
+	SqsTabNameSend    SqsTabName = "Send Message"
 )
 
 type SqsTag struct {
@@ -25,6 +26,8 @@ type SqsDetailsPageView struct {
 	QueueListTable    *QueueListTable
 	QueueDetailsTable *QueueDetailsTable
 	QueueTagsTable    *core.TagsTable[SqsTag, awsapi.SqsApi]
+	SendMessageView   *SendMessagePageView
+	TabView           *core.TabViewHorizontal
 	serviceCtx        *core.ServiceContext[awsapi.SqsApi]
 }
 
@@ -49,9 +52,12 @@ func NewSqsDetailsPageView(
 			}
 		})
 
+	var sendMessageView = NewSendMessagePageView(serviceCtx)
+
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab(SqsTabNameDetails, queueDetailsTable, 0, 1, true).
-		AddTab(SqsTabNameTags, tagsTable, 0, 1, true)
+		AddTab(SqsTabNameTags, tagsTable, 0, 1, true).
+		AddTab(SqsTabNameSend, sendMessageView, 0, 1, true)
 
 	const detailsViewSize = 5000
 	const tableViewSize = 5000
@@ -69,6 +75,8 @@ func NewSqsDetailsPageView(
 		QueueListTable:    queueListTable,
 		QueueDetailsTable: queueDetailsTable,
 		QueueTagsTable:    tagsTable,
+		SendMessageView:   sendMessageView,
+		TabView:           tabView,
 		serviceCtx:        serviceCtx,
 	}
 
@@ -99,6 +107,14 @@ func (inst *SqsDetailsPageView) initInputCapture() {
 		}
 		inst.QueueDetailsTable.RefreshDetails(inst.QueueListTable.GetSelectedQueue())
 		inst.QueueTagsTable.RefreshDetails()
+		inst.SendMessageView.SetSelectedQueue(inst.QueueListTable.GetSelectedQueue())
+	})
+
+	inst.SendMessageView.SetOnMessageSent(func(queueUrl string) {
+		// The message counts of the queue have changed
+		if queueUrl == inst.QueueListTable.GetSelectedQueue() {
+			inst.QueueDetailsTable.RefreshDetails(queueUrl)
+		}
 	})
 }
 
