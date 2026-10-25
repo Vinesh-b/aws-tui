@@ -9,6 +9,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 )
 
 func newAlarm(name string, state types.StateValue) types.MetricAlarm {
@@ -63,5 +65,29 @@ func TestAlarmListTable__SelectedFuncReceivesRowAndColumn(t *testing.T) {
 
 	if gotRow != 1 || gotCol != 0 {
 		t.Errorf("handler got (%d,%d), want (1,0)", gotRow, gotCol)
+	}
+}
+
+func cellForeground(cell *tview.TableCell) tcell.Color {
+	var fg, _, _ = cell.Style.Decompose()
+	return fg
+}
+
+func TestAlarmListTable__ColoursOnlyAlarmsInTheAlarmState(t *testing.T) {
+	var table = newPopulatedAlarmListTable(
+		newAlarm("cpu-high", types.StateValueAlarm),
+		newAlarm("disk-ok", types.StateValueOk),
+		newAlarm("no-data", types.StateValueInsufficientData),
+	)
+
+	for col := 0; col < 2; col++ {
+		if got := cellForeground(table.GetCell(1, col)); got != tcell.ColorRed {
+			t.Errorf("alarm row column %d colour = %v, want red", col, got)
+		}
+		for _, row := range []int{2, 3} {
+			if got := cellForeground(table.GetCell(row, col)); got == tcell.ColorRed {
+				t.Errorf("row %d column %d is red but is not in the alarm state", row, col)
+			}
+		}
 	}
 }

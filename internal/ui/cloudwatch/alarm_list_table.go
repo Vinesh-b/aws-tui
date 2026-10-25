@@ -11,6 +11,9 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
+// alarmStateColour marks alarms that are currently in the ALARM state.
+const alarmStateColour = tcell.ColorRed
+
 type AlarmListTable struct {
 	*core.SelectableTable[types.MetricAlarm]
 	selectedAlarm types.MetricAlarm
@@ -78,6 +81,12 @@ func (inst *AlarmListTable) populateAlarmsTable(data []types.MetricAlarm) {
 	}
 
 	inst.SetData(tableData, data, 0)
+	for i, alarm := range data {
+		if alarm.StateValue == types.StateValueAlarm {
+			inst.GetCell(i+1, 0).SetTextColor(alarmStateColour)
+			inst.GetCell(i+1, 1).SetTextColor(alarmStateColour)
+		}
+	}
 	inst.GetCell(0, 0).SetExpansion(1)
 	inst.Select(1, 0)
 	inst.ScrollToBeginning()
