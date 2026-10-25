@@ -32,6 +32,7 @@ const (
 	LambdaTabVpcConfig LambdaTabName = "VPC Config"
 	LambdaTabTags      LambdaTabName = "Tags"
 	LambdaTabInvoke    LambdaTabName = "Invoke"
+	LambdaTabMetrics   LambdaTabName = "Metrics"
 )
 
 type LambdaDetailsPageView struct {
@@ -44,6 +45,7 @@ type LambdaDetailsPageView struct {
 	LambdaTagsTable    *core.TagsTable[LambdaTag, awsapi.LambdaApi]
 	LogStreamsTable    *cloudwatch.LogStreamsTable
 	LambdaInvokeView   *LambdaInvokePageView
+	LambdaMetricsView  *LambdaMetricsPageView
 	serviceCtx         *core.ServiceContext[awsapi.LambdaApi]
 }
 
@@ -54,6 +56,7 @@ func NewLambdaDetailsPageView(
 	lambdaVpcConfTable *LambdaVpcConfigTable,
 	logStreamsTable *cloudwatch.LogStreamsTable,
 	lambdaInvokeView *LambdaInvokePageView,
+	lambdaMetricsView *LambdaMetricsPageView,
 	serviceCtx *core.ServiceContext[awsapi.LambdaApi],
 ) *LambdaDetailsPageView {
 
@@ -80,7 +83,12 @@ func NewLambdaDetailsPageView(
 		AddTab(LambdaTabEnvVars, lambdaEnvVarsTable, 0, 1, true).
 		AddTab(LambdaTabVpcConfig, lambdaVpcConfTable, 0, 1, true).
 		AddTab(LambdaTabTags, lambdaTagsTable, 0, 1, true).
-		AddTab(LambdaTabInvoke, lambdaInvokeView, 0, 1, true)
+		AddTab(LambdaTabInvoke, lambdaInvokeView, 0, 1, true).
+		AddTab(LambdaTabMetrics, lambdaMetricsView, 0, 1, true)
+
+	tabView.SetOnTabChangeFunc(func(tabName string, index int) {
+		lambdaMetricsView.SetVisible(tabName == LambdaTabMetrics)
+	})
 
 	const detailsViewSize = 3000
 	const tableViewSize = 7000
@@ -104,6 +112,7 @@ func NewLambdaDetailsPageView(
 		LambdaTagsTable:    lambdaTagsTable,
 		LogStreamsTable:    logStreamsTable,
 		LambdaInvokeView:   lambdaInvokeView,
+		LambdaMetricsView:  lambdaMetricsView,
 		serviceCtx:         serviceCtx,
 	}
 
@@ -270,6 +279,7 @@ func NewLambdaHomeView(
 	appCtx *core.AppContext,
 	api awsapi.LambdaApi,
 	cwlApi awsapi.CloudWatchLogsApi,
+	cwmApi awsapi.CloudWatchMetricsApi,
 ) core.ServicePage {
 	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0xCC6600))
 	defer appCtx.Theme.ResetGlobalStyle()
@@ -279,7 +289,11 @@ func NewLambdaHomeView(
 
 		cwLogsCtx = core.NewServiceViewContext(appCtx, cwlApi)
 
+		cwMetricsCtx = core.NewServiceViewContext(appCtx, cwmApi)
+
 		lambdaInvokeView = NewLambdaInvokePageView(lambdaCtx)
+
+		lambdaMetricsView = NewLambdaMetricsPageView(cwMetricsCtx)
 
 		lambdasDetailsView = NewLambdaDetailsPageView(
 			NewLambdasListTable(lambdaCtx),
@@ -288,6 +302,7 @@ func NewLambdaHomeView(
 			NewLambdaVpcConfigTable(lambdaCtx),
 			cloudwatch.NewLogStreamsTable(cwLogsCtx),
 			lambdaInvokeView,
+			lambdaMetricsView,
 			lambdaCtx,
 		)
 		logEventsView = cloudwatch.NewLogEventsPageView(
@@ -318,6 +333,7 @@ func NewLambdaHomeView(
 		var lambdaName = aws.ToString(selectedLambda.FunctionName)
 		lambdaTagsTable.RefreshDetails()
 		lambdaInvokeView.SetSelectedLambda(lambdaName)
+		lambdaMetricsView.SetSelectedLambda(lambdaName)
 	}
 
 	lambdasListTable.SetSelectedFunc(lambdaSelectedFunc)

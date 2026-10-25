@@ -220,6 +220,7 @@ func CreateApplication(
 				appContext,
 				awsapi.NewLambdaApi(appContext.Logger),
 				awsapi.NewCloudWatchLogsApi(appContext.Logger),
+				awsapi.NewCloudWatchMetricsApi(appContext.Logger),
 			)
 		}),
 		newServiceItem("󰺮 "+string(core.CLOUDWATCH_LOGS_INSIGHTS), "Query and filter logs", rune('2'), func() core.ServicePage {

@@ -126,6 +126,17 @@ func (inst *MetricChartView) SetMetric(metric types.Metric) {
 	inst.showMessage("The chart loads when this tab is opened")
 }
 
+// SetStatistic picks the statistic used for the next load. Unknown statistics
+// are ignored.
+func (inst *MetricChartView) SetStatistic(stat string) {
+	for i, s := range chartStatistics {
+		if s == stat {
+			inst.statIdx = i
+			return
+		}
+	}
+}
+
 func (inst *MetricChartView) SetVisible(visible bool) {
 	inst.visible = visible
 	if visible {

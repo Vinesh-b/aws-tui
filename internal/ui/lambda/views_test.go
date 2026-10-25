@@ -13,7 +13,7 @@ import (
 func TestHomeView__ResetKeyLoadsFunctionsFromApi(t *testing.T) {
 	var api = &fakeLambdaApi{functions: []types.FunctionConfiguration{newFunction("orders-handler")}}
 	var appCtx = uitest.NewAppContext()
-	var page = NewLambdaHomeView(appCtx, api, awsapi.CloudWatchLogsApi(nil))
+	var page = NewLambdaHomeView(appCtx, api, awsapi.CloudWatchLogsApi(nil), awsapi.CloudWatchMetricsApi(nil))
 	var screen = uitest.ShowPage(t, appCtx.App, page)
 
 	uitest.PressRune(t, appCtx.App, core.APP_KEY_BINDINGS.Reset)

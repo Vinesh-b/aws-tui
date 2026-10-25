@@ -254,3 +254,20 @@ func TestChartPoints__PairsTimestampsWithValues(t *testing.T) {
 		t.Errorf("uneven result gave %d points, want 1", got)
 	}
 }
+
+func TestMetricChartView__SetStatisticChangesRequestedStatistic(t *testing.T) {
+	var api = &fakeCloudWatchMetricsApi{data: newMetricData(1)}
+	var view = newChartView(t, api)
+
+	onChartUI(t, view, func() {
+		view.SetStatistic("Maximum")
+		view.SetStatistic("NotAStatistic")
+		view.SetMetric(newMetric("AWS/Lambda", "ConcurrentExecutions"))
+		view.SetVisible(true)
+	})
+
+	awaitChartState(t, view, func() bool { return len(api.metricDataRequests()) == 1 })
+	if got := api.metricDataRequests()[0].stat; got != "Maximum" {
+		t.Errorf("stat = %q, want Maximum", got)
+	}
+}
