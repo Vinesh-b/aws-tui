@@ -13,7 +13,7 @@ type ServiceRootView struct {
 	*BaseView
 	layout          *tview.Flex
 	pages           *tview.Pages
-	paginatorView   PaginatorView
+	paginatorView   *PaginatorView
 	pageIndex       int
 	orderedPages    []string
 	pageViewMap     map[string]ServicePage
@@ -103,11 +103,17 @@ func NewServiceRootView(
 		return event
 	})
 
-	paginatorView.SetBorder(true)
+	paginatorView.SetPageSelectedFunc(func(name string) {
+		if !view.pagesListHidden {
+			view.pages.HidePage(SERVICE_PAGES_LIST)
+			view.pagesListHidden = true
+		}
+		view.switchToPage(name)
+	})
 
 	view.layout.
 		AddItem(view.pages, 0, 1, true).
-		AddItem(paginatorView, 3, 0, false)
+		AddItem(paginatorView, 1, 0, false)
 
 	view.SetMainView(view.layout)
 
@@ -121,15 +127,13 @@ func (inst *ServiceRootView) switchToPage(name string) {
 		inst.appCtx.App.SetFocus(inst.lastFocusedView)
 	}
 
-	var numPages = len(inst.orderedPages)
 	var idx = slices.IndexFunc(
 		inst.orderedPages,
 		func(n string) bool { return n == name },
 	)
 
 	inst.pageIndex = max(idx, 0)
-	inst.paginatorView.SetPageName(name)
-	inst.paginatorView.SetPageCount(numPages, inst.pageIndex+1)
+	inst.paginatorView.SetCurrentPage(inst.pageIndex)
 }
 
 func (inst *ServiceRootView) ChangePage(pageIdx int, focusView tview.Primitive) {
@@ -177,6 +181,7 @@ func (inst *ServiceRootView) AddPage(
 	inst.orderedPages = append(inst.orderedPages, name)
 	inst.pageViewMap[name] = item
 	inst.pageList.AddItem(name, "", 0, nil)
+	inst.paginatorView.SetPages(inst.orderedPages)
 	inst.pages.SendToFront(SERVICE_PAGES_LIST)
 	return inst
 }

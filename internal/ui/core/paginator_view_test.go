@@ -1,9 +1,16 @@
 package core
 
 import (
+	"context"
+	"math"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
+
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 )
 
 func TestPaginatorView__StopEndsThePollingGoroutine(t *testing.T) {
@@ -30,4 +37,189 @@ func TestServiceRootView__CloseStopsThePaginatorMoreThanOnce(t *testing.T) {
 
 	view.Close()
 	view.Close()
+}
+
+func newTestPaginator(t *testing.T, serviceColour tcell.Color) (*PaginatorView, *AppTheme) {
+	t.Helper()
+	keepGlobalStyle(t)
+	var theme = DefaultTheme()
+	var appCtx = NewAppContext(context.Background(), tview.NewApplication(), nil, nil, &theme)
+
+	tview.Styles.BorderColor = serviceColour
+	var view = CreatePaginatorView("Step Functions", appCtx)
+	t.Cleanup(view.Stop)
+
+	view.SetPages([]string{"StateMachines", "Execution Details"})
+	view.SetCurrentPage(1)
+	return view, &theme
+}
+
+func drawPaginator(t *testing.T, view *PaginatorView, width int) tcell.SimulationScreen {
+	t.Helper()
+	var screen = tcell.NewSimulationScreen("UTF-8")
+	if err := screen.Init(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(screen.Fini)
+	screen.SetSize(width, 1)
+	view.SetRect(0, 0, width, 1)
+	view.Draw(screen)
+	screen.Show()
+	return screen
+}
+
+func screenLine(screen tcell.SimulationScreen) string {
+	var cells, width, _ = screen.GetContents()
+	var line strings.Builder
+	for col := 0; col < width; col++ {
+		line.WriteString(string(cells[col].Runes))
+	}
+	return line.String()
+}
+
+// lineColours finds the text on the bar and returns the colours of its first
+// cell. The bar has runes outside ASCII so it is searched by rune, not byte.
+func lineColours(t *testing.T, screen tcell.SimulationScreen, text string) (fg, bg tcell.Color) {
+	t.Helper()
+	var line = screenLine(screen)
+	var idx = strings.Index(line, text)
+	if idx < 0 {
+		t.Fatalf("%q is not on the screen: %q", text, line)
+	}
+	var cells, _, _ = screen.GetContents()
+	fg, bg, _ = cells[utf8.RuneCountInString(line[:idx])].Style.Decompose()
+	return fg, bg
+}
+
+func clickAt(view *PaginatorView, x int) bool {
+	var event = tcell.NewEventMouse(x, 0, tcell.Button1, tcell.ModNone)
+	var consumed, _ = view.MouseHandler()(tview.MouseLeftClick, event, func(tview.Primitive) {})
+	return consumed
+}
+
+func TestPaginatorView__DrawsServiceAndPagePills(t *testing.T) {
+	var serviceColour = tcell.NewHexColor(0xFF3399)
+	var view, theme = newTestPaginator(t, serviceColour)
+	var screen = drawPaginator(t, view, 120)
+
+	var line = screenLine(screen)
+	if !strings.HasPrefix(line, " 🭃Step Functions🭎 🭃StateMachines🭎 🭃Execution Details🭎") {
+		t.Fatalf("line = %q, want the service and page pills", line)
+	}
+
+	for _, want := range []struct {
+		text   string
+		fg, bg tcell.Color
+	}{
+		{"Step Functions", theme.SecondaryTextColour, serviceColour},
+		{"StateMachines", theme.PrimaryTextColour, theme.ContrastBackgroundColor},
+		{"Execution Details", theme.SecondaryTextColour, theme.MoreContrastBackgroundColor},
+	} {
+		if fg, bg := lineColours(t, screen, want.text); fg != want.fg || bg != want.bg {
+			t.Errorf("%s = fg %x bg %x, want fg %x bg %x",
+				want.text, fg.Hex(), bg.Hex(), want.fg.Hex(), want.bg.Hex())
+		}
+	}
+}
+
+func TestPaginatorView__ColoursSessionDetails(t *testing.T) {
+	var view, theme = newTestPaginator(t, tcell.ColorBlue)
+
+	for _, test := range []struct {
+		name     string
+		duration time.Duration
+		text     string
+		fg       tcell.Color
+	}{
+		{"no expiry", math.MinInt64, "Inf", theme.PrimaryTextColour},
+		{"plenty left", time.Hour, "1h0m0s", theme.PrimaryTextColour},
+		{"expiring soon", 10 * time.Minute, "10m0s", theme.TertiaryTextColour},
+		{"expired", 0, "Expired", theme.ErrorTextColour},
+	} {
+		view.session = &sessionInfo{
+			profile: "dev", accountId: "123456789012", userId: "AROA:me", duration: test.duration,
+		}
+		var screen = drawPaginator(t, view, 160)
+
+		if !strings.HasSuffix(strings.TrimRight(screenLine(screen), " "), "User AROA:me") {
+			t.Errorf("%s: line = %q, want the session details right aligned", test.name, screenLine(screen))
+		}
+		if fg, _ := lineColours(t, screen, "Profile"); fg != theme.PlaceholderTextColour {
+			t.Errorf("%s: label fg = %x, want %x", test.name, fg.Hex(), theme.PlaceholderTextColour.Hex())
+		}
+		if fg, _ := lineColours(t, screen, "123456789012"); fg != theme.PrimaryTextColour {
+			t.Errorf("%s: value fg = %x, want %x", test.name, fg.Hex(), theme.PrimaryTextColour.Hex())
+		}
+		if fg, _ := lineColours(t, screen, test.text); fg != test.fg {
+			t.Errorf("%s: duration fg = %x, want %x", test.name, fg.Hex(), test.fg.Hex())
+		}
+	}
+}
+
+func TestPaginatorView__ShowsCredentialErrorsInTheErrorColour(t *testing.T) {
+	var view, theme = newTestPaginator(t, tcell.ColorBlue)
+	view.session = &sessionInfo{err: "token expired"}
+	var screen = drawPaginator(t, view, 120)
+
+	if fg, _ := lineColours(t, screen, "⚠ Credentials Error: token expired"); fg != theme.ErrorTextColour {
+		t.Errorf("error fg = %x, want %x", fg.Hex(), theme.ErrorTextColour.Hex())
+	}
+}
+
+func TestPaginatorView__CutsSessionDetailsOffBeforeThePills(t *testing.T) {
+	var view, _ = newTestPaginator(t, tcell.ColorBlue)
+	view.session = &sessionInfo{profile: "dev", accountId: "123456789012", userId: "AROA:me", duration: time.Hour}
+	var screen = drawPaginator(t, view, 70)
+
+	var line = screenLine(screen)
+	if !strings.Contains(line, "🭃Execution Details🭎  Profile") {
+		t.Errorf("line = %q, want the pills kept and the session details after them", line)
+	}
+}
+
+func TestPaginatorView__ClickingAPagePillSelectsThePage(t *testing.T) {
+	var view, _ = newTestPaginator(t, tcell.ColorBlue)
+	var screen = drawPaginator(t, view, 120)
+	var selected = ""
+	view.SetPageSelectedFunc(func(name string) { selected = name })
+
+	if !strings.Contains(screenLine(screen), "🭃StateMachines🭎") {
+		t.Fatalf("line = %q, want the page pills drawn", screenLine(screen))
+	}
+
+	// Columns: 1 padding, service pill is 16 wide, then a gap
+	var stateMachinesX = 1 + pillWidth("Step Functions") + 1
+	var executionDetailsX = stateMachinesX + pillWidth("StateMachines") + 1
+
+	if !clickAt(view, 2) || selected != "" {
+		t.Errorf("clicking the service pill selected %q, want nothing and the click consumed", selected)
+	}
+	if !clickAt(view, stateMachinesX) || selected != "StateMachines" {
+		t.Errorf("selected = %q, want StateMachines", selected)
+	}
+	if !clickAt(view, executionDetailsX+pillWidth("Execution Details")-1) || selected != "Execution Details" {
+		t.Errorf("selected = %q, want Execution Details", selected)
+	}
+	if !clickAt(view, 110) {
+		t.Error("expected a click on the empty bar to be consumed so it does not take the focus")
+	}
+}
+
+func TestServiceRootView__PaginatorPillSwitchesPage(t *testing.T) {
+	var appCtx = newTestAppContext()
+	var view = NewServiceRootView("service", appCtx)
+	t.Cleanup(view.Close)
+
+	view.
+		AddAndSwitchToPage("First", NewServicePageView(appCtx), true).
+		AddPage("Second", NewServicePageView(appCtx), true, true)
+	view.InitPageNavigation()
+
+	view.paginatorView.SetRect(0, 0, 100, 1)
+	var secondX = 1 + pillWidth("service") + 1 + pillWidth("First") + 1
+	clickAt(view.paginatorView, secondX)
+
+	if name, _ := view.pages.GetFrontPage(); name != "Second" || view.paginatorView.currentPage != 1 {
+		t.Errorf("front page = %q, current pill = %d, want Second and 1", name, view.paginatorView.currentPage)
+	}
 }
