@@ -93,6 +93,10 @@ func NewSqsDetailsPageView(
 
 func (inst *SqsDetailsPageView) initInputCapture() {
 	inst.QueueListTable.SetSelectionChangedFunc(func(row, column int) {
+		// Nothing to show while the list is empty, e.g. before it is loaded
+		if inst.QueueListTable.GetSelectedQueue() == "" {
+			return
+		}
 		inst.QueueDetailsTable.RefreshDetails(inst.QueueListTable.GetSelectedQueue())
 		inst.QueueTagsTable.RefreshDetails()
 	})
