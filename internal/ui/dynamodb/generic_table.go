@@ -1,6 +1,7 @@
 package dynamodb
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -50,6 +51,12 @@ type DynamoDBGenericTable struct {
 	lastTableOp          DDBTableOp
 	lastSearchExpr       expression.Expression
 	lastSelectedRowIdx   int
+	// A new search cancels the one in flight. searchDone is closed once that
+	// search has stopped using the api, and searchId tells which search's
+	// results are the latest.
+	searchCancel context.CancelFunc
+	searchDone   chan struct{}
+	searchId     int
 }
 
 func NewDynamoDBGenericTable(
@@ -210,49 +217,78 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 	inst.table.Select(inst.lastSelectedRowIdx, 0)
 }
 
+// ExecuteSearch loads the items, cancelling any search still in flight. Only
+// the results of the latest search are shown.
 func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expression.Expression, reset bool) {
 	inst.lastTableOp = operation
 	inst.lastSearchExpr = expr
+
+	if inst.searchCancel != nil {
+		inst.searchCancel()
+	}
+	var ctx, cancel = context.WithCancel(inst.serviceCtx.Ctx)
+	var previousDone = inst.searchDone
+	var done = make(chan struct{})
+	inst.searchCancel = cancel
+	inst.searchDone = done
+	inst.searchId++
+
+	var searchId = inst.searchId
+	var tableName = inst.selectedTable
+	var indexName = inst.searchIndexName
+	var description = inst.tableDescription
+	var data []map[string]any
+
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		if len(inst.selectedTable) <= 0 {
-			inst.data = make([]map[string]any, 0)
+		defer close(done)
+
+		// The api keeps the pages of the last search, so searches can't overlap
+		if previousDone != nil {
+			<-previousDone
+		}
+
+		if len(tableName) <= 0 || ctx.Err() != nil {
 			return
 		}
 
-		var err error = nil
-		if reset || inst.tableDescription == nil {
-			inst.tableDescription, err = inst.serviceCtx.Api.DescribeTable(inst.serviceCtx.Ctx, inst.selectedTable)
-			if err != nil {
+		var reportErr = func(err error) {
+			if err != nil && ctx.Err() == nil {
 				inst.ErrorMessageCallback("%s", err.Error())
+			}
+		}
+
+		var err error = nil
+		if reset || description == nil {
+			description, err = inst.serviceCtx.Api.DescribeTable(ctx, tableName)
+			if err != nil {
+				reportErr(err)
 				return
 			}
 		}
 
-		var data []map[string]any
-
 		switch operation {
 		case DDBTableScan:
-			data, err = inst.serviceCtx.Api.ScanTable(inst.serviceCtx.Ctx, inst.selectedTable, expr, "", reset)
+			data, err = inst.serviceCtx.Api.ScanTable(ctx, tableName, expr, "", reset)
 		case DDBTableQuery:
-			data, err = inst.serviceCtx.Api.QueryTable(
-				inst.serviceCtx.Ctx, inst.selectedTable, expr, inst.searchIndexName, reset,
-			)
+			data, err = inst.serviceCtx.Api.QueryTable(ctx, tableName, expr, indexName, reset)
+		}
+		reportErr(err)
+	})
+
+	dataLoader.AsyncUpdateView(inst.table.Box, func() {
+		cancel()
+		if searchId != inst.searchId {
+			return
 		}
 
+		inst.tableDescription = description
 		if !reset {
 			inst.data = append(inst.data, data...)
 		} else {
 			inst.data = data
 		}
-
-		if err != nil {
-			inst.ErrorMessageCallback("%s", err.Error())
-		}
-	})
-
-	dataLoader.AsyncUpdateView(inst.table.Box, func() {
 		inst.populateDynamoDBTable(!reset)
 	})
 }

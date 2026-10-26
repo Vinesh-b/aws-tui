@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sync"
 	"testing"
+	"time"
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
@@ -22,6 +23,9 @@ type fakeDynamoDBApi struct {
 	description *types.TableDescription
 	items       []map[string]any
 	err         error
+
+	// queryFunc, when set, gives the result of each query by its call number
+	queryFunc func(ctx context.Context, call int) ([]map[string]any, error)
 
 	mu           sync.Mutex
 	queryIndexes []string
@@ -46,7 +50,11 @@ func (f *fakeDynamoDBApi) QueryTable(
 ) ([]map[string]any, error) {
 	f.mu.Lock()
 	f.queryIndexes = append(f.queryIndexes, indexName)
+	var call = len(f.queryIndexes) - 1
 	f.mu.Unlock()
+	if f.queryFunc != nil {
+		return f.queryFunc(ctx, call)
+	}
 	return f.items, f.err
 }
 
@@ -155,4 +163,92 @@ func TestGenericTable__QueryRunsAgainstSelectedGsi(t *testing.T) {
 	if got := api.queriedIndexes(); !slices.Equal(got, want) {
 		t.Errorf("queried indexes = %v, want %v (query, then reload)", got, want)
 	}
+}
+
+func newQueriedTable(t *testing.T, api *fakeDynamoDBApi) *DynamoDBGenericTable {
+	var serviceCtx = uitest.NewServiceContextWith[awsapi.DynamoDBApi](api)
+	var table = NewDynamoDBGenericTable(serviceCtx)
+	uitest.RunApp(t, serviceCtx.App)
+	uitest.OnUI(t, serviceCtx.App, func() { table.SetSelectedTable("users") })
+	return table
+}
+
+func TestGenericTable__NewQueryCancelsQueryInFlight(t *testing.T) {
+	var firstCancelled = make(chan error, 1)
+	var api = &fakeDynamoDBApi{
+		description: newTableDescription("users", hashKey("id")),
+		queryFunc: func(ctx context.Context, call int) ([]map[string]any, error) {
+			if call == 0 {
+				<-ctx.Done()
+				firstCancelled <- ctx.Err()
+				return nil, ctx.Err()
+			}
+			return []map[string]any{{"id": "second"}}, nil
+		},
+	}
+	var table = newQueriedTable(t, api)
+	var app = table.serviceCtx.App
+	var callback, received = uitest.CaptureErrors()
+	table.ErrorMessageCallback = callback
+
+	uitest.OnUI(t, app, func() { table.ExecuteSearch(DDBTableQuery, expression.Expression{}, true) })
+	uitest.Eventually(t, app, func() bool { return len(api.queriedIndexes()) == 1 })
+	uitest.OnUI(t, app, func() { table.ExecuteSearch(DDBTableQuery, expression.Expression{}, true) })
+
+	select {
+	case err := <-firstCancelled:
+		if !errors.Is(err, context.Canceled) {
+			t.Errorf("first query ctx error = %v, want context.Canceled", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("first query was not cancelled")
+	}
+	uitest.AwaitRows(t, app, table, []core.TableRow{{"id"}, {"second"}})
+	select {
+	case msg := <-received:
+		t.Errorf("cancelled query reported error %q", msg)
+	default:
+	}
+}
+
+func TestGenericTable__ResultsOfReplacedQueryAreDropped(t *testing.T) {
+	var releaseFirst = make(chan struct{})
+	var releaseSecond = make(chan struct{})
+	var api = &fakeDynamoDBApi{
+		description: newTableDescription("users", hashKey("id")),
+		queryFunc: func(ctx context.Context, call int) ([]map[string]any, error) {
+			if call == 0 {
+				// Ignores the cancel, as a request that already finished would
+				<-releaseFirst
+				return []map[string]any{{"id": "stale-1"}, {"id": "stale-2"}}, nil
+			}
+			<-releaseSecond
+			return []map[string]any{{"id": "latest"}}, nil
+		},
+	}
+	var table = newQueriedTable(t, api)
+	var app = table.serviceCtx.App
+
+	uitest.OnUI(t, app, func() { table.ExecuteSearch(DDBTableQuery, expression.Expression{}, true) })
+	uitest.Eventually(t, app, func() bool { return len(api.queriedIndexes()) == 1 })
+	uitest.OnUI(t, app, func() { table.ExecuteSearch(DDBTableQuery, expression.Expression{}, true) })
+
+	// The second query waits for the first to stop using the api
+	time.Sleep(50 * time.Millisecond)
+	if got := len(api.queriedIndexes()); got != 1 {
+		t.Fatalf("queries started = %d, want 1 while the first is in flight", got)
+	}
+	close(releaseFirst)
+	uitest.Eventually(t, app, func() bool { return len(api.queriedIndexes()) == 2 })
+
+	// Give the first query's results time to reach the view
+	time.Sleep(300 * time.Millisecond)
+	uitest.OnUI(t, app, func() {
+		if got := table.GetTable().GetRowCount(); got != 0 {
+			t.Errorf("rows = %d before the latest query finished, want 0", got)
+		}
+	})
+
+	close(releaseSecond)
+	uitest.AwaitRows(t, app, table, []core.TableRow{{"id"}, {"latest"}})
 }
