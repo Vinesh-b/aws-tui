@@ -88,6 +88,7 @@ func NewLogsInsightsPageView(
 	logGroupsTable.ErrorMessageCallback = errorHandler
 	selectedGroupsTable.ErrorMessageCallback = errorHandler
 	resultsTable.ErrorMessageCallback = errorHandler
+	queryView.ErrorMessageCallback = errorHandler
 
 	serviceView.InitViewNavigation(
 		[][]core.View{
@@ -125,6 +126,8 @@ func (inst *LogsInsightsPageView) RunQuery() {
 		inst.ResultsTable.ErrorMessageCallback("%s", err.Error())
 		return
 	}
+
+	inst.QueryView.RememberQuery(query)
 
 	var logGroups = inst.SelectedGroupsTable.GetAllLogGroups()
 	inst.ResultsTable.ExecuteQuery(query, logGroups)

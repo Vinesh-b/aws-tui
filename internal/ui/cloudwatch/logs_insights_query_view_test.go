@@ -1,10 +1,14 @@
 package cloudwatch
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"testing"
 	"time"
 
+	"aws-tui/internal/settings"
+	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/uitest"
 )
 
@@ -111,6 +115,12 @@ func TestInsightsQueryView__EndBeforeStartIsRejected(t *testing.T) {
 	}
 }
 
+func newViewWithQueriesFile(t *testing.T) (*InsightsQueryInputView, string) {
+	var appCtx = uitest.NewAppContext()
+	appCtx.QueriesPath = filepath.Join(t.TempDir(), "queries.json")
+	return NewInsightsQueryInputView(appCtx), appCtx.QueriesPath
+}
+
 func TestInsightsQueryView__PickingARangeSetsTimesEndingNow(t *testing.T) {
 	var tests = []struct {
 		label string
@@ -180,4 +190,112 @@ func TestInsightsQueryView__PickingARangeIsNotEnteringATime(t *testing.T) {
 	if index := view.rangeIndex(); insightsRanges[index].label != "Last 24 hours" {
 		t.Errorf("range = %q, want the one picked", insightsRanges[index].label)
 	}
+}
+
+func TestInsightsQueryView__SavedQueryIsKeptByNameInOrderAndReplacedBySameName(t *testing.T) {
+	var view, path = newViewWithQueriesFile(t)
+
+	var save = func(name string, query string) {
+		view.nameInput.SetText(name)
+		view.queryTextArea.SetText(query, false)
+		view.SaveQuery()
+	}
+	save("slow", "fields @duration")
+	save("errors", "fields @message")
+	save("slow", "fields @duration | sort @duration desc")
+
+	uitest.AssertTableRows(t, view.savedTable, []core.TableRow{{"Name"}, {"errors"}, {"slow"}})
+	var kept, err = settings.LoadQueries(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want = []settings.SavedQuery{
+		{Name: "errors", Query: "fields @message"},
+		{Name: "slow", Query: "fields @duration | sort @duration desc"},
+	}
+	if !slices.Equal(kept.Saved, want) {
+		t.Errorf("kept = %+v, want %+v", kept.Saved, want)
+	}
+}
+
+func TestInsightsQueryView__SavingNeedsANameAndAQuery(t *testing.T) {
+	var view, path = newViewWithQueriesFile(t)
+	var messages []string
+	view.ErrorMessageCallback = func(text string, a ...any) { messages = append(messages, text) }
+
+	view.nameInput.SetText("  ")
+	view.SaveQuery()
+	view.nameInput.SetText("errors")
+	view.queryTextArea.SetText(" ", false)
+	view.SaveQuery()
+
+	if want := []string{"Enter a name to save the query as", "The query is empty"}; !slices.Equal(messages, want) {
+		t.Errorf("messages = %v, want %v", messages, want)
+	}
+	if _, err := os.Stat(path); err == nil {
+		t.Error("a file was written for queries that were not saved")
+	}
+}
+
+func TestInsightsQueryView__SavedQueriesAndTheLastQueryComeBackNextTime(t *testing.T) {
+	var view, path = newViewWithQueriesFile(t)
+	view.nameInput.SetText("errors")
+	view.queryTextArea.SetText("fields @message", false)
+	view.SaveQuery()
+	view.RememberQuery(InsightsQuery{Query: "stats count(*) by bin(5m)"})
+
+	var appCtx = uitest.NewAppContext()
+	appCtx.QueriesPath = path
+	var next = NewInsightsQueryInputView(appCtx)
+
+	uitest.AssertTableRows(t, next.savedTable, []core.TableRow{{"Name"}, {"errors"}})
+	if got := next.queryTextArea.GetText(); got != "stats count(*) by bin(5m)" {
+		t.Errorf("query = %q, want the one run last", got)
+	}
+}
+
+func TestInsightsQueryView__SelectingASavedQueryPutsItInTheForm(t *testing.T) {
+	var view, _ = newViewWithQueriesFile(t)
+	view.nameInput.SetText("errors")
+	view.queryTextArea.SetText("fields @message", false)
+	view.SaveQuery()
+	view.nameInput.SetText("")
+	view.queryTextArea.SetText("something else", false)
+
+	uitest.PressEnter(view.savedTable)
+
+	if got := view.queryTextArea.GetText(); got != "fields @message" {
+		t.Errorf("query = %q, want the saved one", got)
+	}
+	if got := view.nameInput.GetText(); got != "errors" {
+		t.Errorf("name = %q, want the saved name so it can be replaced", got)
+	}
+}
+
+func TestInsightsQueryView__DeletingASavedQueryForgetsIt(t *testing.T) {
+	var view, path = newViewWithQueriesFile(t)
+	for _, name := range []string{"a", "b"} {
+		view.nameInput.SetText(name)
+		view.queryTextArea.SetText("fields "+name, false)
+		view.SaveQuery()
+	}
+	view.savedTable.Select(1, 0)
+
+	view.deleteSelectedQuery()
+
+	uitest.AssertTableRows(t, view.savedTable, []core.TableRow{{"Name"}, {"b"}})
+	var kept, _ = settings.LoadQueries(path)
+	if !slices.Equal(kept.Saved, []settings.SavedQuery{{Name: "b", Query: "fields b"}}) {
+		t.Errorf("kept = %+v", kept.Saved)
+	}
+}
+
+func TestInsightsQueryView__WithoutAFileQueriesAreKeptOnlyForTheSession(t *testing.T) {
+	var view = NewInsightsQueryInputView(uitest.NewAppContext())
+	view.nameInput.SetText("errors")
+	view.queryTextArea.SetText("fields @message", false)
+
+	view.SaveQuery()
+
+	uitest.AssertTableRows(t, view.savedTable, []core.TableRow{{"Name"}, {"errors"}})
 }
