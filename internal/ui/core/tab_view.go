@@ -136,6 +136,11 @@ func NewTabViewHorizontal(appCtx *AppContext) *TabViewHorizontal {
 
 	view.Flex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
+		case tcell.KeyRune:
+			if idx, ok := tabNumberKey(event); ok && idx < len(view.orderedTabs) && !isTextEntry(appCtx.App.GetFocus()) {
+				view.SwitchToTab(view.orderedTabs[idx])
+				return nil
+			}
 		case tcell.KeyTab:
 			view.currentTabIdx = (view.currentTabIdx + 1) % len(view.orderedTabs)
 			view.SwitchToTab(view.orderedTabs[view.currentTabIdx])
@@ -201,9 +206,57 @@ func (inst *TabViewHorizontal) AddTab(
 	inst.pages.AddPage(name, servicePage, true, false)
 	inst.pageViewMap[name] = servicePage
 	inst.orderedTabs = append(inst.orderedTabs, name)
-	inst.tabBar.SetPills(inst.orderedTabs)
+	inst.tabBar.SetPills(tabLabels(inst.orderedTabs))
 
 	return inst
+}
+
+// tabKeyDigits are the superscript numbers shown before the tabs that have a
+// number key, which take one cell
+var tabKeyDigits = []string{"¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"}
+
+// tabLabels are the names of the tabs with the number of their key before the
+// first nine
+func tabLabels(names []string) []string {
+	var labels = make([]string, 0, len(names))
+	for idx, name := range names {
+		if idx < len(tabKeyDigits) {
+			name = tabKeyDigits[idx] + name
+		}
+		labels = append(labels, name)
+	}
+	return labels
+}
+
+// tabNumberKey is the index of the tab a key from 1 to 9 switches to
+func tabNumberKey(event *tcell.EventKey) (int, bool) {
+	var key = event.Rune()
+	if event.Modifiers() != tcell.ModNone || key < '1' || key > '9' {
+		return 0, false
+	}
+	return int(key - '1'), true
+}
+
+// isTextEntry is true for the views text is typed into, which keep the number
+// keys. Views that can't be told apart are taken to be typed into, so a key is
+// never lost.
+func isTextEntry(focused tview.Primitive) bool {
+	switch view := focused.(type) {
+	case nil:
+		return false
+	case *syntaxTextArea:
+		// The text of read only views such as SearchableTextView
+		return false
+	case *TextArea:
+		return true
+	case *tview.TextArea:
+		return !view.GetDisabled()
+	case interface {
+		SetAcceptanceFunc(handler func(textToCheck string, lastChar rune) bool) *tview.InputField
+	}:
+		return true
+	}
+	return false
 }
 
 func (inst *TabViewHorizontal) AddAndSwitchToTab(
