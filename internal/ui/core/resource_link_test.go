@@ -177,3 +177,54 @@ func TestDetailsTableLinks__NewDataReplacesLinks(t *testing.T) {
 		t.Error("link kept from the previous data")
 	}
 }
+
+func TestIsIamRoleArn(t *testing.T) {
+	var tests = []struct {
+		text string
+		want bool
+	}{
+		{"arn:aws:iam::123456789012:role/orders", true},
+		{"arn:aws:iam::123456789012:role/service-role/orders", true},
+		{"arn:aws:iam::123456789012:role/", false},
+		{"arn:aws:iam::123456789012:role/service-role/", false},
+		{"arn:aws:iam::123456789012:user/alice", false},
+		{"arn:aws:iam::aws:policy/ReadOnlyAccess", false},
+		{"arn:aws:sts::123456789012:assumed-role/orders/session", false},
+		{"role/orders", false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		if got := IsIamRoleArn(tt.text); got != tt.want {
+			t.Errorf("%q: got %v, want %v", tt.text, got, tt.want)
+		}
+	}
+}
+
+func TestDetailsTableLinks__IamRoleArnsAreLinked(t *testing.T) {
+	const roleArn = "arn:aws:iam::123456789012:role/service-role/orders"
+	var table = NewDetailsTable("details", newTestAppContext())
+
+	table.SetData([]TableRow{
+		{"Role", roleArn},
+		{"Boundary", "arn:aws:iam::123456789012:policy/boundary"},
+		{"Name", "orders"},
+		DetailsLink("Log Group", roleArn, "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/orders"),
+	})
+
+	if link, _ := table.GetLink(0); link != roleArn {
+		t.Errorf("role link = %q, want %q", link, roleArn)
+	}
+	var _, _, attrs = table.table.GetCell(0, detailsValueCol).Style.Decompose()
+	if attrs&tcell.AttrUnderline == 0 {
+		t.Error("role ARN should be underlined")
+	}
+	for _, row := range []int{1, 2} {
+		if link, ok := table.GetLink(row); ok {
+			t.Errorf("row %d linked to %q, want no link", row, link)
+		}
+	}
+	if link, _ := table.GetLink(3); link != "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/orders" {
+		t.Errorf("explicit link = %q, want it kept over the role ARN in the value", link)
+	}
+}

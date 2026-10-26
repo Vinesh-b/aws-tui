@@ -61,6 +61,7 @@ func (inst *SfnDetailsTable) populateTable() {
 			{"Description", aws.ToString(inst.data.Description)},
 			{"Status", string(inst.data.Status)},
 			{"Created", core.FormatTime(inst.data.CreationDate)},
+			{"Role", aws.ToString(inst.data.RoleArn)},
 		}
 
 		var logConfig = inst.data.LoggingConfiguration

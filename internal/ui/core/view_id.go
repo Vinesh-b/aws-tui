@@ -12,6 +12,7 @@ const (
 	CLOUDFORMATION           ViewId = "CloudFormation"
 	DYNAMODB                 ViewId = "DynamoDB"
 	EVENTBRIDGE              ViewId = "EventBridge"
+	IAM                      ViewId = "IAM"
 	S3BUCKETS                ViewId = "S3 Buckets"
 	SNS                      ViewId = "SNS"
 	SQS                      ViewId = "SQS"

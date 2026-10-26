@@ -8,6 +8,7 @@ import (
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/dynamodb"
 	"aws-tui/internal/ui/eventbridge"
+	"aws-tui/internal/ui/iam"
 	"aws-tui/internal/ui/lambda"
 	"aws-tui/internal/ui/s3"
 	"aws-tui/internal/ui/services"
@@ -276,6 +277,9 @@ func CreateApplication(
 		}),
 		newServiceItem("󱇱 "+string(core.VPC), "VPCs, endpoints, subnets...", rune('󰯉'), func() core.ServicePage {
 			return vpc.NewVpcHomeView(appContext, awsapi.NewEc2Api(appContext.Logger))
+		}),
+		newServiceItem("󰌆 "+string(core.IAM), "Roles and their policies", rune('󰯉'), func() core.ServicePage {
+			return iam.NewIamHomeView(appContext, awsapi.NewIamApi(appContext.Logger))
 		}),
 		newServiceItem("󱃔 "+string(core.SQS), "Queues and their attributes", rune('󰯉'), func() core.ServicePage {
 			return sqs.NewSqsHomeView(appContext, awsapi.NewSqsApi(appContext.Logger))

@@ -1049,3 +1049,178 @@ func TestDynamoDBDeleteItemReportsAMissingItem(t *testing.T) {
 		t.Fatalf("error = %v, want the conditional check failure", err)
 	}
 }
+
+// iamAction is the action of an IAM request, which is sent as a form
+func iamAction(body string) string {
+	for _, field := range strings.Split(body, "&") {
+		if action, found := strings.CutPrefix(field, "Action="); found {
+			return action
+		}
+	}
+	return ""
+}
+
+func iamResponse(action string, result string) *http.Response {
+	return response(200, "text/xml",
+		"<"+action+"Response><"+action+"Result>"+result+"</"+action+"Result></"+action+"Response>")
+}
+
+func TestIamListRolesSortedAcrossPages(t *testing.T) {
+	useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+		if call == 1 {
+			return iamResponse("ListRoles", `<IsTruncated>true</IsTruncated><Marker>m</Marker><Roles><member><RoleName>zeta</RoleName></member></Roles>`)
+		}
+		return iamResponse("ListRoles", `<IsTruncated>false</IsTruncated><Roles><member><RoleName>alpha</RoleName></member></Roles>`)
+	})
+
+	var roles, err = NewIamApi(testLogger()).ListRoles(context.Background(), true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(roles) != 2 || aws.ToString(roles[0].RoleName) != "alpha" || aws.ToString(roles[1].RoleName) != "zeta" {
+		t.Fatalf("unexpected roles %v", roles)
+	}
+}
+
+func TestIamGetRoleDecodesTrustPolicy(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return iamResponse("GetRole", `<Role><RoleName>orders</RoleName><AssumeRolePolicyDocument>%7B%22Version%22%3A%222012-10-17%22%7D</AssumeRolePolicyDocument></Role>`)
+	})
+
+	var role, err = NewIamApi(testLogger()).GetRole(context.Background(), "orders")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got := aws.ToString(role.AssumeRolePolicyDocument); got != `{"Version":"2012-10-17"}` {
+		t.Fatalf("trust policy = %q", got)
+	}
+}
+
+func TestIamListRolePoliciesGivesAttachedThenInline(t *testing.T) {
+	useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+		switch iamAction(body) {
+		case "ListAttachedRolePolicies":
+			return iamResponse("ListAttachedRolePolicies", `<IsTruncated>false</IsTruncated><AttachedPolicies>`+
+				`<member><PolicyName>ReadOnly</PolicyName><PolicyArn>arn:aws:iam::aws:policy/ReadOnly</PolicyArn></member>`+
+				`<member><PolicyName>Logs</PolicyName><PolicyArn>arn:aws:iam::1:policy/Logs</PolicyArn></member>`+
+				`</AttachedPolicies>`)
+		case "ListRolePolicies":
+			return iamResponse("ListRolePolicies", `<IsTruncated>false</IsTruncated><PolicyNames><member>queue-access</member></PolicyNames>`)
+		}
+		return response(400, "text/xml", `<ErrorResponse><Error><Code>Unexpected</Code></Error></ErrorResponse>`)
+	})
+
+	var policies, err = NewIamApi(testLogger()).ListRolePolicies(context.Background(), "orders")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var want = []RolePolicy{
+		{Name: "Logs", Arn: "arn:aws:iam::1:policy/Logs"},
+		{Name: "ReadOnly", Arn: "arn:aws:iam::aws:policy/ReadOnly"},
+		{Name: "queue-access"},
+	}
+	if len(policies) != len(want) {
+		t.Fatalf("policies = %v, want %v", policies, want)
+	}
+	for i := range want {
+		if policies[i] != want[i] {
+			t.Errorf("policy %d = %v, want %v", i, policies[i], want[i])
+		}
+	}
+}
+
+func TestIamGetRolePolicyDocumentOfInlinePolicy(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return iamResponse("GetRolePolicy", `<PolicyDocument>%7B%22Statement%22%3A%5B%5D%7D</PolicyDocument>`)
+	})
+
+	var document, err = NewIamApi(testLogger()).GetRolePolicyDocument(
+		context.Background(), "orders", RolePolicy{Name: "queue-access"},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if document != `{"Statement":[]}` {
+		t.Errorf("document = %q", document)
+	}
+	if got := iamAction(fake.requests[0]); got != "GetRolePolicy" {
+		t.Errorf("action = %q, want GetRolePolicy", got)
+	}
+}
+
+func TestIamGetRolePolicyDocumentOfManagedPolicyUsesDefaultVersion(t *testing.T) {
+	var fake = useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+		switch iamAction(body) {
+		case "GetPolicy":
+			return iamResponse("GetPolicy", `<Policy><DefaultVersionId>v3</DefaultVersionId></Policy>`)
+		case "GetPolicyVersion":
+			return iamResponse("GetPolicyVersion", `<PolicyVersion><Document>%7B%22Version%22%3A%222012-10-17%22%7D</Document></PolicyVersion>`)
+		}
+		return response(400, "text/xml", `<ErrorResponse><Error><Code>Unexpected</Code></Error></ErrorResponse>`)
+	})
+
+	var document, err = NewIamApi(testLogger()).GetRolePolicyDocument(
+		context.Background(), "orders", RolePolicy{Name: "Logs", Arn: "arn:aws:iam::1:policy/Logs"},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if document != `{"Version":"2012-10-17"}` {
+		t.Errorf("document = %q", document)
+	}
+	if fake.calls() != 2 || !strings.Contains(fake.requests[1], "VersionId=v3") {
+		t.Errorf("requests = %v, want the default version asked for", fake.requests)
+	}
+}
+
+func TestIamGetRoleReportsServiceErrors(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(404, "text/xml", `<ErrorResponse><Error><Type>Sender</Type><Code>NoSuchEntity</Code><Message>gone</Message></Error></ErrorResponse>`)
+	})
+
+	var _, err = NewIamApi(testLogger()).GetRole(context.Background(), "orders")
+
+	if err == nil || !strings.Contains(err.Error(), "NoSuchEntity") {
+		t.Fatalf("error = %v, want the service error", err)
+	}
+}
+
+func TestIamMissingArgumentsAreRejected(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return iamResponse("GetRole", "")
+	})
+	var api = NewIamApi(testLogger())
+	var ctx = context.Background()
+
+	var tests = []struct {
+		name string
+		call func() error
+		want string
+	}{
+		{"get role", func() error { var _, err = api.GetRole(ctx, ""); return err }, "role name not set"},
+		{"role policies", func() error { var _, err = api.ListRolePolicies(ctx, ""); return err }, "role name not set"},
+		{"role tags", func() error { var _, err = api.ListRoleTags(ctx, ""); return err }, "role name not set"},
+		{"policy document without role", func() error {
+			var _, err = api.GetRolePolicyDocument(ctx, "", RolePolicy{Name: "p"})
+			return err
+		}, "role name not set"},
+		{"policy document without policy", func() error {
+			var _, err = api.GetRolePolicyDocument(ctx, "orders", RolePolicy{})
+			return err
+		}, "policy name not set"},
+	}
+
+	for _, tt := range tests {
+		if err := tt.call(); err == nil || err.Error() != tt.want {
+			t.Errorf("%s: error = %v, want %q", tt.name, err, tt.want)
+		}
+	}
+	if fake.calls() != 0 {
+		t.Errorf("calls = %d, want none for missing arguments", fake.calls())
+	}
+}

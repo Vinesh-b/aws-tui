@@ -838,6 +838,19 @@ func DetailsSection(title string, rows ...TableRow) []TableRow {
 // detailsLinkCol is the column of a details row with the ARN its value links to
 const detailsLinkCol = 2
 
+// detailsRowLink is the ARN the value of the row links to, which is empty for
+// rows without a link. IAM role ARNs link to themselves, as roles are used by
+// so many services.
+func detailsRowLink(row TableRow) string {
+	if len(row) > detailsLinkCol {
+		return row[detailsLinkCol]
+	}
+	if len(row) > detailsValueCol && IsIamRoleArn(row[detailsValueCol]) {
+		return row[detailsValueCol]
+	}
+	return ""
+}
+
 // DetailsLink is a row whose value links to the resource of the ARN, which is
 // opened in the page of its service. Without an ARN it is a plain row.
 func DetailsLink(label string, value string, resourceArn string) TableRow {
@@ -850,8 +863,8 @@ func DetailsLink(label string, value string, resourceArn string) TableRow {
 // SetData shows rows of a label and a value. A row with only a label is a
 // heading, which starts a section of the rows after it up to the next heading.
 // Rows in a section are indented. Empty values are shown as a placeholder, but
-// copying or previewing them gives the empty value. Rows made with DetailsLink
-// are underlined and can be opened.
+// copying or previewing them gives the empty value. Rows made with DetailsLink,
+// and values that are IAM role ARNs, are underlined and can be opened.
 func (inst *DetailsTable) SetData(data []TableRow) error {
 	for _, row := range data {
 		if len(row) < 1 || len(row) > 3 {
@@ -897,8 +910,8 @@ func (inst *DetailsTable) SetData(data []TableRow) error {
 		if len(rowData[detailsValueCol]) == 0 {
 			valueCell.SetText(detailsPlaceholder).SetTextColor(theme.PlaceholderTextColour)
 		}
-		if len(rowData) > detailsLinkCol {
-			inst.links[rowIdx] = rowData[detailsLinkCol]
+		if link := detailsRowLink(rowData); len(link) > 0 {
+			inst.links[rowIdx] = link
 			valueCell.SetAttributes(tcell.AttrUnderline)
 		}
 		inst.table.SetCell(rowIdx, detailsValueCol, valueCell)

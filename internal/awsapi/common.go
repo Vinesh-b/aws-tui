@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
@@ -36,6 +37,7 @@ type AwsApiClients struct {
 	dynamodb       *dynamodb.Client
 	ec2            *ec2.Client
 	eventbridge    *eventbridge.Client
+	iam            *iam.Client
 	lambda         *lambda.Client
 	sfn            *sfn.Client
 	sns            *sns.Client
@@ -58,6 +60,7 @@ func newAwsApiClients(cfg aws.Config, profile string) *AwsApiClients {
 		dynamodb:       dynamodb.NewFromConfig(cfg),
 		ec2:            ec2.NewFromConfig(cfg),
 		eventbridge:    eventbridge.NewFromConfig(cfg),
+		iam:            iam.NewFromConfig(cfg),
 		lambda:         lambda.NewFromConfig(cfg),
 		sfn:            sfn.NewFromConfig(cfg),
 		sns:            sns.NewFromConfig(cfg),

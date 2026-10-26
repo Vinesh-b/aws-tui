@@ -84,3 +84,19 @@ func TestDetailsTable__LogGroupLinksToLogGroup(t *testing.T) {
 		t.Errorf("link = %q, want %q", link, want)
 	}
 }
+
+func TestDetailsTable__RoleLinksToIamRole(t *testing.T) {
+	const roleArn = "arn:aws:iam::123456789012:role/orders"
+	var table = NewLambdaDetailsTable(uitest.NewServiceContext[awsapi.LambdaApi]())
+	table.data = types.FunctionConfiguration{Role: aws.String(roleArn)}
+
+	table.populateLambdaDetailsTable()
+
+	const roleRow = 5
+	if got := table.GetCellText(roleRow, 0); got != "Role" {
+		t.Fatalf("row %d = %q, want Role", roleRow, got)
+	}
+	if link, _ := table.GetLink(roleRow); link != roleArn {
+		t.Errorf("link = %q, want %q", link, roleArn)
+	}
+}

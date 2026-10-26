@@ -16,6 +16,8 @@ func newDetailsTable() *SfnDetailsTable {
 	return NewSfnDetailsTable(uitest.NewServiceContext[awsapi.StateMachineApi]())
 }
 
+const testRoleArn = "arn:aws:iam::123456789012:role/service-role/orders-sfn"
+
 func newStateMachineDescription() *sfn.DescribeStateMachineOutput {
 	return &sfn.DescribeStateMachineOutput{
 		Name:            aws.String("orders"),
@@ -24,6 +26,7 @@ func newStateMachineDescription() *sfn.DescribeStateMachineOutput {
 		Description:     aws.String("Processes orders"),
 		Status:          types.StateMachineStatusActive,
 		CreationDate:    at(0),
+		RoleArn:         aws.String(testRoleArn),
 	}
 }
 
@@ -46,7 +49,11 @@ func TestDetailsTable__ShowsStateMachineSummary(t *testing.T) {
 		{"Description", "Processes orders"},
 		{"Status", "ACTIVE"},
 		{"Created", "2024-01-02 03:04:05"},
+		{"Role", testRoleArn},
 	})
+	if link, _ := table.GetLink(6); link != testRoleArn {
+		t.Errorf("role link = %q, want %q", link, testRoleArn)
+	}
 }
 
 func TestDetailsTable__ShowsLoggingConfiguration(t *testing.T) {
@@ -71,6 +78,7 @@ func TestDetailsTable__ShowsLoggingConfiguration(t *testing.T) {
 		{"Description", "Processes orders"},
 		{"Status", "ACTIVE"},
 		{"Created", "2024-01-02 03:04:05"},
+		{"Role", testRoleArn},
 		{"Logging"},
 		{"Include Execution Data", "true"},
 		{"Log Level", "ALL"},
@@ -91,7 +99,7 @@ func TestDetailsTable__LogGroupLinksToLogGroup(t *testing.T) {
 
 	table.populateTable()
 
-	const logGroupRow = 9
+	const logGroupRow = 10
 	if got := table.GetCellText(logGroupRow, 0); got != "Log Group" {
 		t.Fatalf("row %d = %q, want Log Group", logGroupRow, got)
 	}

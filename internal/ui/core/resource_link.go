@@ -34,6 +34,17 @@ func (inst *AppContext) OpenResource(resourceArn string) error {
 	return inst.openResource(parsed)
 }
 
+// IsIamRoleArn is true for ARNs of IAM roles, whose resource is
+// "role/[<path>/]<name>"
+func IsIamRoleArn(text string) bool {
+	var parsed, err = arn.Parse(text)
+	if err != nil || parsed.Service != "iam" {
+		return false
+	}
+	var path, found = strings.CutPrefix(parsed.Resource, "role/")
+	return found && len(path) > 0 && !strings.HasSuffix(path, "/")
+}
+
 // ArnFor is the ARN of a resource of the service, in the partition, region and
 // account of the ARN given, for links to resources only known by their name.
 // It is empty if the given ARN can't be parsed.
