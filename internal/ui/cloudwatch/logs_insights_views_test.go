@@ -2,6 +2,7 @@ package cloudwatch
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -303,5 +304,75 @@ func TestInsightsPageView__EmptyOrBackwardsQueriesAreNotRun(t *testing.T) {
 	}
 	if started := api.startedQueries(); len(started) != 0 {
 		t.Errorf("queries started = %v, want none", started)
+	}
+}
+
+func TestInsightsPageView__OpeningARecordGivesItsLogGroupAndStream(t *testing.T) {
+	var api = &fakeInsightsApi{
+		responses: []awsapi.InsightsQueryResults{completeWith(resultRow("@message", "hello", "@ptr", "ptr-1"))},
+		record:    map[string]string{"@log": "123456789012:/aws/lambda/orders", "@logStream": "2024/01/02/[$LATEST]abc"},
+	}
+	var view = newInsightsPageView(t, api)
+	var app = view.serviceCtx.App
+	runQuery(t, view)
+	uitest.Eventually(t, app, func() bool { return view.ResultsTable.GetCellText(1, 0) == "hello" })
+	var opened = make(chan [2]string, 1)
+
+	uitest.OnUI(t, app, func() {
+		view.OpenRecord(1, func(logGroup string, logStream string) { opened <- [2]string{logGroup, logStream} })
+	})
+
+	select {
+	case got := <-opened:
+		if want := [2]string{"/aws/lambda/orders", "2024/01/02/[$LATEST]abc"}; got != want {
+			t.Errorf("opened = %v, want %v", got, want)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("the record was not opened")
+	}
+	if !slices.Equal(api.recordPtrs, []string{"ptr-1"}) {
+		t.Errorf("record pointers asked for = %v", api.recordPtrs)
+	}
+}
+
+func TestInsightsPageView__RecordThatFailsToLoadIsReportedAndNotOpened(t *testing.T) {
+	var api = &fakeInsightsApi{
+		responses: []awsapi.InsightsQueryResults{completeWith(resultRow("@message", "hello", "@ptr", "ptr-1"))},
+		recordErr: errors.New("access denied"),
+	}
+	var view = newInsightsPageView(t, api)
+	var app = view.serviceCtx.App
+	var callback, received = uitest.CaptureErrors()
+	view.ResultsTable.ErrorMessageCallback = callback
+	runQuery(t, view)
+	uitest.Eventually(t, app, func() bool { return view.ResultsTable.GetCellText(1, 0) == "hello" })
+
+	uitest.OnUI(t, app, func() {
+		view.OpenRecord(1, func(string, string) { t.Error("a record that failed to load was opened") })
+	})
+
+	if got := uitest.AwaitError(t, received); got != "access denied" {
+		t.Errorf("message = %q", got)
+	}
+}
+
+func TestInsightsPageView__ResultWithoutARecordIsReportedAndNotLoaded(t *testing.T) {
+	var api = &fakeInsightsApi{responses: []awsapi.InsightsQueryResults{completeWith(resultRow("count", "42"))}}
+	var view = newInsightsPageView(t, api)
+	var app = view.serviceCtx.App
+	var callback, received = uitest.CaptureErrors()
+	view.ResultsTable.ErrorMessageCallback = callback
+	runQuery(t, view)
+	uitest.Eventually(t, app, func() bool { return view.ResultsTable.GetCellText(1, 0) == "42" })
+
+	uitest.OnUI(t, app, func() {
+		view.OpenRecord(1, func(string, string) { t.Error("a result without a record was opened") })
+	})
+
+	if got := uitest.AwaitError(t, received); got != "This result has no log record to open" {
+		t.Errorf("message = %q", got)
+	}
+	if len(api.recordPtrs) != 0 {
+		t.Errorf("records loaded = %v, want none", api.recordPtrs)
 	}
 }

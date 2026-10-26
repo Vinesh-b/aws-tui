@@ -135,6 +135,31 @@ func (inst *LogsInsightsPageView) RunQuery() {
 	inst.serviceCtx.App.SetFocus(inst.ResultsTable)
 }
 
+// OpenRecord loads the log record of the result in the row in the background,
+// and then calls open with the log group and stream it is from. Results that
+// are not records, such as those of a stats query, and failing to load the
+// record are reported instead.
+func (inst *LogsInsightsPageView) OpenRecord(row int, open func(logGroup string, logStream string)) {
+	var recordPtr = inst.ResultsTable.GetRecordPtr(row)
+	if len(recordPtr) == 0 {
+		inst.ResultsTable.ErrorMessageCallback("This result has no log record to open")
+		return
+	}
+
+	go func() {
+		var record, err = inst.serviceCtx.Api.GetInsightsLogRecord(inst.serviceCtx.Ctx, recordPtr)
+		inst.serviceCtx.App.QueueUpdateDraw(func() {
+			if err != nil {
+				inst.ResultsTable.ErrorMessageCallback("%s", err.Error())
+				return
+			}
+
+			var _, logGroup, _ = strings.Cut(record["@log"], ":")
+			open(logGroup, record["@logStream"])
+		})
+	}()
+}
+
 func NewLogsInsightsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchLogsApi) core.ServicePage {
 	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0xBB00DD))
 	defer appCtx.Theme.ResetGlobalStyle()
@@ -160,21 +185,13 @@ func NewLogsInsightsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchLogsA
 
 	serviceRootView.InitPageNavigation()
 
-	var recordPtr = ""
 	insightsView.ResultsTable.SetSelectedFunc(func(row, column int) {
-		recordPtr = insightsView.ResultsTable.GetRecordPtr(row)
-		var record, err = api.GetInsightsLogRecord(appCtx.Ctx, recordPtr)
-		if err != nil {
-			logEventsView.LogEventsTable.ErrorMessageCallback("%s", err.Error())
-		}
-
-		var logStream = record["@logStream"]
-		var _, logGroup, _ = strings.Cut(record["@log"], ":")
-
-		logEventsView.LogEventsTable.SetSelectedLogGroup(logGroup)
-		logEventsView.LogEventsTable.SetSelectedLogStream(logStream)
-		logEventsView.LogEventsTable.RefreshLogEvents(true)
-		serviceRootView.ChangePage(1, nil)
+		insightsView.OpenRecord(row, func(logGroup string, logStream string) {
+			logEventsView.LogEventsTable.SetSelectedLogGroup(logGroup)
+			logEventsView.LogEventsTable.SetSelectedLogStream(logStream)
+			logEventsView.LogEventsTable.RefreshLogEvents(true)
+			serviceRootView.ChangePage(1, nil)
+		})
 	})
 
 	return serviceRootView
