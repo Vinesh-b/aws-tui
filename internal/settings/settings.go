@@ -44,17 +44,9 @@ func DefaultPath() (string, error) {
 // read or understood gives empty settings and the error, so the caller can
 // report it and carry on with the defaults.
 func Load(path string) (Settings, error) {
-	var data, err = os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return Settings{}, nil
-	}
-	if err != nil {
-		return Settings{}, fmt.Errorf("cannot read settings: %w", err)
-	}
-
 	var loaded Settings
-	if err := json.Unmarshal(data, &loaded); err != nil {
-		return Settings{}, fmt.Errorf("cannot read settings from %s: %w", path, err)
+	if err := readJSON(path, "settings", &loaded); err != nil {
+		return Settings{}, err
 	}
 
 	return loaded, nil
@@ -64,7 +56,29 @@ func Load(path string) (Settings, error) {
 // written to a temporary file and moved into place, so a crash cannot leave a
 // half written file behind.
 func Save(path string, settings Settings) error {
-	var data, err = json.MarshalIndent(settings, "", "  ")
+	return writeJSON(path, "settings", settings)
+}
+
+// readJSON reads a file into the value, which is left as it is if there is no
+// file. What the file holds is called what in errors.
+func readJSON(path string, what string, value any) error {
+	var data, err = os.ReadFile(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("cannot read %s: %w", what, err)
+	}
+
+	if err := json.Unmarshal(data, value); err != nil {
+		return fmt.Errorf("cannot read %s from %s: %w", what, path, err)
+	}
+
+	return nil
+}
+
+func writeJSON(path string, what string, value any) error {
+	var data, err = json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -77,23 +91,23 @@ func Save(path string, settings Settings) error {
 
 	var temp *os.File
 	if temp, err = os.CreateTemp(dir, tempFilePatt); err != nil {
-		return fmt.Errorf("cannot save settings: %w", err)
+		return fmt.Errorf("cannot save %s: %w", what, err)
 	}
 	var tempPath = temp.Name()
 	defer os.Remove(tempPath)
 
 	if _, err = temp.Write(data); err != nil {
 		temp.Close()
-		return fmt.Errorf("cannot save settings: %w", err)
+		return fmt.Errorf("cannot save %s: %w", what, err)
 	}
 	if err = temp.Close(); err != nil {
-		return fmt.Errorf("cannot save settings: %w", err)
+		return fmt.Errorf("cannot save %s: %w", what, err)
 	}
 	if err = os.Chmod(tempPath, filePerm); err != nil {
-		return fmt.Errorf("cannot save settings: %w", err)
+		return fmt.Errorf("cannot save %s: %w", what, err)
 	}
 	if err = os.Rename(tempPath, path); err != nil {
-		return fmt.Errorf("cannot save settings: %w", err)
+		return fmt.Errorf("cannot save %s: %w", what, err)
 	}
 
 	return nil

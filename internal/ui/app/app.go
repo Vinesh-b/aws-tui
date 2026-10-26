@@ -222,6 +222,7 @@ func CreateApplication(
 	)
 	appContext.PollSessionAtStart = options.pollSessionAtStart
 	appContext.DownloadDir = saved.DownloadDir
+	appContext.QueriesPath = settings.QueriesPath(options.settingsPath)
 
 	for _, problem := range problems {
 		inAppLogger.Print(problem)

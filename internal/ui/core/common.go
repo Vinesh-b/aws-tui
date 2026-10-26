@@ -30,6 +30,9 @@ type AppContext struct {
 	// the working directory, and follows the directory of the last file saved.
 	// It is only used on the UI goroutine.
 	DownloadDir string
+	// QueriesPath is the file the Logs Insights queries are kept in, which is
+	// empty if they are not kept
+	QueriesPath string
 
 	listenersMtx      sync.Mutex
 	apiResetListeners []*func()
