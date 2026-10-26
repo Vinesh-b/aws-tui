@@ -4,6 +4,7 @@ import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
 
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -183,13 +184,21 @@ func NewLogsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchLogsApi) core
 
 	serviceRootView.InitPageNavigation()
 
-	logGroupsView.LogGroupsTable.SetSelectedFunc(func(row, column int) {
-		var logGroup = logGroupsView.LogGroupsTable.GetSelectedLogGroup()
-
+	var showStreams = func(logGroup string) {
 		logStreamsView.LogStreamsTable.SetSelectedLogGroup(logGroup)
 		logStreamsView.LogStreamsTable.SetLogStreamSearchPrefix("")
 		logStreamsView.LogStreamsTable.RefreshStreams(true)
 		serviceRootView.ChangePage(1, nil)
+	}
+
+	logGroupsView.LogGroupsTable.SetSelectedFunc(func(row, column int) {
+		showStreams(logGroupsView.LogGroupsTable.GetSelectedLogGroup())
+	})
+
+	serviceRootView.SetResourceOpener("logs", func(resource arn.ARN) {
+		if logGroup, ok := core.ArnResourceName(resource, "log-group"); ok {
+			showStreams(logGroup)
+		}
 	})
 
 	logStreamsView.LogStreamsTable.SetSelectedFunc(func(row, column int) {

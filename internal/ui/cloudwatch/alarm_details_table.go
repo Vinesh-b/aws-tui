@@ -35,6 +35,24 @@ func (inst *AlarmDetailsTable) statistic() string {
 	return aws.ToString(inst.data.ExtendedStatistic)
 }
 
+// dimensionLink is the ARN of the resource the dimension names, for the
+// services that can be opened. Alarms are in the account and region of what
+// they watch.
+func (inst *AlarmDetailsTable) dimensionLink(name string, value string) string {
+	if len(value) == 0 {
+		return ""
+	}
+
+	var alarmArn = aws.ToString(inst.data.AlarmArn)
+	switch dimension := aws.ToString(inst.data.Namespace) + "/" + name; dimension {
+	case "AWS/Lambda/FunctionName":
+		return core.ArnFor(alarmArn, "lambda", "function:"+value)
+	case "AWS/SQS/QueueName":
+		return core.ArnFor(alarmArn, "sqs", value)
+	}
+	return ""
+}
+
 func (inst *AlarmDetailsTable) populateAlarmDetailsTable() {
 	var data = inst.data
 	var tableData = []core.TableRow{
@@ -53,7 +71,8 @@ func (inst *AlarmDetailsTable) populateAlarmDetailsTable() {
 		{"Period (s)", core.FormatOptionalInt(data.Period)},
 	}
 	for _, dim := range data.Dimensions {
-		metric = append(metric, core.TableRow{aws.ToString(dim.Name), aws.ToString(dim.Value)})
+		var name, value = aws.ToString(dim.Name), aws.ToString(dim.Value)
+		metric = append(metric, core.DetailsLink(name, value, inst.dimensionLink(name, value)))
 	}
 	tableData = append(tableData, core.DetailsSection("Metric", metric...)...)
 

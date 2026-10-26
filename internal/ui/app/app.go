@@ -21,6 +21,7 @@ import (
 	"log"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/aws/smithy-go/logging"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -132,6 +133,22 @@ func rebuildPages(pages *tview.Pages, items []*ServiceItem, include func(*Servic
 			pages.HidePage(name)
 		}
 	}
+}
+
+// openResource switches to the page of the service of the resource and opens
+// it there
+func openResource(app *tview.Application, pages *tview.Pages, items []*ServiceItem, resource arn.ARN) error {
+	for _, item := range items {
+		var opener, ok = item.ServicePage.(core.ResourceOpener)
+		if !ok || !opener.OpensArnService(resource.Service) {
+			continue
+		}
+		pages.SwitchToPage(item.MainText)
+		opener.OpenResource(resource)
+		app.SetFocus(item.ServicePage.GetLastFocusedView())
+		return nil
+	}
+	return fmt.Errorf("can't open %s resources", resource.Service)
 }
 
 type appOptions struct {
@@ -307,6 +324,15 @@ func CreateApplication(
 			serviceListHidden = true
 		})
 	}
+
+	// Links in one service open the resource in the page of its service
+	appContext.SetResourceOpener(func(resource arn.ARN) error {
+		if err := openResource(app, pages, serviceViews, resource); err != nil {
+			return err
+		}
+		serviceListHidden = true
+		return nil
+	})
 
 	var floatingServices = core.FloatingView("Quick select", servicesList, 70, 27)
 

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -33,6 +34,7 @@ type AppContext struct {
 	listenersMtx      sync.Mutex
 	apiResetListeners []*func()
 	themeListeners    []func()
+	openResource      func(resource arn.ARN) error
 }
 
 func (inst *AppContext) GetApiClients() *awsapi.AwsApiClients {

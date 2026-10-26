@@ -619,6 +619,7 @@ type DetailsTable struct {
 	raw                  *SearchableTextView
 	rawData              any
 	showingRaw           bool
+	links                map[int]string
 	title                string
 	titleExtra           string
 	data                 []TableRow
@@ -834,13 +835,26 @@ func DetailsSection(title string, rows ...TableRow) []TableRow {
 	return append([]TableRow{{title}}, rows...)
 }
 
+// detailsLinkCol is the column of a details row with the ARN its value links to
+const detailsLinkCol = 2
+
+// DetailsLink is a row whose value links to the resource of the ARN, which is
+// opened in the page of its service. Without an ARN it is a plain row.
+func DetailsLink(label string, value string, resourceArn string) TableRow {
+	if len(resourceArn) == 0 {
+		return TableRow{label, value}
+	}
+	return TableRow{label, value, resourceArn}
+}
+
 // SetData shows rows of a label and a value. A row with only a label is a
 // heading, which starts a section of the rows after it up to the next heading.
 // Rows in a section are indented. Empty values are shown as a placeholder, but
-// copying or previewing them gives the empty value.
+// copying or previewing them gives the empty value. Rows made with DetailsLink
+// are underlined and can be opened.
 func (inst *DetailsTable) SetData(data []TableRow) error {
 	for _, row := range data {
-		if len(row) != 1 && len(row) != 2 {
+		if len(row) < 1 || len(row) > 3 {
 			log.Println("Table data and headings dimensions do not match")
 			return errors.NewCoreTableError(
 				errors.InvalidDataDimensions,
@@ -849,6 +863,7 @@ func (inst *DetailsTable) SetData(data []TableRow) error {
 		}
 	}
 	inst.table.Clear()
+	inst.links = map[int]string{}
 
 	var tableTitle = inst.title
 	if len(inst.titleExtra) > 0 {
@@ -882,6 +897,10 @@ func (inst *DetailsTable) SetData(data []TableRow) error {
 		if len(rowData[detailsValueCol]) == 0 {
 			valueCell.SetText(detailsPlaceholder).SetTextColor(theme.PlaceholderTextColour)
 		}
+		if len(rowData) > detailsLinkCol {
+			inst.links[rowIdx] = rowData[detailsLinkCol]
+			valueCell.SetAttributes(tcell.AttrUnderline)
+		}
 		inst.table.SetCell(rowIdx, detailsValueCol, valueCell)
 	}
 
@@ -899,9 +918,23 @@ func (inst *DetailsTable) SetInputCapture(capture func(event *tcell.EventKey) *t
 			var text = inst.GetCellText(row, detailsValueCol)
 			clipboard.WriteAll(text)
 			return nil
+		case APP_KEY_BINDINGS.OpenLink:
+			var row, _ = inst.table.GetSelection()
+			if link, ok := inst.links[row]; ok {
+				if err := inst.appCtx.OpenResource(link); err != nil {
+					inst.ErrorMessageCallback("%s", err.Error())
+				}
+				return nil
+			}
 		}
 		return capture(event)
 	})
+}
+
+// GetLink is the ARN the value of the row links to, if it has one
+func (inst *DetailsTable) GetLink(row int) (string, bool) {
+	var link, ok = inst.links[row]
+	return link, ok
 }
 
 func (inst *DetailsTable) SetSelectionChangedFunc(

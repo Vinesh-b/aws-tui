@@ -75,7 +75,9 @@ func (inst *SfnDetailsTable) populateTable() {
 				if group != nil {
 
 					var splitArn = strings.Split(aws.ToString(group.LogGroupArn), ":")
-					logData = append(logData, core.TableRow{"Log Group", splitArn[6]})
+					logData = append(logData,
+						core.DetailsLink("Log Group", splitArn[6], aws.ToString(group.LogGroupArn)),
+					)
 					inst.logGroups = append(inst.logGroups, splitArn[6])
 				}
 			}

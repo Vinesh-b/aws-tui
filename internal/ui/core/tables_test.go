@@ -769,7 +769,7 @@ func TestDetailsTableSetData__TitleExtra(t *testing.T) {
 func TestDetailsTableSetData__BadColumnCount(t *testing.T) {
 	var table = NewDetailsTable("details", newTestAppContext())
 
-	var err = table.SetData([]TableRow{{"a", "b", "c"}})
+	var err = table.SetData([]TableRow{{"a", "b", "c", "d"}})
 	if err == nil || err.Error() != "INVALID_DATA_DIMENSIONS: Table data and headings dimensions do not match" {
 		t.Fatalf("Failed to error on bad data dims: %v", err)
 	}

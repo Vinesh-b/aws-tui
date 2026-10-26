@@ -1,6 +1,8 @@
 package lambda
 
 import (
+	"slices"
+
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/utils"
@@ -92,6 +94,42 @@ func (inst *LambdaListTable) FilterByName(name string) {
 }
 
 func (inst *LambdaListTable) RefreshLambdas(reset bool) {
+	inst.refreshLambdas(reset, func() {})
+}
+
+// OpenLambda selects the lambda and then calls opened. The lambdas are loaded
+// again first if it isn't one of those loaded.
+func (inst *LambdaListTable) OpenLambda(name string, opened func()) {
+	if inst.selectLambda(name) {
+		opened()
+		return
+	}
+
+	inst.refreshLambdas(true, func() {
+		if inst.selectLambda(name) {
+			opened()
+			return
+		}
+		inst.ErrorMessageCallback("Lambda %s not found", name)
+	})
+}
+
+// selectLambda shows all the lambdas, without a search, to select the one with
+// the name.
+func (inst *LambdaListTable) selectLambda(name string) bool {
+	var idx = slices.IndexFunc(inst.data, func(f types.FunctionConfiguration) bool {
+		return aws.ToString(f.FunctionName) == name
+	})
+	if idx < 0 {
+		return false
+	}
+
+	inst.populateLambdasTable(inst.data)
+	inst.Select(idx+1, 0)
+	return true
+}
+
+func (inst *LambdaListTable) refreshLambdas(reset bool, loaded func()) {
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
@@ -109,6 +147,7 @@ func (inst *LambdaListTable) RefreshLambdas(reset bool) {
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateLambdasTable(inst.data)
+		loaded()
 	})
 }
 

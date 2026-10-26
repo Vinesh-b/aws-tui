@@ -47,6 +47,7 @@ Data Loading:
 Details:
  - y to copy the value of the selected row
  - J to switch between the details and the full api response as json
+ - o to open the resource an underlined value links to in its service
 
 Text Area:
  - Arrow keys to move cursor in a text area

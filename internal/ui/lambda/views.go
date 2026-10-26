@@ -10,6 +10,7 @@ import (
 	"aws-tui/internal/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 
 	"github.com/gdamore/tcell/v2"
@@ -337,6 +338,13 @@ func NewLambdaHomeView(
 	}
 
 	lambdasListTable.SetSelectedFunc(lambdaSelectedFunc)
+
+	serviceRootView.SetResourceOpener("lambda", func(resource arn.ARN) {
+		if name, ok := core.ArnResourceName(resource, "function"); ok {
+			serviceRootView.ChangePage(0, nil)
+			lambdasListTable.OpenLambda(name, func() { lambdaSelectedFunc(0, 0) })
+		}
+	})
 	lambdasDetailsView.LambdaDetailsTable.SetSelectedFunc(lambdaSelectedFunc)
 
 	logStreamsTable.SetSelectedFunc(func(row, column int) {

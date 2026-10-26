@@ -3,6 +3,7 @@ package lambda
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 
 	"aws-tui/internal/awsapi"
@@ -16,9 +17,11 @@ type fakeLambdaApi struct {
 	awsapi.LambdaApi
 	functions []types.FunctionConfiguration
 	err       error
+	listCalls atomic.Int32
 }
 
 func (f *fakeLambdaApi) ListLambdas(ctx context.Context, force bool) ([]types.FunctionConfiguration, error) {
+	f.listCalls.Add(1)
 	return f.functions, f.err
 }
 

@@ -4,6 +4,7 @@ import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
 
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -138,6 +139,11 @@ func NewSqsHomeView(appCtx *core.AppContext, api awsapi.SqsApi) core.ServicePage
 		AddAndSwitchToPage("Queues", sqsDetailsView, true)
 
 	serviceRootView.InitPageNavigation()
+
+	serviceRootView.SetResourceOpener("sqs", func(resource arn.ARN) {
+		serviceRootView.ChangePage(0, nil)
+		sqsDetailsView.QueueListTable.OpenQueue(resource.Resource)
+	})
 
 	return serviceRootView
 }

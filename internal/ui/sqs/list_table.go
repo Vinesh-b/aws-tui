@@ -2,6 +2,7 @@ package sqs
 
 import (
 	"path"
+	"slices"
 	"strings"
 
 	"aws-tui/internal/awsapi"
@@ -97,6 +98,37 @@ func (inst *QueueListTable) FilterByName(name string) {
 }
 
 func (inst *QueueListTable) RefreshQueues(reset bool) {
+	inst.refreshQueues(reset, func() {})
+}
+
+// OpenQueue selects the queue with the name. The queues are loaded again
+// first if it isn't one of those loaded.
+func (inst *QueueListTable) OpenQueue(name string) {
+	if inst.selectQueue(name) {
+		return
+	}
+
+	inst.refreshQueues(true, func() {
+		if !inst.selectQueue(name) {
+			inst.ErrorMessageCallback("Queue %s not found", name)
+		}
+	})
+}
+
+// selectQueue shows all the queues, without a search, to select the one with
+// the name.
+func (inst *QueueListTable) selectQueue(name string) bool {
+	var idx = slices.IndexFunc(inst.data, func(url string) bool { return queueName(url) == name })
+	if idx < 0 {
+		return false
+	}
+
+	inst.populateQueueTable(inst.data)
+	inst.Select(idx+1, 0)
+	return true
+}
+
+func (inst *QueueListTable) refreshQueues(reset bool, loaded func()) {
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 	var queues []string
 
@@ -111,6 +143,7 @@ func (inst *QueueListTable) RefreshQueues(reset bool) {
 	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.data = queues
 		inst.populateQueueTable(inst.data)
+		loaded()
 	})
 }
 

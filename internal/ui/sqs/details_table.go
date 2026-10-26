@@ -1,8 +1,12 @@
 package sqs
 
 import (
+	"encoding/json"
+
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 )
 
 type QueueDetailsTable struct {
@@ -25,6 +29,20 @@ func NewQueueDetailsTable(
 	table.populateQueueDetailsTable()
 
 	return table
+}
+
+// deadLetterQueue is the queue that messages are moved to after failing to be
+// processed, if the redrive policy has one. The resource of a queue ARN is its
+// name.
+func deadLetterQueue(redrivePolicy string) (arn.ARN, bool) {
+	var policy struct {
+		DeadLetterTargetArn string `json:"deadLetterTargetArn"`
+	}
+	if err := json.Unmarshal([]byte(redrivePolicy), &policy); err != nil {
+		return arn.ARN{}, false
+	}
+	var queue, err = arn.Parse(policy.DeadLetterTargetArn)
+	return queue, err == nil
 }
 
 func (inst *QueueDetailsTable) encryption() string {
@@ -64,6 +82,9 @@ func (inst *QueueDetailsTable) populateQueueDetailsTable() {
 		{"Receive Wait Time (s)", attr["ReceiveMessageWaitTimeSeconds"]},
 		{"Max Message Size (bytes)", attr["MaximumMessageSize"]},
 		{"Redrive Policy", attr["RedrivePolicy"]},
+	}
+	if dlq, ok := deadLetterQueue(attr["RedrivePolicy"]); ok {
+		config = append(config, core.DetailsLink("Dead-letter Queue", dlq.Resource, dlq.String()))
 	}
 	if queueType(inst.queueUrl) == "FIFO" {
 		config = append(config, core.TableRow{"Content Based Deduplication", attr["ContentBasedDeduplication"]})

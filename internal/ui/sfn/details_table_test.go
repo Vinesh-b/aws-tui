@@ -77,3 +77,25 @@ func TestDetailsTable__ShowsLoggingConfiguration(t *testing.T) {
 		{"Log Group", "/aws/states/orders"},
 	})
 }
+
+func TestDetailsTable__LogGroupLinksToLogGroup(t *testing.T) {
+	var table = newDetailsTable()
+	table.data = newStateMachineDescription()
+	table.data.LoggingConfiguration = &types.LoggingConfiguration{
+		Destinations: []types.LogDestination{{
+			CloudWatchLogsLogGroup: &types.CloudWatchLogsLogGroup{
+				LogGroupArn: aws.String("arn:aws:logs:us-east-1:123456789012:log-group:/aws/states/orders:*"),
+			},
+		}},
+	}
+
+	table.populateTable()
+
+	const logGroupRow = 9
+	if got := table.GetCellText(logGroupRow, 0); got != "Log Group" {
+		t.Fatalf("row %d = %q, want Log Group", logGroupRow, got)
+	}
+	if link, _ := table.GetLink(logGroupRow); link != "arn:aws:logs:us-east-1:123456789012:log-group:/aws/states/orders:*" {
+		t.Errorf("link = %q", link)
+	}
+}

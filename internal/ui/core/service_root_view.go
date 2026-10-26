@@ -3,6 +3,7 @@ package core
 import (
 	"slices"
 
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -20,6 +21,7 @@ type ServiceRootView struct {
 	lastFocusedView tview.Primitive
 	pagesListHidden bool
 	pageList        *tview.List
+	resourceOpeners map[string]func(resource arn.ARN)
 	appCtx          *AppContext
 }
 
@@ -40,6 +42,7 @@ func NewServiceRootView(
 		lastFocusedView: nil,
 		pagesListHidden: true,
 		pageList:        tview.NewList(),
+		resourceOpeners: map[string]func(resource arn.ARN){},
 		appCtx:          appContext,
 	}
 
@@ -192,4 +195,22 @@ func (inst *ServiceRootView) AddAndSwitchToPage(
 	inst.AddPage(name, item, resize, true)
 	inst.pages.SwitchToPage(name)
 	return inst
+}
+
+// SetResourceOpener sets how the service opens resources from links in other
+// services, for ARNs of the service, such as "lambda".
+func (inst *ServiceRootView) SetResourceOpener(arnService string, open func(resource arn.ARN)) *ServiceRootView {
+	inst.resourceOpeners[arnService] = open
+	return inst
+}
+
+func (inst *ServiceRootView) OpensArnService(service string) bool {
+	var _, ok = inst.resourceOpeners[service]
+	return ok
+}
+
+func (inst *ServiceRootView) OpenResource(resource arn.ARN) {
+	if open, ok := inst.resourceOpeners[resource.Service]; ok {
+		open(resource)
+	}
 }

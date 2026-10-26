@@ -59,8 +59,13 @@ func (inst *LambdaDetailsTable) populateLambdaDetailsTable() {
 	)...)
 
 	if loggingConfig := inst.data.LoggingConfig; loggingConfig != nil {
+		var logGroup = aws.ToString(loggingConfig.LogGroup)
+		var logGroupArn = ""
+		if len(logGroup) > 0 {
+			logGroupArn = core.ArnFor(aws.ToString(inst.data.FunctionArn), "logs", "log-group:"+logGroup)
+		}
 		tableData = append(tableData, core.DetailsSection("Logging",
-			core.TableRow{"Log Group", aws.ToString(loggingConfig.LogGroup)},
+			core.DetailsLink("Log Group", logGroup, logGroupArn),
 			core.TableRow{"System Log Level", string(loggingConfig.SystemLogLevel)},
 		)...)
 	}
