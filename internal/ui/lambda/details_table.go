@@ -1,7 +1,6 @@
 package lambda
 
 import (
-	"fmt"
 	"time"
 
 	"aws-tui/internal/awsapi"
@@ -31,13 +30,6 @@ func NewLambdaDetailsTable(
 	return table
 }
 
-func formatOptionalInt(value *int32) string {
-	if value == nil {
-		return ""
-	}
-	return fmt.Sprintf("%d", *value)
-}
-
 // lambdaTimeFormat is how the lambda api gives the last modified time
 const lambdaTimeFormat = "2006-01-02T15:04:05.000-0700"
 
@@ -62,8 +54,8 @@ func (inst *LambdaDetailsTable) populateLambdaDetailsTable() {
 	tableData = append(tableData, core.DetailsSection("Configuration",
 		core.TableRow{"Runtime", string(inst.data.Runtime)},
 		core.TableRow{"Architectures", core.FormatList(inst.data.Architectures)},
-		core.TableRow{"Memory Size (MB)", formatOptionalInt(inst.data.MemorySize)},
-		core.TableRow{"Timeout (s)", formatOptionalInt(inst.data.Timeout)},
+		core.TableRow{"Memory Size (MB)", core.FormatOptionalInt(inst.data.MemorySize)},
+		core.TableRow{"Timeout (s)", core.FormatOptionalInt(inst.data.Timeout)},
 	)...)
 
 	if loggingConfig := inst.data.LoggingConfig; loggingConfig != nil {

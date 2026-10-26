@@ -1,81 +1,73 @@
 package cloudwatch
 
 import (
-	"fmt"
-
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
-
-	"github.com/rivo/tview"
 )
 
 type AlarmDetailsTable struct {
-	*tview.Grid
-	ErrorMessageCallback func(text string, a ...any)
-	selectedAlarm        string
-	data                 types.MetricAlarm
-	serviceCtx           *core.ServiceContext[awsapi.CloudWatchAlarmsApi]
+	*core.DetailsTable
+	data       types.MetricAlarm
+	serviceCtx *core.ServiceContext[awsapi.CloudWatchAlarmsApi]
 }
 
 func NewAlarmDetailsTable(
 	serviceContext *core.ServiceContext[awsapi.CloudWatchAlarmsApi],
 ) *AlarmDetailsTable {
 	var view = &AlarmDetailsTable{
-		Grid:                 tview.NewGrid(),
-		ErrorMessageCallback: func(text string, a ...any) {},
-		data:                 types.MetricAlarm{},
-		selectedAlarm:        "",
-		serviceCtx:           serviceContext,
+		DetailsTable: core.NewDetailsTable("Alarm Details", serviceContext.AppContext),
+		data:         types.MetricAlarm{},
+		serviceCtx:   serviceContext,
 	}
-	view.
-		Clear().
-		SetRows(1, 2, 1, 3, 1, 1, 1, 1, 1, 1, 0).
-		SetColumns(18, 0)
-	view.
-		SetTitle("Alarm Details").
-		SetTitleAlign(tview.AlignLeft).
-		SetBorder(true)
 
-	view.populateAlarmDetailsGrid()
+	view.populateAlarmDetailsTable()
 	return view
 }
 
-func (inst *AlarmDetailsTable) populateAlarmDetailsGrid() {
-	var tableData []core.TableRow
+// statistic is the standard statistic of the alarm, or the percentile it uses
+func (inst *AlarmDetailsTable) statistic() string {
+	if len(inst.data.Statistic) > 0 {
+		return string(inst.data.Statistic)
+	}
+	return aws.ToString(inst.data.ExtendedStatistic)
+}
+
+func (inst *AlarmDetailsTable) populateAlarmDetailsTable() {
 	var data = inst.data
-	tableData = []core.TableRow{
+	var tableData = []core.TableRow{
 		{"Name", aws.ToString(data.AlarmName)},
 		{"Description", aws.ToString(data.AlarmDescription)},
+		{"ARN", aws.ToString(data.AlarmArn)},
 		{"State", string(data.StateValue)},
-		{"StateReason", aws.ToString(data.StateReason)},
-		{"MetricName", aws.ToString(data.MetricName)},
-		{"MetricNamespace", aws.ToString(data.Namespace)},
-		{"Period", fmt.Sprintf("%d", aws.ToInt32(data.Period))},
-		{"Threshold", fmt.Sprintf("%.2f", aws.ToFloat64(data.Threshold))},
-		{"DataPoints", fmt.Sprintf("%d", aws.ToInt32(data.DatapointsToAlarm))},
+		{"State Reason", aws.ToString(data.StateReason)},
+		{"State Updated", core.FormatTime(data.StateUpdatedTimestamp)},
 	}
 
-	inst.SetTitle("Alarm Details")
-
-	for idx, row := range tableData {
-		inst.AddItem(
-			tview.NewTextView().
-				SetWrap(false).
-				SetText(row[0]).
-				SetTextColor(inst.serviceCtx.Theme.TertiaryTextColour),
-			idx, 0, 1, 1, 0, 0, false,
-		)
-		inst.AddItem(
-			tview.NewTextView().
-				SetWrap(true).
-				SetText(row[1]).
-				SetTextColor(inst.serviceCtx.Theme.TertiaryTextColour),
-			idx, 1, 1, 1, 0, 0, false,
-		)
+	var metric = []core.TableRow{
+		{"Namespace", aws.ToString(data.Namespace)},
+		{"Metric Name", aws.ToString(data.MetricName)},
+		{"Statistic", inst.statistic()},
+		{"Period (s)", core.FormatOptionalInt(data.Period)},
 	}
+	for _, dim := range data.Dimensions {
+		metric = append(metric, core.TableRow{aws.ToString(dim.Name), aws.ToString(dim.Value)})
+	}
+	tableData = append(tableData, core.DetailsSection("Metric", metric...)...)
+
+	tableData = append(tableData, core.DetailsSection("Condition",
+		core.TableRow{"Comparison", string(data.ComparisonOperator)},
+		core.TableRow{"Threshold", core.FormatOptionalFloat(data.Threshold)},
+		core.TableRow{"Datapoints to Alarm", core.FormatOptionalInt(data.DatapointsToAlarm)},
+		core.TableRow{"Evaluation Periods", core.FormatOptionalInt(data.EvaluationPeriods)},
+	)...)
+
+	inst.SetTitleExtra(aws.ToString(data.AlarmName))
+	inst.SetData(tableData)
+	inst.Select(0, 0)
+	inst.ScrollToBeginning()
 }
 
 func (inst *AlarmDetailsTable) RefreshDetails(alarm types.MetricAlarm) {
@@ -85,6 +77,6 @@ func (inst *AlarmDetailsTable) RefreshDetails(alarm types.MetricAlarm) {
 	dataLoader.AsyncLoadData(func() {})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateAlarmDetailsGrid()
+		inst.populateAlarmDetailsTable()
 	})
 }

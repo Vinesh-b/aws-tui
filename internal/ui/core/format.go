@@ -41,6 +41,21 @@ func FormatUnixSeconds(seconds string) string {
 	return FormatTime(&t)
 }
 
+func FormatOptionalInt[T ~int32 | ~int64](value *T) string {
+	if value == nil {
+		return ""
+	}
+	return strconv.FormatInt(int64(*value), 10)
+}
+
+// FormatOptionalFloat formats without trailing zeros
+func FormatOptionalFloat(value *float64) string {
+	if value == nil {
+		return ""
+	}
+	return strconv.FormatFloat(*value, 'f', -1, 64)
+}
+
 func FormatList[T ~string](items []T) string {
 	var values = make([]string, 0, len(items))
 	for _, item := range items {

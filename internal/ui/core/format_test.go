@@ -59,3 +59,25 @@ func TestFormatList(t *testing.T) {
 		t.Errorf("empty = %q, want empty", got)
 	}
 }
+
+func TestFormatOptionalNumbers(t *testing.T) {
+	var small = int32(30)
+	var large = int64(42)
+	var threshold = 80.5
+
+	if got := FormatOptionalInt(&small); got != "30" {
+		t.Errorf("int32 = %q", got)
+	}
+	if got := FormatOptionalInt(&large); got != "42" {
+		t.Errorf("int64 = %q", got)
+	}
+	if got := FormatOptionalInt[int32](nil); got != "" {
+		t.Errorf("unset int = %q, want empty", got)
+	}
+	if got := FormatOptionalFloat(&threshold); got != "80.5" {
+		t.Errorf("float = %q", got)
+	}
+	if got := FormatOptionalFloat(nil); got != "" {
+		t.Errorf("unset float = %q, want empty", got)
+	}
+}
