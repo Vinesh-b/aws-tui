@@ -120,19 +120,20 @@ func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppConte
 	}
 
 	view.HelpView.View.
-		AddItem("Esc", "Hide current floating view", nil).
-		AddItem("?", "Help for selected view", nil).
-		AddItem("r", "Reset table", nil).
-		AddItem("n", "Load more data", nil).
-		AddItem("d", "Save table to csv", nil).
-		AddItem("y", "Copy cell text to clipboard", nil).
-		AddItem("k", "Move up one row", nil).
-		AddItem("j", "Move down one row", nil).
-		AddItem("g", "Go to first item", nil).
-		AddItem("G", "Go to last item", nil).
-		AddItem("PgUp", "Go up a page", nil).
-		AddItem("PgDn", "Go down a page", nil).
-		AddItem("/", "Search table", nil)
+		AddKey(APP_KEY_BINDINGS.Escape, "Hide current floating view").
+		AddRune(APP_KEY_BINDINGS.Help, "Help for selected view").
+		AddRune(APP_KEY_BINDINGS.Reset, "Reset table").
+		AddRune(APP_KEY_BINDINGS.LoadMoreData, "Load more data").
+		AddRune(APP_KEY_BINDINGS.SaveTable, "Save table to csv").
+		AddRune(APP_KEY_BINDINGS.TextCopy, "Copy cell text to clipboard").
+		AddKey(APP_KEY_BINDINGS.ClearTable, "Clear table").
+		AddRune(APP_KEY_BINDINGS.MoveUpRune, "Move up one row").
+		AddRune(APP_KEY_BINDINGS.MoveDownRune, "Move down one row").
+		AddRune(APP_KEY_BINDINGS.MovePageTopRune, "Go to first item").
+		AddRune(APP_KEY_BINDINGS.MovePageBottomRune, "Go to last item").
+		AddKey(tcell.KeyPgUp, "Go up a page").
+		AddKey(tcell.KeyPgDn, "Go down a page").
+		AddRune(APP_KEY_BINDINGS.Find, "Search table")
 
 	view.
 		AddRuneToggleOverlay("HELP", view.HelpView, APP_KEY_BINDINGS.Help, true).

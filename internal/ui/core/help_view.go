@@ -49,6 +49,17 @@ func (inst *HelpView) AddItem(shortcut string, descirption string, handler func(
 	return inst
 }
 
+// AddRune lists a rune binding, formatted from the binding itself so the help
+// follows any change to APP_KEY_BINDINGS.
+func (inst *HelpView) AddRune(key rune, description string) *HelpView {
+	return inst.AddItem(FormatRune(key), description, nil)
+}
+
+// AddKey lists a special key binding, such as Esc or Ctrl+X.
+func (inst *HelpView) AddKey(key tcell.Key, description string) *HelpView {
+	return inst.AddItem(FormatKey(key), description, nil)
+}
+
 type FloatingHelpView struct {
 	*tview.Flex
 	View *HelpView

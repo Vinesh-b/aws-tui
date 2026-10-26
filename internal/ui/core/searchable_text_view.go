@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"unicode"
 
 	"github.com/atotto/clipboard"
@@ -100,20 +101,25 @@ func NewSearchableTextView(title string, appContext *AppContext) *SearchableText
 		}
 	})
 
-	view.AddRuneToggleOverlay("HELP", view.HelpView, '?', true)
+	view.AddRuneToggleOverlay("HELP", view.HelpView, APP_KEY_BINDINGS.Help, true)
 	view.HelpView.View.
-		AddItem("/", "Search text", nil).
-		AddItem("n", "Jump to next search result", nil).
-		AddItem("N", "Jump to previous search result", nil).
-		AddItem("k,j,h,l", "Move Up, Down, Left, Right", nil).
-		AddItem("w", "Move forward one word", nil).
-		AddItem("b", "Move back one word", nil).
-		AddItem("Ctrl+U", "Move page up", nil).
-		AddItem("Ctrl+D", "Move page down", nil).
-		AddItem("g", "Move to top", nil).
-		AddItem("G", "Move to bottom", nil).
+		AddRune(APP_KEY_BINDINGS.Find, "Search text").
+		AddRune(APP_KEY_BINDINGS.NextSearch, "Jump to next search result").
+		AddRune(APP_KEY_BINDINGS.PrevSearch, "Jump to previous search result").
+		AddItem(strings.Join([]string{
+			FormatRune(APP_KEY_BINDINGS.MoveUpRune),
+			FormatRune(APP_KEY_BINDINGS.MoveDownRune),
+			FormatRune(APP_KEY_BINDINGS.MoveLeftRune),
+			FormatRune(APP_KEY_BINDINGS.MoveRightRune),
+		}, ","), "Move Up, Down, Left, Right", nil).
+		AddRune(APP_KEY_BINDINGS.TextViewWordRight, "Move forward one word").
+		AddRune(APP_KEY_BINDINGS.TextViewWordLeft, "Move back one word").
+		AddKey(APP_KEY_BINDINGS.TextViewPageUp, "Move page up").
+		AddKey(APP_KEY_BINDINGS.TextViewPageDown, "Move page down").
+		AddRune(APP_KEY_BINDINGS.MovePageTopRune, "Move to top").
+		AddRune(APP_KEY_BINDINGS.MovePageBottomRune, "Move to bottom").
 		AddItem("v", "Visual mode to select Text", nil).
-		AddItem("y", "Copy selected text in visual mode", nil)
+		AddRune(APP_KEY_BINDINGS.TextCopy, "Copy selected text in visual mode")
 
 	return view
 }
