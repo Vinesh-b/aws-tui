@@ -17,11 +17,10 @@ type InsightsQuery struct {
 
 type InsightsQueryInputView struct {
 	*tview.Flex
-	DoneButton   *core.Button
-	CancelButton *core.Button
+	RunButton  *core.Button
+	StopButton *core.Button
 
 	appCtx         *core.AppContext
-	viewNavigation *core.ViewNavigation1D
 	queryTextArea  *tview.TextArea
 	startDateInput *core.DateTimeInputField
 	endDateInput   *core.DateTimeInputField
@@ -31,12 +30,11 @@ type InsightsQueryInputView struct {
 func NewInsightsQueryInputView(appContext *core.AppContext) *InsightsQueryInputView {
 	var flex = tview.NewFlex().SetDirection(tview.FlexRow)
 	var view = &InsightsQueryInputView{
-		Flex:         flex,
-		DoneButton:   core.NewButton("Done", appContext.Theme),
-		CancelButton: core.NewButton("Cancel", appContext.Theme),
+		Flex:       flex,
+		RunButton:  core.NewButton("Run", appContext.Theme),
+		StopButton: core.NewButton("Stop", appContext.Theme),
 
 		appCtx:         appContext,
-		viewNavigation: core.NewViewNavigation1D(flex, nil, appContext.App),
 		queryTextArea:  tview.NewTextArea(),
 		startDateInput: core.NewDateTimeInputField(appContext.Theme),
 		endDateInput:   core.NewDateTimeInputField(appContext.Theme),
@@ -55,21 +53,11 @@ func NewInsightsQueryInputView(appContext *core.AppContext) *InsightsQueryInputV
 		).
 		AddItem(
 			tview.NewFlex().SetDirection(tview.FlexColumn).
-				AddItem(view.DoneButton, 0, 1, false).
+				AddItem(view.RunButton, 0, 1, false).
 				AddItem(separator, 1, 0, false).
-				AddItem(view.CancelButton, 0, 1, false),
+				AddItem(view.StopButton, 0, 1, false),
 			1, 0, false,
 		)
-
-	view.viewNavigation.UpdateOrderedViews(
-		[]core.View{
-			view.queryTextArea,
-			view.startDateInput,
-			view.endDateInput,
-			view.DoneButton,
-			view.CancelButton,
-		}, 0,
-	)
 
 	view.queryTextArea.SetText(
 		"fields @timestamp, @message, @log\n"+
@@ -86,6 +74,10 @@ func NewInsightsQueryInputView(appContext *core.AppContext) *InsightsQueryInputV
 		},
 	)
 	view.queryTextArea.SetSelectedStyle(appContext.Theme.GetFocusFormItemStyle())
+	view.queryTextArea.
+		SetTitle("Query").
+		SetTitleAlign(tview.AlignLeft).
+		SetBorder(true)
 
 	var timeNow = time.Now()
 	view.startDateInput.
@@ -97,6 +89,15 @@ func NewInsightsQueryInputView(appContext *core.AppContext) *InsightsQueryInputV
 		SetLabel("End Time ")
 
 	return view
+}
+
+// NavigationRows are the views to move between in the order they are laid out
+func (inst *InsightsQueryInputView) NavigationRows() [][]core.View {
+	return [][]core.View{
+		{inst.queryTextArea},
+		{inst.startDateInput, inst.endDateInput},
+		{inst.RunButton, inst.StopButton},
+	}
 }
 
 func (inst *InsightsQueryInputView) validateInput() error {
@@ -122,24 +123,4 @@ func (inst *InsightsQueryInputView) GenerateQuery() (InsightsQuery, error) {
 	}
 
 	return inst.query, err
-}
-
-type FloatingInsightsQueryInputView struct {
-	*tview.Flex
-	Input *InsightsQueryInputView
-}
-
-func NewFloatingInsightsQueryInputView(
-	appContext *core.AppContext,
-) *FloatingInsightsQueryInputView {
-	var input = NewInsightsQueryInputView(appContext)
-
-	return &FloatingInsightsQueryInputView{
-		Flex:  core.FloatingView("Query", input, 0, 14),
-		Input: input,
-	}
-}
-
-func (inst *FloatingInsightsQueryInputView) GetLastFocusedView() tview.Primitive {
-	return inst.Input.viewNavigation.GetLastFocusedView()
 }

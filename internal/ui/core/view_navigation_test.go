@@ -217,3 +217,23 @@ func TestViewNavigation2D__NavigatesServicePageAddedAsTab(t *testing.T) {
 		t.Fatalf("Expected focus on list after leaving the tab")
 	}
 }
+
+func TestServicePageView__FocusesTheLastRowFirstUnlessAnotherIsSet(t *testing.T) {
+	var f = newNestedNavFixture()
+
+	if got := f.page.GetLastFocusedView(); got != f.tableA {
+		t.Errorf("first focused view is not the first of the last row")
+	}
+
+	f.page.SetFocusedRow(0)
+
+	if got := f.page.GetLastFocusedView(); got != f.tabView {
+		t.Errorf("first focused view is not the tab view after setting row 0")
+	}
+
+	f.page.SetFocusedRow(5)
+
+	if got := f.page.GetLastFocusedView(); got != f.tabView {
+		t.Errorf("a row that doesn't exist changed the focused view")
+	}
+}

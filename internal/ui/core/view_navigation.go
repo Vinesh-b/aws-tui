@@ -265,6 +265,17 @@ func (inst *ViewNavigation2D) UpdateOrderedViews(orderedViews [][]View, intitalI
 	}
 }
 
+// SetFocusedRow makes the view in the first column of the row the one that
+// is focused first, which is otherwise in the last row.
+func (inst *ViewNavigation2D) SetFocusedRow(row int) {
+	if row < 0 || row >= len(inst.orderedViews) || len(inst.orderedViews[row]) == 0 {
+		return
+	}
+	inst.rowIdx = row
+	inst.colIdx = 0
+	inst.numCol = len(inst.orderedViews[row])
+}
+
 func (inst *ViewNavigation2D) GetOrderedViews() [][]View {
 	return inst.orderedViews
 }

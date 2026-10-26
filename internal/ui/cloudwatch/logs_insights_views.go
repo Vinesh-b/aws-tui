@@ -5,118 +5,135 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
-	"aws-tui/internal/utils"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
-type LogGroupsSelectionPageView struct {
+type InsightsTabName = string
+
+const (
+	InsightsTabLogGroups InsightsTabName = "Log Groups"
+	InsightsTabQuery     InsightsTabName = "Query"
+	InsightsTabRecord    InsightsTabName = "Record"
+)
+
+// LogsInsightsPageView is a page to pick the log groups, write the query and
+// look through its results, which are listed with the selected one expanded.
+type LogsInsightsPageView struct {
 	*core.ServicePageView
 	LogGroupsTable      *LogGroupsTable
 	SelectedGroupsTable *SelectedGroupsTable
-	SearchInput         *tview.InputField
-	selectedGroups      utils.StringSet
+	QueryView           *InsightsQueryInputView
+	ResultsTable        *InsightsQueryResultsTable
+	RecordView          *core.SearchableTextView
+	TabView             *core.TabViewHorizontal
 	serviceCtx          *core.ServiceContext[awsapi.CloudWatchLogsApi]
 }
 
-func NewLogGroupsSelectionPageView(
+func NewLogsInsightsPageView(
+	logGroupsTable *LogGroupsTable,
 	selectedGroupsTable *SelectedGroupsTable,
-	serviceViewCtx *core.ServiceContext[awsapi.CloudWatchLogsApi],
-) *LogGroupsSelectionPageView {
+	resultsTable *InsightsQueryResultsTable,
+	serviceCtx *core.ServiceContext[awsapi.CloudWatchLogsApi],
+) *LogsInsightsPageView {
+	var queryView = NewInsightsQueryInputView(serviceCtx.AppContext)
+	var recordView = core.CreateJsonTableDataView(serviceCtx.AppContext, resultsTable, -1)
+	recordView.SetTitle("Record")
 
-	var logGroupsView = NewLogGroupsPageView(
-		NewLogGroupDetailsTable(serviceViewCtx),
-		NewLogGroupsTable(serviceViewCtx),
-		serviceViewCtx,
+	const logGroupsSize = 6000
+	const selectedGroupsSize = 4000
+	var groupsView = core.NewResizableView(
+		logGroupsTable, logGroupsSize,
+		selectedGroupsTable, selectedGroupsSize,
+		tview.FlexColumn,
 	)
-	logGroupsView.InitInputCapture()
 
-	var serviceView = core.NewServicePageView(serviceViewCtx.AppContext)
-	serviceView.MainPage.
-		AddItem(selectedGroupsTable, 0, 1, false).
-		AddItem(logGroupsView.LogGroupsTable, 0, 1, true)
+	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
+		AddAndSwitchToTab(InsightsTabLogGroups, groupsView, 0, 1, true).
+		AddTab(InsightsTabQuery, queryView, 0, 1, true).
+		AddTab(InsightsTabRecord, recordView, 0, 1, true)
+
+	tabView.GetTab(InsightsTabLogGroups).InitViewNavigation(
+		[][]core.View{{logGroupsTable, selectedGroupsTable}},
+	)
+	tabView.GetTab(InsightsTabQuery).InitViewNavigation(queryView.NavigationRows())
+
+	const tabViewSize = 5000
+	const resultsTableSize = 5000
+
+	var mainPage = core.NewResizableView(
+		tabView, tabViewSize,
+		resultsTable, resultsTableSize,
+		tview.FlexRow,
+	)
+	var serviceView = core.NewServicePageView(serviceCtx.AppContext)
+	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
+
+	var view = &LogsInsightsPageView{
+		ServicePageView:     serviceView,
+		LogGroupsTable:      logGroupsTable,
+		SelectedGroupsTable: selectedGroupsTable,
+		QueryView:           queryView,
+		ResultsTable:        resultsTable,
+		RecordView:          recordView,
+		TabView:             tabView,
+		serviceCtx:          serviceCtx,
+	}
+
+	var errorHandler = func(text string, a ...any) {
+		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
+	}
+
+	logGroupsTable.ErrorMessageCallback = errorHandler
+	selectedGroupsTable.ErrorMessageCallback = errorHandler
+	resultsTable.ErrorMessageCallback = errorHandler
 
 	serviceView.InitViewNavigation(
 		[][]core.View{
-			{selectedGroupsTable},
-			{logGroupsView.LogGroupsTable},
+			{tabView},
+			{resultsTable},
 		},
 	)
+	// The log groups are the first thing to pick, while there are no results
+	serviceView.SetFocusedRow(0)
+	view.initInputCapture()
 
-	return &LogGroupsSelectionPageView{
-		ServicePageView:     serviceView,
-		SelectedGroupsTable: selectedGroupsTable,
-		LogGroupsTable:      logGroupsView.LogGroupsTable,
-		selectedGroups:      utils.StringSet{},
-		serviceCtx:          serviceViewCtx,
-	}
+	return view
 }
 
-func (inst *LogGroupsSelectionPageView) InitInputCapture() {
+func (inst *LogsInsightsPageView) initInputCapture() {
+	// The selection of the table is only tracked once there is a handler
+	inst.LogGroupsTable.SetSelectionChangedFunc(func(row, column int) {})
 	inst.LogGroupsTable.SetSelectedFunc(func(row, column int) {
 		if row < 1 {
 			return
 		}
-		var logGroup = inst.LogGroupsTable.GetSelectedLogGroup()
-		inst.SelectedGroupsTable.AddLogGroup(logGroup)
+		inst.SelectedGroupsTable.AddLogGroup(inst.LogGroupsTable.GetSelectedLogGroup())
 		inst.SelectedGroupsTable.RefreshSelectedGroups()
 	})
 
+	inst.QueryView.RunButton.SetSelectedFunc(func() { inst.RunQuery() })
+	inst.QueryView.StopButton.SetSelectedFunc(func() { inst.ResultsTable.StopQuery() })
 }
 
-type InsightsQueryResultsPageView struct {
-	*core.ServicePageView
-	QueryResultsTable *InsightsQueryResultsTable
-	ExpandedResult    *core.SearchableTextView
-	selectedLogGroups *[]string
-	serviceCtx        *core.ServiceContext[awsapi.CloudWatchLogsApi]
-}
-
-func NewInsightsQueryResultsPageView(
-	insightsQueryResultsTable *InsightsQueryResultsTable,
-	serviceViewCtx *core.ServiceContext[awsapi.CloudWatchLogsApi],
-) *InsightsQueryResultsPageView {
-	var expandedResultView = core.CreateJsonTableDataView(
-		serviceViewCtx.AppContext, insightsQueryResultsTable, -1,
-	)
-
-	const expandedLogsSize = 5
-	const resultsTableSize = 10
-	const queryViewSize = 9
-
-	var resizableView = core.NewResizableView(
-		expandedResultView, expandedLogsSize,
-		insightsQueryResultsTable, resultsTableSize,
-		tview.FlexRow,
-	)
-
-	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(resizableView, 0, 1, true)
-
-	var serviceView = core.NewServicePageView(serviceViewCtx.AppContext)
-	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
-
-	serviceView.InitViewNavigation(
-		[][]core.View{
-			{expandedResultView},
-			{insightsQueryResultsTable},
-		},
-	)
-
-	insightsQueryResultsTable.ErrorMessageCallback = func(text string, a ...any) {
-		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
+// RunQuery runs the query on the selected log groups and moves to the results.
+// Without log groups it moves to where they are selected.
+func (inst *LogsInsightsPageView) RunQuery() {
+	var query, err = inst.QueryView.GenerateQuery()
+	if err != nil {
+		inst.ResultsTable.ErrorMessageCallback("%s", err.Error())
+		return
 	}
 
-	return &InsightsQueryResultsPageView{
-		ServicePageView:   serviceView,
-		QueryResultsTable: insightsQueryResultsTable,
-		ExpandedResult:    expandedResultView,
-		serviceCtx:        serviceViewCtx,
+	var logGroups = inst.SelectedGroupsTable.GetAllLogGroups()
+	inst.ResultsTable.ExecuteQuery(query, logGroups)
+	if len(logGroups) == 0 {
+		inst.TabView.SwitchToTab(InsightsTabLogGroups)
+		return
 	}
+	inst.serviceCtx.App.SetFocus(inst.ResultsTable)
 }
-
-func (inst *InsightsQueryResultsPageView) InitInputCapture() {}
 
 func NewLogsInsightsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchLogsApi) core.ServicePage {
 	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0xBB00DD))
@@ -124,12 +141,10 @@ func NewLogsInsightsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchLogsA
 
 	var serviceCtx = core.NewServiceViewContext(appCtx, api)
 
-	var insightsResultsView = NewInsightsQueryResultsPageView(
-		NewInsightsQueryResultsTable(serviceCtx),
-		serviceCtx,
-	)
-	var groupSelectionView = NewLogGroupsSelectionPageView(
+	var insightsView = NewLogsInsightsPageView(
+		NewLogGroupsTable(serviceCtx),
 		NewSelectedGroupsTable(serviceCtx),
+		NewInsightsQueryResultsTable(serviceCtx),
 		serviceCtx,
 	)
 	var logEventsView = NewLogEventsPageView(
@@ -140,26 +155,14 @@ func NewLogsInsightsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchLogsA
 	var serviceRootView = core.NewServiceRootView(string(core.CLOUDWATCH_LOGS_INSIGHTS), appCtx)
 
 	serviceRootView.
-		AddAndSwitchToPage("GroupsSelection", groupSelectionView, true).
-		AddPage("Query", insightsResultsView, true, true).
-		AddPage("LogEvents", logEventsView, true, true)
+		AddAndSwitchToPage("Insights", insightsView, true).
+		AddPage("Log Events", logEventsView, true, true)
 
 	serviceRootView.InitPageNavigation()
 
-	groupSelectionView.SelectedGroupsTable.SetSelectedFunc(func(row, column int) {
-		var logGroups = groupSelectionView.SelectedGroupsTable.GetAllLogGroups()
-		if len(logGroups) > 0 {
-			insightsResultsView.QueryResultsTable.SetSelectedLogGroups(logGroups)
-			serviceRootView.ChangePage(1, nil)
-		}
-	})
-
-	groupSelectionView.InitInputCapture()
-	insightsResultsView.InitInputCapture()
-
 	var recordPtr = ""
-	insightsResultsView.QueryResultsTable.SetSelectedFunc(func(row, column int) {
-		recordPtr = insightsResultsView.QueryResultsTable.GetRecordPtr(row)
+	insightsView.ResultsTable.SetSelectedFunc(func(row, column int) {
+		recordPtr = insightsView.ResultsTable.GetRecordPtr(row)
 		var record, err = api.GetInsightsLogRecord(appCtx.Ctx, recordPtr)
 		if err != nil {
 			logEventsView.LogEventsTable.ErrorMessageCallback("%s", err.Error())
@@ -171,7 +174,7 @@ func NewLogsInsightsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchLogsA
 		logEventsView.LogEventsTable.SetSelectedLogGroup(logGroup)
 		logEventsView.LogEventsTable.SetSelectedLogStream(logStream)
 		logEventsView.LogEventsTable.RefreshLogEvents(true)
-		serviceRootView.ChangePage(2, nil)
+		serviceRootView.ChangePage(1, nil)
 	})
 
 	return serviceRootView

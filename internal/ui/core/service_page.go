@@ -82,6 +82,13 @@ func (inst *ServicePageView) InitViewNavigation(orderedViews [][]View) {
 	inst.viewNavigation.UpdateOrderedViews(orderedViews, 0)
 }
 
+// SetFocusedRow focuses the views in the row of the navigation first, which
+// are those in the last row if it isn't called. It is called after the
+// navigation is set.
+func (inst *ServicePageView) SetFocusedRow(row int) {
+	inst.viewNavigation.SetFocusedRow(row)
+}
+
 func (inst *ServicePageView) GetViewNavigation() [][]View {
 	return inst.viewNavigation.GetOrderedViews()
 }

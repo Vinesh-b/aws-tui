@@ -102,12 +102,10 @@ const LogRecordPtrCol = 0
 
 type InsightsQueryResultsTable struct {
 	*core.SelectableTable[string]
-	queryView            *FloatingInsightsQueryInputView
 	rootView             core.View
 	table                *tview.Table
 	data                 [][]types.ResultField
 	queryId              string
-	selectedLogGroups    []string
 	headingIdxMap        map[string]int
 	serviceCtx           *core.ServiceContext[awsapi.CloudWatchLogsApi]
 	ErrorMessageCallback func(text string, a ...any)
@@ -117,17 +115,13 @@ func NewInsightsQueryResultsTable(
 	serviceViewCtx *core.ServiceContext[awsapi.CloudWatchLogsApi],
 ) *InsightsQueryResultsTable {
 	var selectableTable = core.NewSelectableTable[string]("Query Results", nil, serviceViewCtx.AppContext)
-	var queryView = NewFloatingInsightsQueryInputView(serviceViewCtx.AppContext)
-	selectableTable.AddRuneToggleOverlay("QUERY", queryView, core.APP_KEY_BINDINGS.TableQuery, false)
 
 	var view = &InsightsQueryResultsTable{
 		SelectableTable:      selectableTable,
-		queryView:            queryView,
 		rootView:             selectableTable.Box,
 		table:                selectableTable.GetTable(),
 		data:                 nil,
 		queryId:              "",
-		selectedLogGroups:    nil,
 		headingIdxMap:        map[string]int{},
 		serviceCtx:           serviceViewCtx,
 		ErrorMessageCallback: func(text string, a ...any) {},
@@ -145,20 +139,9 @@ func NewInsightsQueryResultsTable(
 		return event
 	})
 
-	view.queryView.Input.DoneButton.SetSelectedFunc(func() {
-		view.ExecuteQuery()
-	})
-
-	view.queryView.Input.CancelButton.SetSelectedFunc(func() {
-		view.StopQuery()
-	})
-
 	view.HelpView.View.
 		AddItem("f", "Jump to next search result", nil).
-		AddItem("F", "Jump to previous search result", nil).
-		AddItem("q", "To show query view", func() {
-			view.ToggleOverlay("QUERY", false)
-		})
+		AddItem("F", "Jump to previous search result", nil)
 
 	return view
 }
@@ -255,14 +238,10 @@ func (inst *InsightsQueryResultsTable) RefreshResults() {
 	})
 }
 
-func (inst *InsightsQueryResultsTable) ExecuteQuery() {
-	var query, err = inst.queryView.Input.GenerateQuery()
-	if err != nil {
-		inst.ErrorMessageCallback("%s", err.Error())
-		return
-	}
-
-	if len(inst.selectedLogGroups) == 0 {
+// ExecuteQuery runs the query on the log groups, stopping the one that is
+// running, and shows its results
+func (inst *InsightsQueryResultsTable) ExecuteQuery(query InsightsQuery, logGroups []string) {
+	if len(logGroups) == 0 {
 		inst.ErrorMessageCallback("No log groups selected")
 		return
 	}
@@ -279,7 +258,7 @@ func (inst *InsightsQueryResultsTable) ExecuteQuery() {
 
 		var res, err = inst.serviceCtx.Api.StartInsightsQuery(
 			inst.serviceCtx.Ctx,
-			inst.selectedLogGroups,
+			logGroups,
 			query.StartTime,
 			query.EndTime,
 			query.Query,
@@ -350,8 +329,4 @@ func (inst *InsightsQueryResultsTable) GetRecordPtr(row int) string {
 // To make the table data preview work (to be refactored)
 func (inst *InsightsQueryResultsTable) GetPrivateData(row int, col int) string {
 	return inst.GetCellText(row, col)
-}
-
-func (inst *InsightsQueryResultsTable) SetSelectedLogGroups(groups []string) {
-	inst.selectedLogGroups = groups
 }
