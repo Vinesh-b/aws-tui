@@ -1109,3 +1109,52 @@ func TestDetailsTable__SingleCellRowsAreHeadings(t *testing.T) {
 		t.Errorf("heading value = %q, want no placeholder", got)
 	}
 }
+
+func newSectionedDetailsTable(t *testing.T) *DetailsTable {
+	t.Helper()
+	var table = NewDetailsTable("details", newTestAppContext())
+	var data = []TableRow{{"Name", "orders"}}
+	data = append(data, DetailsSection("Keys", TableRow{"Partition Key", "id"}, TableRow{"Sort Key", "ts"})...)
+	if err := table.SetData(data); err != nil {
+		t.Fatalf("Failed to set data: %v", err)
+	}
+	return table
+}
+
+func TestDetailsSection__EmptySectionIsLeftOut(t *testing.T) {
+	if got := DetailsSection("Indexes"); got != nil {
+		t.Errorf("section = %v, want nil", got)
+	}
+}
+
+func TestDetailsTable__RowsInSectionAreIndented(t *testing.T) {
+	var table = newSectionedDetailsTable(t)
+
+	if got := table.table.GetCell(0, 0).Text; got != "Name" {
+		t.Errorf("row before the section = %q, want it not indented", got)
+	}
+	if got := table.table.GetCell(2, 0).Text; got != detailsSectionIndent+"Partition Key" {
+		t.Errorf("row in section = %q, want it indented", got)
+	}
+	if got := table.GetCellText(2, 0); got != "Partition Key" {
+		t.Errorf("label text = %q, want it without the indent", got)
+	}
+}
+
+func TestDetailsTable__MovingSelectionSkipsHeadings(t *testing.T) {
+	var table = newSectionedDetailsTable(t)
+	var handler = table.table.InputHandler()
+	table.Select(0, 0)
+
+	handler(tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone), func(p tview.Primitive) {})
+
+	if row, _ := table.table.GetSelection(); row != 2 {
+		t.Errorf("row after moving down = %d, want 2 past the heading", row)
+	}
+
+	handler(tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone), func(p tview.Primitive) {})
+
+	if row, _ := table.table.GetSelection(); row != 0 {
+		t.Errorf("row after moving up = %d, want 0 past the heading", row)
+	}
+}

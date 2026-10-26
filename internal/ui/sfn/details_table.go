@@ -66,23 +66,21 @@ func (inst *SfnDetailsTable) populateTable() {
 		var logConfig = inst.data.LoggingConfiguration
 		if logConfig != nil {
 			var logData = []core.TableRow{
-				{"Logging"},
 				{"Include Execution Data", fmt.Sprintf("%v", logConfig.IncludeExecutionData)},
 				{"Log Level", string(logConfig.Level)},
 			}
 
-			logData = append(logData, core.TableRow{"Log Groups"})
 			for _, logDest := range logConfig.Destinations {
 				var group = logDest.CloudWatchLogsLogGroup
 				if group != nil {
 
 					var splitArn = strings.Split(aws.ToString(group.LogGroupArn), ":")
-					logData = append(logData, core.TableRow{"", splitArn[6]})
+					logData = append(logData, core.TableRow{"Log Group", splitArn[6]})
 					inst.logGroups = append(inst.logGroups, splitArn[6])
 				}
 			}
 
-			tableData = append(tableData, logData...)
+			tableData = append(tableData, core.DetailsSection("Logging", logData...)...)
 		}
 	}
 

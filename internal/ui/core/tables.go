@@ -709,9 +709,22 @@ func formatJsonValue(value string) (string, bool) {
 // detailsPlaceholder is shown in place of empty values
 const detailsPlaceholder = "-"
 
-// SetData shows rows of a label and a value. A row with only a label is drawn
-// as a heading for the rows after it. Empty values are shown as a placeholder,
-// but copying or previewing them gives the empty value.
+// detailsSectionIndent is shown before the labels of rows in a section
+const detailsSectionIndent = "  "
+
+// DetailsSection is a heading and the rows under it, for a details table.
+// Sections without rows are left out.
+func DetailsSection(title string, rows ...TableRow) []TableRow {
+	if len(rows) == 0 {
+		return nil
+	}
+	return append([]TableRow{{title}}, rows...)
+}
+
+// SetData shows rows of a label and a value. A row with only a label is a
+// heading, which starts a section of the rows after it up to the next heading.
+// Rows in a section are indented. Empty values are shown as a placeholder, but
+// copying or previewing them gives the empty value.
 func (inst *DetailsTable) SetData(data []TableRow) error {
 	for _, row := range data {
 		if len(row) != 1 && len(row) != 2 {
@@ -731,19 +744,25 @@ func (inst *DetailsTable) SetData(data []TableRow) error {
 	inst.SetTitle(tableTitle)
 
 	var theme = inst.appCtx.Theme
+	var inSection = false
 	for rowIdx, rowData := range data {
 		if len(rowData) == 1 {
+			// The value cell is left unset so moving the selection skips the row
 			inst.table.SetCell(rowIdx, 0, NewTableCell[any](rowData[0], nil).
 				SetTextColor(theme.SecondaryTextColour).
 				SetAttributes(tcell.AttrBold).
 				SetSelectable(false),
 			)
+			inSection = true
 			continue
 		}
 
-		inst.table.SetCell(rowIdx, 0, NewTableCell[any](rowData[0], nil).
-			SetTextColor(theme.PrimaryTextColour),
-		)
+		var labelCell = NewTableCell[any](rowData[0], nil).
+			SetTextColor(theme.PrimaryTextColour)
+		if inSection {
+			labelCell.SetText(detailsSectionIndent + labelCell.Text)
+		}
+		inst.table.SetCell(rowIdx, 0, labelCell)
 
 		var valueCell = NewTableCell[any](rowData[detailsValueCol], nil).
 			SetTextColor(theme.TertiaryTextColour)

@@ -50,29 +50,27 @@ func formatLastModified(text string) string {
 }
 
 func (inst *LambdaDetailsTable) populateLambdaDetailsTable() {
-	var tableData []core.TableRow
-	var loggingConfig = inst.data.LoggingConfig
-	var logGroup = ""
-	var sysLogLevel = ""
-	if loggingConfig != nil {
-		logGroup = aws.ToString(loggingConfig.LogGroup)
-		sysLogLevel = string(loggingConfig.SystemLogLevel)
-
-	}
-
-	tableData = []core.TableRow{
+	var tableData = []core.TableRow{
 		{"Description", aws.ToString(inst.data.Description)},
 		{"ARN", aws.ToString(inst.data.FunctionArn)},
 		{"Version", aws.ToString(inst.data.Version)},
-		{"Memory Size (MB)", formatOptionalInt(inst.data.MemorySize)},
-		{"Runtime", string(inst.data.Runtime)},
-		{"Architectures", core.FormatList(inst.data.Architectures)},
-		{"Timeout (s)", formatOptionalInt(inst.data.Timeout)},
-		{"Log Group", logGroup},
-		{"System Log Level", sysLogLevel},
 		{"State", string(inst.data.State)},
 		{"Last Modified", formatLastModified(aws.ToString(inst.data.LastModified))},
 		{"Role", aws.ToString(inst.data.Role)},
+	}
+
+	tableData = append(tableData, core.DetailsSection("Configuration",
+		core.TableRow{"Runtime", string(inst.data.Runtime)},
+		core.TableRow{"Architectures", core.FormatList(inst.data.Architectures)},
+		core.TableRow{"Memory Size (MB)", formatOptionalInt(inst.data.MemorySize)},
+		core.TableRow{"Timeout (s)", formatOptionalInt(inst.data.Timeout)},
+	)...)
+
+	if loggingConfig := inst.data.LoggingConfig; loggingConfig != nil {
+		tableData = append(tableData, core.DetailsSection("Logging",
+			core.TableRow{"Log Group", aws.ToString(loggingConfig.LogGroup)},
+			core.TableRow{"System Log Level", string(loggingConfig.SystemLogLevel)},
+		)...)
 	}
 
 	inst.SetTitleExtra(aws.ToString(inst.data.FunctionName))

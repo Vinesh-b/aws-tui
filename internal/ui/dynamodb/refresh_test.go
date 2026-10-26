@@ -107,6 +107,7 @@ func TestDetailsTable__RefreshLoadsDescriptionOfSelectedTable(t *testing.T) {
 		{"Billing Mode", "PROVISIONED"},
 		{"Delete Protection", "DISABLED"},
 		{"ARN", "arn:aws:dynamodb:us-east-1:123456789012:table/orders"},
+		{"Keys"},
 		{"Partition Key", "id"},
 		{"Sort Key", "ts"},
 	})

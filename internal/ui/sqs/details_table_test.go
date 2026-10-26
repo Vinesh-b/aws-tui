@@ -38,18 +38,20 @@ func TestQueueDetailsTable__EmptyQueueShowsBlankValues(t *testing.T) {
 		{"Type", "Standard"},
 		{"URL", ""},
 		{"ARN", ""},
-		{"Messages Available", ""},
-		{"Messages In Flight", ""},
-		{"Messages Delayed", ""},
+		{"Encryption", "None"},
+		{"Created", ""},
+		{"Last Modified", ""},
+		{"Messages"},
+		{"Available", ""},
+		{"In Flight", ""},
+		{"Delayed", ""},
+		{"Configuration"},
 		{"Visibility Timeout (s)", ""},
 		{"Message Retention (s)", ""},
 		{"Delivery Delay (s)", ""},
 		{"Receive Wait Time (s)", ""},
 		{"Max Message Size (bytes)", ""},
-		{"Encryption", "None"},
 		{"Redrive Policy", ""},
-		{"Created", ""},
-		{"Last Modified", ""},
 	})
 }
 
@@ -65,18 +67,20 @@ func TestQueueDetailsTable__PopulatesFromAttributes(t *testing.T) {
 		{"Type", "Standard"},
 		{"URL", queueUrl("orders")},
 		{"ARN", "arn:aws:sqs:us-east-1:123456789012:orders"},
-		{"Messages Available", "5"},
-		{"Messages In Flight", "2"},
-		{"Messages Delayed", "1"},
+		{"Encryption", "SQS managed"},
+		{"Created", "2024-01-02 03:04:05"},
+		{"Last Modified", "2024-01-02 03:05:06"},
+		{"Messages"},
+		{"Available", "5"},
+		{"In Flight", "2"},
+		{"Delayed", "1"},
+		{"Configuration"},
 		{"Visibility Timeout (s)", "30"},
 		{"Message Retention (s)", "345600"},
 		{"Delivery Delay (s)", "0"},
 		{"Receive Wait Time (s)", "10"},
 		{"Max Message Size (bytes)", "262144"},
-		{"Encryption", "SQS managed"},
 		{"Redrive Policy", `{"maxReceiveCount":3}`},
-		{"Created", "2024-01-02 03:04:05"},
-		{"Last Modified", "2024-01-02 03:05:06"},
 	})
 }
 
@@ -87,7 +91,7 @@ func TestQueueDetailsTable__KmsKeyTakesPrecedenceInEncryption(t *testing.T) {
 
 	table.populateQueueDetailsTable()
 
-	if got := table.GetCellText(12, 1); got != "KMS: alias/orders" {
+	if got := table.GetCellText(4, 1); got != "KMS: alias/orders" {
 		t.Errorf("encryption = %q, want %q", got, "KMS: alias/orders")
 	}
 }
@@ -99,7 +103,7 @@ func TestQueueDetailsTable__FifoQueueShowsDeduplicationRow(t *testing.T) {
 
 	table.populateQueueDetailsTable()
 
-	const fifoRow = 16
+	const fifoRow = 18
 	if got := table.GetCellText(fifoRow, 0); got != "Content Based Deduplication" {
 		t.Errorf("row %d label = %q, want %q", fifoRow, got, "Content Based Deduplication")
 	}

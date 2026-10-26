@@ -59,8 +59,8 @@ func TestObjectDetailsTable__ListsMetadataSortedByKey(t *testing.T) {
 		{"SSE KMS Key", ""},
 		{"Last Modified", "2024-01-02 03:04:05"},
 		{"Metadata"},
-		{"", "env: prod"},
-		{"", "owner: team-a"},
+		{"env", "prod"},
+		{"owner", "team-a"},
 	})
 }
 

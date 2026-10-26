@@ -43,9 +43,6 @@ func (inst *TopicDetailsTable) populateTopicDetailsTable() {
 		{"ARN", inst.topicArn},
 		{"Display Name", attr["DisplayName"]},
 		{"Owner", attr["Owner"]},
-		{"Subscriptions Confirmed", attr["SubscriptionsConfirmed"]},
-		{"Subscriptions Pending", attr["SubscriptionsPending"]},
-		{"Subscriptions Deleted", attr["SubscriptionsDeleted"]},
 		{"Encryption", inst.encryption()},
 		{"Delivery Policy", attr["EffectiveDeliveryPolicy"]},
 	}
@@ -55,6 +52,12 @@ func (inst *TopicDetailsTable) populateTopicDetailsTable() {
 			core.TableRow{"Content Based Deduplication", attr["ContentBasedDeduplication"]},
 		)
 	}
+
+	tableData = append(tableData, core.DetailsSection("Subscriptions",
+		core.TableRow{"Confirmed", attr["SubscriptionsConfirmed"]},
+		core.TableRow{"Pending", attr["SubscriptionsPending"]},
+		core.TableRow{"Deleted", attr["SubscriptionsDeleted"]},
+	)...)
 
 	inst.SetTitleExtra(topicName(inst.topicArn))
 	inst.SetData(tableData)

@@ -83,7 +83,7 @@ func TestQueueDetailsTable__RefreshLoadsAttributesFromApi(t *testing.T) {
 
 	table.RefreshDetails(queueUrl("orders"))
 
-	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetCellText(4, 1) == "5" })
+	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetCellText(8, 1) == "5" })
 }
 
 func TestQueueDetailsTable__RefreshReportsApiError(t *testing.T) {

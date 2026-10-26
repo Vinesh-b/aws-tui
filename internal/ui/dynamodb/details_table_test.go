@@ -46,6 +46,7 @@ func TestDetailsTable__ShowsTableAndKeyDetails(t *testing.T) {
 		{"Billing Mode", "PROVISIONED"},
 		{"Delete Protection", "DISABLED"},
 		{"ARN", "arn:aws:dynamodb:us-east-1:123456789012:table/orders"},
+		{"Keys"},
 		{"Partition Key", "id"},
 		{"Sort Key", "ts"},
 	})
@@ -58,8 +59,25 @@ func TestDetailsTable__ShowsBillingModeProtectionIndexesAndEncryption(t *testing
 	table.data.DeletionProtectionEnabled = aws.Bool(true)
 	table.data.BillingModeSummary = &types.BillingModeSummary{BillingMode: types.BillingModePayPerRequest}
 	table.data.GlobalSecondaryIndexes = []types.GlobalSecondaryIndexDescription{
-		{IndexName: aws.String("by-email")},
-		{IndexName: aws.String("by-status")},
+		{
+			IndexName:   aws.String("by-email"),
+			KeySchema:   []types.KeySchemaElement{hashKey("email")},
+			Projection:  &types.Projection{ProjectionType: types.ProjectionTypeAll},
+			IndexStatus: types.IndexStatusActive,
+		},
+		{
+			IndexName:   aws.String("by-status"),
+			KeySchema:   []types.KeySchemaElement{hashKey("status"), rangeKey("ts")},
+			Projection:  &types.Projection{ProjectionType: types.ProjectionTypeKeysOnly},
+			IndexStatus: types.IndexStatusCreating,
+		},
+	}
+	table.data.LocalSecondaryIndexes = []types.LocalSecondaryIndexDescription{
+		{
+			IndexName:  aws.String("by-score"),
+			KeySchema:  []types.KeySchemaElement{hashKey("id"), rangeKey("score")},
+			Projection: &types.Projection{ProjectionType: types.ProjectionTypeInclude},
+		},
 	}
 	table.data.SSEDescription = &types.SSEDescription{
 		SSEType:         types.SSETypeKms,
@@ -77,12 +95,16 @@ func TestDetailsTable__ShowsBillingModeProtectionIndexesAndEncryption(t *testing
 		{"Billing Mode", "PAY_PER_REQUEST"},
 		{"Delete Protection", "ENABLED"},
 		{"ARN", "arn:aws:dynamodb:us-east-1:123456789012:table/orders"},
+		{"Keys"},
 		{"Partition Key", "id"},
-		{"GSI", "by-email"},
-		{"GSI", "by-status"},
-		{"Encryption Type", "KMS"},
-		{"Encryption Status", "ENABLED"},
-		{"KMS Key Arn", "arn:aws:kms:us-east-1:123456789012:key/abc"},
+		{"Indexes"},
+		{"by-email", "GSI · Keys: email · Projection: ALL · ACTIVE"},
+		{"by-status", "GSI · Keys: status, ts · Projection: KEYS_ONLY · CREATING"},
+		{"by-score", "LSI · Keys: id, score · Projection: INCLUDE"},
+		{"Encryption"},
+		{"Type", "KMS"},
+		{"Status", "ENABLED"},
+		{"KMS Key ARN", "arn:aws:kms:us-east-1:123456789012:key/abc"},
 	})
 }
 

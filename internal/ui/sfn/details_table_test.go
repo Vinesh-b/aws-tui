@@ -74,7 +74,6 @@ func TestDetailsTable__ShowsLoggingConfiguration(t *testing.T) {
 		{"Logging"},
 		{"Include Execution Data", "true"},
 		{"Log Level", "ALL"},
-		{"Log Groups"},
-		{"", "/aws/states/orders"},
+		{"Log Group", "/aws/states/orders"},
 	})
 }

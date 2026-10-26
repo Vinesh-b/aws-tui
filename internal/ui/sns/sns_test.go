@@ -97,11 +97,12 @@ func TestTopicDetailsTable__EmptyTopicShowsBlankValues(t *testing.T) {
 		{"ARN", ""},
 		{"Display Name", ""},
 		{"Owner", ""},
-		{"Subscriptions Confirmed", ""},
-		{"Subscriptions Pending", ""},
-		{"Subscriptions Deleted", ""},
 		{"Encryption", "None"},
 		{"Delivery Policy", ""},
+		{"Subscriptions"},
+		{"Confirmed", ""},
+		{"Pending", ""},
+		{"Deleted", ""},
 	})
 }
 
@@ -119,12 +120,13 @@ func TestTopicDetailsTable__PopulatesFromAttributes(t *testing.T) {
 		{"ARN", topicArn("orders.fifo")},
 		{"Display Name", "Orders"},
 		{"Owner", "123456789012"},
-		{"Subscriptions Confirmed", "3"},
-		{"Subscriptions Pending", "1"},
-		{"Subscriptions Deleted", "0"},
 		{"Encryption", "KMS: alias/aws/sns"},
 		{"Delivery Policy", `{"http":{}}`},
 		{"Content Based Deduplication", "true"},
+		{"Subscriptions"},
+		{"Confirmed", "3"},
+		{"Pending", "1"},
+		{"Deleted", "0"},
 	})
 }
 
@@ -136,7 +138,7 @@ func TestTopicDetailsTable__RefreshLoadsAttributesFromApi(t *testing.T) {
 
 	table.RefreshDetails(topicArn("orders"))
 
-	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetCellText(5, 1) == "3" })
+	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetCellText(8, 1) == "3" })
 }
 
 func TestTopicDetailsTable__RefreshReportsApiError(t *testing.T) {

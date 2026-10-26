@@ -1,7 +1,6 @@
 package s3
 
 import (
-	"fmt"
 	"maps"
 	"slices"
 
@@ -43,18 +42,6 @@ func (inst *S3ObjectDetailsTable) populateS3ObjectDetailsTable() {
 		{"Last Modified", core.FormatTime(inst.data.LastModified)},
 	}
 
-	if len(inst.data.Metadata) > 0 {
-		tableData = append(tableData,
-			core.TableRow{"Metadata"},
-		)
-	}
-
-	for _, k := range slices.Sorted(maps.Keys(inst.data.Metadata)) {
-		tableData = append(tableData,
-			core.TableRow{"", fmt.Sprintf("%s: %s", k, inst.data.Metadata[k])},
-		)
-	}
-
 	var checksums = []*string{
 		inst.data.ChecksumCRC64NVME,
 		inst.data.ChecksumSHA1,
@@ -71,6 +58,12 @@ func (inst *S3ObjectDetailsTable) populateS3ObjectDetailsTable() {
 			break
 		}
 	}
+
+	var metadata []core.TableRow
+	for _, k := range slices.Sorted(maps.Keys(inst.data.Metadata)) {
+		metadata = append(metadata, core.TableRow{k, inst.data.Metadata[k]})
+	}
+	tableData = append(tableData, core.DetailsSection("Metadata", metadata...)...)
 
 	inst.SetTitleExtra(inst.selectedObjectKey)
 	inst.SetData(tableData)

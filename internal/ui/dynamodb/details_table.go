@@ -2,6 +2,7 @@ package dynamodb
 
 import (
 	"fmt"
+	"strings"
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
@@ -42,10 +43,48 @@ func NewDynamoDBDetailsTable(
 	return table
 }
 
+// indexRows describe each GSI and then each LSI by its type, keys, projection
+// and, for a GSI, its status.
+func (inst *DynamoDBDetailsTable) indexRows() []core.TableRow {
+	var rows []core.TableRow
+	for _, gsi := range inst.data.GlobalSecondaryIndexes {
+		rows = append(rows, core.TableRow{
+			aws.ToString(gsi.IndexName),
+			indexSummary("GSI", gsi.KeySchema, gsi.Projection, string(gsi.IndexStatus)),
+		})
+	}
+	for _, lsi := range inst.data.LocalSecondaryIndexes {
+		rows = append(rows, core.TableRow{
+			aws.ToString(lsi.IndexName),
+			indexSummary("LSI", lsi.KeySchema, lsi.Projection, ""),
+		})
+	}
+	return rows
+}
+
+func indexSummary(
+	indexType string, keySchema []types.KeySchemaElement, projection *types.Projection, status string,
+) string {
+	var keys []string
+	for _, attr := range keySchema {
+		keys = append(keys, aws.ToString(attr.AttributeName))
+	}
+
+	var parts = []string{indexType}
+	if len(keys) > 0 {
+		parts = append(parts, "Keys: "+strings.Join(keys, ", "))
+	}
+	if projection != nil && len(projection.ProjectionType) > 0 {
+		parts = append(parts, "Projection: "+string(projection.ProjectionType))
+	}
+	if len(status) > 0 {
+		parts = append(parts, status)
+	}
+	return strings.Join(parts, " · ")
+}
+
 func (inst *DynamoDBDetailsTable) populateDetailsTable() {
 	var tableData []core.TableRow
-	var partitionKey = ""
-	var sortKey = ""
 
 	if inst.data != nil {
 		var deleteProtection = "DISABLED"
@@ -72,28 +111,20 @@ func (inst *DynamoDBDetailsTable) populateDetailsTable() {
 		for _, atter := range inst.data.KeySchema {
 			switch atter.KeyType {
 			case types.KeyTypeHash:
-				partitionKey = aws.ToString(atter.AttributeName)
-				keyData = append(keyData, core.TableRow{"Partition Key", partitionKey})
+				keyData = append(keyData, core.TableRow{"Partition Key", aws.ToString(atter.AttributeName)})
 			case types.KeyTypeRange:
-				sortKey = aws.ToString(atter.AttributeName)
-				keyData = append(keyData, core.TableRow{"Sort Key", sortKey})
+				keyData = append(keyData, core.TableRow{"Sort Key", aws.ToString(atter.AttributeName)})
 			}
 		}
-		tableData = append(tableData, keyData...)
-
-		var gsiList = []core.TableRow{}
-		for _, gsi := range inst.data.GlobalSecondaryIndexes {
-			gsiList = append(gsiList, core.TableRow{"GSI", fmt.Sprintf("%s", aws.ToString(gsi.IndexName))})
-		}
-		tableData = append(tableData, gsiList...)
+		tableData = append(tableData, core.DetailsSection("Keys", keyData...)...)
+		tableData = append(tableData, core.DetailsSection("Indexes", inst.indexRows()...)...)
 
 		if sse := inst.data.SSEDescription; sse != nil {
-			var sseData = []core.TableRow{
-				{"Encryption Type", string(sse.SSEType)},
-				{"Encryption Status", string(sse.Status)},
-				{"KMS Key Arn", aws.ToString(sse.KMSMasterKeyArn)},
-			}
-			tableData = append(tableData, sseData...)
+			tableData = append(tableData, core.DetailsSection("Encryption",
+				core.TableRow{"Type", string(sse.SSEType)},
+				core.TableRow{"Status", string(sse.Status)},
+				core.TableRow{"KMS Key ARN", aws.ToString(sse.KMSMasterKeyArn)},
+			)...)
 		}
 	}
 

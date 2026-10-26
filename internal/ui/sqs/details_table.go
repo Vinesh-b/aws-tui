@@ -46,25 +46,29 @@ func (inst *QueueDetailsTable) populateQueueDetailsTable() {
 		{"Type", queueType(inst.queueUrl)},
 		{"URL", inst.queueUrl},
 		{"ARN", attr["QueueArn"]},
-		{"Messages Available", attr["ApproximateNumberOfMessages"]},
-		{"Messages In Flight", attr["ApproximateNumberOfMessagesNotVisible"]},
-		{"Messages Delayed", attr["ApproximateNumberOfMessagesDelayed"]},
+		{"Encryption", inst.encryption()},
+		{"Created", core.FormatUnixSeconds(attr["CreatedTimestamp"])},
+		{"Last Modified", core.FormatUnixSeconds(attr["LastModifiedTimestamp"])},
+	}
+
+	tableData = append(tableData, core.DetailsSection("Messages",
+		core.TableRow{"Available", attr["ApproximateNumberOfMessages"]},
+		core.TableRow{"In Flight", attr["ApproximateNumberOfMessagesNotVisible"]},
+		core.TableRow{"Delayed", attr["ApproximateNumberOfMessagesDelayed"]},
+	)...)
+
+	var config = []core.TableRow{
 		{"Visibility Timeout (s)", attr["VisibilityTimeout"]},
 		{"Message Retention (s)", attr["MessageRetentionPeriod"]},
 		{"Delivery Delay (s)", attr["DelaySeconds"]},
 		{"Receive Wait Time (s)", attr["ReceiveMessageWaitTimeSeconds"]},
 		{"Max Message Size (bytes)", attr["MaximumMessageSize"]},
-		{"Encryption", inst.encryption()},
 		{"Redrive Policy", attr["RedrivePolicy"]},
-		{"Created", core.FormatUnixSeconds(attr["CreatedTimestamp"])},
-		{"Last Modified", core.FormatUnixSeconds(attr["LastModifiedTimestamp"])},
 	}
-
 	if queueType(inst.queueUrl) == "FIFO" {
-		tableData = append(tableData,
-			core.TableRow{"Content Based Deduplication", attr["ContentBasedDeduplication"]},
-		)
+		config = append(config, core.TableRow{"Content Based Deduplication", attr["ContentBasedDeduplication"]})
 	}
+	tableData = append(tableData, core.DetailsSection("Configuration", config...)...)
 
 	inst.SetTitleExtra(queueName(inst.queueUrl))
 	inst.SetData(tableData)
