@@ -2,7 +2,9 @@ package cloudwatch
 
 import (
 	"context"
+	"fmt"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -15,11 +17,33 @@ import (
 
 type fakeInsightsApi struct {
 	fakeCloudWatchLogsApi
-	results [][]types.ResultField
+	// responses are given one for each time the results are asked for, and the
+	// last of them after that
+	responses []awsapi.InsightsQueryResults
+	record    map[string]string
+	recordErr error
 
-	mu      sync.Mutex
-	started [][]string
-	queries []string
+	mu         sync.Mutex
+	started    [][]string
+	queries    []string
+	stopped    []string
+	polls      int
+	recordPtrs []string
+}
+
+func completeWith(rows ...[]types.ResultField) awsapi.InsightsQueryResults {
+	return awsapi.InsightsQueryResults{Results: rows, Status: types.QueryStatusComplete}
+}
+
+func runningWith(rows ...[]types.ResultField) awsapi.InsightsQueryResults {
+	return awsapi.InsightsQueryResults{
+		Results: rows,
+		Status:  types.QueryStatusRunning,
+		Statistics: &types.QueryStatistics{
+			RecordsMatched: float64(len(rows)),
+			RecordsScanned: 2500,
+		},
+	}
 }
 
 func (f *fakeInsightsApi) StartInsightsQuery(
@@ -29,13 +53,34 @@ func (f *fakeInsightsApi) StartInsightsQuery(
 	defer f.mu.Unlock()
 	f.started = append(f.started, logGroups)
 	f.queries = append(f.queries, query)
-	return "query-1", nil
+	return fmt.Sprintf("query-%d", len(f.started)), nil
+}
+
+func (f *fakeInsightsApi) StopInsightsQuery(ctx context.Context, queryId string) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.stopped = append(f.stopped, queryId)
+	return true, nil
 }
 
 func (f *fakeInsightsApi) GetInsightsQueryResults(
 	ctx context.Context, queryId string,
-) ([][]types.ResultField, types.QueryStatus, error) {
-	return f.results, types.QueryStatusComplete, nil
+) (awsapi.InsightsQueryResults, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.responses) == 0 {
+		return completeWith(), nil
+	}
+	var response = f.responses[min(f.polls, len(f.responses)-1)]
+	f.polls++
+	return response, nil
+}
+
+func (f *fakeInsightsApi) GetInsightsLogRecord(ctx context.Context, recordPtr string) (map[string]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.recordPtrs = append(f.recordPtrs, recordPtr)
+	return f.record, f.recordErr
 }
 
 func (f *fakeInsightsApi) startedQueries() [][]string {
@@ -44,12 +89,26 @@ func (f *fakeInsightsApi) startedQueries() [][]string {
 	return slices.Clone(f.started)
 }
 
+func (f *fakeInsightsApi) stoppedQueries() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.stopped)
+}
+
+func (f *fakeInsightsApi) pollCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.polls
+}
+
 func newInsightsPageView(t *testing.T, api awsapi.CloudWatchLogsApi) *LogsInsightsPageView {
 	var serviceCtx = uitest.NewServiceContextWith(api)
+	var resultsTable = NewInsightsQueryResultsTable(serviceCtx)
+	resultsTable.pollInterval = 5 * time.Millisecond
 	var view = NewLogsInsightsPageView(
 		NewLogGroupsTable(serviceCtx),
 		NewSelectedGroupsTable(serviceCtx),
-		NewInsightsQueryResultsTable(serviceCtx),
+		resultsTable,
 		serviceCtx,
 	)
 	uitest.RunApp(t, serviceCtx.App)
@@ -97,7 +156,7 @@ func TestInsightsPageView__RunningWithoutLogGroupsMovesToThemAndReportsIt(t *tes
 }
 
 func TestInsightsPageView__RunningQueriesTheSelectedGroupsAndShowsTheResults(t *testing.T) {
-	var api = &fakeInsightsApi{results: [][]types.ResultField{resultRow("@message", "hello", "@ptr", "ptr-1")}}
+	var api = &fakeInsightsApi{responses: []awsapi.InsightsQueryResults{completeWith(resultRow("@message", "hello", "@ptr", "ptr-1"))}}
 	var view = newInsightsPageView(t, api)
 	var app = view.serviceCtx.App
 	uitest.OnUI(t, app, func() {
@@ -119,4 +178,110 @@ func TestInsightsPageView__RunningQueriesTheSelectedGroupsAndShowsTheResults(t *
 			t.Error("the results table does not have focus")
 		}
 	})
+}
+
+// runQuery runs a query on a group on the UI thread
+func runQuery(t *testing.T, view *LogsInsightsPageView) {
+	t.Helper()
+	uitest.OnUI(t, view.serviceCtx.App, func() {
+		view.SelectedGroupsTable.AddLogGroup("/aws/lambda/orders")
+		view.RunQuery()
+	})
+}
+
+func TestInsightsPageView__ResultsAndStatusComeInWhileTheQueryRuns(t *testing.T) {
+	var api = &fakeInsightsApi{responses: []awsapi.InsightsQueryResults{
+		runningWith(resultRow("@message", "one")),
+		completeWith(resultRow("@message", "one"), resultRow("@message", "two")),
+	}}
+	var view = newInsightsPageView(t, api)
+	var app = view.serviceCtx.App
+
+	runQuery(t, view)
+
+	uitest.Eventually(t, app, func() bool { return view.ResultsTable.GetCellText(2, 0) == "two" })
+	uitest.Eventually(t, app, func() bool { return strings.Contains(view.ResultsTable.GetTitle(), "Complete") })
+}
+
+func TestInsightsPageView__RunningStatusShowsMatchedAndScannedRecords(t *testing.T) {
+	var api = &fakeInsightsApi{responses: []awsapi.InsightsQueryResults{runningWith(resultRow("@message", "one"))}}
+	var view = newInsightsPageView(t, api)
+
+	runQuery(t, view)
+
+	uitest.Eventually(t, view.serviceCtx.App, func() bool {
+		var title = view.ResultsTable.GetTitle()
+		return strings.Contains(title, "Running") && strings.Contains(title, "1 matched") &&
+			strings.Contains(title, "2.5k scanned")
+	})
+}
+
+func TestInsightsPageView__QueryIsPolledUntilItIsDoneHoweverLongItTakes(t *testing.T) {
+	var responses []awsapi.InsightsQueryResults
+	for range 30 {
+		responses = append(responses, runningWith())
+	}
+	responses = append(responses, completeWith(resultRow("@message", "late")))
+	var api = &fakeInsightsApi{responses: responses}
+	var view = newInsightsPageView(t, api)
+
+	runQuery(t, view)
+
+	uitest.Eventually(t, view.serviceCtx.App, func() bool { return view.ResultsTable.GetCellText(1, 0) == "late" })
+	if got := api.pollCount(); got != 31 {
+		t.Errorf("polls = %d, want 31", got)
+	}
+}
+
+func TestInsightsPageView__FailedQueryIsReportedWithItsStatus(t *testing.T) {
+	var api = &fakeInsightsApi{responses: []awsapi.InsightsQueryResults{
+		{Status: types.QueryStatusFailed},
+	}}
+	var view = newInsightsPageView(t, api)
+	var callback, received = uitest.CaptureErrors()
+	view.ResultsTable.ErrorMessageCallback = callback
+
+	runQuery(t, view)
+
+	if got := uitest.AwaitError(t, received); got != "Query failed with status Failed" {
+		t.Errorf("message = %q", got)
+	}
+}
+
+func TestInsightsPageView__StoppingStopsTheQueryAndKeepsTheResultsSoFar(t *testing.T) {
+	var api = &fakeInsightsApi{responses: []awsapi.InsightsQueryResults{runningWith(resultRow("@message", "one"))}}
+	var view = newInsightsPageView(t, api)
+	var app = view.serviceCtx.App
+	runQuery(t, view)
+	uitest.Eventually(t, app, func() bool { return view.ResultsTable.GetCellText(1, 0) == "one" })
+
+	uitest.OnUI(t, app, func() { view.ResultsTable.StopQuery() })
+
+	uitest.Eventually(t, app, func() bool { return strings.Contains(view.ResultsTable.GetTitle(), "Cancelled") })
+	if got := api.stoppedQueries(); !slices.Equal(got, []string{"query-1"}) {
+		t.Errorf("queries stopped = %v, want [query-1]", got)
+	}
+	var polls = api.pollCount()
+	time.Sleep(50 * time.Millisecond)
+	if got := api.pollCount(); got > polls+1 {
+		t.Errorf("the query was still polled after it was stopped: %d then %d", polls, got)
+	}
+	uitest.OnUI(t, app, func() {
+		if got := view.ResultsTable.GetCellText(1, 0); got != "one" {
+			t.Errorf("results after stopping = %q, want the ones so far", got)
+		}
+	})
+}
+
+func TestInsightsPageView__StartingAnotherQueryStopsTheRunningOne(t *testing.T) {
+	var api = &fakeInsightsApi{responses: []awsapi.InsightsQueryResults{runningWith()}}
+	var view = newInsightsPageView(t, api)
+	var app = view.serviceCtx.App
+	runQuery(t, view)
+	uitest.Eventually(t, app, func() bool { return api.pollCount() > 0 })
+
+	uitest.OnUI(t, app, func() { view.RunQuery() })
+
+	uitest.Eventually(t, app, func() bool { return len(api.startedQueries()) == 2 })
+	uitest.Eventually(t, app, func() bool { return slices.Equal(api.stoppedQueries(), []string{"query-1"}) })
 }

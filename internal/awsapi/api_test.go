@@ -222,7 +222,7 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			return err
 		}, "query ID not set"},
 		{"insights results", func() error {
-			var _, _, err = cwl.GetInsightsQueryResults(context.Background(), "")
+			var _, err = cwl.GetInsightsQueryResults(context.Background(), "")
 			return err
 		}, "query ID not set"},
 		{"insights log record", func() error {

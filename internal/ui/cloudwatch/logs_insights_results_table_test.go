@@ -2,6 +2,7 @@ package cloudwatch
 
 import (
 	"testing"
+	"time"
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
@@ -94,5 +95,47 @@ func TestInsightsQueryRunner__RequiresLogGroups(t *testing.T) {
 
 	if message != "No log groups selected" {
 		t.Errorf("message = %q, want %q", message, "No log groups selected")
+	}
+}
+
+func TestInsightsQueryRunner__GivesTheResultsOnceTheQueryIsDone(t *testing.T) {
+	var api = &fakeInsightsApi{responses: []awsapi.InsightsQueryResults{
+		runningWith(resultRow("@message", "partial")),
+		runningWith(resultRow("@message", "partial")),
+		completeWith(resultRow("@message", "one"), resultRow("@message", "two")),
+	}}
+	var appCtx = uitest.NewAppContext()
+	var runner = NewInsightsQueryRunner(appCtx.Ctx, appCtx.App, api)
+	runner.pollInterval = 5 * time.Millisecond
+	var results = make(chan [][]types.ResultField, 1)
+
+	runner.ExecuteInsightsQuery(InsightsQuery{Query: "fields @message"}, []string{"/aws/lambda/orders"}, results)
+
+	select {
+	case got := <-results:
+		if len(got) != 2 || aws.ToString(got[1][0].Value) != "two" {
+			t.Errorf("results = %v, want the two of the complete query", got)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("no results")
+	}
+}
+
+func TestInsightsQueryRunner__FailedQueryIsReportedWithoutResults(t *testing.T) {
+	var api = &fakeInsightsApi{responses: []awsapi.InsightsQueryResults{{Status: types.QueryStatusTimeout}}}
+	var appCtx = uitest.NewAppContext()
+	var runner = NewInsightsQueryRunner(appCtx.Ctx, appCtx.App, api)
+	runner.pollInterval = 5 * time.Millisecond
+	var callback, received = uitest.CaptureErrors()
+	runner.ErrorMessageCallback = callback
+	var results = make(chan [][]types.ResultField, 1)
+
+	runner.ExecuteInsightsQuery(InsightsQuery{}, []string{"/aws/lambda/orders"}, results)
+
+	if got := uitest.AwaitError(t, received); got != "Query failed with status Timeout" {
+		t.Errorf("message = %q", got)
+	}
+	if got := <-results; len(got) != 0 {
+		t.Errorf("results = %v, want none", got)
 	}
 }

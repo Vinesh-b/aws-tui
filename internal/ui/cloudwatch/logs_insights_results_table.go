@@ -1,10 +1,13 @@
 package cloudwatch
 
 import (
+	"context"
+	"strings"
+	"sync"
+	"time"
+
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
-	"context"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
@@ -13,91 +16,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-type InsightsQueryRunner struct {
-	data    [][]types.ResultField
-	queryId string
-
-	ctx                  context.Context
-	app                  *tview.Application
-	api                  awsapi.CloudWatchLogsApi
-	ErrorMessageCallback func(text string, a ...any)
-}
-
-func NewInsightsQueryRunner(
-	ctx context.Context,
-	app *tview.Application,
-	api awsapi.CloudWatchLogsApi,
-) *InsightsQueryRunner {
-
-	return &InsightsQueryRunner{
-		data:                 nil,
-		queryId:              "",
-		ctx:                  ctx,
-		app:                  app,
-		api:                  api,
-		ErrorMessageCallback: func(text string, a ...any) {},
-	}
-}
-
-func (inst *InsightsQueryRunner) ExecuteInsightsQuery(
-	query InsightsQuery, logGroups []string, resultChan chan [][]types.ResultField,
-) {
-	if len(logGroups) == 0 {
-		inst.ErrorMessageCallback("No log groups selected")
-		return
-	}
-
-	go func() {
-		if len(inst.queryId) > 0 {
-			var _, err = inst.api.StopInsightsQuery(inst.ctx, inst.queryId)
-			if err != nil {
-				inst.ErrorMessageCallback("%s", err.Error())
-			}
-			inst.queryId = ""
-		}
-
-		var err error = nil
-		inst.queryId, err = inst.api.StartInsightsQuery(
-			inst.ctx,
-			logGroups,
-			query.StartTime,
-			query.EndTime,
-			query.Query,
-		)
-		if err != nil {
-			inst.ErrorMessageCallback("%s", err.Error())
-		}
-
-		var results [][]types.ResultField
-		var status types.QueryStatus
-		for range 10 {
-			if len(inst.queryId) == 0 {
-				break
-			}
-
-			results, status, err = inst.api.GetInsightsQueryResults(inst.ctx, inst.queryId)
-
-			switch status {
-			case types.QueryStatusRunning, types.QueryStatusScheduled:
-				time.Sleep(2 * time.Second)
-			case types.QueryStatusComplete, types.QueryStatusCancelled:
-				inst.queryId = ""
-				break
-			default:
-				inst.queryId = ""
-				if err != nil {
-					inst.ErrorMessageCallback("%s", err.Error())
-				} else {
-					inst.ErrorMessageCallback("Query failed with status %s", status)
-				}
-				break
-			}
-		}
-
-		resultChan <- results
-	}()
-}
-
 const LogRecordPtrCol = 0
 
 type InsightsQueryResultsTable struct {
@@ -105,7 +23,10 @@ type InsightsQueryResultsTable struct {
 	rootView             core.View
 	table                *tview.Table
 	data                 [][]types.ResultField
-	queryId              string
+	pollInterval         time.Duration
+	mu                   sync.Mutex
+	run                  *insightsRun
+	status               string
 	headingIdxMap        map[string]int
 	serviceCtx           *core.ServiceContext[awsapi.CloudWatchLogsApi]
 	ErrorMessageCallback func(text string, a ...any)
@@ -121,8 +42,8 @@ func NewInsightsQueryResultsTable(
 		rootView:             selectableTable.Box,
 		table:                selectableTable.GetTable(),
 		data:                 nil,
-		queryId:              "",
 		headingIdxMap:        map[string]int{},
+		pollInterval:         defaultInsightsPollInterval,
 		serviceCtx:           serviceViewCtx,
 		ErrorMessageCallback: func(text string, a ...any) {},
 	}
@@ -130,15 +51,6 @@ func NewInsightsQueryResultsTable(
 	view.HighlightSearch = true
 	view.populateQueryResultsTable()
 	view.SetSelectionChangedFunc(func(row, column int) {})
-	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Rune() {
-		case core.APP_KEY_BINDINGS.Reset:
-			view.RefreshResults()
-			return nil
-		}
-		return event
-	})
-
 	view.HelpView.View.
 		AddItem("f", "Jump to next search result", nil).
 		AddItem("F", "Jump to previous search result", nil)
@@ -192,106 +104,193 @@ func (inst *InsightsQueryResultsTable) populateQueryResultsTable() {
 		tcell.Style{}.Background(inst.serviceCtx.Theme.MoreContrastBackgroundColor),
 	)
 
+	inst.SetTitleExtra(inst.status)
 	inst.RefreshTitle(len(inst.data))
 
 	inst.table.Select(1, 0)
 	inst.table.ScrollToBeginning()
 }
 
-func (inst *InsightsQueryResultsTable) RefreshResults() {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+// insightsRun is a query started from the table
+type insightsRun struct {
+	id      string
+	started time.Time
+	cancel  context.CancelFunc
+	// stopped is set once the query is finished or has been asked to stop
+	stopped bool
+	// cancelled is set once it has been asked to stop, after which what the
+	// polling of it had in flight is not shown
+	cancelled bool
+}
 
-	dataLoader.AsyncLoadData(func() {
-		var results [][]types.ResultField
-		var status types.QueryStatus
-		var err error = nil
-		for range 10 {
-			if len(inst.queryId) == 0 {
-				break
-			}
+// insightsStatusText says how far the query has got, e.g. "Running · 4s ·
+// 1.2K matched · 10K scanned"
+func insightsStatusText(status types.QueryStatus, elapsed time.Duration, stats *types.QueryStatistics) string {
+	var parts = []string{string(status), elapsed.Round(time.Second).String()}
+	if stats != nil {
+		parts = append(parts,
+			core.FormatCompactNumber(stats.RecordsMatched)+" matched",
+			core.FormatCompactNumber(stats.RecordsScanned)+" scanned",
+		)
+	}
+	return strings.Join(parts, " · ")
+}
 
-			results, status, err = inst.serviceCtx.Api.GetInsightsQueryResults(inst.serviceCtx.Ctx, inst.queryId)
+func (inst *InsightsQueryResultsTable) currentRun() *insightsRun {
+	inst.mu.Lock()
+	defer inst.mu.Unlock()
+	return inst.run
+}
 
-			switch status {
-			case types.QueryStatusRunning, types.QueryStatusScheduled:
-				time.Sleep(2 * time.Second)
-			case types.QueryStatusComplete, types.QueryStatusCancelled:
-				inst.SetQueryId("")
-				break
-			default:
-				inst.SetQueryId("")
-
-				if err != nil {
-					inst.ErrorMessageCallback("%s", err.Error())
-				} else {
-					inst.ErrorMessageCallback("Query failed with status %s", status)
-				}
-				break
-			}
+// showStatus shows how far the run has got, unless another query has been
+// started since
+func (inst *InsightsQueryResultsTable) showStatus(run *insightsRun, status string) {
+	inst.serviceCtx.App.QueueUpdateDraw(func() {
+		if inst.currentRun() != run || inst.isCancelled(run) {
+			return
 		}
-
-		inst.data = results
+		inst.setStatus(status)
 	})
+}
 
-	dataLoader.AsyncUpdateView(inst.rootView, func() {
-		inst.populateQueryResultsTable() // update according to query status
+func (inst *InsightsQueryResultsTable) isCancelled(run *insightsRun) bool {
+	inst.mu.Lock()
+	defer inst.mu.Unlock()
+	return run.cancelled
+}
+
+func (inst *InsightsQueryResultsTable) setStatus(status string) {
+	inst.status = status
+	inst.SetTitleExtra(status)
+	inst.RefreshTitle(len(inst.data))
+}
+
+// showResults draws the results and the status of the run, unless another
+// query has been started or it has been stopped since. The row that is
+// selected is kept while it is still there.
+func (inst *InsightsQueryResultsTable) showResults(run *insightsRun, status string, results [][]types.ResultField) {
+	inst.serviceCtx.App.QueueUpdateDraw(func() {
+		if inst.currentRun() != run || inst.isCancelled(run) {
+			return
+		}
+		inst.status = status
+
+		var row, column = inst.table.GetSelection()
+		inst.data = results
+		inst.populateQueryResultsTable()
+		if row >= 1 && row <= len(results) {
+			inst.table.Select(row, column)
+		}
 	})
 }
 
 // ExecuteQuery runs the query on the log groups, stopping the one that is
-// running, and shows its results
+// running, and shows its results as they come in until it is done
 func (inst *InsightsQueryResultsTable) ExecuteQuery(query InsightsQuery, logGroups []string) {
 	if len(logGroups) == 0 {
 		inst.ErrorMessageCallback("No log groups selected")
 		return
 	}
 
-	var queryIdChan = make(chan string, 1)
-	go func() {
-		if len(inst.queryId) > 0 {
-			var _, err = inst.serviceCtx.Api.StopInsightsQuery(inst.serviceCtx.Ctx, inst.queryId)
-			if err != nil {
-				inst.ErrorMessageCallback("%s", err.Error())
-			}
-			inst.SetQueryId("")
-		}
+	var ctx, cancel = context.WithCancel(inst.serviceCtx.Ctx)
+	var run = &insightsRun{started: time.Now(), cancel: cancel}
 
-		var res, err = inst.serviceCtx.Api.StartInsightsQuery(
-			inst.serviceCtx.Ctx,
-			logGroups,
-			query.StartTime,
-			query.EndTime,
-			query.Query,
-		)
-		if err != nil {
-			inst.ErrorMessageCallback("%s", err.Error())
-		}
-		queryIdChan <- res
-	}()
+	inst.mu.Lock()
+	var previous = inst.run
+	inst.run = run
+	inst.mu.Unlock()
 
 	go func() {
-		inst.SetQueryId(<-queryIdChan)
-		inst.RefreshResults()
+		if previous != nil {
+			inst.stopRun(previous)
+		}
+		inst.showStatus(run, "Starting")
+		inst.runQuery(ctx, run, query, logGroups)
 	}()
 }
 
-func (inst *InsightsQueryResultsTable) StopQuery() {
-	var stopSuccess = make(chan bool, 1)
-	go func() {
-		if len(inst.queryId) == 0 {
-			stopSuccess <- true
-			return
-		}
-		var res, err = inst.serviceCtx.Api.StopInsightsQuery(inst.serviceCtx.Ctx, inst.queryId)
-		if err != nil {
+func (inst *InsightsQueryResultsTable) runQuery(
+	ctx context.Context, run *insightsRun, query InsightsQuery, logGroups []string,
+) {
+	var api = inst.serviceCtx.Api
+	var queryId, err = api.StartInsightsQuery(ctx, logGroups, query.StartTime, query.EndTime, query.Query)
+	if err != nil {
+		if ctx.Err() == nil {
+			inst.showStatus(run, "Failed to start")
 			inst.ErrorMessageCallback("%s", err.Error())
 		}
-		stopSuccess <- res
-	}()
+		return
+	}
+
+	inst.mu.Lock()
+	run.id = queryId
+	inst.mu.Unlock()
+
+	var elapsed = func() time.Duration { return time.Since(run.started) }
+	var final awsapi.InsightsQueryResults
+	final, err = pollInsightsQuery(ctx, api, queryId, inst.pollInterval, func(partial awsapi.InsightsQueryResults) {
+		inst.showResults(run, insightsStatusText(partial.Status, elapsed(), partial.Statistics), partial.Results)
+	})
+	if ctx.Err() != nil {
+		// Stopped or replaced, which is shown by whatever did that
+		return
+	}
+
+	inst.mu.Lock()
+	run.stopped = true
+	inst.mu.Unlock()
+
+	if err != nil {
+		inst.showStatus(run, "Failed to get the results")
+		inst.ErrorMessageCallback("%s", err.Error())
+		return
+	}
+
+	inst.showResults(run, insightsStatusText(final.Status, elapsed(), final.Statistics), final.Results)
+	if failure := insightsFailure(final.Status); len(failure) > 0 {
+		inst.ErrorMessageCallback("%s", failure)
+	}
+}
+
+// stopRun stops the polling of the run and the query itself if it is
+// running, which it says it was
+func (inst *InsightsQueryResultsTable) stopRun(run *insightsRun) bool {
+	run.cancel()
+
+	inst.mu.Lock()
+	var wasRunning = !run.stopped
+	run.stopped = true
+	run.cancelled = true
+	var queryId = run.id
+	inst.mu.Unlock()
+
+	if !wasRunning {
+		return false
+	}
+	if len(queryId) > 0 {
+		if _, err := inst.serviceCtx.Api.StopInsightsQuery(inst.serviceCtx.Ctx, queryId); err != nil {
+			inst.ErrorMessageCallback("%s", err.Error())
+		}
+	}
+	return true
+}
+
+// StopQuery stops the query if one is running, keeping the results so far
+func (inst *InsightsQueryResultsTable) StopQuery() {
+	var run = inst.currentRun()
+	if run == nil {
+		return
+	}
 
 	go func() {
-		var _ = <-stopSuccess
-		inst.SetQueryId("")
+		if !inst.stopRun(run) {
+			return
+		}
+		inst.serviceCtx.App.QueueUpdateDraw(func() {
+			if inst.currentRun() == run {
+				inst.setStatus(insightsStatusText(types.QueryStatusCancelled, time.Since(run.started), nil))
+			}
+		})
 	}()
 }
 
@@ -312,10 +311,6 @@ func (inst *InsightsQueryResultsTable) SetSelectionChangedFunc(
 ) *InsightsQueryResultsTable {
 	inst.table.SetSelectionChangedFunc(handler)
 	return inst
-}
-
-func (inst *InsightsQueryResultsTable) SetQueryId(id string) {
-	inst.queryId = id
 }
 
 func (inst *InsightsQueryResultsTable) GetColumnCount() int {

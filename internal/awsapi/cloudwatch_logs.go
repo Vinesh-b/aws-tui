@@ -10,6 +10,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 )
 
+// InsightsQueryResults are the results of a Logs Insights query, with how far
+// it has got
+type InsightsQueryResults struct {
+	Results    [][]types.ResultField
+	Status     types.QueryStatus
+	Statistics *types.QueryStatistics
+}
+
 type CloudWatchLogsApi interface {
 	ListLogGroups(ctx context.Context, reset bool) ([]types.LogGroup, error)
 	ListLogStreams(
@@ -42,10 +50,12 @@ type CloudWatchLogsApi interface {
 		ctx context.Context,
 		queryId string,
 	) (bool, error)
+	// GetInsightsQueryResults gives the status of the query and the results it
+	// has so far, which are all of them once it is complete.
 	GetInsightsQueryResults(
 		ctx context.Context,
 		queryId string,
-	) ([][]types.ResultField, types.QueryStatus, error)
+	) (InsightsQueryResults, error)
 	GetInsightsLogRecord(
 		ctx context.Context,
 		recordPtr string,
@@ -271,11 +281,11 @@ func (inst *cloudWatchLogsApi) StopInsightsQuery(
 func (inst *cloudWatchLogsApi) GetInsightsQueryResults(
 	ctx context.Context,
 	queryId string,
-) ([][]types.ResultField, types.QueryStatus, error) {
-	var empty [][]types.ResultField
+) (InsightsQueryResults, error) {
+	var empty = InsightsQueryResults{Status: types.QueryStatusUnknown}
 
 	if err := requireArg("query ID", queryId); err != nil {
-		return empty, types.QueryStatusUnknown, err
+		return empty, err
 	}
 
 	var client = GetAwsApiClients().cloudwatchlogs
@@ -286,10 +296,14 @@ func (inst *cloudWatchLogsApi) GetInsightsQueryResults(
 		})
 
 	if err != nil {
-		return empty, types.QueryStatusUnknown, inst.logErr(err)
+		return empty, inst.logErr(err)
 	}
 
-	return output.Results, output.Status, nil
+	return InsightsQueryResults{
+		Results:    output.Results,
+		Status:     output.Status,
+		Statistics: output.Statistics,
+	}, nil
 }
 
 func (inst *cloudWatchLogsApi) GetInsightsLogRecord(
