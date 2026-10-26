@@ -27,10 +27,47 @@ func newVersion(version string, description string) types.FunctionConfiguration 
 	}
 }
 
-func TestVersionDetailsRows__ShowsVersionAndCode(t *testing.T) {
-	var table = core.NewDetailsTable("Version Details", uitest.NewAppContext())
+func newAlias(name string, version string, weights map[string]float64) types.AliasConfiguration {
+	var alias = types.AliasConfiguration{
+		Name:            aws.String(name),
+		AliasArn:        aws.String(ordersArn + ":" + name),
+		FunctionVersion: aws.String(version),
+	}
+	if weights != nil {
+		alias.RoutingConfig = &types.AliasRoutingConfiguration{AdditionalVersionWeights: weights}
+	}
+	return alias
+}
 
-	table.SetData(versionDetailsRows(newVersion("3", "Adds refunds")))
+func TestWithAliases__PutsAliasesOnTheVersionsTheyInvoke(t *testing.T) {
+	var versions = withAliases(
+		[]types.FunctionConfiguration{newVersion("$LATEST", ""), newVersion("4", ""), newVersion("3", "")},
+		[]types.AliasConfiguration{
+			newAlias("staging", "4", nil),
+			newAlias("prod", "3", map[string]float64{"4": 0.1}),
+		},
+	)
+
+	var got = map[string]string{}
+	for _, version := range versions {
+		got[versionOf(version)] = aliasNames(version)
+	}
+	var want = map[string]string{"$LATEST": "", "4": "prod (10%), staging", "3": "prod (90%)"}
+	for version, names := range want {
+		if got[version] != names {
+			t.Errorf("version %s aliases = %q, want %q", version, got[version], names)
+		}
+	}
+}
+
+func TestVersionDetailsRows__ShowsVersionAliasesAndCode(t *testing.T) {
+	var table = core.NewDetailsTable("Version Details", uitest.NewAppContext())
+	var version = lambdaVersion{
+		Config:  newVersion("3", "Adds refunds"),
+		Aliases: []versionAlias{{Name: "prod", Share: 0.9}},
+	}
+
+	table.SetData(versionDetailsRows(version))
 
 	uitest.AssertDetailsRows(t, table, []core.TableRow{
 		{"Version", "3"},
@@ -39,6 +76,8 @@ func TestVersionDetailsRows__ShowsVersionAndCode(t *testing.T) {
 		{"State", ""},
 		{"Last Modified", "2024-01-02 03:04:05"},
 		{"Role", "arn:aws:iam::123456789012:role/orders"},
+		{"Aliases"},
+		{"prod", "90%"},
 		{"Code"},
 		{"Package Type", ""},
 		{"Runtime", "nodejs20.x"},
@@ -54,10 +93,23 @@ func TestVersionDetailsRows__ShowsVersionAndCode(t *testing.T) {
 	}
 }
 
-func TestVersionsView__ListsVersions(t *testing.T) {
-	var api = &fakeLambdaApi{versions: map[string][]types.FunctionConfiguration{
-		ordersArn: {newVersion("$LATEST", ""), newVersion("3", "Adds refunds")},
-	}}
+func TestVersionDetailsRows__VersionWithoutAliasesLeavesSectionOut(t *testing.T) {
+	var table = core.NewDetailsTable("Version Details", uitest.NewAppContext())
+
+	table.SetData(versionDetailsRows(lambdaVersion{Config: newVersion("$LATEST", "")}))
+
+	if got := table.GetCellText(6, 0); got != "Code" {
+		t.Errorf("row 6 = %q, want the Code section straight after the version", got)
+	}
+}
+
+func TestVersionsView__ListsVersionsWithTheirAliases(t *testing.T) {
+	var api = &fakeLambdaApi{
+		versions: map[string][]types.FunctionConfiguration{
+			ordersArn: {newVersion("$LATEST", ""), newVersion("3", "Adds refunds")},
+		},
+		aliases: map[string][]types.AliasConfiguration{ordersArn: {newAlias("prod", "3", nil)}},
+	}
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.LambdaApi](api)
 	var view = NewLambdaVersionsView(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -65,82 +117,15 @@ func TestVersionsView__ListsVersions(t *testing.T) {
 	uitest.OnUI(t, serviceCtx.App, func() { view.Refresh(ordersArn) })
 
 	uitest.AwaitRows(t, serviceCtx.App, view.ListTable, []core.TableRow{
-		{"Version", "Description", "Last Modified"},
-		{"$LATEST", "", "2024-01-02 03:04:05"},
-		{"3", "Adds refunds", "2024-01-02 03:04:05"},
+		{"Version", "Aliases", "Description", "Last Modified"},
+		{"$LATEST", "", "", "2024-01-02 03:04:05"},
+		{"3", "prod", "Adds refunds", "2024-01-02 03:04:05"},
 	})
 	uitest.OnUI(t, serviceCtx.App, func() {
 		view.ListTable.Select(2, 0)
 		if got := view.DetailsTable.GetTitle(); got != "Version Details ❬3❭" {
 			t.Errorf("details title = %q", got)
 		}
-	})
-}
-
-func newAlias(name string, version string, weights map[string]float64) types.AliasConfiguration {
-	var alias = types.AliasConfiguration{
-		Name:            aws.String(name),
-		AliasArn:        aws.String(ordersArn + ":" + name),
-		FunctionVersion: aws.String(version),
-		RevisionId:      aws.String("rev-1"),
-	}
-	if weights != nil {
-		alias.RoutingConfig = &types.AliasRoutingConfiguration{AdditionalVersionWeights: weights}
-	}
-	return alias
-}
-
-func TestAliasVersions__ShowsWeightedRouting(t *testing.T) {
-	if got := aliasVersions(newAlias("prod", "3", nil)); got != "3" {
-		t.Errorf("plain alias = %q, want 3", got)
-	}
-	if got := aliasVersions(newAlias("prod", "3", map[string]float64{"4": 0.1})); got != "3 (90%), 4 (10%)" {
-		t.Errorf("weighted alias = %q", got)
-	}
-}
-
-func TestAliasDetailsRows__ShowsRoutingSection(t *testing.T) {
-	var table = core.NewDetailsTable("Alias Details", uitest.NewAppContext())
-
-	table.SetData(aliasDetailsRows(newAlias("prod", "3", map[string]float64{"5": 0.05, "4": 0.2})))
-
-	uitest.AssertDetailsRows(t, table, []core.TableRow{
-		{"Name", "prod"},
-		{"ARN", ordersArn + ":prod"},
-		{"Description", ""},
-		{"Version", "3"},
-		{"Revision ID", "rev-1"},
-		{"Routing"},
-		{"Version 3", "75%"},
-		{"Version 4", "20%"},
-		{"Version 5", "5%"},
-	})
-}
-
-func TestAliasDetailsRows__NoRoutingSectionWithoutWeights(t *testing.T) {
-	var table = core.NewDetailsTable("Alias Details", uitest.NewAppContext())
-
-	table.SetData(aliasDetailsRows(newAlias("prod", "3", nil)))
-
-	if got := table.GetCellText(5, 0); got != "" {
-		t.Errorf("unexpected row %q after the alias rows", got)
-	}
-}
-
-func TestAliasesView__ListsAliases(t *testing.T) {
-	var api = &fakeLambdaApi{aliases: map[string][]types.AliasConfiguration{
-		ordersArn: {newAlias("prod", "3", map[string]float64{"4": 0.1}), newAlias("staging", "4", nil)},
-	}}
-	var serviceCtx = uitest.NewServiceContextWith[awsapi.LambdaApi](api)
-	var view = NewLambdaAliasesView(serviceCtx)
-	uitest.RunApp(t, serviceCtx.App)
-
-	uitest.OnUI(t, serviceCtx.App, func() { view.Refresh(ordersArn) })
-
-	uitest.AwaitRows(t, serviceCtx.App, view.ListTable, []core.TableRow{
-		{"Name", "Version", "Description"},
-		{"prod", "3 (90%), 4 (10%)", ""},
-		{"staging", "4", ""},
 	})
 }
 
@@ -152,7 +137,7 @@ func TestFormatWeight__HasNoFloatError(t *testing.T) {
 		{1 - 0.7, "30%"},
 		{0.125, "12.5%"},
 		{1.0 / 3, "33.33%"},
-		{0, "0%"},
+		{1, "100%"},
 	}
 
 	for _, tt := range tests {

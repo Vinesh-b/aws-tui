@@ -2,9 +2,8 @@ package lambda
 
 import (
 	"context"
-	"maps"
 	"math"
-	"slices"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -15,50 +14,56 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 )
 
-func versionOf(version types.FunctionConfiguration) string {
-	return aws.ToString(version.Version)
+// versionAlias is an alias that sends a share of its invocations to a version
+type versionAlias struct {
+	Name     string
+	AliasArn string
+	// Share is the part of the invocations of the alias the version gets, which
+	// is 1 unless the alias splits them between versions
+	Share float64
 }
 
-func versionDetailsRows(version types.FunctionConfiguration) []core.TableRow {
-	return append([]core.TableRow{
-		{"Version", aws.ToString(version.Version)},
-		{"ARN", aws.ToString(version.FunctionArn)},
-		{"Description", aws.ToString(version.Description)},
-		{"State", string(version.State)},
-		{"Last Modified", formatLastModified(aws.ToString(version.LastModified))},
-		{"Role", aws.ToString(version.Role)},
-	}, core.DetailsSection("Code",
-		core.TableRow{"Package Type", string(version.PackageType)},
-		core.TableRow{"Runtime", string(version.Runtime)},
-		core.TableRow{"Handler", aws.ToString(version.Handler)},
-		core.TableRow{"Architectures", core.FormatList(version.Architectures)},
-		core.TableRow{"Code Size (bytes)", strconv.FormatInt(version.CodeSize, 10)},
-		core.TableRow{"Code SHA-256", aws.ToString(version.CodeSha256)},
-		core.TableRow{"Memory Size (MB)", core.FormatOptionalInt(version.MemorySize)},
-		core.TableRow{"Timeout (s)", core.FormatOptionalInt(version.Timeout)},
-	)...)
+// lambdaVersion is a version of a lambda and the aliases that invoke it
+type lambdaVersion struct {
+	Config  types.FunctionConfiguration
+	Aliases []versionAlias
 }
 
-// NewLambdaVersionsView lists the versions of the lambda beside the
-// configuration of the selected one.
-func NewLambdaVersionsView(
-	serviceCtx *core.ServiceContext[awsapi.LambdaApi],
-) *LambdaItemsView[types.FunctionConfiguration] {
-	return NewLambdaItemsView(serviceCtx, "Versions", "Version Details",
-		core.TableRow{"Version", "Description", "Last Modified"},
-		func(version types.FunctionConfiguration) core.TableRow {
-			return core.TableRow{
-				versionOf(version),
-				aws.ToString(version.Description),
-				formatLastModified(aws.ToString(version.LastModified)),
-			}
-		},
-		versionOf,
-		versionDetailsRows,
-		func(ctx context.Context, lambdaArn string) ([]types.FunctionConfiguration, error) {
-			return serviceCtx.Api.ListVersions(ctx, lambdaArn)
-		},
-	)
+// aliasShares is the share of the invocations of the alias each of its
+// versions gets
+func aliasShares(alias types.AliasConfiguration) map[string]float64 {
+	var shares = map[string]float64{}
+	var primary = 1.0
+	if alias.RoutingConfig != nil {
+		for version, weight := range alias.RoutingConfig.AdditionalVersionWeights {
+			shares[version] = weight
+			primary -= weight
+		}
+	}
+	shares[aws.ToString(alias.FunctionVersion)] = primary
+	return shares
+}
+
+// withAliases puts each alias on the versions it sends invocations to
+func withAliases(versions []types.FunctionConfiguration, aliases []types.AliasConfiguration) []lambdaVersion {
+	var byVersion = map[string][]versionAlias{}
+	for _, alias := range aliases {
+		for version, share := range aliasShares(alias) {
+			byVersion[version] = append(byVersion[version], versionAlias{
+				Name:     aws.ToString(alias.Name),
+				AliasArn: aws.ToString(alias.AliasArn),
+				Share:    share,
+			})
+		}
+	}
+
+	var result = make([]lambdaVersion, 0, len(versions))
+	for _, version := range versions {
+		var versionAliases = byVersion[aws.ToString(version.Version)]
+		sort.Slice(versionAliases, func(i, j int) bool { return versionAliases[i].Name < versionAliases[j].Name })
+		result = append(result, lambdaVersion{Config: version, Aliases: versionAliases})
+	}
+	return result
 }
 
 // formatWeight is the weight as a percentage to two places, which also drops
@@ -68,70 +73,77 @@ func formatWeight(weight float64) string {
 	return strconv.FormatFloat(percent, 'f', -1, 64) + "%"
 }
 
-// aliasRouting is how the invocations of the alias are split between its
-// version and the other versions it sends a weight of them to, in that order.
-// It is empty for aliases that send everything to their version.
-func aliasRouting(alias types.AliasConfiguration) []core.TableRow {
-	if alias.RoutingConfig == nil || len(alias.RoutingConfig.AdditionalVersionWeights) == 0 {
-		return nil
+// aliasNames names the aliases of the version, with the share of those that
+// split their invocations
+func aliasNames(version lambdaVersion) string {
+	var names []string
+	for _, alias := range version.Aliases {
+		if alias.Share < 1 {
+			names = append(names, alias.Name+" ("+formatWeight(alias.Share)+")")
+		} else {
+			names = append(names, alias.Name)
+		}
 	}
-
-	var weights = alias.RoutingConfig.AdditionalVersionWeights
-	var primary = 1.0
-	for _, weight := range weights {
-		primary -= weight
-	}
-
-	var rows = []core.TableRow{{"Version " + aws.ToString(alias.FunctionVersion), formatWeight(primary)}}
-	for _, version := range slices.Sorted(maps.Keys(weights)) {
-		rows = append(rows, core.TableRow{"Version " + version, formatWeight(weights[version])})
-	}
-	return rows
+	return strings.Join(names, ", ")
 }
 
-// aliasVersions is the version of the alias, followed by the weights of the
-// versions it splits invocations with
-func aliasVersions(alias types.AliasConfiguration) string {
-	var routing = aliasRouting(alias)
-	if len(routing) == 0 {
-		return aws.ToString(alias.FunctionVersion)
-	}
-
-	var parts []string
-	for _, row := range routing {
-		parts = append(parts, strings.TrimPrefix(row[0], "Version ")+" ("+row[1]+")")
-	}
-	return strings.Join(parts, ", ")
+func versionOf(version lambdaVersion) string {
+	return aws.ToString(version.Config.Version)
 }
 
-func aliasDetailsRows(alias types.AliasConfiguration) []core.TableRow {
-	return append([]core.TableRow{
-		{"Name", aws.ToString(alias.Name)},
-		{"ARN", aws.ToString(alias.AliasArn)},
-		{"Description", aws.ToString(alias.Description)},
-		{"Version", aws.ToString(alias.FunctionVersion)},
-		{"Revision ID", aws.ToString(alias.RevisionId)},
-	}, core.DetailsSection("Routing", aliasRouting(alias)...)...)
+func versionDetailsRows(version lambdaVersion) []core.TableRow {
+	var config = version.Config
+	var rows = []core.TableRow{
+		{"Version", aws.ToString(config.Version)},
+		{"ARN", aws.ToString(config.FunctionArn)},
+		{"Description", aws.ToString(config.Description)},
+		{"State", string(config.State)},
+		{"Last Modified", formatLastModified(aws.ToString(config.LastModified))},
+		{"Role", aws.ToString(config.Role)},
+	}
+
+	var aliases []core.TableRow
+	for _, alias := range version.Aliases {
+		aliases = append(aliases, core.TableRow{alias.Name, formatWeight(alias.Share)})
+	}
+	rows = append(rows, core.DetailsSection("Aliases", aliases...)...)
+
+	return append(rows, core.DetailsSection("Code",
+		core.TableRow{"Package Type", string(config.PackageType)},
+		core.TableRow{"Runtime", string(config.Runtime)},
+		core.TableRow{"Handler", aws.ToString(config.Handler)},
+		core.TableRow{"Architectures", core.FormatList(config.Architectures)},
+		core.TableRow{"Code Size (bytes)", strconv.FormatInt(config.CodeSize, 10)},
+		core.TableRow{"Code SHA-256", aws.ToString(config.CodeSha256)},
+		core.TableRow{"Memory Size (MB)", core.FormatOptionalInt(config.MemorySize)},
+		core.TableRow{"Timeout (s)", core.FormatOptionalInt(config.Timeout)},
+	)...)
 }
 
-// NewLambdaAliasesView lists the aliases of the lambda beside the details of
-// the selected one.
-func NewLambdaAliasesView(
-	serviceCtx *core.ServiceContext[awsapi.LambdaApi],
-) *LambdaItemsView[types.AliasConfiguration] {
-	return NewLambdaItemsView(serviceCtx, "Aliases", "Alias Details",
-		core.TableRow{"Name", "Version", "Description"},
-		func(alias types.AliasConfiguration) core.TableRow {
+// NewLambdaVersionsView lists the versions of the lambda and their aliases
+// beside the configuration of the selected one.
+func NewLambdaVersionsView(serviceCtx *core.ServiceContext[awsapi.LambdaApi]) *LambdaItemsView[lambdaVersion] {
+	return NewLambdaItemsView(serviceCtx, "Versions", "Version Details",
+		core.TableRow{"Version", "Aliases", "Description", "Last Modified"},
+		func(version lambdaVersion) core.TableRow {
 			return core.TableRow{
-				aws.ToString(alias.Name),
-				aliasVersions(alias),
-				aws.ToString(alias.Description),
+				versionOf(version),
+				aliasNames(version),
+				aws.ToString(version.Config.Description),
+				formatLastModified(aws.ToString(version.Config.LastModified)),
 			}
 		},
-		func(alias types.AliasConfiguration) string { return aws.ToString(alias.Name) },
-		aliasDetailsRows,
-		func(ctx context.Context, lambdaArn string) ([]types.AliasConfiguration, error) {
-			return serviceCtx.Api.ListAliases(ctx, lambdaArn)
+		versionOf,
+		versionDetailsRows,
+		func(ctx context.Context, lambdaArn string) ([]lambdaVersion, error) {
+			var versions, err = serviceCtx.Api.ListVersions(ctx, lambdaArn)
+			if err != nil {
+				return nil, err
+			}
+
+			var aliases []types.AliasConfiguration
+			aliases, err = serviceCtx.Api.ListAliases(ctx, lambdaArn)
+			return withAliases(versions, aliases), err
 		},
 	)
 }

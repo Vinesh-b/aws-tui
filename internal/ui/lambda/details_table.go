@@ -1,6 +1,8 @@
 package lambda
 
 import (
+	"maps"
+	"slices"
 	"time"
 
 	"aws-tui/internal/awsapi"
@@ -12,7 +14,11 @@ import (
 
 type LambdaDetailsTable struct {
 	*core.DetailsTable
-	data       types.FunctionConfiguration
+	data types.FunctionConfiguration
+	// tags are those of the lambda with the ARN in tagsOf, as they are loaded
+	// after the rest of the details
+	tags       map[string]string
+	tagsOf     string
 	serviceCtx *core.ServiceContext[awsapi.LambdaApi]
 }
 
@@ -70,6 +76,12 @@ func (inst *LambdaDetailsTable) populateLambdaDetailsTable() {
 		)...)
 	}
 
+	tableData = append(tableData, core.DetailsSection("Environment", environmentRows(inst.data)...)...)
+	tableData = append(tableData, core.DetailsSection("VPC", vpcRows(inst.data)...)...)
+	if inst.tagsOf == aws.ToString(inst.data.FunctionArn) {
+		tableData = append(tableData, core.DetailsSection("Tags", sortedRows(inst.tags)...)...)
+	}
+
 	inst.SetTitleExtra(aws.ToString(inst.data.FunctionName))
 	inst.SetRawData(inst.data)
 	inst.SetData(tableData)
@@ -77,14 +89,68 @@ func (inst *LambdaDetailsTable) populateLambdaDetailsTable() {
 	inst.ScrollToBeginning()
 }
 
+// sortedRows are the keys and values of the map sorted by key
+func sortedRows(values map[string]string) []core.TableRow {
+	var rows []core.TableRow
+	for _, key := range slices.Sorted(maps.Keys(values)) {
+		rows = append(rows, core.TableRow{key, values[key]})
+	}
+	return rows
+}
+
+func environmentRows(config types.FunctionConfiguration) []core.TableRow {
+	if config.Environment == nil {
+		return nil
+	}
+	return sortedRows(config.Environment.Variables)
+}
+
+func vpcRows(config types.FunctionConfiguration) []core.TableRow {
+	var vpc = config.VpcConfig
+	if vpc == nil || len(aws.ToString(vpc.VpcId)) == 0 {
+		return nil
+	}
+
+	var rows = []core.TableRow{{"VPC ID", aws.ToString(vpc.VpcId)}}
+	for _, id := range vpc.SubnetIds {
+		rows = append(rows, core.TableRow{"Subnet ID", id})
+	}
+	for _, id := range vpc.SecurityGroupIds {
+		rows = append(rows, core.TableRow{"Security Group ID", id})
+	}
+	return rows
+}
+
+// RefreshDetails shows the lambda, and then its tags once they are loaded
 func (inst *LambdaDetailsTable) RefreshDetails(config types.FunctionConfiguration) {
 	inst.data = config
+	inst.populateLambdaDetailsTable()
+
+	var lambdaArn = aws.ToString(config.FunctionArn)
+	if len(lambdaArn) == 0 || inst.tagsOf == lambdaArn {
+		return
+	}
 
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var tags map[string]string
+	var loadFailed = false
 
-	dataLoader.AsyncLoadData(func() {})
+	dataLoader.AsyncLoadData(func() {
+		var err error
+		tags, err = inst.serviceCtx.Api.ListTags(inst.serviceCtx.Ctx, lambdaArn)
+		if err != nil {
+			loadFailed = true
+			inst.ErrorMessageCallback("%s", err.Error())
+		}
+	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
+		// The selection moved on while these loaded. The loader puts back the
+		// title from before it loaded, so the table is drawn again either way.
+		if !loadFailed && aws.ToString(inst.data.FunctionArn) == lambdaArn {
+			inst.tags = tags
+			inst.tagsOf = lambdaArn
+		}
 		inst.populateLambdaDetailsTable()
 	})
 }

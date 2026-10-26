@@ -27,6 +27,8 @@ type fakeLambdaApi struct {
 	mappings  map[string][]types.EventSourceMappingConfiguration
 	versions  map[string][]types.FunctionConfiguration
 	aliases   map[string][]types.AliasConfiguration
+	tags      map[string]map[string]string
+	tagsErr   error
 	policies  map[string]string
 	policyErr error
 	delays    map[string]time.Duration
@@ -117,7 +119,9 @@ func TestListTable__FilterByNameShowsMatchingFunctions(t *testing.T) {
 }
 
 func (f *fakeLambdaApi) ListTags(ctx context.Context, lambdaArn string) (map[string]string, error) {
-	return nil, nil
+	f.askedFor("ListTags", lambdaArn)
+	time.Sleep(f.delays[lambdaArn])
+	return f.tags[lambdaArn], f.tagsErr
 }
 
 func (f *fakeLambdaApi) ListVersions(ctx context.Context, lambdaArn string) ([]types.FunctionConfiguration, error) {

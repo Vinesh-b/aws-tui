@@ -319,6 +319,7 @@ func TestHomeView__PickingLambdaLoadsItsTabs(t *testing.T) {
 
 	uitest.Eventually(t, appCtx.App, func() bool {
 		return api.wasAsked("ListEventSourceMappings", ordersArn) && api.wasAsked("GetPolicy", ordersArn) &&
-			api.wasAsked("ListVersions", ordersArn) && api.wasAsked("ListAliases", ordersArn)
+			api.wasAsked("ListVersions", ordersArn) && api.wasAsked("ListAliases", ordersArn) &&
+			api.wasAsked("ListTags", ordersArn)
 	})
 }
