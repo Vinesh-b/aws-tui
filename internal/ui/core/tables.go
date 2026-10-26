@@ -130,8 +130,8 @@ func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppConte
 		AddItem("j", "Move down one row", nil).
 		AddItem("g", "Go to first item", nil).
 		AddItem("G", "Go to last item", nil).
-		AddItem("pgup", "Go up a page", nil).
-		AddItem("pgdn", "Go down a page", nil).
+		AddItem("PgUp", "Go up a page", nil).
+		AddItem("PgDn", "Go down a page", nil).
 		AddItem("/", "Search table", nil)
 
 	view.

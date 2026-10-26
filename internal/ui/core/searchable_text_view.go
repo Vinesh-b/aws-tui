@@ -108,8 +108,8 @@ func NewSearchableTextView(title string, appContext *AppContext) *SearchableText
 		AddItem("k,j,h,l", "Move Up, Down, Left, Right", nil).
 		AddItem("w", "Move forward one word", nil).
 		AddItem("b", "Move back one word", nil).
-		AddItem("Ctrl-u", "Move page up", nil).
-		AddItem("Ctrl-d", "Move page down", nil).
+		AddItem("Ctrl+U", "Move page up", nil).
+		AddItem("Ctrl+D", "Move page down", nil).
 		AddItem("g", "Move to top", nil).
 		AddItem("G", "Move to bottom", nil).
 		AddItem("v", "Visual mode to select Text", nil).
