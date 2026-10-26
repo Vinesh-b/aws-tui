@@ -121,3 +121,24 @@ func TestDetailsTable__SelectedTableArn(t *testing.T) {
 		t.Errorf("arn = %q, want %q", got, want)
 	}
 }
+
+func TestDetailsTable__TagsAreLoadedIntoTheirSectionOnceTheTableIsDescribed(t *testing.T) {
+	var api = &fakeDynamoDBApi{
+		description: newDescribedTable(),
+		tags:        []types.Tag{{Key: aws.String("team"), Value: aws.String("orders")}, {Key: aws.String("env"), Value: aws.String("prod")}},
+	}
+	var serviceCtx = uitest.NewServiceContextWith[awsapi.DynamoDBApi](api)
+	var table = NewDynamoDBDetailsTable(serviceCtx)
+	uitest.RunApp(t, serviceCtx.App)
+
+	table.SetSelectedTable("orders")
+	table.RefreshDetails()
+
+	uitest.AwaitDetailsTag(t, serviceCtx.App, table.DetailsTable, "team", "orders")
+	uitest.OnUI(t, serviceCtx.App, func() {
+		var section = uitest.DetailsRowOf(table.DetailsTable, "Tags")
+		if got := table.GetCellText(section+1, 0); got != "env" {
+			t.Errorf("first tag = %q, want the tags sorted by key", got)
+		}
+	})
+}

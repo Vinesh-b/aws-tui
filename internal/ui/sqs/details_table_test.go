@@ -111,3 +111,14 @@ func TestQueueDetailsTable__FifoQueueShowsDeduplicationRow(t *testing.T) {
 		t.Errorf("row %d value = %q, want %q", fifoRow, got, "true")
 	}
 }
+
+func TestQueueDetailsTable__TagsAreLoadedIntoTheirSection(t *testing.T) {
+	var api = &fakeSqsApi{attributes: newQueueAttributes(), tags: map[string]string{"team": "orders"}}
+	var serviceCtx = uitest.NewServiceContextWith[awsapi.SqsApi](api)
+	var table = NewQueueDetailsTable(serviceCtx)
+	uitest.RunApp(t, serviceCtx.App)
+
+	table.RefreshDetails(queueUrl("orders"))
+
+	uitest.AwaitDetailsTag(t, serviceCtx.App, table.DetailsTable, "team", "orders")
+}

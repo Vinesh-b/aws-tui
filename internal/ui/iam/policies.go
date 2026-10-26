@@ -72,6 +72,9 @@ func NewPolicyDetailsTable(serviceCtx *core.ServiceContext[awsapi.IamApi]) *IamD
 		},
 		policyDetailsRows,
 		func(policy *types.Policy) string { return aws.ToString(policy.PolicyName) },
+		func(ctx context.Context, key string) ([]types.Tag, error) {
+			return serviceCtx.Api.ListPolicyTags(ctx, key)
+		},
 	)
 }
 
@@ -81,7 +84,6 @@ type IamPoliciesPageView struct {
 	PolicyDetailsTable *IamDetailsTable[types.Policy]
 	DocumentView       *DocumentView
 	AttachedToTable    *IamChildTable[awsapi.PolicyEntity]
-	PolicyTagsTable    *core.TagsTable[types.Tag, awsapi.IamApi]
 	TabView            *core.TabViewHorizontal
 	serviceCtx         *core.ServiceContext[awsapi.IamApi]
 }
@@ -91,17 +93,6 @@ func NewIamPoliciesPageView(
 	policyDetailsTable *IamDetailsTable[types.Policy],
 	serviceCtx *core.ServiceContext[awsapi.IamApi],
 ) *IamPoliciesPageView {
-	var tagsTable = core.NewTagsTable[types.Tag](serviceCtx).
-		SetExtractKeyValFunc(func(t types.Tag) (k string, v string) {
-			return aws.ToString(t.Key), aws.ToString(t.Value)
-		}).
-		SetGetTagsFunc(func() func() ([]types.Tag, error) {
-			var policyArn = policyListTable.GetSelectedKey()
-			return func() ([]types.Tag, error) {
-				return serviceCtx.Api.ListPolicyTags(serviceCtx.Ctx, policyArn)
-			}
-		})
-
 	var documentView = NewDocumentView(serviceCtx, "Policy Document")
 
 	var attachedToTable = NewIamChildTable(serviceCtx, "Attached To", core.TableRow{"Name", "Type"},
@@ -116,8 +107,7 @@ func NewIamPoliciesPageView(
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab(IamTabNameDetails, policyDetailsTable, 0, 1, true).
 		AddTab(IamTabNameDocument, documentView, 0, 1, true).
-		AddTab(IamTabNameAttachedTo, attachedToTable, 0, 1, true).
-		AddTab(IamTabNameTags, tagsTable, 0, 1, true)
+		AddTab(IamTabNameAttachedTo, attachedToTable, 0, 1, true)
 
 	var view = &IamPoliciesPageView{
 		ServicePageView: newIamPageView(serviceCtx.AppContext, tabView, policyListTable,
@@ -125,13 +115,11 @@ func NewIamPoliciesPageView(
 			&policyDetailsTable.ErrorMessageCallback,
 			&documentView.ErrorMessageCallback,
 			&attachedToTable.ErrorMessageCallback,
-			&tagsTable.ErrorMessageCallback,
 		),
 		PolicyListTable:    policyListTable,
 		PolicyDetailsTable: policyDetailsTable,
 		DocumentView:       documentView,
 		AttachedToTable:    attachedToTable,
-		PolicyTagsTable:    tagsTable,
 		TabView:            tabView,
 		serviceCtx:         serviceCtx,
 	}
@@ -147,7 +135,6 @@ func NewIamPoliciesPageView(
 			return serviceCtx.Api.GetPolicyDocument(ctx, policyArn)
 		})
 		attachedToTable.Refresh(policyArn)
-		tagsTable.RefreshDetails()
 	})
 
 	return view

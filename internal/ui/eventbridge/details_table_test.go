@@ -46,3 +46,14 @@ func newEventBus(name string) types.EventBus {
 		LastModifiedTime: &modified,
 	}
 }
+
+func TestEventBusDetailsTable__TagsAreLoadedIntoTheirSection(t *testing.T) {
+	var api = &fakeEventBridgeApi{tags: []types.Tag{{Key: aws.String("team"), Value: aws.String("orders")}}}
+	var serviceCtx = uitest.NewServiceContextWith[awsapi.EventBridgeApi](api)
+	var table = NewEventBusDetailsTable(serviceCtx)
+	uitest.RunApp(t, serviceCtx.App)
+
+	table.RefreshDetails(newEventBus("orders"))
+
+	uitest.AwaitDetailsTag(t, serviceCtx.App, table.DetailsTable, "team", "orders")
+}

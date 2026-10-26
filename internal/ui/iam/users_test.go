@@ -88,7 +88,7 @@ func TestUsersPage__SelectingUserLoadsItsTabs(t *testing.T) {
 		{"Access Key ID", "Status", "Created"},
 		{"AKIAEXAMPLE", "Active", "2024-03-04 05:06:07"},
 	})
-	uitest.Eventually(t, app, func() bool { return view.UserTagsTable.GetCellText(0, 1) == "platform" })
+	uitest.AwaitDetailsTag(t, app, view.UserDetailsTable.DetailsTable, "team", "platform")
 	uitest.OnUI(t, app, func() {
 		if got := view.GroupsTable.GetTitle(); got != "Groups ❬1❭ ❬alice❭" {
 			t.Errorf("groups title = %q", got)

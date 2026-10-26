@@ -47,6 +47,9 @@ func NewUserDetailsTable(serviceCtx *core.ServiceContext[awsapi.IamApi]) *IamDet
 		},
 		userDetailsRows,
 		func(user *types.User) string { return aws.ToString(user.UserName) },
+		func(ctx context.Context, key string) ([]types.Tag, error) {
+			return serviceCtx.Api.ListUserTags(ctx, key)
+		},
 	)
 }
 
@@ -57,7 +60,6 @@ type IamUsersPageView struct {
 	PoliciesView     *PrincipalPoliciesView
 	GroupsTable      *IamChildTable[types.Group]
 	AccessKeysTable  *IamChildTable[types.AccessKeyMetadata]
-	UserTagsTable    *core.TagsTable[types.Tag, awsapi.IamApi]
 	TabView          *core.TabViewHorizontal
 	serviceCtx       *core.ServiceContext[awsapi.IamApi]
 }
@@ -67,17 +69,6 @@ func NewIamUsersPageView(
 	userDetailsTable *IamDetailsTable[types.User],
 	serviceCtx *core.ServiceContext[awsapi.IamApi],
 ) *IamUsersPageView {
-	var tagsTable = core.NewTagsTable[types.Tag](serviceCtx).
-		SetExtractKeyValFunc(func(t types.Tag) (k string, v string) {
-			return aws.ToString(t.Key), aws.ToString(t.Value)
-		}).
-		SetGetTagsFunc(func() func() ([]types.Tag, error) {
-			var userName = userListTable.GetSelectedKey()
-			return func() ([]types.Tag, error) {
-				return serviceCtx.Api.ListUserTags(serviceCtx.Ctx, userName)
-			}
-		})
-
 	var policiesView = NewPrincipalPoliciesView(serviceCtx,
 		func(ctx context.Context, key string) ([]awsapi.PrincipalPolicy, error) {
 			return serviceCtx.Api.ListUserPolicies(ctx, key)
@@ -117,8 +108,7 @@ func NewIamUsersPageView(
 		AddAndSwitchToTab(IamTabNameDetails, userDetailsTable, 0, 1, true).
 		AddTab(IamTabNamePolicies, policiesView, 0, 1, true).
 		AddTab(IamTabNameGroups, groupsTable, 0, 1, true).
-		AddTab(IamTabNameAccessKeys, accessKeysTable, 0, 1, true).
-		AddTab(IamTabNameTags, tagsTable, 0, 1, true)
+		AddTab(IamTabNameAccessKeys, accessKeysTable, 0, 1, true)
 
 	var view = &IamUsersPageView{
 		ServicePageView: newIamPageView(serviceCtx.AppContext, tabView, userListTable,
@@ -126,14 +116,12 @@ func NewIamUsersPageView(
 			&userDetailsTable.ErrorMessageCallback,
 			&groupsTable.ErrorMessageCallback,
 			&accessKeysTable.ErrorMessageCallback,
-			&tagsTable.ErrorMessageCallback,
 		),
 		UserListTable:    userListTable,
 		UserDetailsTable: userDetailsTable,
 		PoliciesView:     policiesView,
 		GroupsTable:      groupsTable,
 		AccessKeysTable:  accessKeysTable,
-		UserTagsTable:    tagsTable,
 		TabView:          tabView,
 		serviceCtx:       serviceCtx,
 	}
@@ -149,7 +137,6 @@ func NewIamUsersPageView(
 		policiesView.Refresh(userName)
 		groupsTable.Refresh(userName)
 		accessKeysTable.Refresh(userName)
-		tagsTable.RefreshDetails()
 	})
 
 	return view

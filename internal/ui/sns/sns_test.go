@@ -178,7 +178,7 @@ func TestDetailsPageView__TagsAreLoadedForTheSelectedTopic(t *testing.T) {
 
 	view.TopicListTable.RefreshTopics(true)
 
-	uitest.Eventually(t, serviceCtx.App, func() bool { return view.TopicTagsTable.GetCellText(0, 0) == "env" })
+	uitest.AwaitDetailsTag(t, serviceCtx.App, view.TopicDetailsTable.DetailsTable, "env", "prod")
 }
 
 func TestDetailsPageView__FirstLoadDoesNotLoadDetailsWithoutATopicArn(t *testing.T) {
@@ -192,7 +192,6 @@ func TestDetailsPageView__FirstLoadDoesNotLoadDetailsWithoutATopicArn(t *testing
 			var view = NewSnsDetailsPageView(NewTopicListTable(serviceCtx), NewTopicDetailsTable(serviceCtx), serviceCtx)
 			var callback, received = uitest.CaptureErrors()
 			view.TopicDetailsTable.ErrorMessageCallback = callback
-			view.TopicTagsTable.ErrorMessageCallback = callback
 			uitest.RunApp(t, serviceCtx.App)
 
 			view.TopicListTable.RefreshTopics(true)

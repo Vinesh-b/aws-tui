@@ -3,12 +3,18 @@ package sns
 import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/sns/types"
 )
 
 type TopicDetailsTable struct {
 	*core.DetailsTable
 	topicArn   string
 	attributes map[string]string
+	tags       core.DetailsTags
+	// requested is the topic last asked for, which the tags are kept for
+	requested  string
 	serviceCtx *core.ServiceContext[awsapi.SnsApi]
 }
 
@@ -59,6 +65,8 @@ func (inst *TopicDetailsTable) populateTopicDetailsTable() {
 		core.TableRow{"Deleted", attr["SubscriptionsDeleted"]},
 	)...)
 
+	tableData = append(tableData, inst.tags.Section(inst.topicArn)...)
+
 	inst.SetTitleExtra(topicName(inst.topicArn))
 	inst.SetRawData(inst.attributes)
 	inst.SetData(tableData)
@@ -67,6 +75,19 @@ func (inst *TopicDetailsTable) populateTopicDetailsTable() {
 }
 
 func (inst *TopicDetailsTable) RefreshDetails(topicArn string) {
+	inst.requested = topicArn
+	inst.tags.Load(inst.serviceCtx.App, inst.Box, topicArn,
+		func() string { return inst.requested },
+		func() ([]core.TableRow, error) {
+			var tags, err = inst.serviceCtx.Api.ListTopicTags(inst.serviceCtx.Ctx, topicArn)
+			return core.TagRows(tags, func(t types.Tag) (string, string) {
+				return aws.ToString(t.Key), aws.ToString(t.Value)
+			}), err
+		},
+		inst.ErrorMessageCallback,
+		inst.populateTopicDetailsTable,
+	)
+
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 	var attributes map[string]string
 
@@ -87,6 +108,8 @@ func (inst *TopicDetailsTable) RefreshDetails(topicArn string) {
 
 // ClearDetails empties the table, e.g. after the topic was deleted.
 func (inst *TopicDetailsTable) ClearDetails() {
+	inst.requested = ""
+	inst.tags.Clear()
 	inst.topicArn = ""
 	inst.attributes = nil
 	inst.populateTopicDetailsTable()

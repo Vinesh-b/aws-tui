@@ -80,7 +80,6 @@ func TestDetailsPageView__FirstLoadDoesNotLoadDetailsWithoutAQueueUrl(t *testing
 			)
 			var callback, received = uitest.CaptureErrors()
 			view.QueueDetailsTable.ErrorMessageCallback = callback
-			view.QueueTagsTable.ErrorMessageCallback = callback
 			uitest.RunApp(t, serviceCtx.App)
 
 			view.QueueListTable.RefreshQueues(true)

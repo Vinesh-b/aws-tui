@@ -202,3 +202,32 @@ func PressKey(t *testing.T, app *tview.Application, key tcell.Key) {
 	app.QueueEvent(tcell.NewEventKey(key, 0, tcell.ModNone))
 	OnUI(t, app, func() {})
 }
+
+// DetailsRowOf is the first row of the table with the label, e.g. the heading
+// of a section, or -1 if there is none.
+func DetailsRowOf(table *core.DetailsTable, label string) int {
+	for row := 0; table.GetCellText(row, 0) != ""; row++ {
+		if table.GetCellText(row, 0) == label {
+			return row
+		}
+	}
+	return -1
+}
+
+// AwaitDetailsTag waits for the tags section of the table to have the tag
+func AwaitDetailsTag(t *testing.T, app *tview.Application, table *core.DetailsTable, key string, value string) {
+	t.Helper()
+	Eventually(t, app, func() bool {
+		var section = DetailsRowOf(table, "Tags")
+		if section < 0 {
+			return false
+		}
+		for row := section + 1; table.GetCellText(row, 0) != ""; row++ {
+			// Rows in a section are indented
+			if strings.TrimSpace(table.GetCellText(row, 0)) == key && table.GetCellText(row, 1) == value {
+				return true
+			}
+		}
+		return false
+	})
+}

@@ -11,6 +11,7 @@ import (
 type EventBusDetailsTable struct {
 	*core.DetailsTable
 	data       types.EventBus
+	tags       core.DetailsTags
 	serviceCtx *core.ServiceContext[awsapi.EventBridgeApi]
 }
 
@@ -38,6 +39,8 @@ func (inst *EventBusDetailsTable) populateEventBusDetailsTable() {
 		{"Last Modified", core.FormatTime(inst.data.LastModifiedTime)},
 	}
 
+	tableData = append(tableData, inst.tags.Section(aws.ToString(inst.data.Arn))...)
+
 	inst.SetTitleExtra(aws.ToString(inst.data.Name))
 	inst.SetRawData(inst.data)
 	inst.SetData(tableData)
@@ -45,13 +48,21 @@ func (inst *EventBusDetailsTable) populateEventBusDetailsTable() {
 	inst.ScrollToBeginning()
 }
 
+// RefreshDetails shows the bus, and then its tags once they are loaded
 func (inst *EventBusDetailsTable) RefreshDetails(busDetail types.EventBus) {
 	inst.data = busDetail
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	inst.populateEventBusDetailsTable()
 
-	dataLoader.AsyncLoadData(func() {})
-
-	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateEventBusDetailsTable()
-	})
+	var busArn = aws.ToString(busDetail.Arn)
+	inst.tags.Load(inst.serviceCtx.App, inst.Box, busArn,
+		func() string { return aws.ToString(inst.data.Arn) },
+		func() ([]core.TableRow, error) {
+			var tags, err = inst.serviceCtx.Api.ListTags(inst.serviceCtx.Ctx, true, busArn)
+			return core.TagRows(tags, func(t types.Tag) (string, string) {
+				return aws.ToString(t.Key), aws.ToString(t.Value)
+			}), err
+		},
+		inst.ErrorMessageCallback,
+		inst.populateEventBusDetailsTable,
+	)
 }

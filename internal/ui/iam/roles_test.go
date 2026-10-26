@@ -218,7 +218,7 @@ func TestRolesPage__SelectingRoleLoadsItsDetailsTrustPolicyAndPolicies(t *testin
 	uitest.Eventually(t, app, func() bool {
 		return view.PoliciesView.DocumentView.GetText() == "{\n  \"Version\": \"2012-10-17\"\n}"
 	})
-	uitest.Eventually(t, app, func() bool { return view.RoleTagsTable.GetCellText(0, 1) == "orders" })
+	uitest.AwaitDetailsTag(t, app, view.RoleDetailsTable.DetailsTable, "team", "orders")
 }
 
 func TestPrincipalPoliciesView__SlowDocumentOfPreviousPolicyIsDropped(t *testing.T) {

@@ -1,8 +1,6 @@
 package lambda
 
 import (
-	"maps"
-	"slices"
 	"time"
 
 	"aws-tui/internal/awsapi"
@@ -14,11 +12,8 @@ import (
 
 type LambdaDetailsTable struct {
 	*core.DetailsTable
-	data types.FunctionConfiguration
-	// tags are those of the lambda with the ARN in tagsOf, as they are loaded
-	// after the rest of the details
-	tags       map[string]string
-	tagsOf     string
+	data       types.FunctionConfiguration
+	tags       core.DetailsTags
 	serviceCtx *core.ServiceContext[awsapi.LambdaApi]
 }
 
@@ -78,9 +73,7 @@ func (inst *LambdaDetailsTable) populateLambdaDetailsTable() {
 
 	tableData = append(tableData, core.DetailsSection("Environment", environmentRows(inst.data)...)...)
 	tableData = append(tableData, core.DetailsSection("VPC", vpcRows(inst.data)...)...)
-	if inst.tagsOf == aws.ToString(inst.data.FunctionArn) {
-		tableData = append(tableData, core.DetailsSection("Tags", sortedRows(inst.tags)...)...)
-	}
+	tableData = append(tableData, inst.tags.Section(aws.ToString(inst.data.FunctionArn))...)
 
 	inst.SetTitleExtra(aws.ToString(inst.data.FunctionName))
 	inst.SetRawData(inst.data)
@@ -89,20 +82,11 @@ func (inst *LambdaDetailsTable) populateLambdaDetailsTable() {
 	inst.ScrollToBeginning()
 }
 
-// sortedRows are the keys and values of the map sorted by key
-func sortedRows(values map[string]string) []core.TableRow {
-	var rows []core.TableRow
-	for _, key := range slices.Sorted(maps.Keys(values)) {
-		rows = append(rows, core.TableRow{key, values[key]})
-	}
-	return rows
-}
-
 func environmentRows(config types.FunctionConfiguration) []core.TableRow {
 	if config.Environment == nil {
 		return nil
 	}
-	return sortedRows(config.Environment.Variables)
+	return core.SortedRows(config.Environment.Variables)
 }
 
 func vpcRows(config types.FunctionConfiguration) []core.TableRow {
@@ -127,30 +111,13 @@ func (inst *LambdaDetailsTable) RefreshDetails(config types.FunctionConfiguratio
 	inst.populateLambdaDetailsTable()
 
 	var lambdaArn = aws.ToString(config.FunctionArn)
-	if len(lambdaArn) == 0 || inst.tagsOf == lambdaArn {
-		return
-	}
-
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
-	var tags map[string]string
-	var loadFailed = false
-
-	dataLoader.AsyncLoadData(func() {
-		var err error
-		tags, err = inst.serviceCtx.Api.ListTags(inst.serviceCtx.Ctx, lambdaArn)
-		if err != nil {
-			loadFailed = true
-			inst.ErrorMessageCallback("%s", err.Error())
-		}
-	})
-
-	dataLoader.AsyncUpdateView(inst.Box, func() {
-		// The selection moved on while these loaded. The loader puts back the
-		// title from before it loaded, so the table is drawn again either way.
-		if !loadFailed && aws.ToString(inst.data.FunctionArn) == lambdaArn {
-			inst.tags = tags
-			inst.tagsOf = lambdaArn
-		}
-		inst.populateLambdaDetailsTable()
-	})
+	inst.tags.Load(inst.serviceCtx.App, inst.Box, lambdaArn,
+		func() string { return aws.ToString(inst.data.FunctionArn) },
+		func() ([]core.TableRow, error) {
+			var tags, err = inst.serviceCtx.Api.ListTags(inst.serviceCtx.Ctx, lambdaArn)
+			return core.SortedRows(tags), err
+		},
+		inst.ErrorMessageCallback,
+		inst.populateLambdaDetailsTable,
+	)
 }

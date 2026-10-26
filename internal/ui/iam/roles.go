@@ -21,7 +21,6 @@ const (
 	IamTabNameAccessKeys  IamTabName = "Access Keys"
 	IamTabNameDocument    IamTabName = "Document"
 	IamTabNameAttachedTo  IamTabName = "Attached To"
-	IamTabNameTags        IamTabName = "Tags"
 )
 
 func roleName(role types.Role) string {
@@ -78,6 +77,9 @@ func NewRoleDetailsTable(serviceCtx *core.ServiceContext[awsapi.IamApi]) *IamDet
 		},
 		roleDetailsRows,
 		func(role *types.Role) string { return aws.ToString(role.RoleName) },
+		func(ctx context.Context, key string) ([]types.Tag, error) {
+			return serviceCtx.Api.ListRoleTags(ctx, key)
+		},
 	)
 }
 
@@ -87,7 +89,6 @@ type IamRolesPageView struct {
 	RoleDetailsTable *IamDetailsTable[types.Role]
 	TrustPolicyView  *core.SearchableTextView
 	PoliciesView     *PrincipalPoliciesView
-	RoleTagsTable    *core.TagsTable[types.Tag, awsapi.IamApi]
 	TabView          *core.TabViewHorizontal
 	serviceCtx       *core.ServiceContext[awsapi.IamApi]
 }
@@ -97,17 +98,6 @@ func NewIamRolesPageView(
 	roleDetailsTable *IamDetailsTable[types.Role],
 	serviceCtx *core.ServiceContext[awsapi.IamApi],
 ) *IamRolesPageView {
-	var tagsTable = core.NewTagsTable[types.Tag](serviceCtx).
-		SetExtractKeyValFunc(func(t types.Tag) (k string, v string) {
-			return aws.ToString(t.Key), aws.ToString(t.Value)
-		}).
-		SetGetTagsFunc(func() func() ([]types.Tag, error) {
-			var roleName = roleListTable.GetSelectedKey()
-			return func() ([]types.Tag, error) {
-				return serviceCtx.Api.ListRoleTags(serviceCtx.Ctx, roleName)
-			}
-		})
-
 	var trustPolicyView = core.NewSearchableTextView("Trust Policy", serviceCtx.AppContext)
 	trustPolicyView.SetJsonHighlighting(true)
 
@@ -132,21 +122,18 @@ func NewIamRolesPageView(
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab(IamTabNameDetails, roleDetailsTable, 0, 1, true).
 		AddTab(IamTabNameTrustPolicy, trustPolicyView, 0, 1, true).
-		AddTab(IamTabNamePolicies, policiesView, 0, 1, true).
-		AddTab(IamTabNameTags, tagsTable, 0, 1, true)
+		AddTab(IamTabNamePolicies, policiesView, 0, 1, true)
 
 	var view = &IamRolesPageView{
 		ServicePageView: newIamPageView(serviceCtx.AppContext, tabView, roleListTable,
 			&roleListTable.ErrorMessageCallback,
 			&roleDetailsTable.ErrorMessageCallback,
 			&trustPolicyView.ErrorMessageCallback,
-			&tagsTable.ErrorMessageCallback,
 		),
 		RoleListTable:    roleListTable,
 		RoleDetailsTable: roleDetailsTable,
 		TrustPolicyView:  trustPolicyView,
 		PoliciesView:     policiesView,
-		RoleTagsTable:    tagsTable,
 		TabView:          tabView,
 		serviceCtx:       serviceCtx,
 	}
@@ -160,7 +147,6 @@ func NewIamRolesPageView(
 		}
 		roleDetailsTable.RefreshDetails(roleName)
 		policiesView.Refresh(roleName)
-		tagsTable.RefreshDetails()
 	})
 
 	return view

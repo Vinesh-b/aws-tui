@@ -17,6 +17,7 @@ type DynamoDBDetailsTable struct {
 	*core.DetailsTable
 	data          *types.TableDescription
 	selectedTable string
+	tags          core.DetailsTags
 	serviceCtx    *core.ServiceContext[awsapi.DynamoDBApi]
 }
 
@@ -34,6 +35,7 @@ func NewDynamoDBDetailsTable(
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
+			table.tags.Clear()
 			table.RefreshDetails()
 			return nil
 		}
@@ -126,6 +128,8 @@ func (inst *DynamoDBDetailsTable) populateDetailsTable() {
 				core.TableRow{"KMS Key ARN", aws.ToString(sse.KMSMasterKeyArn)},
 			)...)
 		}
+
+		tableData = append(tableData, inst.tags.Section(inst.GetSelectedTableArn())...)
 	}
 
 	if inst.data != nil {
@@ -154,7 +158,30 @@ func (inst *DynamoDBDetailsTable) RefreshDetails() {
 	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.data = description
 		inst.populateDetailsTable()
+		inst.loadTags(tableName)
 	})
+}
+
+// loadTags loads the tags of the table once it is described, as its ARN is
+// not known before then
+func (inst *DynamoDBDetailsTable) loadTags(tableName string) {
+	var tableArn = inst.GetSelectedTableArn()
+	inst.tags.Load(inst.serviceCtx.App, inst.Box, tableArn,
+		func() string {
+			if inst.selectedTable != tableName {
+				return ""
+			}
+			return inst.GetSelectedTableArn()
+		},
+		func() ([]core.TableRow, error) {
+			var tags, err = inst.serviceCtx.Api.ListTags(inst.serviceCtx.Ctx, true, tableArn)
+			return core.TagRows(tags, func(t types.Tag) (string, string) {
+				return aws.ToString(t.Key), aws.ToString(t.Value)
+			}), err
+		},
+		inst.ErrorMessageCallback,
+		inst.populateDetailsTable,
+	)
 }
 
 func (inst *DynamoDBDetailsTable) SetSelectedTable(tableName string) {

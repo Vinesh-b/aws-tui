@@ -109,5 +109,5 @@ func TestPoliciesPage__SelectingPolicyLoadsItsDocumentAndEntities(t *testing.T) 
 		{"alice", "User"},
 		{"developers", "Group"},
 	})
-	uitest.Eventually(t, app, func() bool { return view.PolicyTagsTable.GetCellText(0, 1) == "orders" })
+	uitest.AwaitDetailsTag(t, app, view.PolicyDetailsTable.DetailsTable, "team", "orders")
 }

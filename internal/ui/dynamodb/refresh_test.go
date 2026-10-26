@@ -22,6 +22,7 @@ type fakeDynamoDBApi struct {
 	tables      []string
 	description *types.TableDescription
 	items       []map[string]any
+	tags        []types.Tag
 	err         error
 
 	// queryFunc, when set, gives the result of each query by its call number
@@ -37,6 +38,10 @@ func (f *fakeDynamoDBApi) ListTables(ctx context.Context, force bool) ([]string,
 
 func (f *fakeDynamoDBApi) DescribeTable(ctx context.Context, tableName string) (*types.TableDescription, error) {
 	return f.description, f.err
+}
+
+func (f *fakeDynamoDBApi) ListTags(ctx context.Context, force bool, resourceArn string) ([]types.Tag, error) {
+	return f.tags, f.err
 }
 
 func (f *fakeDynamoDBApi) ScanTable(

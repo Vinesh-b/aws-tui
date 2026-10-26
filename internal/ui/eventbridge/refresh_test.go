@@ -16,6 +16,7 @@ import (
 type fakeEventBridgeApi struct {
 	awsapi.EventBridgeApi
 	buses      []types.EventBus
+	tags       []types.Tag
 	rules      []types.Rule
 	targets    []types.Target
 	err        error
@@ -44,7 +45,7 @@ func (f *fakeEventBridgeApi) ListTargetsByRule(
 }
 
 func (f *fakeEventBridgeApi) ListTags(ctx context.Context, force bool, resourceArn string) ([]types.Tag, error) {
-	return nil, nil
+	return f.tags, nil
 }
 
 func TestEventBusListTable__RefreshLoadsBusesFromApi(t *testing.T) {

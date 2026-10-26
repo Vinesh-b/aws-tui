@@ -5,6 +5,9 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 )
 
 // IamDetailsTable shows the details of the IAM resource with a key, loaded
@@ -16,6 +19,8 @@ type IamDetailsTable[T any] struct {
 	// replace it
 	requested  string
 	onLoaded   []func(*T)
+	tags       core.DetailsTags
+	loadTags   func(ctx context.Context, key string) ([]types.Tag, error)
 	load       func(ctx context.Context, key string) (*T, error)
 	rowsOf     func(*T) []core.TableRow
 	nameOf     func(*T) string
@@ -28,12 +33,14 @@ func NewIamDetailsTable[T any](
 	load func(ctx context.Context, key string) (*T, error),
 	rowsOf func(*T) []core.TableRow,
 	nameOf func(*T) string,
+	loadTags func(ctx context.Context, key string) ([]types.Tag, error),
 ) *IamDetailsTable[T] {
 	var table = &IamDetailsTable[T]{
 		DetailsTable: core.NewDetailsTable(title, serviceCtx.AppContext),
 		load:         load,
 		rowsOf:       rowsOf,
 		nameOf:       nameOf,
+		loadTags:     loadTags,
 		serviceCtx:   serviceCtx,
 	}
 
@@ -55,7 +62,7 @@ func (inst *IamDetailsTable[T]) populateDetailsTable() {
 
 	var tableData []core.TableRow
 	if inst.data != nil {
-		tableData = inst.rowsOf(inst.data)
+		tableData = append(inst.rowsOf(inst.data), inst.tags.Section(inst.requested)...)
 		inst.SetTitleExtra(inst.nameOf(inst.data))
 		inst.SetRawData(inst.data)
 	} else {
@@ -70,6 +77,17 @@ func (inst *IamDetailsTable[T]) populateDetailsTable() {
 
 func (inst *IamDetailsTable[T]) RefreshDetails(key string) {
 	inst.requested = key
+	inst.tags.Load(inst.serviceCtx.App, inst.Box, key,
+		func() string { return inst.requested },
+		func() ([]core.TableRow, error) {
+			var tags, err = inst.loadTags(inst.serviceCtx.Ctx, key)
+			return core.TagRows(tags, func(t types.Tag) (string, string) {
+				return aws.ToString(t.Key), aws.ToString(t.Value)
+			}), err
+		},
+		inst.ErrorMessageCallback,
+		inst.populateDetailsTable,
+	)
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 	var data *T
 

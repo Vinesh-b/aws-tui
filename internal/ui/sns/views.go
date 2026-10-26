@@ -4,8 +4,6 @@ import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/sns/types"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -15,7 +13,6 @@ type SnsTabName = string
 const (
 	SnsTabNameDetails       SnsTabName = "Details"
 	SnsTabNameSubscriptions SnsTabName = "Subscriptions"
-	SnsTabNameTags          SnsTabName = "Tags"
 	SnsTabNamePublish       SnsTabName = "Publish"
 )
 
@@ -23,7 +20,6 @@ type SnsDetailsPageView struct {
 	*core.ServicePageView
 	TopicListTable     *TopicListTable
 	TopicDetailsTable  *TopicDetailsTable
-	TopicTagsTable     *core.TagsTable[types.Tag, awsapi.SnsApi]
 	SubscriptionsTable *SubscriptionsTable
 	PublishView        *PublishPageView
 	TabView            *core.TabViewHorizontal
@@ -35,24 +31,12 @@ func NewSnsDetailsPageView(
 	topicDetailsTable *TopicDetailsTable,
 	serviceCtx *core.ServiceContext[awsapi.SnsApi],
 ) *SnsDetailsPageView {
-	var tagsTable = core.NewTagsTable[types.Tag](serviceCtx).
-		SetExtractKeyValFunc(func(t types.Tag) (k string, v string) {
-			return aws.ToString(t.Key), aws.ToString(t.Value)
-		}).
-		SetGetTagsFunc(func() func() ([]types.Tag, error) {
-			var topicArn = topicListTable.GetSelectedTopic()
-			return func() ([]types.Tag, error) {
-				return serviceCtx.Api.ListTopicTags(serviceCtx.Ctx, topicArn)
-			}
-		})
-
 	var subscriptionsTable = NewSubscriptionsTable(serviceCtx)
 	var publishView = NewPublishPageView(serviceCtx)
 
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab(SnsTabNameDetails, topicDetailsTable, 0, 1, true).
 		AddTab(SnsTabNameSubscriptions, subscriptionsTable, 0, 1, true).
-		AddTab(SnsTabNameTags, tagsTable, 0, 1, true).
 		AddTab(SnsTabNamePublish, publishView, 0, 1, true)
 
 	const detailsViewSize = 5000
@@ -70,7 +54,6 @@ func NewSnsDetailsPageView(
 		ServicePageView:    serviceView,
 		TopicListTable:     topicListTable,
 		TopicDetailsTable:  topicDetailsTable,
-		TopicTagsTable:     tagsTable,
 		SubscriptionsTable: subscriptionsTable,
 		PublishView:        publishView,
 		TabView:            tabView,
@@ -83,7 +66,6 @@ func NewSnsDetailsPageView(
 
 	topicDetailsTable.ErrorMessageCallback = errorHandler
 	topicListTable.ErrorMessageCallback = errorHandler
-	tagsTable.ErrorMessageCallback = errorHandler
 	subscriptionsTable.ErrorMessageCallback = errorHandler
 
 	// The views of a deleted topic are emptied, the reloaded list then shows
@@ -93,7 +75,6 @@ func NewSnsDetailsPageView(
 			return
 		}
 		topicDetailsTable.ClearDetails()
-		tagsTable.ClearDetails()
 		subscriptionsTable.RefreshSubscriptions("")
 		publishView.SetSelectedTopic("")
 	})
@@ -117,7 +98,6 @@ func (inst *SnsDetailsPageView) initInputCapture() {
 			return
 		}
 		inst.TopicDetailsTable.RefreshDetails(topicArn)
-		inst.TopicTagsTable.RefreshDetails()
 		inst.SubscriptionsTable.RefreshSubscriptions(topicArn)
 		inst.PublishView.SetSelectedTopic(topicArn)
 	})

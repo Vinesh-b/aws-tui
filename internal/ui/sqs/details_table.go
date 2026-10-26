@@ -13,6 +13,9 @@ type QueueDetailsTable struct {
 	*core.DetailsTable
 	queueUrl   string
 	attributes map[string]string
+	tags       core.DetailsTags
+	// requested is the queue last asked for, which the tags are kept for
+	requested  string
 	serviceCtx *core.ServiceContext[awsapi.SqsApi]
 }
 
@@ -91,6 +94,8 @@ func (inst *QueueDetailsTable) populateQueueDetailsTable() {
 	}
 	tableData = append(tableData, core.DetailsSection("Configuration", config...)...)
 
+	tableData = append(tableData, inst.tags.Section(inst.queueUrl)...)
+
 	inst.SetTitleExtra(queueName(inst.queueUrl))
 	inst.SetRawData(inst.attributes)
 	inst.SetData(tableData)
@@ -99,6 +104,17 @@ func (inst *QueueDetailsTable) populateQueueDetailsTable() {
 }
 
 func (inst *QueueDetailsTable) RefreshDetails(queueUrl string) {
+	inst.requested = queueUrl
+	inst.tags.Load(inst.serviceCtx.App, inst.Box, queueUrl,
+		func() string { return inst.requested },
+		func() ([]core.TableRow, error) {
+			var tags, err = inst.serviceCtx.Api.ListQueueTags(inst.serviceCtx.Ctx, queueUrl)
+			return core.SortedRows(tags), err
+		},
+		inst.ErrorMessageCallback,
+		inst.populateQueueDetailsTable,
+	)
+
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 	var attributes map[string]string
 
