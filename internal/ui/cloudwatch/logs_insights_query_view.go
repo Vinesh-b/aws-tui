@@ -1,9 +1,11 @@
 package cloudwatch
 
 import (
-	"aws-tui/internal/ui/core"
+	"errors"
 	"strings"
 	"time"
+
+	"aws-tui/internal/ui/core"
 
 	"github.com/atotto/clipboard"
 	"github.com/rivo/tview"
@@ -24,7 +26,6 @@ type InsightsQueryInputView struct {
 	queryTextArea  *tview.TextArea
 	startDateInput *core.DateTimeInputField
 	endDateInput   *core.DateTimeInputField
-	query          InsightsQuery
 }
 
 func NewInsightsQueryInputView(appContext *core.AppContext) *InsightsQueryInputView {
@@ -100,27 +101,26 @@ func (inst *InsightsQueryInputView) NavigationRows() [][]core.View {
 	}
 }
 
-func (inst *InsightsQueryInputView) validateInput() error {
-
-	return nil
-}
-
+// GenerateQuery is the query as it is entered, which is empty with an error if
+// it can't be run
 func (inst *InsightsQueryInputView) GenerateQuery() (InsightsQuery, error) {
-	var err error = nil
 	var empty = InsightsQuery{}
+	var query = InsightsQuery{Query: strings.TrimSpace(inst.queryTextArea.GetText())}
 
-	if inst.query.StartTime, err = inst.startDateInput.ValidateInput(); err != nil {
+	var err error
+	if query.StartTime, err = inst.startDateInput.ValidateInput(); err != nil {
 		return empty, err
 	}
-	if inst.query.EndTime, err = inst.endDateInput.ValidateInput(); err != nil {
+	if query.EndTime, err = inst.endDateInput.ValidateInput(); err != nil {
 		return empty, err
 	}
 
-	var queryText = strings.TrimSpace(inst.queryTextArea.GetText())
-	if inst.query.Query = queryText; len(queryText) > 0 {
-
-		// Todo return error
+	if len(query.Query) == 0 {
+		return empty, errors.New("The query is empty")
+	}
+	if query.EndTime.Before(query.StartTime) {
+		return empty, errors.New("The end time is before the start time")
 	}
 
-	return inst.query, err
+	return query, nil
 }

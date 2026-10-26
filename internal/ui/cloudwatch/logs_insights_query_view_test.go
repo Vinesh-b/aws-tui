@@ -80,3 +80,32 @@ func TestInsightsQueryView__InvalidTimesAreRejected(t *testing.T) {
 		})
 	}
 }
+
+func TestInsightsQueryView__EmptyQueryIsRejected(t *testing.T) {
+	var view = NewInsightsQueryInputView(uitest.NewAppContext())
+	view.queryTextArea.SetText(" \n ", false)
+
+	var query, err = view.GenerateQuery()
+
+	if err == nil || err.Error() != "The query is empty" {
+		t.Errorf("error = %v, want the query is empty", err)
+	}
+	if query != (InsightsQuery{}) {
+		t.Errorf("query = %+v, want empty", query)
+	}
+}
+
+func TestInsightsQueryView__EndBeforeStartIsRejected(t *testing.T) {
+	var view = NewInsightsQueryInputView(uitest.NewAppContext())
+	view.startDateInput.SetTextTime(baseTime.Add(time.Hour))
+	view.endDateInput.SetTextTime(baseTime)
+
+	var query, err = view.GenerateQuery()
+
+	if err == nil || err.Error() != "The end time is before the start time" {
+		t.Errorf("error = %v, want the end time is before the start time", err)
+	}
+	if query != (InsightsQuery{}) {
+		t.Errorf("query = %+v, want empty", query)
+	}
+}

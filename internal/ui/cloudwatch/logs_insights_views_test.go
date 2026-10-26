@@ -285,3 +285,23 @@ func TestInsightsPageView__StartingAnotherQueryStopsTheRunningOne(t *testing.T) 
 	uitest.Eventually(t, app, func() bool { return len(api.startedQueries()) == 2 })
 	uitest.Eventually(t, app, func() bool { return slices.Equal(api.stoppedQueries(), []string{"query-1"}) })
 }
+
+func TestInsightsPageView__EmptyOrBackwardsQueriesAreNotRun(t *testing.T) {
+	var api = &fakeInsightsApi{}
+	var view = newInsightsPageView(t, api)
+	var app = view.serviceCtx.App
+	var callback, received = uitest.CaptureErrors()
+	view.ResultsTable.ErrorMessageCallback = callback
+	uitest.OnUI(t, app, func() {
+		view.SelectedGroupsTable.AddLogGroup("/aws/lambda/orders")
+		view.QueryView.queryTextArea.SetText("  ", false)
+		view.RunQuery()
+	})
+
+	if got := uitest.AwaitError(t, received); got != "The query is empty" {
+		t.Errorf("message = %q", got)
+	}
+	if started := api.startedQueries(); len(started) != 0 {
+		t.Errorf("queries started = %v, want none", started)
+	}
+}
