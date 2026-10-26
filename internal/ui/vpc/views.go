@@ -6,7 +6,6 @@ import (
 	"aws-tui/internal/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -14,44 +13,36 @@ import (
 type VpcTabName = string
 
 const (
+	VpcTabNameDetails        VpcTabName = "Details"
 	VpcTabNameSubnets        VpcTabName = "Subnets"
 	VpcTabNameSecurityGroups VpcTabName = "Security Groups"
 	VpcTabNameEndpoints      VpcTabName = "Endpoints"
-	VpcTabNameTags           VpcTabName = "Tags"
 )
 
 type VpcDetailsPageView struct {
 	*core.ServicePageView
 	VpcListTable           *VpcListTable
+	VpcDetailsTable        *VpcDetailsTable
 	VpcEndpointsTable      *VpcEndpointsTable
 	VpcSubnetsTable        *VpcSubnetsTable
 	VpcSecurityGroupsTable *VpcSecurityGroupsTable
-	TagsTable              *core.TagsTable[types.Tag, awsapi.Ec2Api]
 	TabsView               *core.TabViewHorizontal
 	serviceCtx             *core.ServiceContext[awsapi.Ec2Api]
 }
 
 func NewVpcDetailsPageView(
 	vpcListTable *VpcListTable,
+	vpcDetailsTable *VpcDetailsTable,
 	vpcEndpointsTable *VpcEndpointsTable,
 	vpcSubnetsTable *VpcSubnetsTable,
 	vpcSecurityGroupsTable *VpcSecurityGroupsTable,
 	serviceCtx *core.ServiceContext[awsapi.Ec2Api],
 ) *VpcDetailsPageView {
-	var tagsTable = core.NewTagsTable[types.Tag](serviceCtx).
-		SetExtractKeyValFunc(func(t types.Tag) (k string, v string) {
-			return aws.ToString(t.Key), aws.ToString(t.Value)
-		}).
-		SetGetTagsFunc(func() func() ([]types.Tag, error) {
-			var tags = vpcListTable.GetSelectedVpc().Tags
-			return func() ([]types.Tag, error) { return tags, nil }
-		})
-
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
-		AddAndSwitchToTab(VpcTabNameSubnets, vpcSubnetsTable, 0, 1, true).
+		AddAndSwitchToTab(VpcTabNameDetails, vpcDetailsTable, 0, 1, true).
+		AddTab(VpcTabNameSubnets, vpcSubnetsTable, 0, 1, true).
 		AddTab(VpcTabNameSecurityGroups, vpcSecurityGroupsTable, 0, 1, true).
-		AddTab(VpcTabNameEndpoints, vpcEndpointsTable, 0, 1, true).
-		AddTab(VpcTabNameTags, tagsTable, 0, 1, true)
+		AddTab(VpcTabNameEndpoints, vpcEndpointsTable, 0, 1, true)
 
 	const detailsViewSize = 5000
 	const tableViewSize = 5000
@@ -67,10 +58,10 @@ func NewVpcDetailsPageView(
 	var view = &VpcDetailsPageView{
 		ServicePageView:        serviceView,
 		VpcListTable:           vpcListTable,
+		VpcDetailsTable:        vpcDetailsTable,
 		VpcEndpointsTable:      vpcEndpointsTable,
 		VpcSubnetsTable:        vpcSubnetsTable,
 		VpcSecurityGroupsTable: vpcSecurityGroupsTable,
-		TagsTable:              tagsTable,
 		TabsView:               tabView,
 		serviceCtx:             serviceCtx,
 	}
@@ -116,8 +107,6 @@ func (inst *VpcDetailsPageView) initInputCapture() {
 			inst.VpcSecurityGroupsTable.RefreshVpcSecurityGroups(true, selectedVpc)
 		case VpcTabNameEndpoints:
 			inst.VpcEndpointsTable.RefreshVpcEndpoints(true, selectedVpc)
-		case VpcTabNameTags:
-			inst.TagsTable.RefreshDetails()
 		}
 
 		loadedTabs[index] = true
@@ -126,6 +115,10 @@ func (inst *VpcDetailsPageView) initInputCapture() {
 	inst.VpcListTable.SetSelectedFunc(func(row, column int) {
 		var tabName, index = inst.TabsView.GetDefaultTab()
 		tabChangeFunc(tabName, index)
+	})
+
+	inst.VpcListTable.SetSelectionChangedFunc(func(row, column int) {
+		inst.VpcDetailsTable.SetVpc(inst.VpcListTable.GetSelectedVpc())
 	})
 
 	inst.TabsView.SetOnTabChangeFunc(tabChangeFunc)
@@ -140,6 +133,7 @@ func NewVpcHomeView(appCtx *core.AppContext, api awsapi.Ec2Api) core.ServicePage
 
 		eventbridgeDetailsView = NewVpcDetailsPageView(
 			NewVpcListTable(serviceCtx),
+			NewVpcDetailsTable(serviceCtx),
 			NewVpcEndpointsTable(serviceCtx),
 			NewVpcSubnetsTable(serviceCtx),
 			NewVpcSecurityGroupsTable(serviceCtx),
