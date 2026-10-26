@@ -98,6 +98,14 @@ func (inst *LambdaItemsView[T]) showSelectedItem() {
 	inst.DetailsTable.Select(0, 0)
 }
 
+// SetItems shows items that are already known for the lambda, which are
+// empty to clear them
+func (inst *LambdaItemsView[T]) SetItems(lambdaArn string, items []T) {
+	inst.lambdaArn = lambdaArn
+	inst.ListTable.SetTitleExtra(lambdaName(lambdaArn))
+	inst.populateListTable(items)
+}
+
 // Refresh lists the items of the lambda, which is empty to clear them
 func (inst *LambdaItemsView[T]) Refresh(lambdaArn string) {
 	inst.lambdaArn = lambdaArn

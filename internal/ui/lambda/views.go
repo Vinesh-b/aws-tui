@@ -25,6 +25,7 @@ const (
 	LambdaTabTriggers  LambdaTabName = "Triggers"
 	LambdaTabPerms     LambdaTabName = "Permissions"
 	LambdaTabVersions  LambdaTabName = "Versions"
+	LambdaTabLayers    LambdaTabName = "Layers"
 	LambdaTabInvoke    LambdaTabName = "Invoke"
 	LambdaTabMetrics   LambdaTabName = "Metrics"
 )
@@ -40,6 +41,7 @@ type LambdaDetailsPageView struct {
 	TriggersView       *LambdaItemsView[eventSourceMapping]
 	PermissionsView    *LambdaPermissionsView
 	VersionsView       *LambdaItemsView[lambdaVersion]
+	LayersView         *LambdaItemsView[lambdaLayer]
 	serviceCtx         *core.ServiceContext[awsapi.LambdaApi]
 }
 
@@ -55,6 +57,7 @@ func NewLambdaDetailsPageView(
 	var triggersView = NewLambdaTriggersView(serviceCtx)
 	var permissionsView = NewLambdaPermissionsView(serviceCtx)
 	var versionsView = NewLambdaVersionsView(serviceCtx)
+	var layersView = NewLambdaLayersView(serviceCtx)
 
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab(LambdaTabDetails, lambdaDetailsTable, 0, 1, true).
@@ -62,6 +65,7 @@ func NewLambdaDetailsPageView(
 		AddTab(LambdaTabTriggers, triggersView, 0, 1, true).
 		AddTab(LambdaTabPerms, permissionsView, 0, 1, true).
 		AddTab(LambdaTabVersions, versionsView, 0, 1, true).
+		AddTab(LambdaTabLayers, layersView, 0, 1, true).
 		AddTab(LambdaTabInvoke, lambdaInvokeView, 0, 1, true).
 		AddTab(LambdaTabMetrics, lambdaMetricsView, 0, 1, true)
 
@@ -92,6 +96,7 @@ func NewLambdaDetailsPageView(
 		TriggersView:       triggersView,
 		PermissionsView:    permissionsView,
 		VersionsView:       versionsView,
+		LayersView:         layersView,
 		serviceCtx:         serviceCtx,
 	}
 
@@ -104,6 +109,7 @@ func NewLambdaDetailsPageView(
 	triggersView.SetErrorMessageCallback(errorHandler)
 	permissionsView.ErrorMessageCallback = errorHandler
 	versionsView.SetErrorMessageCallback(errorHandler)
+	layersView.SetErrorMessageCallback(errorHandler)
 
 	view.InitViewNavigation(
 		[][]core.View{
@@ -309,6 +315,7 @@ func NewLambdaHomeView(
 		lambdasDetailsView.TriggersView.Refresh(lambdaArn)
 		lambdasDetailsView.PermissionsView.Refresh(lambdaArn)
 		lambdasDetailsView.VersionsView.Refresh(lambdaArn)
+		lambdasDetailsView.LayersView.SetItems(lambdaArn, selectedLambda.Layers)
 		lambdaInvokeView.SetSelectedLambda(lambdaName)
 		lambdaMetricsView.SetSelectedLambda(lambdaName)
 	}
