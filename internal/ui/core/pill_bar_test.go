@@ -7,6 +7,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+	"github.com/rivo/uniseg"
 )
 
 func newTestScreen(t *testing.T, width int, height int) tcell.SimulationScreen {
@@ -90,18 +91,139 @@ func TestPillBar__DrawsCurrentPillHighlighted(t *testing.T) {
 	}
 }
 
-func TestPillBar__DrawIsCutOffAtMaxX(t *testing.T) {
+func TestPillBar__OnePillWiderThanTheBarIsCutOff(t *testing.T) {
 	var theme = DefaultTheme()
 	var bar = NewPillBar(&theme).SetPills([]string{"first", "second"})
 	var screen = newTestScreen(t, 20, 1)
 
-	if end := bar.Draw(screen, 0, 0, 10); end != 10 {
-		t.Errorf("end = %d, want 10", end)
-	}
+	bar.Draw(screen, 0, 0, 7)
 	screen.Show()
 
-	if line := screenLine(screen); line != "🭃first🭎🭃se"+strings.Repeat(" ", 10) {
-		t.Errorf("line = %q, want the bar cut off after 10 cells", line)
+	// Without room for even one pill and the mark, the current pill is cut off
+	if line := screenLine(screen); !strings.HasPrefix(line, "🭃firs") {
+		t.Errorf("line = %q, want the current pill cut off", line)
+	}
+}
+
+// scrollingBarPills take 38 cells, which don't fit in 30
+var scrollingBarPills = []string{"Details", "Logs", "Tags", "Invoke", "Metrics"}
+
+func drawScrollingBar(t *testing.T, current int) (*PillBar, string, int) {
+	t.Helper()
+	var theme = DefaultTheme()
+	var bar = NewPillBar(&theme).SetPills(scrollingBarPills).SetCurrent(current)
+	var screen = newTestScreen(t, 30, 1)
+
+	var end = bar.Draw(screen, 0, 0, 30)
+	screen.Show()
+
+	return bar, screenLine(screen), end
+}
+
+func TestPillBar__BarThatFitsIsNotScrolled(t *testing.T) {
+	var theme = DefaultTheme()
+	var bar = NewPillBar(&theme).SetPills(scrollingBarPills).SetCurrent(4)
+	var screen = newTestScreen(t, 40, 1)
+
+	bar.Draw(screen, 0, 0, 40)
+	screen.Show()
+
+	if line := screenLine(screen); line != "🭃Details🭎🭃Logs🭎🭃Tags🭎🭃Invoke🭎🭃Metrics🭎  " {
+		t.Errorf("line = %q, want every pill without marks", line)
+	}
+}
+
+func TestPillBar__ScrolledBarShowsTheStartWithMoreToTheRight(t *testing.T) {
+	var _, line, end = drawScrollingBar(t, 0)
+
+	if line != "🭃Details🭎🭃Logs🭎🭃Tags🭎 ›       " {
+		t.Errorf("line = %q, want the first pills and a mark for the rest", line)
+	}
+	if end != 23 {
+		t.Errorf("end = %d, want the x after the mark", end)
+	}
+}
+
+func TestPillBar__ScrolledBarKeepsTheCurrentPillInView(t *testing.T) {
+	var _, line, _ = drawScrollingBar(t, 4)
+
+	if line != "‹ 🭃Tags🭎🭃Invoke🭎🭃Metrics🭎     " {
+		t.Errorf("line = %q, want the last pills and a mark for those before", line)
+	}
+}
+
+func TestPillBar__ScrolledBarShowsMarksOnBothSides(t *testing.T) {
+	var theme = DefaultTheme()
+	var bar = NewPillBar(&theme).SetPills(scrollingBarPills).SetCurrent(4)
+	var screen = newTestScreen(t, 20, 1)
+	bar.Draw(screen, 0, 0, 20)
+
+	// Moving back keeps the pills after it out of view
+	bar.SetCurrent(2)
+	bar.Draw(screen, 0, 0, 20)
+	screen.Show()
+
+	if line := screenLine(screen); line != "‹ 🭃Tags🭎🭃Invoke🭎 ›  " {
+		t.Errorf("line = %q, want marks on both sides of the current pill", line)
+	}
+}
+
+func TestPillBar__ScrollingBackShowsEarlierPills(t *testing.T) {
+	var bar, _, _ = drawScrollingBar(t, 4)
+	var screen = newTestScreen(t, 30, 1)
+
+	bar.SetCurrent(0)
+	bar.Draw(screen, 0, 0, 30)
+	screen.Show()
+
+	if line := screenLine(screen); !strings.HasPrefix(line, "🭃Details🭎") {
+		t.Errorf("line = %q, want the bar scrolled back to the start", line)
+	}
+}
+
+func TestPillBar__ClicksFindThePillsWhereTheyWereDrawn(t *testing.T) {
+	var bar, _, _ = drawScrollingBar(t, 4)
+
+	var tests = []struct {
+		offset int
+		idx    int
+		ok     bool
+	}{
+		{0, 0, false}, // the scroll mark
+		{2, 2, true},  // Tags, the first pill drawn
+		{8, 3, true},  // Invoke
+		{24, 4, true}, // the end of Metrics
+		{25, 0, false},
+	}
+	for _, test := range tests {
+		if idx, ok := bar.PillAt(test.offset); idx != test.idx || ok != test.ok {
+			t.Errorf("PillAt(%d) = %d, %v, want %d, %v", test.offset, idx, ok, test.idx, test.ok)
+		}
+	}
+}
+
+func TestPillBar__NewPillsResetTheScroll(t *testing.T) {
+	var bar, _, _ = drawScrollingBar(t, 4)
+
+	bar.SetPills([]string{"a", "b"})
+
+	if bar.first != 0 {
+		t.Errorf("first = %d, want 0 for new pills", bar.first)
+	}
+	if idx, ok := bar.PillAt(4); idx != 1 || !ok {
+		t.Errorf("PillAt(4) = %d, %v, want the second pill before the bar is drawn again", idx, ok)
+	}
+}
+
+func TestPillBar__WideningTheBarShowsEveryPill(t *testing.T) {
+	var bar, _, _ = drawScrollingBar(t, 4)
+	var screen = newTestScreen(t, 40, 1)
+
+	bar.Draw(screen, 0, 0, 40)
+	screen.Show()
+
+	if line := screenLine(screen); !strings.HasPrefix(line, "🭃Details🭎") || strings.Contains(line, "‹") {
+		t.Errorf("line = %q, want every pill once there is room", line)
 	}
 }
 
@@ -152,5 +274,37 @@ func TestTabViewHorizontal__ClickingATabSwitchesToIt(t *testing.T) {
 	click(0, 0)
 	if name, _ := tabView.GetCurrentTab(); name != "Tags" {
 		t.Errorf("a click on the offset switched to %q", name)
+	}
+}
+
+func TestTabViewHorizontal__ScrollsToTheCurrentTabAndClicksFollow(t *testing.T) {
+	var theme = DefaultTheme()
+	var appCtx = NewAppContext(context.Background(), tview.NewApplication(), nil, nil, &theme)
+	var tabView = NewTabViewHorizontal(appCtx)
+	for idx, name := range scrollingBarPills {
+		if idx == 0 {
+			tabView.AddAndSwitchToTab(name, tview.NewBox(), 0, 1, true)
+		} else {
+			tabView.AddTab(name, tview.NewBox(), 0, 1, true)
+		}
+	}
+	tabView.SetRect(0, 0, 31, 5)
+	var screen = newTestScreen(t, 31, 5)
+
+	tabView.SwitchToTab("Metrics")
+	tabView.Draw(screen)
+	screen.Show()
+
+	if line := screenLine(screen); line != " ‹ 🭃Tags🭎🭃Invoke🭎🭃Metrics🭎     " {
+		t.Errorf("line = %q, want the bar scrolled to Metrics", line)
+	}
+
+	// "Invoke" is drawn after the offset, the mark and the "Tags" pill
+	var invokeX = 1 + uniseg.StringWidth(scrolledLeftMark) + pillWidth("Tags")
+	var event = tcell.NewEventMouse(invokeX, 0, tcell.Button1, tcell.ModNone)
+	tabView.MouseHandler()(tview.MouseLeftClick, event, func(tview.Primitive) {})
+
+	if name, _ := tabView.GetCurrentTab(); name != "Invoke" {
+		t.Errorf("current tab = %q, want the clicked Invoke", name)
 	}
 }
