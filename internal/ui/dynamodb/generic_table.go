@@ -101,15 +101,13 @@ func NewDynamoDBGenericTable(
 	})
 
 	queryView.Input.QueryDoneButton.SetSelectedFunc(func() {
-		queryView.Input.SetPartitionKeyName(table.pkName)
-		queryView.Input.SetSortKeyName(table.skName)
-
 		var expr, err = queryView.Input.GenerateQueryExpression()
 		if err != nil {
 			table.serviceCtx.Logger.Println(err.Error())
 			table.ErrorMessageCallback("%s", err.Error())
 			return
 		}
+		table.searchIndexName = queryView.Input.GetSelectedIndexName()
 		table.ExecuteSearch(DDBTableQuery, expr, true)
 	})
 
@@ -168,6 +166,7 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 		}
 	}
 	inst.table.SetFixed(1, fixedCols)
+	inst.queryInputView.Input.SetKeySchema(inst.tableDescription)
 
 	for _, rowData := range inst.data {
 		for heading := range rowData {
@@ -237,7 +236,9 @@ func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expre
 		case DDBTableScan:
 			data, err = inst.serviceCtx.Api.ScanTable(inst.serviceCtx.Ctx, inst.selectedTable, expr, "", reset)
 		case DDBTableQuery:
-			data, err = inst.serviceCtx.Api.QueryTable(inst.serviceCtx.Ctx, inst.selectedTable, expr, "", reset)
+			data, err = inst.serviceCtx.Api.QueryTable(
+				inst.serviceCtx.Ctx, inst.selectedTable, expr, inst.searchIndexName, reset,
+			)
 		}
 
 		if !reset {

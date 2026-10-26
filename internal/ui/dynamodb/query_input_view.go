@@ -8,7 +8,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -110,6 +112,39 @@ func DynamoDBTypeOpMap() map[DynamoDBDataType][]DynamoDBCondition {
 	}
 }
 
+// queryIndex is the table or one of its GSIs. The table has no name.
+type queryIndex struct {
+	name   string
+	pkName string
+	skName string
+}
+
+func newQueryIndex(name string, keySchema []types.KeySchemaElement) queryIndex {
+	var index = queryIndex{name: name}
+	for _, attr := range keySchema {
+		switch attr.KeyType {
+		case types.KeyTypeHash:
+			index.pkName = aws.ToString(attr.AttributeName)
+		case types.KeyTypeRange:
+			index.skName = aws.ToString(attr.AttributeName)
+		}
+	}
+	return index
+}
+
+func (inst queryIndex) label() string {
+	var name = inst.name
+	if len(name) == 0 {
+		name = "Table"
+	}
+
+	var keys = inst.pkName
+	if len(inst.skName) > 0 {
+		keys += ", " + inst.skName
+	}
+	return fmt.Sprintf("%s (%s)", name, keys)
+}
+
 type DynamoDBQueryInputView struct {
 	*tview.Flex
 	QueryDoneButton   *core.Button
@@ -117,19 +152,19 @@ type DynamoDBQueryInputView struct {
 
 	appCtx              *core.AppContext
 	filterView          *FilterInputView
+	indexDropDown       *core.DropDown
 	pkInput             *core.InputField
 	skInput             *core.InputField
 	skComparatorInput   *core.InputField
 	projectedAttributes []string
-	selectedIndex       string
+	selectedIndex       int
 	tableName           string
-	indexes             []string
-	pkName              string
-	skName              string
+	indexes             []queryIndex
 	tabNavigator        *core.ViewNavigation1D
 }
 
 func NewDynamoDBQueryInputView(appContext *core.AppContext) *DynamoDBQueryInputView {
+	var indexDropDown = core.NewDropDown(appContext.Theme)
 	var pkInput = core.NewInputField(appContext.Theme)
 	var skInput = core.NewInputField(appContext.Theme)
 	var skComparitorInput = core.NewInputField(appContext.Theme)
@@ -137,11 +172,14 @@ func NewDynamoDBQueryInputView(appContext *core.AppContext) *DynamoDBQueryInputV
 	var doneButton = core.NewButton("Done", appContext.Theme)
 	var cancelButton = core.NewButton("Cancel", appContext.Theme)
 
+	indexDropDown.SetLabel("Index ")
 	pkInput.SetLabel("PK ").SetFieldWidth(0)
 	skInput.SetLabel("SK ").SetFieldWidth(0)
 	skComparitorInput.SetLabel("Comparator ").SetFieldWidth(8)
 
 	var wrapper = tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(indexDropDown, 1, 0, true).
+		AddItem(tview.NewBox(), 1, 0, true).
 		AddItem(pkInput, 1, 0, true).
 		AddItem(tview.NewBox(), 1, 0, true).
 		AddItem(
@@ -162,6 +200,7 @@ func NewDynamoDBQueryInputView(appContext *core.AppContext) *DynamoDBQueryInputV
 
 	var tabNavigator = core.NewViewNavigation1D(wrapper,
 		[]core.View{
+			indexDropDown,
 			pkInput,
 			skComparitorInput,
 			skInput,
@@ -174,18 +213,75 @@ func NewDynamoDBQueryInputView(appContext *core.AppContext) *DynamoDBQueryInputV
 		appContext.App,
 	)
 
-	return &DynamoDBQueryInputView{
+	var view = &DynamoDBQueryInputView{
 		Flex:              wrapper,
 		QueryDoneButton:   doneButton,
 		QueryCancelButton: cancelButton,
 
 		appCtx:            appContext,
+		indexDropDown:     indexDropDown,
 		pkInput:           pkInput,
 		skInput:           skInput,
 		skComparatorInput: skComparitorInput,
 		filterView:        filterInputView,
 		tabNavigator:      tabNavigator,
 	}
+
+	view.SetKeySchema(nil)
+
+	return view
+}
+
+// selected returns the index the query runs against.
+func (inst *DynamoDBQueryInputView) selected() queryIndex {
+	if inst.selectedIndex < 0 || inst.selectedIndex >= len(inst.indexes) {
+		return queryIndex{}
+	}
+	return inst.indexes[inst.selectedIndex]
+}
+
+func (inst *DynamoDBQueryInputView) selectIndex(idx int) {
+	inst.selectedIndex = idx
+
+	var index = inst.selected()
+	inst.pkInput.SetLabel(keyLabel("PK", index.pkName))
+	inst.skInput.SetLabel(keyLabel("SK", index.skName))
+}
+
+func keyLabel(prefix string, name string) string {
+	if len(name) == 0 {
+		return prefix + " "
+	}
+	return fmt.Sprintf("%s (%s) ", prefix, name)
+}
+
+// SetKeySchema lists the table and its GSIs as the indexes that can be
+// queried. The selected index is kept if the table still has it.
+func (inst *DynamoDBQueryInputView) SetKeySchema(description *types.TableDescription) {
+	var previous = inst.selected().name
+
+	inst.indexes = []queryIndex{{}}
+	if description != nil {
+		inst.indexes[0] = newQueryIndex("", description.KeySchema)
+		for _, gsi := range description.GlobalSecondaryIndexes {
+			inst.indexes = append(inst.indexes, newQueryIndex(aws.ToString(gsi.IndexName), gsi.KeySchema))
+		}
+	}
+
+	var selectedIdx = 0
+	inst.indexDropDown.SetOptions(nil, nil)
+	for i, index := range inst.indexes {
+		inst.indexDropDown.AddOption(index.label(), func() { inst.selectIndex(i) })
+		if len(previous) > 0 && index.name == previous {
+			selectedIdx = i
+		}
+	}
+	inst.indexDropDown.SetCurrentOption(selectedIdx)
+}
+
+// GetSelectedIndexName is the name of the GSI to query, empty for the table.
+func (inst *DynamoDBQueryInputView) GetSelectedIndexName() string {
+	return inst.selected().name
 }
 
 func (inst *DynamoDBQueryInputView) GenerateQueryExpression() (expression.Expression, error) {
@@ -200,39 +296,47 @@ func (inst *DynamoDBQueryInputView) GenerateQueryExpression() (expression.Expres
 		)
 	}
 
-	var keyCond = expression.
-		Key(inst.pkName).Equal(expression.Value(pk))
+	var index = inst.selected()
+	if len(index.pkName) == 0 {
+		return expression.Expression{}, errors.NewDDBViewError(
+			errors.MissingRequiredInput,
+			"Partition Key name not known",
+		)
+	}
 
-	if len(sk) > 0 && len(inst.skName) > 0 && len(comp) > 0 {
+	var keyCond = expression.
+		Key(index.pkName).Equal(expression.Value(pk))
+
+	if len(sk) > 0 && len(index.skName) > 0 && len(comp) > 0 {
 		switch comp {
 		case "eq":
 			keyCond = keyCond.And(expression.
-				Key(inst.skName).
+				Key(index.skName).
 				Equal(expression.Value(sk)),
 			)
 		case "lt":
 			keyCond = keyCond.And(expression.
-				Key(inst.skName).
+				Key(index.skName).
 				LessThan(expression.Value(sk)),
 			)
 		case "gt":
 			keyCond = keyCond.And(expression.
-				Key(inst.skName).
+				Key(index.skName).
 				GreaterThan(expression.Value(sk)),
 			)
 		case "lte":
 			keyCond = keyCond.And(expression.
-				Key(inst.skName).
+				Key(index.skName).
 				LessThanEqual(expression.Value(sk)),
 			)
 		case "gte":
 			keyCond = keyCond.And(expression.
-				Key(inst.skName).
+				Key(index.skName).
 				GreaterThanEqual(expression.Value(sk)),
 			)
 		case "begins":
 			keyCond = keyCond.And(expression.
-				Key(inst.skName).
+				Key(index.skName).
 				BeginsWith(sk),
 			)
 		default:
@@ -265,18 +369,6 @@ func (inst *DynamoDBQueryInputView) SetSelectedTable(tableName string) {
 	inst.tableName = tableName
 }
 
-func (inst *DynamoDBQueryInputView) SetPartitionKeyName(pk string) {
-	inst.pkName = pk
-}
-
-func (inst *DynamoDBQueryInputView) SetSortKeyName(sk string) {
-	inst.skName = sk
-}
-
-func (inst *DynamoDBQueryInputView) SetTableIndexes(indexes []string) {
-	inst.indexes = indexes
-}
-
 type FloatingDDBQueryInputView struct {
 	*tview.Flex
 	Input *DynamoDBQueryInputView
@@ -285,7 +377,7 @@ type FloatingDDBQueryInputView struct {
 func NewFloatingDDBQueryInputView(appContext *core.AppContext) *FloatingDDBQueryInputView {
 	var queryView = NewDynamoDBQueryInputView(appContext)
 	return &FloatingDDBQueryInputView{
-		Flex:  core.FloatingView("Query", queryView, 70, 10),
+		Flex:  core.FloatingView("Query", queryView, 70, 12),
 		Input: queryView,
 	}
 }
