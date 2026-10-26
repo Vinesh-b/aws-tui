@@ -60,18 +60,18 @@ func (inst *SfnDetailsTable) populateTable() {
 			{"Type", string(inst.data.Type)},
 			{"Description", aws.ToString(inst.data.Description)},
 			{"Status", string(inst.data.Status)},
-			{"Created Date", aws.ToTime(inst.data.CreationDate).Format(time.DateTime)},
+			{"Created", core.FormatTime(inst.data.CreationDate)},
 		}
 
 		var logConfig = inst.data.LoggingConfiguration
 		if logConfig != nil {
 			var logData = []core.TableRow{
-				{"Logging Config", ""},
+				{"Logging"},
 				{"Include Execution Data", fmt.Sprintf("%v", logConfig.IncludeExecutionData)},
 				{"Log Level", string(logConfig.Level)},
 			}
 
-			logData = append(logData, core.TableRow{"Log Groups", ""})
+			logData = append(logData, core.TableRow{"Log Groups"})
 			for _, logDest := range logConfig.Destinations {
 				var group = logDest.CloudWatchLogsLogGroup
 				if group != nil {

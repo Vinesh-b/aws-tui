@@ -41,11 +41,11 @@ func TestSummaryTable__ShowsExecutionSummary(t *testing.T) {
 
 	uitest.AssertDetailsRows(t, table.DetailsTable, []core.TableRow{
 		{"Name", "run-1"},
-		{"Execution Arn", "arn:aws:states:us-east-1:123456789012:execution:orders:run-1"},
-		{"StateMachine Arn", "arn:aws:states:us-east-1:123456789012:stateMachine:orders"},
+		{"Execution ARN", "arn:aws:states:us-east-1:123456789012:execution:orders:run-1"},
+		{"State Machine ARN", "arn:aws:states:us-east-1:123456789012:stateMachine:orders"},
 		{"Status", "SUCCEEDED"},
-		{"Start Date", "2024-01-02 03:04:05"},
-		{"Stop Date", "2024-01-02 03:05:35"},
+		{"Started", "2024-01-02 03:04:05"},
+		{"Stopped", "2024-01-02 03:05:35"},
 	})
 }
 
@@ -59,14 +59,5 @@ func TestSummaryTable__RunningExecutionHasNoStopDate(t *testing.T) {
 
 	if got := table.GetCellText(5, 1); got != "" {
 		t.Errorf("stop date = %q, want empty", got)
-	}
-}
-
-func TestFormatOptionalTime(t *testing.T) {
-	if got := formatOptionalTime(nil); got != "" {
-		t.Errorf("nil time = %q, want empty", got)
-	}
-	if got := formatOptionalTime(at(0)); got != "2024-01-02 03:04:05" {
-		t.Errorf("time = %q, want %q", got, "2024-01-02 03:04:05")
 	}
 }

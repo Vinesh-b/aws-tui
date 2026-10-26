@@ -2,6 +2,7 @@ package lambda
 
 import (
 	"fmt"
+	"time"
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
@@ -30,6 +31,24 @@ func NewLambdaDetailsTable(
 	return table
 }
 
+func formatOptionalInt(value *int32) string {
+	if value == nil {
+		return ""
+	}
+	return fmt.Sprintf("%d", *value)
+}
+
+// lambdaTimeFormat is how the lambda api gives the last modified time
+const lambdaTimeFormat = "2006-01-02T15:04:05.000-0700"
+
+func formatLastModified(text string) string {
+	var t, err = time.Parse(lambdaTimeFormat, text)
+	if err != nil {
+		return text
+	}
+	return core.FormatTime(&t)
+}
+
 func (inst *LambdaDetailsTable) populateLambdaDetailsTable() {
 	var tableData []core.TableRow
 	var loggingConfig = inst.data.LoggingConfig
@@ -43,16 +62,16 @@ func (inst *LambdaDetailsTable) populateLambdaDetailsTable() {
 
 	tableData = []core.TableRow{
 		{"Description", aws.ToString(inst.data.Description)},
-		{"Arn", aws.ToString(inst.data.FunctionArn)},
+		{"ARN", aws.ToString(inst.data.FunctionArn)},
 		{"Version", aws.ToString(inst.data.Version)},
-		{"MemorySize", fmt.Sprintf("%d", aws.ToInt32(inst.data.MemorySize))},
+		{"Memory Size (MB)", formatOptionalInt(inst.data.MemorySize)},
 		{"Runtime", string(inst.data.Runtime)},
-		{"Arch", fmt.Sprintf("%v", inst.data.Architectures)},
-		{"Timeout", fmt.Sprintf("%d", aws.ToInt32(inst.data.Timeout))},
-		{"LoggingGroup", logGroup},
-		{"SystemLogLevel", sysLogLevel},
+		{"Architectures", core.FormatList(inst.data.Architectures)},
+		{"Timeout (s)", formatOptionalInt(inst.data.Timeout)},
+		{"Log Group", logGroup},
+		{"System Log Level", sysLogLevel},
 		{"State", string(inst.data.State)},
-		{"LastModified", aws.ToString(inst.data.LastModified)},
+		{"Last Modified", formatLastModified(aws.ToString(inst.data.LastModified))},
 		{"Role", aws.ToString(inst.data.Role)},
 	}
 

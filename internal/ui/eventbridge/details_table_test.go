@@ -18,8 +18,8 @@ func TestEventBusDetailsTable__EmptyBusShowsBlankValues(t *testing.T) {
 	uitest.AssertDetailsRows(t, table.DetailsTable, []core.TableRow{
 		{"Name", ""},
 		{"Description", ""},
-		{"Arn", ""},
-		{"LastModified", "0001-01-01 00:00:00"},
+		{"ARN", ""},
+		{"Last Modified", ""},
 	})
 }
 
@@ -32,8 +32,8 @@ func TestEventBusDetailsTable__PopulatesFromBus(t *testing.T) {
 	uitest.AssertDetailsRows(t, table.DetailsTable, []core.TableRow{
 		{"Name", "orders"},
 		{"Description", "orders bus"},
-		{"Arn", "arn:aws:events:us-east-1:123456789012:event-bus/orders"},
-		{"LastModified", "2024-01-02 03:04:05"},
+		{"ARN", "arn:aws:events:us-east-1:123456789012:event-bus/orders"},
+		{"Last Modified", "2024-01-02 03:04:05"},
 	})
 }
 

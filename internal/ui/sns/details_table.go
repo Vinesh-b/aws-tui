@@ -40,7 +40,7 @@ func (inst *TopicDetailsTable) populateTopicDetailsTable() {
 	var tableData = []core.TableRow{
 		{"Name", topicName(inst.topicArn)},
 		{"Type", topicType(inst.topicArn)},
-		{"Arn", inst.topicArn},
+		{"ARN", inst.topicArn},
 		{"Display Name", attr["DisplayName"]},
 		{"Owner", attr["Owner"]},
 		{"Subscriptions Confirmed", attr["SubscriptionsConfirmed"]},

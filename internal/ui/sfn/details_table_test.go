@@ -45,7 +45,7 @@ func TestDetailsTable__ShowsStateMachineSummary(t *testing.T) {
 		{"Type", "STANDARD"},
 		{"Description", "Processes orders"},
 		{"Status", "ACTIVE"},
-		{"Created Date", "2024-01-02 03:04:05"},
+		{"Created", "2024-01-02 03:04:05"},
 	})
 }
 
@@ -70,11 +70,11 @@ func TestDetailsTable__ShowsLoggingConfiguration(t *testing.T) {
 		{"Type", "STANDARD"},
 		{"Description", "Processes orders"},
 		{"Status", "ACTIVE"},
-		{"Created Date", "2024-01-02 03:04:05"},
-		{"Logging Config", ""},
+		{"Created", "2024-01-02 03:04:05"},
+		{"Logging"},
 		{"Include Execution Data", "true"},
 		{"Log Level", "ALL"},
-		{"Log Groups", ""},
+		{"Log Groups"},
 		{"", "/aws/states/orders"},
 	})
 }

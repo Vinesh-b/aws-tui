@@ -107,11 +107,11 @@ func TestSummaryTable__RefreshLoadsExecutionFromApi(t *testing.T) {
 
 	uitest.AwaitDetailsRows(t, serviceCtx.App, table.DetailsTable, []core.TableRow{
 		{"Name", "run-1"},
-		{"Execution Arn", "arn:aws:states:us-east-1:123456789012:execution:orders:run-1"},
-		{"StateMachine Arn", "arn:aws:states:us-east-1:123456789012:stateMachine:orders"},
+		{"Execution ARN", "arn:aws:states:us-east-1:123456789012:execution:orders:run-1"},
+		{"State Machine ARN", "arn:aws:states:us-east-1:123456789012:stateMachine:orders"},
 		{"Status", "SUCCEEDED"},
-		{"Start Date", "2024-01-02 03:04:05"},
-		{"Stop Date", "2024-01-02 03:05:35"},
+		{"Started", "2024-01-02 03:04:05"},
+		{"Stopped", "2024-01-02 03:05:35"},
 	})
 }
 

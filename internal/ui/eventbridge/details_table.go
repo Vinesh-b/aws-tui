@@ -1,8 +1,6 @@
 package eventbridge
 
 import (
-	"time"
-
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
 
@@ -36,8 +34,8 @@ func (inst *EventBusDetailsTable) populateEventBusDetailsTable() {
 	tableData = []core.TableRow{
 		{"Name", aws.ToString(inst.data.Name)},
 		{"Description", aws.ToString(inst.data.Description)},
-		{"Arn", aws.ToString(inst.data.Arn)},
-		{"LastModified", aws.ToTime(inst.data.LastModifiedTime).Format(time.DateTime)},
+		{"ARN", aws.ToString(inst.data.Arn)},
+		{"Last Modified", core.FormatTime(inst.data.LastModifiedTime)},
 	}
 
 	inst.SetTitleExtra(aws.ToString(inst.data.Name))

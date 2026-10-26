@@ -2,7 +2,6 @@ package cloudwatch
 
 import (
 	"fmt"
-	"time"
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
@@ -31,17 +30,23 @@ func NewLogGroupDetailsTable(
 	return table
 }
 
+// retention is unset for groups whose events never expire
+func (inst *LogGroupDetailsTable) retention() string {
+	if inst.data.RetentionInDays == nil {
+		return "Never expire"
+	}
+	return fmt.Sprintf("%d", *inst.data.RetentionInDays)
+}
+
 func (inst *LogGroupDetailsTable) populateDetailsTable() {
 	var tableData []core.TableRow
 	tableData = []core.TableRow{
 		{"Name", aws.ToString(inst.data.LogGroupName)},
-		{"Arn", aws.ToString(inst.data.LogGroupArn)},
-		{"KMSKey", aws.ToString(inst.data.KmsKeyId)},
+		{"ARN", aws.ToString(inst.data.LogGroupArn)},
+		{"KMS Key", aws.ToString(inst.data.KmsKeyId)},
 		{"Class", string(inst.data.LogGroupClass)},
-		{"RetentionDays", fmt.Sprintf("%d", aws.ToInt32(inst.data.RetentionInDays))},
-		{"CreatedTime", time.UnixMilli(
-			int64(aws.ToInt64(inst.data.CreationTime)),
-		).Format(time.DateTime)},
+		{"Retention (days)", inst.retention()},
+		{"Created", core.FormatUnixMilli(inst.data.CreationTime)},
 	}
 
 	inst.SetData(tableData)

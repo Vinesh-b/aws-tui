@@ -30,9 +30,9 @@ func TestVpcConfigTable__ListsVpcSubnetsThenSecurityGroups(t *testing.T) {
 	table.populateLambdaVpcConfigTable()
 
 	uitest.AssertDetailsRows(t, table.DetailsTable, []core.TableRow{
-		{"VPC Id", "vpc-1"},
-		{"Subnet Id", "subnet-a"},
-		{"Subnet Id", "subnet-b"},
-		{"Security Group Id", "sg-1"},
+		{"VPC ID", "vpc-1"},
+		{"Subnet ID", "subnet-a"},
+		{"Subnet ID", "subnet-b"},
+		{"Security Group ID", "sg-1"},
 	})
 }

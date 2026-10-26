@@ -706,9 +706,15 @@ func formatJsonValue(value string) (string, bool) {
 	return value, false
 }
 
+// detailsPlaceholder is shown in place of empty values
+const detailsPlaceholder = "-"
+
+// SetData shows rows of a label and a value. A row with only a label is drawn
+// as a heading for the rows after it. Empty values are shown as a placeholder,
+// but copying or previewing them gives the empty value.
 func (inst *DetailsTable) SetData(data []TableRow) error {
-	if len(data) > 0 {
-		if len(data[0]) != 2 {
+	for _, row := range data {
+		if len(row) != 1 && len(row) != 2 {
 			log.Println("Table data and headings dimensions do not match")
 			return errors.NewCoreTableError(
 				errors.InvalidDataDimensions,
@@ -724,16 +730,27 @@ func (inst *DetailsTable) SetData(data []TableRow) error {
 	}
 	inst.SetTitle(tableTitle)
 
+	var theme = inst.appCtx.Theme
 	for rowIdx, rowData := range data {
-		for colIdx, cellData := range rowData {
-			textColor := inst.appCtx.Theme.PrimaryTextColour
-			if colIdx > 0 {
-				textColor = inst.appCtx.Theme.TertiaryTextColour
-			}
-			inst.table.SetCell(rowIdx, colIdx, NewTableCell[any](cellData, nil).
-				SetTextColor(textColor),
+		if len(rowData) == 1 {
+			inst.table.SetCell(rowIdx, 0, NewTableCell[any](rowData[0], nil).
+				SetTextColor(theme.SecondaryTextColour).
+				SetAttributes(tcell.AttrBold).
+				SetSelectable(false),
 			)
+			continue
 		}
+
+		inst.table.SetCell(rowIdx, 0, NewTableCell[any](rowData[0], nil).
+			SetTextColor(theme.PrimaryTextColour),
+		)
+
+		var valueCell = NewTableCell[any](rowData[detailsValueCol], nil).
+			SetTextColor(theme.TertiaryTextColour)
+		if len(rowData[detailsValueCol]) == 0 {
+			valueCell.SetText(detailsPlaceholder).SetTextColor(theme.PlaceholderTextColour)
+		}
+		inst.table.SetCell(rowIdx, detailsValueCol, valueCell)
 	}
 
 	var row, _ = inst.table.GetSelection()

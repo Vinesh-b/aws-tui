@@ -100,8 +100,8 @@ func TestMetricDetailsTable__ListsNamespaceNameAndDimensions(t *testing.T) {
 
 	uitest.AssertDetailsRows(t, table.DetailsTable, []core.TableRow{
 		{"Namespace", "AWS/EC2"},
-		{"MetricName", "CPUUtilization"},
-		{"Dimensions", ""},
+		{"Metric Name", "CPUUtilization"},
+		{"Dimensions"},
 		{"InstanceId", "i-1"},
 		{"AutoScalingGroup", "asg-1"},
 	})

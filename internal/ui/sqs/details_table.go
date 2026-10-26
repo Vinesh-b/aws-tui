@@ -1,9 +1,6 @@
 package sqs
 
 import (
-	"strconv"
-	"time"
-
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
 )
@@ -30,14 +27,6 @@ func NewQueueDetailsTable(
 	return table
 }
 
-func formatEpochSeconds(seconds string) string {
-	var value, err = strconv.ParseInt(seconds, 10, 64)
-	if err != nil {
-		return ""
-	}
-	return time.Unix(value, 0).UTC().Format(time.DateTime)
-}
-
 func (inst *QueueDetailsTable) encryption() string {
 	switch {
 	case len(inst.attributes["KmsMasterKeyId"]) > 0:
@@ -56,7 +45,7 @@ func (inst *QueueDetailsTable) populateQueueDetailsTable() {
 		{"Name", queueName(inst.queueUrl)},
 		{"Type", queueType(inst.queueUrl)},
 		{"URL", inst.queueUrl},
-		{"Arn", attr["QueueArn"]},
+		{"ARN", attr["QueueArn"]},
 		{"Messages Available", attr["ApproximateNumberOfMessages"]},
 		{"Messages In Flight", attr["ApproximateNumberOfMessagesNotVisible"]},
 		{"Messages Delayed", attr["ApproximateNumberOfMessagesDelayed"]},
@@ -67,8 +56,8 @@ func (inst *QueueDetailsTable) populateQueueDetailsTable() {
 		{"Max Message Size (bytes)", attr["MaximumMessageSize"]},
 		{"Encryption", inst.encryption()},
 		{"Redrive Policy", attr["RedrivePolicy"]},
-		{"Created", formatEpochSeconds(attr["CreatedTimestamp"])},
-		{"Last Modified", formatEpochSeconds(attr["LastModifiedTimestamp"])},
+		{"Created", core.FormatUnixSeconds(attr["CreatedTimestamp"])},
+		{"Last Modified", core.FormatUnixSeconds(attr["LastModifiedTimestamp"])},
 	}
 
 	if queueType(inst.queueUrl) == "FIFO" {

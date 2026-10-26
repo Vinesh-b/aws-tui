@@ -1,8 +1,6 @@
 package cloudwatch
 
 import (
-	"time"
-
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
 
@@ -32,22 +30,13 @@ func NewLogStreamDetailsTable(
 
 func (inst *LogStreamDetailsTable) populateDetailsTable() {
 	var tableData []core.TableRow
-	var timestampFormat = "2006-01-02 15:04:05.000"
 	tableData = []core.TableRow{
 		{"Name", aws.ToString(inst.data.LogStreamName)},
-		{"Arn", aws.ToString(inst.data.Arn)},
-		{"FirstEventTime", time.UnixMilli(
-			int64(aws.ToInt64(inst.data.FirstEventTimestamp)),
-		).Format(timestampFormat)},
-		{"LastEventTime", time.UnixMilli(
-			int64(aws.ToInt64(inst.data.LastEventTimestamp)),
-		).Format(timestampFormat)},
-		{"LastIngestionTime", time.UnixMilli(
-			int64(aws.ToInt64(inst.data.LastIngestionTime)),
-		).Format(timestampFormat)},
-		{"CreatedTime", time.UnixMilli(
-			int64(aws.ToInt64(inst.data.CreationTime)),
-		).Format(time.DateTime)},
+		{"ARN", aws.ToString(inst.data.Arn)},
+		{"First Event", core.FormatUnixMilli(inst.data.FirstEventTimestamp)},
+		{"Last Event", core.FormatUnixMilli(inst.data.LastEventTimestamp)},
+		{"Last Ingestion", core.FormatUnixMilli(inst.data.LastIngestionTime)},
+		{"Created", core.FormatUnixMilli(inst.data.CreationTime)},
 	}
 
 	inst.SetData(tableData)

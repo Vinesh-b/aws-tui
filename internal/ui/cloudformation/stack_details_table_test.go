@@ -17,12 +17,12 @@ func TestStackDetailsTable__EmptyStackShowsPlaceholders(t *testing.T) {
 
 	uitest.AssertDetailsRows(t, table.DetailsTable, []core.TableRow{
 		{"Name", ""},
-		{"StackId", ""},
+		{"Stack ID", ""},
 		{"Description", ""},
 		{"Status", ""},
-		{"StatusReason", ""},
-		{"CreationTime", "0001-01-01 00:00:00"},
-		{"LastUpdated", "-"},
+		{"Status Reason", ""},
+		{"Created", ""},
+		{"Last Updated", ""},
 	})
 }
 
@@ -37,12 +37,12 @@ func TestStackDetailsTable__PopulatesFromStack(t *testing.T) {
 
 	uitest.AssertDetailsRows(t, table.DetailsTable, []core.TableRow{
 		{"Name", "orders"},
-		{"StackId", "stack-id-1"},
+		{"Stack ID", "stack-id-1"},
 		{"Description", "Orders stack"},
 		{"Status", "UPDATE_COMPLETE"},
-		{"StatusReason", "user initiated"},
-		{"CreationTime", "2024-01-02 03:04:05"},
-		{"LastUpdated", "2024-02-03 04:05:06"},
+		{"Status Reason", "user initiated"},
+		{"Created", "2024-01-02 03:04:05"},
+		{"Last Updated", "2024-02-03 04:05:06"},
 	})
 }
 

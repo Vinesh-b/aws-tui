@@ -30,8 +30,8 @@ func (inst *MetricDetailsTable) populateMetricDetailsTable() {
 	var tableData []core.TableRow
 	tableData = []core.TableRow{
 		{"Namespace", aws.ToString(inst.data.Namespace)},
-		{"MetricName", aws.ToString(inst.data.MetricName)},
-		{"Dimensions", ""},
+		{"Metric Name", aws.ToString(inst.data.MetricName)},
+		{"Dimensions"},
 	}
 	for _, dim := range inst.data.Dimensions {
 		tableData = append(tableData,

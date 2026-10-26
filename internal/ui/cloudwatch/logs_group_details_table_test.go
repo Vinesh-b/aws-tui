@@ -26,11 +26,11 @@ func TestLogGroupDetailsTable__PopulatesFromLogGroup(t *testing.T) {
 
 	uitest.AssertDetailsRows(t, table.DetailsTable, []core.TableRow{
 		{"Name", "/aws/lambda/orders"},
-		{"Arn", "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/orders"},
-		{"KMSKey", "kms-1"},
+		{"ARN", "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/orders"},
+		{"KMS Key", "kms-1"},
 		{"Class", "STANDARD"},
-		{"RetentionDays", "30"},
-		{"CreatedTime", "2024-01-02 03:04:05"},
+		{"Retention (days)", "30"},
+		{"Created", "2024-01-02 03:04:05"},
 	})
 }
 
@@ -39,10 +39,10 @@ func TestLogGroupDetailsTable__MissingValuesShowZeroDefaults(t *testing.T) {
 
 	uitest.AssertDetailsRows(t, table.DetailsTable, []core.TableRow{
 		{"Name", ""},
-		{"Arn", ""},
-		{"KMSKey", ""},
+		{"ARN", ""},
+		{"KMS Key", ""},
 		{"Class", ""},
-		{"RetentionDays", "0"},
-		{"CreatedTime", "1970-01-01 00:00:00"},
+		{"Retention (days)", "Never expire"},
+		{"Created", ""},
 	})
 }

@@ -102,11 +102,11 @@ func TestDetailsTable__RefreshLoadsDescriptionOfSelectedTable(t *testing.T) {
 	uitest.AwaitDetailsRows(t, serviceCtx.App, table.DetailsTable, []core.TableRow{
 		{"Name", "orders"},
 		{"Status", "ACTIVE"},
-		{"Creation Date", "2024-01-02 03:04:05"},
+		{"Created", "2024-01-02 03:04:05"},
 		{"Item Count", "42"},
 		{"Billing Mode", "PROVISIONED"},
 		{"Delete Protection", "DISABLED"},
-		{"Arn", "arn:aws:dynamodb:us-east-1:123456789012:table/orders"},
+		{"ARN", "arn:aws:dynamodb:us-east-1:123456789012:table/orders"},
 		{"Partition Key", "id"},
 		{"Sort Key", "ts"},
 	})

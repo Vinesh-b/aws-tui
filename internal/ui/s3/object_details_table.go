@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"time"
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
@@ -39,14 +38,14 @@ func (inst *S3ObjectDetailsTable) populateS3ObjectDetailsTable() {
 		{"ETag", aws.ToString(inst.data.ETag)},
 		{"Content Type", aws.ToString(inst.data.ContentType)},
 		{"Content Encoding", aws.ToString(inst.data.ContentEncoding)},
-		{"Version Id", aws.ToString(inst.data.VersionId)},
+		{"Version ID", aws.ToString(inst.data.VersionId)},
 		{"SSE KMS Key", aws.ToString(inst.data.SSEKMSKeyId)},
-		{"LastModified", aws.ToTime(inst.data.LastModified).Format(time.DateTime)},
+		{"Last Modified", core.FormatTime(inst.data.LastModified)},
 	}
 
 	if len(inst.data.Metadata) > 0 {
 		tableData = append(tableData,
-			core.TableRow{"Metadata", "────╮"},
+			core.TableRow{"Metadata"},
 		)
 	}
 

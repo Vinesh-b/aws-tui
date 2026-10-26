@@ -26,10 +26,10 @@ func TestLogStreamDetailsTable__PopulatesFromLogStream(t *testing.T) {
 
 	uitest.AssertDetailsRows(t, table.DetailsTable, []core.TableRow{
 		{"Name", "2024/01/02/[$LATEST]abc"},
-		{"Arn", "arn:aws:logs:us-east-1:123456789012:log-group:g:log-stream:s"},
-		{"FirstEventTime", "2024-01-02 03:04:06.678"},
-		{"LastEventTime", "2024-01-02 03:04:07.678"},
-		{"LastIngestionTime", "2024-01-02 03:04:08.678"},
-		{"CreatedTime", "2024-01-02 03:04:05"},
+		{"ARN", "arn:aws:logs:us-east-1:123456789012:log-group:g:log-stream:s"},
+		{"First Event", "2024-01-02 03:04:06"},
+		{"Last Event", "2024-01-02 03:04:07"},
+		{"Last Ingestion", "2024-01-02 03:04:08"},
+		{"Created", "2024-01-02 03:04:05"},
 	})
 }

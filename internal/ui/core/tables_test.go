@@ -1071,3 +1071,41 @@ func TestDetailsTablePreview__HiddenWhenNarrow(t *testing.T) {
 		screen.Fini()
 	}
 }
+
+func TestDetailsTable__EmptyValuesShowPlaceholder(t *testing.T) {
+	var table = NewDetailsTable("details", newTestAppContext())
+
+	table.SetData([]TableRow{{"Description", ""}})
+	table.Select(0, 0)
+
+	if got := table.table.GetCell(0, detailsValueCol).Text; got != detailsPlaceholder {
+		t.Errorf("shown = %q, want %q", got, detailsPlaceholder)
+	}
+	if got := table.GetCellText(0, detailsValueCol); got != "" {
+		t.Errorf("value = %q, want it empty for copying", got)
+	}
+	if got := table.preview.GetText(); got != "" {
+		t.Errorf("preview = %q, want empty", got)
+	}
+}
+
+func TestDetailsTable__SingleCellRowsAreHeadings(t *testing.T) {
+	var table = NewDetailsTable("details", newTestAppContext())
+
+	var err = table.SetData([]TableRow{
+		{"Name", "orders"},
+		{"Dimensions"},
+		{"FunctionName", "orders"},
+	})
+
+	if err != nil {
+		t.Fatalf("Failed to set data: %v", err)
+	}
+	var heading = table.table.GetCell(1, 0)
+	if heading.Text != "Dimensions" || !heading.NotSelectable {
+		t.Errorf("heading = %q selectable %v, want an unselectable Dimensions", heading.Text, !heading.NotSelectable)
+	}
+	if got := table.table.GetCell(1, detailsValueCol).Text; got != "" {
+		t.Errorf("heading value = %q, want no placeholder", got)
+	}
+}

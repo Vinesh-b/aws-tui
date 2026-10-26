@@ -1,8 +1,6 @@
 package cloudformation
 
 import (
-	"time"
-
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
 
@@ -44,18 +42,14 @@ func NewStackDetailsTable(
 
 func (inst *StackDetailsTable) populateStackDetailsTable() {
 	var tableData []core.TableRow
-	var lastUpdated = "-"
-	if inst.data.LastUpdatedTime != nil {
-		lastUpdated = inst.data.LastUpdatedTime.Format(time.DateTime)
-	}
 	tableData = []core.TableRow{
 		{"Name", aws.ToString(inst.data.StackName)},
-		{"StackId", aws.ToString(inst.data.StackId)},
+		{"Stack ID", aws.ToString(inst.data.StackId)},
 		{"Description", aws.ToString(inst.data.TemplateDescription)},
 		{"Status", string(inst.data.StackStatus)},
-		{"StatusReason", aws.ToString(inst.data.StackStatusReason)},
-		{"CreationTime", aws.ToTime(inst.data.CreationTime).Format(time.DateTime)},
-		{"LastUpdated", lastUpdated},
+		{"Status Reason", aws.ToString(inst.data.StackStatusReason)},
+		{"Created", core.FormatTime(inst.data.CreationTime)},
+		{"Last Updated", core.FormatTime(inst.data.LastUpdatedTime)},
 	}
 
 	inst.SetData(tableData)

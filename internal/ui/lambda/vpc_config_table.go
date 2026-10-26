@@ -33,16 +33,16 @@ func (inst *LambdaVpcConfigTable) populateLambdaVpcConfigTable() {
 	if inst.data.VpcConfig != nil {
 		var config = inst.data.VpcConfig
 		tableData = []core.TableRow{
-			{"VPC Id", aws.ToString(config.VpcId)},
+			{"VPC ID", aws.ToString(config.VpcId)},
 		}
 		for _, id := range config.SubnetIds {
 			tableData = append(tableData, core.TableRow{
-				"Subnet Id", id,
+				"Subnet ID", id,
 			})
 		}
 		for _, id := range config.SecurityGroupIds {
 			tableData = append(tableData, core.TableRow{
-				"Security Group Id", id,
+				"Security Group ID", id,
 			})
 		}
 	}

@@ -38,9 +38,9 @@ func TestObjectDetailsTable__ShowsBaseFields(t *testing.T) {
 		{"ETag", "etag-1"},
 		{"Content Type", "text/plain"},
 		{"Content Encoding", "gzip"},
-		{"Version Id", "v1"},
+		{"Version ID", "v1"},
 		{"SSE KMS Key", "kms-key"},
-		{"LastModified", "2024-01-02 03:04:05"},
+		{"Last Modified", "2024-01-02 03:04:05"},
 	})
 }
 
@@ -55,10 +55,10 @@ func TestObjectDetailsTable__ListsMetadataSortedByKey(t *testing.T) {
 		{"ETag", "etag-1"},
 		{"Content Type", "text/plain"},
 		{"Content Encoding", ""},
-		{"Version Id", ""},
+		{"Version ID", ""},
 		{"SSE KMS Key", ""},
-		{"LastModified", "2024-01-02 03:04:05"},
-		{"Metadata", "────╮"},
+		{"Last Modified", "2024-01-02 03:04:05"},
+		{"Metadata"},
 		{"", "env: prod"},
 		{"", "owner: team-a"},
 	})
@@ -76,9 +76,9 @@ func TestObjectDetailsTable__ShowsFirstAvailableChecksumOnly(t *testing.T) {
 		{"ETag", "etag-1"},
 		{"Content Type", "text/plain"},
 		{"Content Encoding", ""},
-		{"Version Id", ""},
+		{"Version ID", ""},
 		{"SSE KMS Key", ""},
-		{"LastModified", "2024-01-02 03:04:05"},
+		{"Last Modified", "2024-01-02 03:04:05"},
 		{"Checksum", "sha1-value"},
 	})
 }

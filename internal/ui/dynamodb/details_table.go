@@ -2,7 +2,6 @@ package dynamodb
 
 import (
 	"fmt"
-	"time"
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
@@ -62,11 +61,11 @@ func (inst *DynamoDBDetailsTable) populateDetailsTable() {
 		tableData = []core.TableRow{
 			{"Name", aws.ToString(inst.data.TableName)},
 			{"Status", fmt.Sprintf("%s", inst.data.TableStatus)},
-			{"Creation Date", aws.ToTime(inst.data.CreationDateTime).Format(time.DateTime)},
+			{"Created", core.FormatTime(inst.data.CreationDateTime)},
 			{"Item Count", fmt.Sprintf("%d", aws.ToInt64(inst.data.ItemCount))},
 			{"Billing Mode", billingMode},
 			{"Delete Protection", deleteProtection},
-			{"Arn", aws.ToString(inst.data.TableArn)},
+			{"ARN", aws.ToString(inst.data.TableArn)},
 		}
 
 		var keyData = []core.TableRow{}

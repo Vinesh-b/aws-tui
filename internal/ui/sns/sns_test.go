@@ -94,7 +94,7 @@ func TestTopicDetailsTable__EmptyTopicShowsBlankValues(t *testing.T) {
 	uitest.AssertDetailsRows(t, table.DetailsTable, []core.TableRow{
 		{"Name", ""},
 		{"Type", "Standard"},
-		{"Arn", ""},
+		{"ARN", ""},
 		{"Display Name", ""},
 		{"Owner", ""},
 		{"Subscriptions Confirmed", ""},
@@ -116,7 +116,7 @@ func TestTopicDetailsTable__PopulatesFromAttributes(t *testing.T) {
 	uitest.AssertDetailsRows(t, table.DetailsTable, []core.TableRow{
 		{"Name", "orders.fifo"},
 		{"Type", "FIFO"},
-		{"Arn", topicArn("orders.fifo")},
+		{"ARN", topicArn("orders.fifo")},
 		{"Display Name", "Orders"},
 		{"Owner", "123456789012"},
 		{"Subscriptions Confirmed", "3"},

@@ -1,8 +1,6 @@
 package sfn
 
 import (
-	"time"
-
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
 
@@ -45,24 +43,17 @@ func NewSfnExecutionSummaryTable(
 	return table
 }
 
-func formatOptionalTime(t *time.Time) string {
-	// Time can be nill for running executions
-	if t == nil {
-		return ""
-	}
-	return t.Format(time.DateTime)
-}
-
 func (inst *SfnExecutionSummaryTable) populateTable() {
 	var tableData []core.TableRow
 	if inst.data != nil {
 		tableData = []core.TableRow{
 			{"Name", aws.ToString(inst.data.Name)},
-			{"Execution Arn", aws.ToString(inst.data.ExecutionArn)},
-			{"StateMachine Arn", aws.ToString(inst.data.StateMachineArn)},
+			{"Execution ARN", aws.ToString(inst.data.ExecutionArn)},
+			{"State Machine ARN", aws.ToString(inst.data.StateMachineArn)},
 			{"Status", string(inst.data.Status)},
-			{"Start Date", formatOptionalTime(inst.data.StartDate)},
-			{"Stop Date", formatOptionalTime(inst.data.StopDate)},
+			// The stop time is unset for running executions
+			{"Started", core.FormatTime(inst.data.StartDate)},
+			{"Stopped", core.FormatTime(inst.data.StopDate)},
 		}
 	}
 
