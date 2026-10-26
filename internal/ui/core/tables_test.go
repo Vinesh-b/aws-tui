@@ -943,3 +943,131 @@ func TestSetData__SelectionChangedHandlerSeesPrivateDataOnFirstLoad(t *testing.T
 		t.Fatalf("Expected the handler to see the private data of the first row but got %q", seen)
 	}
 }
+
+func newPreviewDetailsTable(t *testing.T) *DetailsTable {
+	t.Helper()
+	var table = NewDetailsTable("details", newTestAppContext())
+	var err = table.SetData([]TableRow{
+		{"Name", "orders"},
+		{"Redrive Policy", `{"maxReceiveCount":"5","deadLetterTargetArn":"arn:aws:sqs:dlq"}`},
+		{"Count", "42"},
+	})
+	if err != nil {
+		t.Fatalf("Failed to set data: %v", err)
+	}
+	return table
+}
+
+func TestDetailsTablePreview__ShowsSelectedRowValue(t *testing.T) {
+	var table = newPreviewDetailsTable(t)
+
+	table.Select(0, 0)
+
+	if got := table.preview.GetText(); got != "orders" {
+		t.Errorf("preview = %q, want %q", got, "orders")
+	}
+	if got := table.preview.GetTitle(); got != "Name" {
+		t.Errorf("preview title = %q, want %q", got, "Name")
+	}
+	if table.preview.JsonHighlighting() {
+		t.Error("plain value should not be highlighted as json")
+	}
+}
+
+func TestDetailsTablePreview__FormatsJsonValues(t *testing.T) {
+	var table = newPreviewDetailsTable(t)
+
+	table.Select(1, 0)
+
+	var want = "{\n  \"deadLetterTargetArn\": \"arn:aws:sqs:dlq\",\n  \"maxReceiveCount\": \"5\"\n}"
+	if got := table.preview.GetText(); got != want {
+		t.Errorf("preview = %q, want %q", got, want)
+	}
+	if !table.preview.JsonHighlighting() {
+		t.Error("json value should be highlighted")
+	}
+}
+
+func TestDetailsTablePreview__JsonScalarsAreShownAsTheyAre(t *testing.T) {
+	var table = newPreviewDetailsTable(t)
+
+	table.Select(2, 0)
+
+	if got := table.preview.GetText(); got != "42" {
+		t.Errorf("preview = %q, want %q", got, "42")
+	}
+	if table.preview.JsonHighlighting() {
+		t.Error("a number should not be highlighted as json")
+	}
+}
+
+func TestDetailsTablePreview__NewDataRefreshesPreview(t *testing.T) {
+	var table = newPreviewDetailsTable(t)
+	table.Select(0, 0)
+
+	table.SetData([]TableRow{{"Name", "billing"}})
+
+	if got := table.preview.GetText(); got != "billing" {
+		t.Errorf("preview = %q, want %q", got, "billing")
+	}
+
+	table.SetData(nil)
+
+	if got := table.preview.GetText(); got != "" {
+		t.Errorf("preview = %q, want it empty without data", got)
+	}
+}
+
+func TestDetailsTablePreview__SelectionHandlerStillRuns(t *testing.T) {
+	var table = newPreviewDetailsTable(t)
+	var selected = -1
+	table.SetSelectionChangedFunc(func(row, column int) { selected = row })
+
+	table.Select(2, 0)
+
+	if selected != 2 {
+		t.Errorf("handler row = %d, want 2", selected)
+	}
+	if got := table.preview.GetText(); got != "42" {
+		t.Errorf("preview = %q, want %q", got, "42")
+	}
+}
+
+func TestDetailsTable__SelectsWholeRows(t *testing.T) {
+	var table = newPreviewDetailsTable(t)
+
+	var rows, cols = table.table.GetSelectable()
+
+	if !rows || cols {
+		t.Errorf("selectable rows, cols = %v, %v, want true, false", rows, cols)
+	}
+}
+
+func TestDetailsTablePreview__HiddenWhenNarrow(t *testing.T) {
+	var tests = []struct {
+		width       int
+		wantPreview bool
+	}{
+		{80, false},
+		{detailsPreviewMinWidth + 3, false},
+		{detailsPreviewMinWidth + 4, true},
+	}
+
+	for _, tt := range tests {
+		var screen = tcell.NewSimulationScreen("UTF-8")
+		if err := screen.Init(); err != nil {
+			t.Fatalf("failed to init screen: %v", err)
+		}
+		screen.SetSize(tt.width, 10)
+		var table = newPreviewDetailsTable(t)
+		table.SetRect(0, 0, tt.width, 10)
+
+		table.Draw(screen)
+
+		var _, _, previewWidth, _ = table.preview.GetRect()
+		if got := previewWidth > 0; got != tt.wantPreview {
+			t.Errorf("width %d: preview shown = %v (width %d), want %v", tt.width, got, previewWidth, tt.wantPreview)
+		}
+		screen.Fini()
+	}
+}

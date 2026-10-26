@@ -4,6 +4,7 @@ import (
 	"aws-tui/internal/errors"
 	"aws-tui/internal/utils"
 	"encoding/csv"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -601,10 +602,20 @@ func (inst *SelectableTable[T]) ScrollToBeginning() *SelectableTable[T] {
 	return inst
 }
 
+// detailsValueCol is the column of a details row that holds the value
+const detailsValueCol = 1
+
+// detailsPreviewMinWidth is the narrowest the inside of the details can be and
+// still show the preview, below it the table takes all of the width.
+const detailsPreviewMinWidth = 100
+
+const detailsPreviewProportion = 2
+
 type DetailsTable struct {
 	*tview.Flex
 	appCtx               *AppContext
 	table                *tview.Table
+	preview              *SearchableTextView
 	title                string
 	titleExtra           string
 	data                 []TableRow
@@ -614,7 +625,7 @@ type DetailsTable struct {
 func NewDetailsTable(title string, appCtx *AppContext) *DetailsTable {
 	var table = tview.NewTable().
 		SetBorders(false).
-		SetSelectable(true, true).
+		SetSelectable(true, false).
 		SetSelectedStyle(
 			tcell.Style{}.Background(appCtx.Theme.MoreContrastBackgroundColor),
 		)
@@ -623,6 +634,7 @@ func NewDetailsTable(title string, appCtx *AppContext) *DetailsTable {
 		Flex:                 tview.NewFlex(),
 		appCtx:               appCtx,
 		table:                table,
+		preview:              NewSearchableTextView("Value", appCtx),
 		title:                title,
 		titleExtra:           "",
 		data:                 nil,
@@ -634,11 +646,64 @@ func NewDetailsTable(title string, appCtx *AppContext) *DetailsTable {
 		SetBorderPadding(0, 0, 1, 1).
 		SetBorder(true)
 
-	view.AddItem(table, 0, 1, true)
+	// The preview shows the whole of values too long or nested for the table
+	view.SetDirection(tview.FlexColumn).
+		AddItem(table, 0, 3, true).
+		AddItem(view.preview, 0, detailsPreviewProportion, false)
 
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
+	view.SetSelectionChangedFunc(func(row, column int) {})
 
 	return view
+}
+
+func (inst *DetailsTable) Draw(screen tcell.Screen) {
+	var _, _, width, _ = inst.GetInnerRect()
+	var proportion = detailsPreviewProportion
+	if width < detailsPreviewMinWidth {
+		proportion = 0
+	}
+	inst.ResizeItem(inst.preview, 0, proportion)
+	inst.Flex.Draw(screen)
+}
+
+// showPreview shows the value of the row in the preview, with json values
+// formatted.
+func (inst *DetailsTable) showPreview(row int) {
+	if row < 0 || row >= inst.table.GetRowCount() {
+		inst.preview.SetTitle("Value")
+		inst.preview.SetJsonHighlighting(false)
+		inst.preview.SetText("", false)
+		return
+	}
+
+	var label = inst.GetCellText(row, 0)
+	var value = inst.GetCellText(row, detailsValueCol)
+	var formatted, isJson = formatJsonValue(value)
+
+	inst.preview.SetTitle(label)
+	// Highlighting turns wrapping off, which plain values need to be read whole
+	inst.preview.SetJsonHighlighting(isJson)
+	inst.preview.SetText(formatted, false)
+}
+
+// formatJsonValue indents values that are json objects or arrays. Other values
+// are returned as they are.
+func formatJsonValue(value string) (string, bool) {
+	var parsed any
+	if err := json.Unmarshal([]byte(value), &parsed); err != nil {
+		return value, false
+	}
+
+	switch parsed.(type) {
+	case map[string]any, []any:
+		var indented, err = json.MarshalIndent(parsed, "", "  ")
+		if err != nil {
+			return value, false
+		}
+		return string(indented), true
+	}
+	return value, false
 }
 
 func (inst *DetailsTable) SetData(data []TableRow) error {
@@ -671,6 +736,9 @@ func (inst *DetailsTable) SetData(data []TableRow) error {
 		}
 	}
 
+	var row, _ = inst.table.GetSelection()
+	inst.showPreview(row)
+
 	return nil
 }
 
@@ -678,8 +746,8 @@ func (inst *DetailsTable) SetInputCapture(capture func(event *tcell.EventKey) *t
 	inst.table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case APP_KEY_BINDINGS.TextCopy:
-			var row, col = inst.table.GetSelection()
-			var text = inst.GetCellText(row, col)
+			var row, _ = inst.table.GetSelection()
+			var text = inst.GetCellText(row, detailsValueCol)
 			clipboard.WriteAll(text)
 			return nil
 		}
@@ -690,7 +758,10 @@ func (inst *DetailsTable) SetInputCapture(capture func(event *tcell.EventKey) *t
 func (inst *DetailsTable) SetSelectionChangedFunc(
 	handler func(row int, column int),
 ) *DetailsTable {
-	inst.table.SetSelectionChangedFunc(handler)
+	inst.table.SetSelectionChangedFunc(func(row, column int) {
+		inst.showPreview(row)
+		handler(row, column)
+	})
 	return inst
 }
 
