@@ -3,8 +3,11 @@ package lambda
 import (
 	"context"
 	"errors"
+	"slices"
+	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
@@ -18,6 +21,45 @@ type fakeLambdaApi struct {
 	functions []types.FunctionConfiguration
 	err       error
 	listCalls atomic.Int32
+
+	// mappings, policies, versions and aliases are by lambda ARN, and delays
+	// hold them back
+	mappings  map[string][]types.EventSourceMappingConfiguration
+	versions  map[string][]types.FunctionConfiguration
+	aliases   map[string][]types.AliasConfiguration
+	policies  map[string]string
+	policyErr error
+	delays    map[string]time.Duration
+
+	mu    sync.Mutex
+	asked []string
+}
+
+// askedFor records the calls made for a lambda, as "<call> <arn>"
+func (f *fakeLambdaApi) askedFor(call string, lambdaArn string) {
+	f.mu.Lock()
+	f.asked = append(f.asked, call+" "+lambdaArn)
+	f.mu.Unlock()
+}
+
+func (f *fakeLambdaApi) wasAsked(call string, lambdaArn string) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Contains(f.asked, call+" "+lambdaArn)
+}
+
+func (f *fakeLambdaApi) ListEventSourceMappings(
+	ctx context.Context, lambdaArn string,
+) ([]types.EventSourceMappingConfiguration, error) {
+	f.askedFor("ListEventSourceMappings", lambdaArn)
+	time.Sleep(f.delays[lambdaArn])
+	return f.mappings[lambdaArn], f.err
+}
+
+func (f *fakeLambdaApi) GetPolicy(ctx context.Context, lambdaArn string) (string, error) {
+	f.askedFor("GetPolicy", lambdaArn)
+	time.Sleep(f.delays[lambdaArn])
+	return f.policies[lambdaArn], f.policyErr
 }
 
 func (f *fakeLambdaApi) ListLambdas(ctx context.Context, force bool) ([]types.FunctionConfiguration, error) {
@@ -72,4 +114,20 @@ func TestListTable__FilterByNameShowsMatchingFunctions(t *testing.T) {
 	uitest.Eventually(t, table.serviceCtx.App, func() bool {
 		return table.GetTable().GetRowCount() == 2 && table.GetCellText(1, 0) == "billing"
 	})
+}
+
+func (f *fakeLambdaApi) ListTags(ctx context.Context, lambdaArn string) (map[string]string, error) {
+	return nil, nil
+}
+
+func (f *fakeLambdaApi) ListVersions(ctx context.Context, lambdaArn string) ([]types.FunctionConfiguration, error) {
+	f.askedFor("ListVersions", lambdaArn)
+	time.Sleep(f.delays[lambdaArn])
+	return f.versions[lambdaArn], f.err
+}
+
+func (f *fakeLambdaApi) ListAliases(ctx context.Context, lambdaArn string) ([]types.AliasConfiguration, error) {
+	f.askedFor("ListAliases", lambdaArn)
+	time.Sleep(f.delays[lambdaArn])
+	return f.aliases[lambdaArn], f.err
 }

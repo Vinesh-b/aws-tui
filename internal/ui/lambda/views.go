@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
+	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -31,6 +32,10 @@ const (
 	LambdaTabLogSreams LambdaTabName = "Log Streams"
 	LambdaTabEnvVars   LambdaTabName = "Environment Vars"
 	LambdaTabVpcConfig LambdaTabName = "VPC Config"
+	LambdaTabTriggers  LambdaTabName = "Triggers"
+	LambdaTabPerms     LambdaTabName = "Permissions"
+	LambdaTabVersions  LambdaTabName = "Versions"
+	LambdaTabAliases   LambdaTabName = "Aliases"
 	LambdaTabTags      LambdaTabName = "Tags"
 	LambdaTabInvoke    LambdaTabName = "Invoke"
 	LambdaTabMetrics   LambdaTabName = "Metrics"
@@ -47,6 +52,10 @@ type LambdaDetailsPageView struct {
 	LogStreamsTable    *cloudwatch.LogStreamsTable
 	LambdaInvokeView   *LambdaInvokePageView
 	LambdaMetricsView  *LambdaMetricsPageView
+	TriggersView       *LambdaItemsView[eventSourceMapping]
+	PermissionsView    *LambdaPermissionsView
+	VersionsView       *LambdaItemsView[types.FunctionConfiguration]
+	AliasesView        *LambdaItemsView[types.AliasConfiguration]
 	serviceCtx         *core.ServiceContext[awsapi.LambdaApi]
 }
 
@@ -78,11 +87,20 @@ func NewLambdaDetailsPageView(
 			}
 		})
 
+	var triggersView = NewLambdaTriggersView(serviceCtx)
+	var permissionsView = NewLambdaPermissionsView(serviceCtx)
+	var versionsView = NewLambdaVersionsView(serviceCtx)
+	var aliasesView = NewLambdaAliasesView(serviceCtx)
+
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab(LambdaTabDetails, lambdaDetailsTable, 0, 1, true).
 		AddTab(LambdaTabLogSreams, logStreamsTable, 0, 1, true).
 		AddTab(LambdaTabEnvVars, lambdaEnvVarsTable, 0, 1, true).
 		AddTab(LambdaTabVpcConfig, lambdaVpcConfTable, 0, 1, true).
+		AddTab(LambdaTabTriggers, triggersView, 0, 1, true).
+		AddTab(LambdaTabPerms, permissionsView, 0, 1, true).
+		AddTab(LambdaTabVersions, versionsView, 0, 1, true).
+		AddTab(LambdaTabAliases, aliasesView, 0, 1, true).
 		AddTab(LambdaTabTags, lambdaTagsTable, 0, 1, true).
 		AddTab(LambdaTabInvoke, lambdaInvokeView, 0, 1, true).
 		AddTab(LambdaTabMetrics, lambdaMetricsView, 0, 1, true)
@@ -114,6 +132,10 @@ func NewLambdaDetailsPageView(
 		LogStreamsTable:    logStreamsTable,
 		LambdaInvokeView:   lambdaInvokeView,
 		LambdaMetricsView:  lambdaMetricsView,
+		TriggersView:       triggersView,
+		PermissionsView:    permissionsView,
+		VersionsView:       versionsView,
+		AliasesView:        aliasesView,
 		serviceCtx:         serviceCtx,
 	}
 
@@ -126,6 +148,10 @@ func NewLambdaDetailsPageView(
 	lambdaEnvVarsTable.ErrorMessageCallback = errorHandler
 	lambdaVpcConfTable.ErrorMessageCallback = errorHandler
 	lambdaTagsTable.ErrorMessageCallback = errorHandler
+	triggersView.SetErrorMessageCallback(errorHandler)
+	permissionsView.ErrorMessageCallback = errorHandler
+	versionsView.SetErrorMessageCallback(errorHandler)
+	aliasesView.SetErrorMessageCallback(errorHandler)
 
 	view.InitViewNavigation(
 		[][]core.View{
@@ -332,7 +358,12 @@ func NewLambdaHomeView(
 
 		var selectedLambda = lambdasListTable.GetSelectedLambda()
 		var lambdaName = aws.ToString(selectedLambda.FunctionName)
+		var lambdaArn = aws.ToString(selectedLambda.FunctionArn)
 		lambdaTagsTable.RefreshDetails()
+		lambdasDetailsView.TriggersView.Refresh(lambdaArn)
+		lambdasDetailsView.PermissionsView.Refresh(lambdaArn)
+		lambdasDetailsView.VersionsView.Refresh(lambdaArn)
+		lambdasDetailsView.AliasesView.Refresh(lambdaArn)
 		lambdaInvokeView.SetSelectedLambda(lambdaName)
 		lambdaMetricsView.SetSelectedLambda(lambdaName)
 	}

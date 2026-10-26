@@ -1420,3 +1420,142 @@ func TestIamUserAndPolicyMissingArgumentsAreRejected(t *testing.T) {
 		t.Errorf("calls = %d, want none for missing arguments", fake.calls())
 	}
 }
+
+func TestLambdaListEventSourceMappingsSortedAcrossPages(t *testing.T) {
+	var fake = useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+		if call == 1 {
+			return response(200, "application/json",
+				`{"EventSourceMappings":[{"EventSourceArn":"arn:aws:sqs:us-east-1:1:zeta"}],"NextMarker":"m"}`)
+		}
+		return response(200, "application/json",
+			`{"EventSourceMappings":[{"EventSourceArn":"arn:aws:sqs:us-east-1:1:alpha"}]}`)
+	})
+	var requests []*http.Request
+	var original = fake.handler
+	fake.handler = func(call int, req *http.Request, body string) *http.Response {
+		requests = append(requests, req)
+		return original(call, req, body)
+	}
+
+	var mappings, err = NewLambdaApi(testLogger()).ListEventSourceMappings(
+		context.Background(), "arn:aws:lambda:us-east-1:1:function:orders",
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(mappings) != 2 || !strings.HasSuffix(aws.ToString(mappings[0].EventSourceArn), ":alpha") {
+		t.Fatalf("mappings = %v, want alpha then zeta", mappings)
+	}
+	if got := requests[0].URL.Query().Get("FunctionName"); got != "arn:aws:lambda:us-east-1:1:function:orders" {
+		t.Errorf("FunctionName = %q, want the lambda", got)
+	}
+}
+
+func TestLambdaGetPolicy(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "application/json", `{"Policy":"{\"Version\":\"2012-10-17\"}","RevisionId":"r1"}`)
+	})
+
+	var policy, err = NewLambdaApi(testLogger()).GetPolicy(context.Background(), "arn:aws:lambda:us-east-1:1:function:orders")
+
+	if err != nil || policy != `{"Version":"2012-10-17"}` {
+		t.Errorf("policy = %q, %v", policy, err)
+	}
+}
+
+func lambdaErrorResponse(status int, errorType string) *http.Response {
+	var resp = response(status, "application/json", `{"Type":"User","Message":"`+errorType+`"}`)
+	resp.Header.Set("X-Amzn-ErrorType", errorType)
+	return resp
+}
+
+func TestLambdaGetPolicyOfLambdaWithoutOneIsEmpty(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return lambdaErrorResponse(404, "ResourceNotFoundException")
+	})
+
+	var policy, err = NewLambdaApi(testLogger()).GetPolicy(context.Background(), "arn:aws:lambda:us-east-1:1:function:orders")
+
+	if err != nil || policy != "" {
+		t.Errorf("policy = %q, %v, want empty without an error", policy, err)
+	}
+}
+
+func TestLambdaGetPolicyReportsOtherErrors(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return lambdaErrorResponse(403, "AccessDeniedException")
+	})
+
+	var _, err = NewLambdaApi(testLogger()).GetPolicy(context.Background(), "arn:aws:lambda:us-east-1:1:function:orders")
+
+	if err == nil || !strings.Contains(err.Error(), "AccessDeniedException") {
+		t.Errorf("error = %v, want the service error", err)
+	}
+}
+
+func TestLambdaListEventSourceMappingsRejectsMissingLambda(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "application/json", `{}`)
+	})
+
+	var _, err = NewLambdaApi(testLogger()).ListEventSourceMappings(context.Background(), "")
+
+	if err == nil || err.Error() != "lambda ARN not set" || fake.calls() != 0 {
+		t.Errorf("error = %v, calls = %d", err, fake.calls())
+	}
+}
+
+func TestLambdaListVersionsGivesLatestThenNewestFirst(t *testing.T) {
+	useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+		if call == 1 {
+			return response(200, "application/json",
+				`{"Versions":[{"Version":"$LATEST"},{"Version":"1"},{"Version":"9"}],"NextMarker":"m"}`)
+		}
+		return response(200, "application/json", `{"Versions":[{"Version":"10"},{"Version":"2"}]}`)
+	})
+
+	var versions, err = NewLambdaApi(testLogger()).ListVersions(context.Background(), "arn:aws:lambda:us-east-1:1:function:orders")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var got []string
+	for _, version := range versions {
+		got = append(got, aws.ToString(version.Version))
+	}
+	if strings.Join(got, ",") != "$LATEST,10,9,2,1" {
+		t.Errorf("versions = %v, want $LATEST then newest first", got)
+	}
+}
+
+func TestLambdaListAliasesSortedByName(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "application/json", `{"Aliases":[{"Name":"staging"},{"Name":"prod"}]}`)
+	})
+
+	var aliases, err = NewLambdaApi(testLogger()).ListAliases(context.Background(), "arn:aws:lambda:us-east-1:1:function:orders")
+
+	if err != nil || len(aliases) != 2 || aws.ToString(aliases[0].Name) != "prod" {
+		t.Errorf("aliases = %v, %v, want prod then staging", aliases, err)
+	}
+}
+
+func TestLambdaVersionsAndAliasesRejectMissingLambda(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "application/json", `{}`)
+	})
+	var api = NewLambdaApi(testLogger())
+
+	var _, versionsErr = api.ListVersions(context.Background(), "")
+	var _, aliasesErr = api.ListAliases(context.Background(), "")
+
+	for _, err := range []error{versionsErr, aliasesErr} {
+		if err == nil || err.Error() != "lambda ARN not set" {
+			t.Errorf("error = %v, want lambda ARN not set", err)
+		}
+	}
+	if fake.calls() != 0 {
+		t.Errorf("calls = %d, want none", fake.calls())
+	}
+}
