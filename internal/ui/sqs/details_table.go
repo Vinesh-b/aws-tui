@@ -71,6 +71,7 @@ func (inst *QueueDetailsTable) populateQueueDetailsTable() {
 	tableData = append(tableData, core.DetailsSection("Configuration", config...)...)
 
 	inst.SetTitleExtra(queueName(inst.queueUrl))
+	inst.SetRawData(inst.attributes)
 	inst.SetData(tableData)
 	inst.Select(0, 0)
 	inst.ScrollToBeginning()

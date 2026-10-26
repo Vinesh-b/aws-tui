@@ -1158,3 +1158,142 @@ func TestDetailsTable__MovingSelectionSkipsHeadings(t *testing.T) {
 		t.Errorf("row after moving up = %d, want 0 past the heading", row)
 	}
 }
+
+func TestFormatRawJson__DropsUnsetFields(t *testing.T) {
+	type nested struct {
+		Name  *string
+		Empty map[string]string
+	}
+	type data struct {
+		Name     string
+		Missing  *string
+		Status   string
+		Count    int
+		Enabled  bool
+		Items    []string
+		Nested   nested
+		Children []nested
+	}
+	var name = "orders"
+
+	var got, err = formatRawJson(data{
+		Name:     name,
+		Items:    []string{},
+		Nested:   nested{Empty: map[string]string{}},
+		Children: []nested{{Name: &name}},
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var want = `{
+  "Children": [
+    {
+      "Name": "orders"
+    }
+  ],
+  "Count": 0,
+  "Enabled": false,
+  "Items": [],
+  "Name": "orders"
+}`
+	if got != want {
+		t.Errorf("json =\n%s\nwant\n%s", got, want)
+	}
+}
+
+func TestFormatRawJson__ReportsDataThatCantBeEncoded(t *testing.T) {
+	var _, err = formatRawJson(map[string]any{"callback": func() {}})
+
+	if err == nil {
+		t.Error("expected an error for a func value")
+	}
+}
+
+func pressRawViewKey(table *DetailsTable) {
+	table.InputHandler()(
+		tcell.NewEventKey(tcell.KeyRune, APP_KEY_BINDINGS.ToggleRawView, tcell.ModNone),
+		func(p tview.Primitive) { table.appCtx.App.SetFocus(p) },
+	)
+}
+
+func newRawDetailsTable(t *testing.T) *DetailsTable {
+	t.Helper()
+	var table = NewDetailsTable("Queue Details", newTestAppContext())
+	table.SetRawData(map[string]string{"QueueArn": "arn:aws:sqs:orders"})
+	table.SetData([]TableRow{{"ARN", "arn:aws:sqs:orders"}})
+	table.appCtx.App.SetFocus(table)
+	return table
+}
+
+func TestDetailsTableRawView__KeyTogglesBetweenTableAndJson(t *testing.T) {
+	var table = newRawDetailsTable(t)
+
+	pressRawViewKey(table)
+
+	if !table.showingRaw {
+		t.Fatal("raw view not shown")
+	}
+	if got := table.raw.GetText(); got != "{\n  \"QueueArn\": \"arn:aws:sqs:orders\"\n}" {
+		t.Errorf("raw text = %q", got)
+	}
+	if got := table.raw.GetTitle(); got != "Queue Details JSON" {
+		t.Errorf("raw title = %q", got)
+	}
+	if !table.raw.HasFocus() {
+		t.Error("raw view should have focus")
+	}
+
+	pressRawViewKey(table)
+
+	if table.showingRaw {
+		t.Fatal("raw view still shown")
+	}
+	if table.appCtx.App.GetFocus() != table.table {
+		t.Error("table should have focus again")
+	}
+}
+
+func TestDetailsTableRawView__NothingWithoutRawData(t *testing.T) {
+	var table = NewDetailsTable("Tags", newTestAppContext())
+	table.SetData([]TableRow{{"env", "prod"}})
+	table.appCtx.App.SetFocus(table)
+
+	pressRawViewKey(table)
+
+	if table.showingRaw {
+		t.Error("raw view shown without raw data")
+	}
+}
+
+func TestDetailsTableRawView__NewDataUpdatesShownJson(t *testing.T) {
+	var table = newRawDetailsTable(t)
+	pressRawViewKey(table)
+
+	table.SetRawData(map[string]string{"QueueArn": "arn:aws:sqs:billing"})
+
+	if got := table.raw.GetText(); got != "{\n  \"QueueArn\": \"arn:aws:sqs:billing\"\n}" {
+		t.Errorf("raw text = %q", got)
+	}
+}
+
+func TestDetailsTableRawView__KeyIsTypedIntoSearch(t *testing.T) {
+	var table = newRawDetailsTable(t)
+	pressRawViewKey(table)
+	table.InputHandler()(
+		tcell.NewEventKey(tcell.KeyRune, APP_KEY_BINDINGS.Find, tcell.ModNone),
+		func(p tview.Primitive) { table.appCtx.App.SetFocus(p) },
+	)
+	if table.appCtx.App.GetFocus() != table.raw.searchInput {
+		t.Fatalf("focus = %T, want the search input", table.appCtx.App.GetFocus())
+	}
+
+	pressRawViewKey(table)
+
+	if !table.showingRaw {
+		t.Error("raw view closed while typing a search")
+	}
+	if got := table.raw.GetSearchText(); got != string(APP_KEY_BINDINGS.ToggleRawView) {
+		t.Errorf("search = %q, want the key typed into it", got)
+	}
+}

@@ -616,6 +616,9 @@ type DetailsTable struct {
 	appCtx               *AppContext
 	table                *tview.Table
 	preview              *SearchableTextView
+	raw                  *SearchableTextView
+	rawData              any
+	showingRaw           bool
 	title                string
 	titleExtra           string
 	data                 []TableRow
@@ -635,6 +638,7 @@ func NewDetailsTable(title string, appCtx *AppContext) *DetailsTable {
 		appCtx:               appCtx,
 		table:                table,
 		preview:              NewSearchableTextView("Value", appCtx),
+		raw:                  NewSearchableTextView("", appCtx),
 		title:                title,
 		titleExtra:           "",
 		data:                 nil,
@@ -646,15 +650,124 @@ func NewDetailsTable(title string, appCtx *AppContext) *DetailsTable {
 		SetBorderPadding(0, 0, 1, 1).
 		SetBorder(true)
 
-	// The preview shows the whole of values too long or nested for the table
-	view.SetDirection(tview.FlexColumn).
-		AddItem(table, 0, 3, true).
-		AddItem(view.preview, 0, detailsPreviewProportion, false)
+	view.SetDirection(tview.FlexColumn)
+	view.showTableView()
 
+	// Services capture the keys of the table, so the raw view key is taken
+	// before the event reaches it.
+	view.Flex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyRune && event.Rune() == APP_KEY_BINDINGS.ToggleRawView && view.canToggleRawView() {
+			view.toggleRawView()
+			return nil
+		}
+		return event
+	})
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
 	view.SetSelectionChangedFunc(func(row, column int) {})
 
 	return view
+}
+
+func (inst *DetailsTable) showTableView() {
+	// The preview shows the whole of values too long or nested for the table
+	inst.Flex.Clear().
+		AddItem(inst.table, 0, 3, true).
+		AddItem(inst.preview, 0, detailsPreviewProportion, false)
+}
+
+// SetRawData sets what the raw view shows as json, which is usually the api
+// response the rows are taken from. Without raw data there is no raw view.
+func (inst *DetailsTable) SetRawData(data any) {
+	inst.rawData = data
+	if inst.showingRaw {
+		inst.showRawData()
+	}
+}
+
+// canToggleRawView is false when typing elsewhere, such as in a search, so the
+// key is only taken from the table or the raw text.
+func (inst *DetailsTable) canToggleRawView() bool {
+	if inst.rawData == nil && !inst.showingRaw {
+		return false
+	}
+	var focused = inst.appCtx.App.GetFocus()
+	return focused == inst.table || focused == inst.raw.syntaxArea
+}
+
+func (inst *DetailsTable) toggleRawView() {
+	inst.showingRaw = !inst.showingRaw
+	if inst.showingRaw {
+		inst.showRawData()
+		inst.Flex.Clear().AddItem(inst.raw, 0, 1, true)
+		inst.appCtx.App.SetFocus(inst.raw)
+		return
+	}
+
+	inst.showTableView()
+	inst.appCtx.App.SetFocus(inst.table)
+}
+
+func (inst *DetailsTable) showRawData() {
+	inst.raw.SetTitle(inst.GetTitle() + " JSON")
+	var text, err = formatRawJson(inst.rawData)
+	if err != nil {
+		inst.raw.SetJsonHighlighting(false)
+		inst.raw.SetText(err.Error(), false)
+		return
+	}
+	inst.raw.SetJsonHighlighting(true)
+	inst.raw.SetText(text, false)
+}
+
+// formatRawJson indents the data as json without the unset fields, which api
+// types have a lot of.
+func formatRawJson(data any) (string, error) {
+	var encoded, err = json.Marshal(data)
+	if err != nil {
+		return "", err
+	}
+
+	var parsed any
+	if err = json.Unmarshal(encoded, &parsed); err != nil {
+		return "", err
+	}
+
+	var indented []byte
+	indented, err = json.MarshalIndent(dropUnsetJson(parsed), "", "  ")
+	return string(indented), err
+}
+
+// dropUnsetJson removes the fields of objects that are null, empty strings or
+// empty objects. Api types give unset enums as empty strings.
+func dropUnsetJson(value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		for key, item := range v {
+			item = dropUnsetJson(item)
+			if isUnsetJson(item) {
+				delete(v, key)
+				continue
+			}
+			v[key] = item
+		}
+	case []any:
+		for i, item := range v {
+			v[i] = dropUnsetJson(item)
+		}
+	}
+	return value
+}
+
+func isUnsetJson(value any) bool {
+	switch v := value.(type) {
+	case nil:
+		return true
+	case string:
+		return len(v) == 0
+	case map[string]any:
+		return len(v) == 0
+	}
+	return false
 }
 
 func (inst *DetailsTable) Draw(screen tcell.Screen) {

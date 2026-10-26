@@ -44,6 +44,10 @@ Data Loading:
  - Ctrl-X to clear selected pane
  - Enter to select an item a table and load more info
 
+Details:
+ - y to copy the value of the selected row
+ - J to switch between the details and the full api response as json
+
 Text Area:
  - Arrow keys to move cursor in a text area
  - Shift key + Arrow to select text

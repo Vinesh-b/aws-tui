@@ -52,6 +52,7 @@ func (inst *StackDetailsTable) populateStackDetailsTable() {
 		{"Last Updated", core.FormatTime(inst.data.LastUpdatedTime)},
 	}
 
+	inst.SetRawData(inst.data)
 	inst.SetData(tableData)
 	inst.Select(0, 0)
 }

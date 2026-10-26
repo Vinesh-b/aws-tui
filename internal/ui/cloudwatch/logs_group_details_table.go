@@ -49,6 +49,7 @@ func (inst *LogGroupDetailsTable) populateDetailsTable() {
 		{"Created", core.FormatUnixMilli(inst.data.CreationTime)},
 	}
 
+	inst.SetRawData(inst.data)
 	inst.SetData(tableData)
 	inst.Select(0, 0)
 	inst.ScrollToBeginning()

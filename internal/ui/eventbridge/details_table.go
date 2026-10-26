@@ -39,6 +39,7 @@ func (inst *EventBusDetailsTable) populateEventBusDetailsTable() {
 	}
 
 	inst.SetTitleExtra(aws.ToString(inst.data.Name))
+	inst.SetRawData(inst.data)
 	inst.SetData(tableData)
 	inst.Select(0, 0)
 	inst.ScrollToBeginning()

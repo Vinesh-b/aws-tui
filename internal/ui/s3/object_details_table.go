@@ -66,6 +66,7 @@ func (inst *S3ObjectDetailsTable) populateS3ObjectDetailsTable() {
 	tableData = append(tableData, core.DetailsSection("Metadata", metadata...)...)
 
 	inst.SetTitleExtra(inst.selectedObjectKey)
+	inst.SetRawData(inst.data)
 	inst.SetData(tableData)
 	inst.Select(0, 0)
 	inst.ScrollToBeginning()

@@ -90,6 +90,7 @@ type KeyBindings struct {
 	TableScan          rune
 	TableQuery         rune
 	TextCopy           rune
+	ToggleRawView      rune
 	TextViewUp         rune
 	TextViewDown       rune
 	TextViewPageUp     tcell.Key
@@ -136,6 +137,7 @@ var APP_KEY_BINDINGS = KeyBindings{
 	TableScan:          's',
 	TableQuery:         'q',
 	TextCopy:           'y',
+	ToggleRawView:      'J',
 	TextViewPageUp:     tcell.KeyCtrlU,
 	TextViewPageDown:   tcell.KeyCtrlD,
 	TextViewWordLeft:   'b',

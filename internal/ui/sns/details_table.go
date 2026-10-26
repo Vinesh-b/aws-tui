@@ -60,6 +60,7 @@ func (inst *TopicDetailsTable) populateTopicDetailsTable() {
 	)...)
 
 	inst.SetTitleExtra(topicName(inst.topicArn))
+	inst.SetRawData(inst.attributes)
 	inst.SetData(tableData)
 	inst.Select(0, 0)
 	inst.ScrollToBeginning()

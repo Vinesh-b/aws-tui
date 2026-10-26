@@ -57,6 +57,11 @@ func (inst *SfnExecutionSummaryTable) populateTable() {
 		}
 	}
 
+	if inst.data != nil {
+		inst.SetRawData(inst.data)
+	} else {
+		inst.SetRawData(nil)
+	}
 	inst.SetData(tableData)
 	inst.Select(0, 0)
 	inst.ScrollToBeginning()
