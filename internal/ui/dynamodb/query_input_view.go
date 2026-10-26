@@ -112,7 +112,7 @@ func DynamoDBTypeOpMap() map[DynamoDBDataType][]DynamoDBCondition {
 	}
 }
 
-// queryIndex is the table or one of its GSIs. The table has no name.
+// queryIndex is the table or one of its GSIs or LSIs. The table has no name.
 type queryIndex struct {
 	name   string
 	pkName string
@@ -255,8 +255,8 @@ func keyLabel(prefix string, name string) string {
 	return fmt.Sprintf("%s (%s) ", prefix, name)
 }
 
-// SetKeySchema lists the table and its GSIs as the indexes that can be
-// queried. The selected index is kept if the table still has it.
+// SetKeySchema lists the table, its GSIs and then its LSIs as the indexes that
+// can be queried. The selected index is kept if the table still has it.
 func (inst *DynamoDBQueryInputView) SetKeySchema(description *types.TableDescription) {
 	var previous = inst.selected().name
 
@@ -265,6 +265,9 @@ func (inst *DynamoDBQueryInputView) SetKeySchema(description *types.TableDescrip
 		inst.indexes[0] = newQueryIndex("", description.KeySchema)
 		for _, gsi := range description.GlobalSecondaryIndexes {
 			inst.indexes = append(inst.indexes, newQueryIndex(aws.ToString(gsi.IndexName), gsi.KeySchema))
+		}
+		for _, lsi := range description.LocalSecondaryIndexes {
+			inst.indexes = append(inst.indexes, newQueryIndex(aws.ToString(lsi.IndexName), lsi.KeySchema))
 		}
 	}
 
@@ -279,7 +282,7 @@ func (inst *DynamoDBQueryInputView) SetKeySchema(description *types.TableDescrip
 	inst.indexDropDown.SetCurrentOption(selectedIdx)
 }
 
-// GetSelectedIndexName is the name of the GSI to query, empty for the table.
+// GetSelectedIndexName is the name of the index to query, empty for the table.
 func (inst *DynamoDBQueryInputView) GetSelectedIndexName() string {
 	return inst.selected().name
 }

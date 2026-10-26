@@ -274,3 +274,44 @@ func TestQueryInputView__UnknownKeySchemaIsAnError(t *testing.T) {
 		t.Errorf("error = %v", err)
 	}
 }
+
+func TestQueryInputView__ListsLsisAfterGsis(t *testing.T) {
+	var view = NewDynamoDBQueryInputView(uitest.NewAppContext())
+	var description = newDescriptionWithGsi()
+	description.LocalSecondaryIndexes = []types.LocalSecondaryIndexDescription{
+		{IndexName: aws.String("byScore"), KeySchema: []types.KeySchemaElement{hashKey("id"), rangeKey("score")}},
+	}
+
+	view.SetKeySchema(description)
+
+	var want = []string{"Table (id, ts)", "byEmail (email)", "byTeam (team, joined)", "byScore (id, score)"}
+	if got := dropDownOptions(view); !slices.Equal(got, want) {
+		t.Errorf("options = %v, want %v", got, want)
+	}
+}
+
+func TestQueryInputView__LsiSortKeyIsUsedInKeyCondition(t *testing.T) {
+	var view = newQueryView(queryFields{pk: "user-1", sk: "90", comparator: "gt"})
+	var description = newTableDescription("users", hashKey("id"), rangeKey("ts"))
+	description.LocalSecondaryIndexes = []types.LocalSecondaryIndexDescription{
+		{IndexName: aws.String("byScore"), KeySchema: []types.KeySchemaElement{hashKey("id"), rangeKey("score")}},
+	}
+	view.SetKeySchema(description)
+
+	view.indexDropDown.SetCurrentOption(1)
+	var expr, err = view.GenerateQueryExpression()
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := view.GetSelectedIndexName(); got != "byScore" {
+		t.Errorf("selected index = %q, want byScore", got)
+	}
+	var names = mapValues(expr.Names())
+	if !slices.Contains(names, "id") || !slices.Contains(names, "score") || slices.Contains(names, "ts") {
+		t.Errorf("names = %v, want id and score only", names)
+	}
+	if got := view.skInput.GetLabel(); got != "SK (score) " {
+		t.Errorf("sk label = %q, want %q", got, "SK (score) ")
+	}
+}
