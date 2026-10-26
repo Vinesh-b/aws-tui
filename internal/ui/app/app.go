@@ -199,6 +199,9 @@ func CreateApplication(
 
 	var saved, problems = loadSettings(options.settingsPath)
 
+	// Before any view is built, as views list their keys in their help.
+	problems = append(problems, core.ApplyKeyBindingOverrides(saved.KeyBindings)...)
+
 	var appTheme = core.DefaultTheme()
 	if saved.Theme != "" {
 		if preset, ok := core.FindThemePreset(saved.Theme); ok {

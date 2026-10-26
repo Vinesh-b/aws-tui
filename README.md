@@ -27,6 +27,8 @@ The theme chosen in the Settings page is saved and used the next time the app st
 
 To choose the directory proposed when saving a table to csv, set `downloadDir` in `settings.json`, for example `{"downloadDir": "~/Downloads"}`. Without it the working directory is used, and either way the directory follows the last file saved. Existing files are never overwritten.
 
+To change a key, set `keyBindings` in `settings.json` to the name of the binding and the key, for example `{"keyBindings": {"reset": "R", "clearTable": "Ctrl+D", "pageChangeModKey": "Ctrl"}}`. A key is one character (or `space`) for most bindings, a name such as `Esc`, `Enter`, `PgUp` or `Ctrl+X` for the others, and `Alt`, `Ctrl` or `Shift` for the modifiers. The names are `help`, `quit`, `escape`, `toggleServicesMenu`, `toggleServicePages`, `reset`, `loadMoreData`, `clearTable`, `saveTable`, `done`, `find`, `pageChangeModKey`, `pageForward`, `pageBack`, `viewFocusUp`, `viewFocusDown`, `viewFocusLeft`, `viewFocusRight`, `viewResizeModKey`, `viewResizeReset`, `moveUp`, `moveDown`, `moveLeft`, `moveRight`, `moveLineStart`, `moveLineEnd`, `moveTop`, `moveBottom`, `nextSearch`, `prevSearch`, `formFocusNext`, `formFocusPrev`, `tableScan`, `tableQuery`, `textCopy`, `toggleRawView`, `openLink`, `textViewPageUp`, `textViewPageDown`, `textViewWordRight`, `textViewWordLeft`, `textViewUndo` and `textViewRedo`. The help views show the keys in use. A key that is unknown, cannot be read, or is already used by another binding in the same view is ignored and logged in the Debug Logs page. Keys listed in the help of one view only, such as `v` for the visual mode of a text view, cannot be changed yet.
+
 ## Project layout
 
 ```

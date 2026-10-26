@@ -26,6 +26,9 @@ type Settings struct {
 	// DownloadDir is the directory proposed when saving a table to a file. It
 	// is not set in the app, but by editing the settings file.
 	DownloadDir string `json:"downloadDir,omitempty"`
+	// KeyBindings replaces default keys, by binding name such as "reset". Like
+	// DownloadDir it is set by editing the settings file.
+	KeyBindings map[string]string `json:"keyBindings,omitempty"`
 }
 
 // DefaultPath is where the settings file is kept, in the config directory of the

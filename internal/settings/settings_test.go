@@ -3,6 +3,7 @@ package settings
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -11,7 +12,7 @@ import (
 func TestLoad__MissingFileGivesEmptySettings(t *testing.T) {
 	var loaded, err = Load(filepath.Join(t.TempDir(), "settings.json"))
 
-	if err != nil || loaded != (Settings{}) {
+	if err != nil || !reflect.DeepEqual(loaded, Settings{}) {
 		t.Errorf("Load = %+v, %v, want empty settings and no error", loaded, err)
 	}
 }
@@ -79,7 +80,7 @@ func TestLoad__InvalidJsonGivesEmptySettingsAndAnError(t *testing.T) {
 
 	var loaded, err = Load(path)
 
-	if err == nil || !strings.Contains(err.Error(), path) || loaded != (Settings{}) {
+	if err == nil || !strings.Contains(err.Error(), path) || !reflect.DeepEqual(loaded, Settings{}) {
 		t.Errorf("Load = %+v, %v, want empty settings and an error naming the file", loaded, err)
 	}
 }
@@ -123,5 +124,18 @@ func TestSave__ThenLoadKeepsTheDownloadDir(t *testing.T) {
 
 	if err != nil || loaded.DownloadDir != "~/Downloads" {
 		t.Errorf("Load = %+v, %v, want the download dir", loaded, err)
+	}
+}
+
+func TestSave__ThenLoadKeepsTheKeyBindings(t *testing.T) {
+	var path = filepath.Join(t.TempDir(), "settings.json")
+	if err := Save(path, Settings{KeyBindings: map[string]string{"reset": "R"}}); err != nil {
+		t.Fatal(err)
+	}
+
+	var loaded, err = Load(path)
+
+	if err != nil || loaded.KeyBindings["reset"] != "R" {
+		t.Errorf("loaded = %+v, err = %v", loaded, err)
 	}
 }

@@ -321,6 +321,23 @@ func TestCreateApplication__StartsWithTheSavedTheme(t *testing.T) {
 	}
 }
 
+func TestCreateApplication__StartsWithTheSavedKeyBindings(t *testing.T) {
+	var original = core.APP_KEY_BINDINGS
+	t.Cleanup(func() { core.APP_KEY_BINDINGS = original })
+
+	var path = filepath.Join(t.TempDir(), "settings.json")
+	var chosen = settings.Settings{KeyBindings: map[string]string{"reset": "R", "nope": "x"}}
+	if err := settings.Save(path, chosen); err != nil {
+		t.Fatal(err)
+	}
+
+	startApp(t, WithSettingsFile(path))
+
+	if core.APP_KEY_BINDINGS.Reset != 'R' {
+		t.Errorf("reset key = %q, want the saved R", core.APP_KEY_BINDINGS.Reset)
+	}
+}
+
 func TestCreateApplication__StartsWithTheDefaultThemeForSettingsItCannotUse(t *testing.T) {
 	for name, content := range map[string]string{
 		"unknown theme":  `{"theme": "Does Not Exist"}`,
