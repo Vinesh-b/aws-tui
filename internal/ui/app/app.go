@@ -278,7 +278,7 @@ func CreateApplication(
 		newServiceItem("󱇱 "+string(core.VPC), "VPCs, endpoints, subnets...", rune('󰯉'), func() core.ServicePage {
 			return vpc.NewVpcHomeView(appContext, awsapi.NewEc2Api(appContext.Logger))
 		}),
-		newServiceItem("󰌆 "+string(core.IAM), "Roles and their policies", rune('󰯉'), func() core.ServicePage {
+		newServiceItem("󰌆 "+string(core.IAM), "Roles, users and policies", rune('󰯉'), func() core.ServicePage {
 			return iam.NewIamHomeView(appContext, awsapi.NewIamApi(appContext.Logger))
 		}),
 		newServiceItem("󱃔 "+string(core.SQS), "Queues and their attributes", rune('󰯉'), func() core.ServicePage {

@@ -839,13 +839,13 @@ func DetailsSection(title string, rows ...TableRow) []TableRow {
 const detailsLinkCol = 2
 
 // detailsRowLink is the ARN the value of the row links to, which is empty for
-// rows without a link. IAM role ARNs link to themselves, as roles are used by
-// so many services.
+// rows without a link. IAM role, user and policy ARNs link to themselves, as
+// they are used by so many services.
 func detailsRowLink(row TableRow) string {
 	if len(row) > detailsLinkCol {
 		return row[detailsLinkCol]
 	}
-	if len(row) > detailsValueCol && IsIamRoleArn(row[detailsValueCol]) {
+	if len(row) > detailsValueCol && IsIamResourceArn(row[detailsValueCol]) {
 		return row[detailsValueCol]
 	}
 	return ""
@@ -864,7 +864,8 @@ func DetailsLink(label string, value string, resourceArn string) TableRow {
 // heading, which starts a section of the rows after it up to the next heading.
 // Rows in a section are indented. Empty values are shown as a placeholder, but
 // copying or previewing them gives the empty value. Rows made with DetailsLink,
-// and values that are IAM role ARNs, are underlined and can be opened.
+// and values that are ARNs of IAM roles, users or policies, are underlined and
+// can be opened.
 func (inst *DetailsTable) SetData(data []TableRow) error {
 	for _, row := range data {
 		if len(row) < 1 || len(row) > 3 {

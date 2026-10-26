@@ -178,7 +178,7 @@ func TestDetailsTableLinks__NewDataReplacesLinks(t *testing.T) {
 	}
 }
 
-func TestIsIamRoleArn(t *testing.T) {
+func TestIsIamResourceArn(t *testing.T) {
 	var tests = []struct {
 		text string
 		want bool
@@ -187,27 +187,30 @@ func TestIsIamRoleArn(t *testing.T) {
 		{"arn:aws:iam::123456789012:role/service-role/orders", true},
 		{"arn:aws:iam::123456789012:role/", false},
 		{"arn:aws:iam::123456789012:role/service-role/", false},
-		{"arn:aws:iam::123456789012:user/alice", false},
-		{"arn:aws:iam::aws:policy/ReadOnlyAccess", false},
+		{"arn:aws:iam::123456789012:user/alice", true},
+		{"arn:aws:iam::123456789012:user/developers/alice", true},
+		{"arn:aws:iam::aws:policy/ReadOnlyAccess", true},
+		{"arn:aws:iam::123456789012:policy/", false},
+		{"arn:aws:iam::123456789012:group/admins", false},
 		{"arn:aws:sts::123456789012:assumed-role/orders/session", false},
 		{"role/orders", false},
 		{"", false},
 	}
 
 	for _, tt := range tests {
-		if got := IsIamRoleArn(tt.text); got != tt.want {
+		if got := IsIamResourceArn(tt.text); got != tt.want {
 			t.Errorf("%q: got %v, want %v", tt.text, got, tt.want)
 		}
 	}
 }
 
-func TestDetailsTableLinks__IamRoleArnsAreLinked(t *testing.T) {
+func TestDetailsTableLinks__IamArnsAreLinked(t *testing.T) {
 	const roleArn = "arn:aws:iam::123456789012:role/service-role/orders"
 	var table = NewDetailsTable("details", newTestAppContext())
 
 	table.SetData([]TableRow{
 		{"Role", roleArn},
-		{"Boundary", "arn:aws:iam::123456789012:policy/boundary"},
+		{"Group", "arn:aws:iam::123456789012:group/admins"},
 		{"Name", "orders"},
 		DetailsLink("Log Group", roleArn, "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/orders"),
 	})

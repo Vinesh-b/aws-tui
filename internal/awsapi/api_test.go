@@ -1117,7 +1117,7 @@ func TestIamListRolePoliciesGivesAttachedThenInline(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	var want = []RolePolicy{
+	var want = []PrincipalPolicy{
 		{Name: "Logs", Arn: "arn:aws:iam::1:policy/Logs"},
 		{Name: "ReadOnly", Arn: "arn:aws:iam::aws:policy/ReadOnly"},
 		{Name: "queue-access"},
@@ -1138,7 +1138,7 @@ func TestIamGetRolePolicyDocumentOfInlinePolicy(t *testing.T) {
 	})
 
 	var document, err = NewIamApi(testLogger()).GetRolePolicyDocument(
-		context.Background(), "orders", RolePolicy{Name: "queue-access"},
+		context.Background(), "orders", PrincipalPolicy{Name: "queue-access"},
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -1164,7 +1164,7 @@ func TestIamGetRolePolicyDocumentOfManagedPolicyUsesDefaultVersion(t *testing.T)
 	})
 
 	var document, err = NewIamApi(testLogger()).GetRolePolicyDocument(
-		context.Background(), "orders", RolePolicy{Name: "Logs", Arn: "arn:aws:iam::1:policy/Logs"},
+		context.Background(), "orders", PrincipalPolicy{Name: "Logs", Arn: "arn:aws:iam::1:policy/Logs"},
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -1206,13 +1206,209 @@ func TestIamMissingArgumentsAreRejected(t *testing.T) {
 		{"role policies", func() error { var _, err = api.ListRolePolicies(ctx, ""); return err }, "role name not set"},
 		{"role tags", func() error { var _, err = api.ListRoleTags(ctx, ""); return err }, "role name not set"},
 		{"policy document without role", func() error {
-			var _, err = api.GetRolePolicyDocument(ctx, "", RolePolicy{Name: "p"})
+			var _, err = api.GetRolePolicyDocument(ctx, "", PrincipalPolicy{Name: "p"})
 			return err
 		}, "role name not set"},
 		{"policy document without policy", func() error {
-			var _, err = api.GetRolePolicyDocument(ctx, "orders", RolePolicy{})
+			var _, err = api.GetRolePolicyDocument(ctx, "orders", PrincipalPolicy{})
 			return err
 		}, "policy name not set"},
+	}
+
+	for _, tt := range tests {
+		if err := tt.call(); err == nil || err.Error() != tt.want {
+			t.Errorf("%s: error = %v, want %q", tt.name, err, tt.want)
+		}
+	}
+	if fake.calls() != 0 {
+		t.Errorf("calls = %d, want none for missing arguments", fake.calls())
+	}
+}
+
+func TestIamListUserPoliciesGivesAttachedThenInline(t *testing.T) {
+	useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+		switch iamAction(body) {
+		case "ListAttachedUserPolicies":
+			return iamResponse("ListAttachedUserPolicies", `<IsTruncated>false</IsTruncated><AttachedPolicies>`+
+				`<member><PolicyName>ReadOnly</PolicyName><PolicyArn>arn:aws:iam::aws:policy/ReadOnly</PolicyArn></member>`+
+				`</AttachedPolicies>`)
+		case "ListUserPolicies":
+			return iamResponse("ListUserPolicies", `<IsTruncated>false</IsTruncated><PolicyNames><member>deploy</member><member>build</member></PolicyNames>`)
+		}
+		return response(400, "text/xml", `<ErrorResponse><Error><Code>Unexpected</Code></Error></ErrorResponse>`)
+	})
+
+	var policies, err = NewIamApi(testLogger()).ListUserPolicies(context.Background(), "alice")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var want = []PrincipalPolicy{
+		{Name: "ReadOnly", Arn: "arn:aws:iam::aws:policy/ReadOnly"},
+		{Name: "build"},
+		{Name: "deploy"},
+	}
+	if len(policies) != len(want) {
+		t.Fatalf("policies = %v, want %v", policies, want)
+	}
+	for i := range want {
+		if policies[i] != want[i] {
+			t.Errorf("policy %d = %v, want %v", i, policies[i], want[i])
+		}
+	}
+}
+
+func TestIamGetUserPolicyDocumentOfInlinePolicy(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return iamResponse("GetUserPolicy", `<PolicyDocument>%7B%22Statement%22%3A%5B%5D%7D</PolicyDocument>`)
+	})
+
+	var document, err = NewIamApi(testLogger()).GetUserPolicyDocument(
+		context.Background(), "alice", PrincipalPolicy{Name: "deploy"},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if document != `{"Statement":[]}` {
+		t.Errorf("document = %q", document)
+	}
+	if got := iamAction(fake.requests[0]); got != "GetUserPolicy" {
+		t.Errorf("action = %q, want GetUserPolicy", got)
+	}
+}
+
+func TestIamListUsersGroupsAndAccessKeys(t *testing.T) {
+	useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+		switch iamAction(body) {
+		case "ListUsers":
+			return iamResponse("ListUsers", `<IsTruncated>false</IsTruncated><Users><member><UserName>bob</UserName></member><member><UserName>alice</UserName></member></Users>`)
+		case "ListGroupsForUser":
+			return iamResponse("ListGroupsForUser", `<IsTruncated>false</IsTruncated><Groups><member><GroupName>ops</GroupName></member><member><GroupName>dev</GroupName></member></Groups>`)
+		case "ListAccessKeys":
+			return iamResponse("ListAccessKeys", `<IsTruncated>false</IsTruncated><AccessKeyMetadata><member><AccessKeyId>AKIA1</AccessKeyId><Status>Active</Status></member></AccessKeyMetadata>`)
+		}
+		return response(400, "text/xml", `<ErrorResponse><Error><Code>Unexpected</Code></Error></ErrorResponse>`)
+	})
+	var api = NewIamApi(testLogger())
+	var ctx = context.Background()
+
+	var users, err = api.ListUsers(ctx, true)
+	if err != nil || len(users) != 2 || aws.ToString(users[0].UserName) != "alice" {
+		t.Errorf("users = %v, %v, want alice then bob", users, err)
+	}
+
+	var groups, groupsErr = api.ListUserGroups(ctx, "alice")
+	if groupsErr != nil || len(groups) != 2 || aws.ToString(groups[0].GroupName) != "dev" {
+		t.Errorf("groups = %v, %v, want dev then ops", groups, groupsErr)
+	}
+
+	var keys, keysErr = api.ListUserAccessKeys(ctx, "alice")
+	if keysErr != nil || len(keys) != 1 || aws.ToString(keys[0].AccessKeyId) != "AKIA1" || keys[0].Status != "Active" {
+		t.Errorf("access keys = %v, %v", keys, keysErr)
+	}
+}
+
+func TestIamListPoliciesGivesCustomerThenAttachedAwsPolicies(t *testing.T) {
+	var fake = useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+		if strings.Contains(body, "Scope=Local") {
+			return iamResponse("ListPolicies", `<IsTruncated>false</IsTruncated><Policies><member><PolicyName>orders</PolicyName></member></Policies>`)
+		}
+		return iamResponse("ListPolicies", `<IsTruncated>false</IsTruncated><Policies><member><PolicyName>ReadOnly</PolicyName></member><member><PolicyName>Admin</PolicyName></member></Policies>`)
+	})
+
+	var policies, err = NewIamApi(testLogger()).ListPolicies(context.Background(), true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var names []string
+	for _, policy := range policies {
+		names = append(names, aws.ToString(policy.PolicyName))
+	}
+	if strings.Join(names, ",") != "orders,Admin,ReadOnly" {
+		t.Errorf("policies = %v, want the customer policy then the AWS ones sorted", names)
+	}
+	if fake.calls() != 2 || !strings.Contains(fake.requests[1], "Scope=AWS") || !strings.Contains(fake.requests[1], "OnlyAttached=true") {
+		t.Errorf("requests = %v, want only the attached AWS policies asked for", fake.requests)
+	}
+}
+
+func TestIamGetPolicyDocumentUsesDefaultVersion(t *testing.T) {
+	useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+		switch iamAction(body) {
+		case "GetPolicy":
+			return iamResponse("GetPolicy", `<Policy><DefaultVersionId>v2</DefaultVersionId></Policy>`)
+		case "GetPolicyVersion":
+			if !strings.Contains(body, "VersionId=v2") {
+				break
+			}
+			return iamResponse("GetPolicyVersion", `<PolicyVersion><Document>%7B%7D</Document></PolicyVersion>`)
+		}
+		return response(400, "text/xml", `<ErrorResponse><Error><Code>Unexpected</Code></Error></ErrorResponse>`)
+	})
+
+	var document, err = NewIamApi(testLogger()).GetPolicyDocument(context.Background(), "arn:aws:iam::1:policy/orders")
+
+	if err != nil || document != "{}" {
+		t.Errorf("document = %q, %v", document, err)
+	}
+}
+
+func TestIamListPolicyEntitiesGivesRolesUsersThenGroups(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return iamResponse("ListEntitiesForPolicy", `<IsTruncated>false</IsTruncated>`+
+			`<PolicyGroups><member><GroupName>dev</GroupName></member></PolicyGroups>`+
+			`<PolicyUsers><member><UserName>bob</UserName></member><member><UserName>alice</UserName></member></PolicyUsers>`+
+			`<PolicyRoles><member><RoleName>orders</RoleName></member></PolicyRoles>`)
+	})
+
+	var entities, err = NewIamApi(testLogger()).ListPolicyEntities(context.Background(), "arn:aws:iam::1:policy/orders")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var want = []PolicyEntity{
+		{Name: "orders", Type: "Role"},
+		{Name: "alice", Type: "User"},
+		{Name: "bob", Type: "User"},
+		{Name: "dev", Type: "Group"},
+	}
+	if len(entities) != len(want) {
+		t.Fatalf("entities = %v, want %v", entities, want)
+	}
+	for i := range want {
+		if entities[i] != want[i] {
+			t.Errorf("entity %d = %v, want %v", i, entities[i], want[i])
+		}
+	}
+}
+
+func TestIamUserAndPolicyMissingArgumentsAreRejected(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return iamResponse("GetUser", "")
+	})
+	var api = NewIamApi(testLogger())
+	var ctx = context.Background()
+
+	var tests = []struct {
+		name string
+		call func() error
+		want string
+	}{
+		{"get user", func() error { var _, err = api.GetUser(ctx, ""); return err }, "user name not set"},
+		{"user policies", func() error { var _, err = api.ListUserPolicies(ctx, ""); return err }, "user name not set"},
+		{"user groups", func() error { var _, err = api.ListUserGroups(ctx, ""); return err }, "user name not set"},
+		{"user access keys", func() error { var _, err = api.ListUserAccessKeys(ctx, ""); return err }, "user name not set"},
+		{"user tags", func() error { var _, err = api.ListUserTags(ctx, ""); return err }, "user name not set"},
+		{"user policy document", func() error {
+			var _, err = api.GetUserPolicyDocument(ctx, "alice", PrincipalPolicy{})
+			return err
+		}, "policy name not set"},
+		{"get policy", func() error { var _, err = api.GetPolicy(ctx, ""); return err }, "policy ARN not set"},
+		{"policy document", func() error { var _, err = api.GetPolicyDocument(ctx, ""); return err }, "policy ARN not set"},
+		{"policy entities", func() error { var _, err = api.ListPolicyEntities(ctx, ""); return err }, "policy ARN not set"},
+		{"policy tags", func() error { var _, err = api.ListPolicyTags(ctx, ""); return err }, "policy ARN not set"},
 	}
 
 	for _, tt := range tests {
