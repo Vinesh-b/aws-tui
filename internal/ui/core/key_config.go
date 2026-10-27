@@ -34,6 +34,7 @@ var keyBindingConflictGroups = [][]string{
 		"textViewUndo",
 	},
 	{"viewFocusUp", "viewFocusDown", "viewFocusLeft", "viewFocusRight"},
+	{"historyBack", "historyForward"},
 }
 
 func keyBindingFields(bindings *KeyBindings) map[string]keyBinding {
@@ -52,6 +53,9 @@ func keyBindingFields(bindings *KeyBindings) map[string]keyBinding {
 		"pageChangeModKey":   {mod: &bindings.PageChangeModKey},
 		"pageForward":        {rune: &bindings.PageForward},
 		"pageBack":           {rune: &bindings.PageBack},
+		"historyModKey":      {mod: &bindings.HistoryModKey},
+		"historyBack":        {key: &bindings.HistoryBack},
+		"historyForward":     {key: &bindings.HistoryForward},
 		"viewFocusUp":        {key: &bindings.ViewFocusUp},
 		"viewFocusDown":      {key: &bindings.ViewFocusDown},
 		"viewFocusLeft":      {key: &bindings.ViewFocusLeft},

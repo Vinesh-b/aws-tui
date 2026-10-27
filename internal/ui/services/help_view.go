@@ -27,6 +27,7 @@ func NewHelpHomeView(appCtx *core.AppContext) core.ServicePage {
 The section at the bottom of a service page will display the
 Service-Name, Page-Name and Page-Number.
  - ESC to go back
+ - Alt-Left / Alt-Right to go back / forward through the pages shown
  - Ctrl-Space to toggle floating services menu
  - Ctrl-F to toggle floating search input
  - Ctrl-Q to toggle floating DDB table query input

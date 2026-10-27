@@ -10,6 +10,16 @@ import (
 
 const SERVICE_PAGES_LIST = "SERVICE_PAGES_LIST"
 
+// PagedServicePage is a service page with pages of its own, which says when
+// another of them is shown so the app can come back to it
+type PagedServicePage interface {
+	ServicePage
+	CurrentServicePage() string
+	// ShowServicePage shows the page with the name, if there is one
+	ShowServicePage(name string)
+	SetServicePageChangedFunc(handler func(name string))
+}
+
 type ServiceRootView struct {
 	*BaseView
 	layout          *tview.Flex
@@ -22,6 +32,7 @@ type ServiceRootView struct {
 	pagesListHidden bool
 	pageList        *tview.List
 	resourceOpeners map[string]func(resource arn.ARN)
+	pageChangedFunc func(name string)
 	appCtx          *AppContext
 }
 
@@ -43,6 +54,7 @@ func NewServiceRootView(
 		pagesListHidden: true,
 		pageList:        tview.NewList(),
 		resourceOpeners: map[string]func(resource arn.ARN){},
+		pageChangedFunc: func(name string) {},
 		appCtx:          appContext,
 	}
 
@@ -137,6 +149,26 @@ func (inst *ServiceRootView) switchToPage(name string) {
 
 	inst.pageIndex = max(idx, 0)
 	inst.paginatorView.SetCurrentPage(inst.pageIndex)
+	inst.pageChangedFunc(name)
+}
+
+func (inst *ServiceRootView) CurrentServicePage() string {
+	if len(inst.orderedPages) == 0 {
+		return ""
+	}
+	return inst.orderedPages[inst.pageIndex]
+}
+
+func (inst *ServiceRootView) ShowServicePage(name string) {
+	if slices.Contains(inst.orderedPages, name) {
+		inst.switchToPage(name)
+	}
+}
+
+// SetServicePageChangedFunc sets what is called with the name of each page
+// that is shown after it is set
+func (inst *ServiceRootView) SetServicePageChangedFunc(handler func(name string)) {
+	inst.pageChangedFunc = handler
 }
 
 func (inst *ServiceRootView) ChangePage(pageIdx int, focusView tview.Primitive) {

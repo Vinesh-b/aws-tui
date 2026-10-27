@@ -69,6 +69,9 @@ type KeyBindings struct {
 	PageChangeModKey   tcell.ModMask
 	PageForward        rune
 	PageBack           rune
+	HistoryModKey      tcell.ModMask
+	HistoryBack        tcell.Key
+	HistoryForward     tcell.Key
 	ViewFocusUp        tcell.Key
 	ViewFocusDown      tcell.Key
 	ViewFocusLeft      tcell.Key
@@ -117,6 +120,9 @@ var APP_KEY_BINDINGS = KeyBindings{
 	PageChangeModKey:   tcell.ModAlt,
 	PageForward:        ']',
 	PageBack:           '[',
+	HistoryModKey:      tcell.ModAlt,
+	HistoryBack:        tcell.KeyLeft,
+	HistoryForward:     tcell.KeyRight,
 	ViewFocusUp:        tcell.KeyCtrlK,
 	ViewFocusDown:      tcell.KeyCtrlJ,
 	ViewFocusLeft:      tcell.KeyCtrlH,

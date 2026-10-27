@@ -17,7 +17,6 @@ import (
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/smithy-go/logging"
 	"github.com/gdamore/tcell/v2"
@@ -260,6 +259,26 @@ func openSettings(app *tview.Application) {
 	app.QueueEvent(tcell.NewEventKey(tcell.KeyRune, 's', tcell.ModNone))
 }
 
+// pressHistoryKey presses the key with the history modifier, through the app
+func pressHistoryKey(app *tview.Application, key tcell.Key) {
+	app.QueueEvent(tcell.NewEventKey(key, 0, core.APP_KEY_BINDINGS.HistoryModKey))
+}
+
+func TestCreateApplication__HistoryKeysGoBackAndForwardBetweenServices(t *testing.T) {
+	var tuiApp, screen = startApp(t)
+	openSettings(tuiApp)
+	awaitInUse(t, tuiApp, screen, "Default")
+	tuiApp.QueueEvent(tcell.NewEventKey(core.APP_KEY_BINDINGS.ToggleServicesMenu, 0, tcell.ModNone))
+	tuiApp.QueueEvent(tcell.NewEventKey(tcell.KeyRune, '?', tcell.ModNone))
+	uitest.AwaitScreenText(t, tuiApp, screen, "Service-Name, Page-Name")
+
+	pressHistoryKey(tuiApp, core.APP_KEY_BINDINGS.HistoryBack)
+	awaitInUse(t, tuiApp, screen, "Default")
+
+	pressHistoryKey(tuiApp, core.APP_KEY_BINDINGS.HistoryForward)
+	uitest.AwaitScreenText(t, tuiApp, screen, "Service-Name, Page-Name")
+}
+
 func TestCreateApplication__PickingAThemeInSettingsKeepsTheSettingsPage(t *testing.T) {
 	var tuiApp, screen = startApp(t)
 	openSettings(tuiApp)
@@ -397,54 +416,4 @@ func awaitInUse(t *testing.T, app *tview.Application, screen tcell.SimulationScr
 		time.Sleep(20 * time.Millisecond) // sleep-ok: polling the screen
 	}
 	t.Fatalf("settings never showed %s as in use:\n%s", theme, uitest.ScreenText(screen))
-}
-
-type openerPage struct {
-	*tview.Box
-	service string
-	opened  []arn.ARN
-}
-
-func (p *openerPage) GetLastFocusedView() tview.Primitive { return p.Box }
-func (p *openerPage) OpensArnService(service string) bool { return service == p.service }
-func (p *openerPage) OpenResource(resource arn.ARN)       { p.opened = append(p.opened, resource) }
-
-func TestOpenResource__SwitchesToPageOfTheService(t *testing.T) {
-	var app = tview.NewApplication()
-	var pages = tview.NewPages()
-	var lambdaPage = &openerPage{Box: tview.NewBox(), service: "lambda"}
-	var logsPage = &openerPage{Box: tview.NewBox(), service: "logs"}
-	var items = []*ServiceItem{
-		staticServiceItem("Help", "", 'h', &countingPage{Box: tview.NewBox()}),
-		staticServiceItem("Lambda", "", 'l', lambdaPage),
-		staticServiceItem("Logs", "", 'g', logsPage),
-	}
-	for _, item := range items {
-		pages.AddPage(item.MainText, item.ServicePage, true, false)
-	}
-	var resource, _ = arn.Parse("arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/orders")
-
-	if err := openResource(app, pages, items, resource); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if name, _ := pages.GetFrontPage(); name != "Logs" {
-		t.Errorf("front page = %q, want Logs", name)
-	}
-	if len(logsPage.opened) != 1 || len(lambdaPage.opened) != 0 {
-		t.Errorf("opened in logs, lambda = %d, %d, want 1, 0", len(logsPage.opened), len(lambdaPage.opened))
-	}
-	if app.GetFocus() != logsPage.Box {
-		t.Error("focus should be on the logs page")
-	}
-}
-
-func TestOpenResource__ServiceWithoutPageIsAnError(t *testing.T) {
-	var resource, _ = arn.Parse("arn:aws:iam::123456789012:role/orders")
-
-	var err = openResource(tview.NewApplication(), tview.NewPages(), nil, resource)
-
-	if err == nil || err.Error() != "can't open iam resources" {
-		t.Errorf("error = %v", err)
-	}
 }

@@ -136,20 +136,137 @@ func rebuildPages(pages *tview.Pages, items []*ServiceItem, include func(*Servic
 	}
 }
 
+// navigator shows the service pages and keeps the history of the pages shown
+type navigator struct {
+	app     *tview.Application
+	pages   *tview.Pages
+	items   []*ServiceItem
+	history *core.NavigationHistory
+}
+
+const navigationHistoryLimit = 100
+
+func newNavigator(app *tview.Application, pages *tview.Pages, items []*ServiceItem) *navigator {
+	return &navigator{app, pages, items, core.NewNavigationHistory(navigationHistoryLimit)}
+}
+
+func (inst *navigator) find(service string) (*ServiceItem, bool) {
+	for _, item := range inst.items {
+		if item.MainText == service {
+			return item, true
+		}
+	}
+	return nil, false
+}
+
+func locationOf(item *ServiceItem) core.Location {
+	var location = core.Location{Service: item.MainText}
+	if paged, ok := item.ServicePage.(core.PagedServicePage); ok {
+		location.Page = paged.CurrentServicePage()
+	}
+	return location
+}
+
+// current is the location of the service in front, which is false when no
+// service is, such as on the home page
+func (inst *navigator) current() (core.Location, bool) {
+	var name, _ = inst.pages.GetFrontPage()
+	if item, ok := inst.find(name); ok {
+		return locationOf(item), true
+	}
+	return core.Location{}, false
+}
+
+// recordPages keeps the pages shown in the page of the service, while the
+// service is the one in front
+func (inst *navigator) recordPages(item *ServiceItem, page core.ServicePage) {
+	var paged, ok = page.(core.PagedServicePage)
+	if !ok {
+		return
+	}
+	paged.SetServicePageChangedFunc(func(name string) {
+		if front, _ := inst.pages.GetFrontPage(); front == item.MainText {
+			inst.history.Visit(core.Location{Service: item.MainText, Page: name})
+		}
+	})
+}
+
+// watch records the pages shown in the page of the service, and in the pages
+// that replace it when it is built again
+func (inst *navigator) watch(item *ServiceItem) {
+	inst.recordPages(item, item.ServicePage)
+	if build := item.Build; build != nil {
+		item.Build = func() core.ServicePage {
+			var page = build()
+			inst.recordPages(item, page)
+			return page
+		}
+	}
+}
+
+// showService switches to the service, on the page it was left on
+func (inst *navigator) showService(item *ServiceItem) {
+	inst.pages.SwitchToPage(item.MainText)
+	inst.app.SetFocus(item.ServicePage.GetLastFocusedView())
+	inst.history.Visit(locationOf(item))
+}
+
 // openResource switches to the page of the service of the resource and opens
-// it there
-func openResource(app *tview.Application, pages *tview.Pages, items []*ServiceItem, resource arn.ARN) error {
-	for _, item := range items {
+// it there. Going back returns to where the link was opened from.
+func (inst *navigator) openResource(resource arn.ARN) error {
+	for _, item := range inst.items {
 		var opener, ok = item.ServicePage.(core.ResourceOpener)
 		if !ok || !opener.OpensArnService(resource.Service) {
 			continue
 		}
-		pages.SwitchToPage(item.MainText)
-		opener.OpenResource(resource)
-		app.SetFocus(item.ServicePage.GetLastFocusedView())
+		// The service is shown on the page it was left on before the
+		// resource is opened, which is not a page that was looked at
+		inst.history.WithoutRecording(func() {
+			inst.pages.SwitchToPage(item.MainText)
+			opener.OpenResource(resource)
+		})
+		inst.app.SetFocus(item.ServicePage.GetLastFocusedView())
+		inst.history.Visit(locationOf(item))
 		return nil
 	}
 	return fmt.Errorf("can't open %s resources", resource.Service)
+}
+
+// show shows the location without it being a new visit. It is false if the
+// service is no longer in the app.
+func (inst *navigator) show(location core.Location) bool {
+	var item, ok = inst.find(location.Service)
+	if !ok {
+		return false
+	}
+	inst.history.WithoutRecording(func() {
+		inst.pages.SwitchToPage(item.MainText)
+		if paged, ok := item.ServicePage.(core.PagedServicePage); ok && location.Page != "" {
+			paged.ShowServicePage(location.Page)
+		}
+		inst.app.SetFocus(item.ServicePage.GetLastFocusedView())
+	})
+	return true
+}
+
+func (inst *navigator) Back() bool {
+	var location, ok = inst.history.Back()
+	return ok && inst.show(location)
+}
+
+func (inst *navigator) Forward() bool {
+	var location, ok = inst.history.Forward()
+	return ok && inst.show(location)
+}
+
+// restart starts the history again from the service in front, for when the
+// pages it held were built again
+func (inst *navigator) restart() {
+	if location, ok := inst.current(); ok {
+		inst.history.Restart(location)
+	} else {
+		inst.history.Clear()
+	}
 }
 
 type appOptions struct {
@@ -318,21 +435,22 @@ func CreateApplication(
 
 	var pages = tview.NewPages()
 	var serviceListHidden = false
+	var nav = newNavigator(app, pages, serviceViews)
 
 	for _, item := range serviceViews {
 		var name = item.MainText
 		pages.AddPage(name, item.ServicePage, true, true)
 		servicesList.AddItem(name, item.SecondaryText, item.Shortcut, func() {
-			pages.SwitchToPage(name)
-			app.SetFocus(item.ServicePage.GetLastFocusedView())
-
+			nav.showService(item)
 			serviceListHidden = true
 		})
+
+		nav.watch(item)
 	}
 
 	// Links in one service open the resource in the page of its service
 	appContext.SetResourceOpener(func(resource arn.ARN) error {
-		if err := openResource(app, pages, serviceViews, resource); err != nil {
+		if err := nav.openResource(resource); err != nil {
 			return err
 		}
 		serviceListHidden = true
@@ -352,6 +470,22 @@ func CreateApplication(
 			app.SetFocus(lastFocus)
 			serviceListHidden = true
 
+		}
+
+		if event.Modifiers() == core.APP_KEY_BINDINGS.HistoryModKey {
+			var moved bool
+			switch event.Key() {
+			case core.APP_KEY_BINDINGS.HistoryBack:
+				moved = nav.Back()
+			case core.APP_KEY_BINDINGS.HistoryForward:
+				moved = nav.Forward()
+			default:
+				return event
+			}
+			if moved {
+				serviceListHidden = true
+			}
+			return nil
 		}
 
 		switch event.Rune() {
@@ -384,6 +518,7 @@ func CreateApplication(
 
 	appContext.OnApiClientsReset(func() {
 		rebuildServicePages(pages, serviceViews)
+		nav.restart()
 	})
 
 	// Views take their colours when they are built, so the pages are built
