@@ -1,6 +1,7 @@
 package s3
 
 import (
+	"aws-tui/internal/ui/s3/s3fake"
 	"errors"
 	"strings"
 	"testing"
@@ -62,7 +63,7 @@ func TestPreviewBlocker__BlocksLargeEncodedAndBinaryObjects(t *testing.T) {
 	}
 }
 
-func newPreview(t *testing.T, api *fakeS3BucketsApi) *ObjectPreviewView {
+func newPreview(t *testing.T, api *s3fake.Api) *ObjectPreviewView {
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.S3BucketsApi](api)
 	var preview = NewObjectPreviewView(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -77,13 +78,13 @@ func awaitPreviewText(t *testing.T, preview *ObjectPreviewView, want string) {
 }
 
 func TestObjectPreview__HiddenPreviewDownloadsNothing(t *testing.T) {
-	var api = &fakeS3BucketsApi{head: newTextHead("text/plain", 5), content: []byte("hello")}
+	var api = s3fake.New(s3fake.WithHead(newTextHead("text/plain", 5)), s3fake.WithContent([]byte("hello")))
 	var preview = newPreview(t, api)
 
 	uitest.OnUI(t, preview.serviceCtx.App, func() { preview.SetObject("bucket", "notes.txt") })
 
-	if api.headCalls.Load() != 0 || api.contentCalls.Load() != 0 {
-		t.Errorf("api called while hidden: head=%d content=%d", api.headCalls.Load(), api.contentCalls.Load())
+	if api.HeadCalls() != 0 || api.ContentCalls() != 0 {
+		t.Errorf("api called while hidden: head=%d content=%d", api.HeadCalls(), api.ContentCalls())
 	}
 	if got := preview.GetText(); !strings.Contains(got, "opened") {
 		t.Errorf("placeholder = %q", got)
@@ -91,20 +92,20 @@ func TestObjectPreview__HiddenPreviewDownloadsNothing(t *testing.T) {
 }
 
 func TestObjectPreview__ShowingPreviewDownloadsSelectedObject(t *testing.T) {
-	var api = &fakeS3BucketsApi{head: newTextHead("text/plain", 5), content: []byte("hello")}
+	var api = s3fake.New(s3fake.WithHead(newTextHead("text/plain", 5)), s3fake.WithContent([]byte("hello")))
 	var preview = newPreview(t, api)
 	uitest.OnUI(t, preview.serviceCtx.App, func() { preview.SetObject("bucket", "notes.txt") })
 
 	uitest.OnUI(t, preview.serviceCtx.App, func() { preview.SetVisible(true) })
 
 	awaitPreviewText(t, preview, "hello")
-	if api.contentCalls.Load() != 1 {
-		t.Errorf("content downloads = %d, want 1", api.contentCalls.Load())
+	if api.ContentCalls() != 1 {
+		t.Errorf("content downloads = %d, want 1", api.ContentCalls())
 	}
 }
 
 func TestObjectPreview__SelectingObjectWhileVisibleLoadsImmediately(t *testing.T) {
-	var api = &fakeS3BucketsApi{head: newTextHead("text/plain", 5), content: []byte("hello")}
+	var api = s3fake.New(s3fake.WithHead(newTextHead("text/plain", 5)), s3fake.WithContent([]byte("hello")))
 	var preview = newPreview(t, api)
 	uitest.OnUI(t, preview.serviceCtx.App, func() { preview.SetVisible(true) })
 
@@ -114,7 +115,7 @@ func TestObjectPreview__SelectingObjectWhileVisibleLoadsImmediately(t *testing.T
 }
 
 func TestObjectPreview__ReopeningPreviewDoesNotDownloadAgain(t *testing.T) {
-	var api = &fakeS3BucketsApi{head: newTextHead("text/plain", 5), content: []byte("hello")}
+	var api = s3fake.New(s3fake.WithHead(newTextHead("text/plain", 5)), s3fake.WithContent([]byte("hello")))
 	var preview = newPreview(t, api)
 	uitest.OnUI(t, preview.serviceCtx.App, func() {
 		preview.SetObject("bucket", "notes.txt")
@@ -127,13 +128,13 @@ func TestObjectPreview__ReopeningPreviewDoesNotDownloadAgain(t *testing.T) {
 		preview.SetVisible(true)
 	})
 
-	if api.contentCalls.Load() != 1 {
-		t.Errorf("content downloads = %d, want 1", api.contentCalls.Load())
+	if api.ContentCalls() != 1 {
+		t.Errorf("content downloads = %d, want 1", api.ContentCalls())
 	}
 }
 
 func TestObjectPreview__PrettyPrintsAndHighlightsJson(t *testing.T) {
-	var api = &fakeS3BucketsApi{head: newTextHead("application/json", 12), content: []byte(`{"a":[1,2]}`)}
+	var api = s3fake.New(s3fake.WithHead(newTextHead("application/json", 12)), s3fake.WithContent([]byte(`{"a":[1,2]}`)))
 	var preview = newPreview(t, api)
 
 	uitest.OnUI(t, preview.serviceCtx.App, func() {
@@ -150,7 +151,7 @@ func TestObjectPreview__PrettyPrintsAndHighlightsJson(t *testing.T) {
 }
 
 func TestObjectPreview__PlainTextIsNotHighlighted(t *testing.T) {
-	var api = &fakeS3BucketsApi{head: newTextHead("text/plain", 5), content: []byte(`{"a" nope`)}
+	var api = s3fake.New(s3fake.WithHead(newTextHead("text/plain", 5)), s3fake.WithContent([]byte(`{"a" nope`)))
 	var preview = newPreview(t, api)
 
 	uitest.OnUI(t, preview.serviceCtx.App, func() {
@@ -167,7 +168,7 @@ func TestObjectPreview__PlainTextIsNotHighlighted(t *testing.T) {
 }
 
 func TestObjectPreview__LargeObjectIsNeverDownloaded(t *testing.T) {
-	var api = &fakeS3BucketsApi{head: newTextHead("text/plain", maxPreviewBytes)}
+	var api = s3fake.New(s3fake.WithHead(newTextHead("text/plain", maxPreviewBytes)))
 	var preview = newPreview(t, api)
 
 	uitest.OnUI(t, preview.serviceCtx.App, func() {
@@ -176,13 +177,13 @@ func TestObjectPreview__LargeObjectIsNeverDownloaded(t *testing.T) {
 	})
 
 	awaitPreviewText(t, preview, "under 1 MB")
-	if api.contentCalls.Load() != 0 {
-		t.Errorf("content downloads = %d, want 0", api.contentCalls.Load())
+	if api.ContentCalls() != 0 {
+		t.Errorf("content downloads = %d, want 0", api.ContentCalls())
 	}
 }
 
 func TestObjectPreview__BinaryContentIsNotShown(t *testing.T) {
-	var api = &fakeS3BucketsApi{head: newTextHead("text/plain", 3), content: []byte{'a', 0, 'b'}}
+	var api = s3fake.New(s3fake.WithHead(newTextHead("text/plain", 3)), s3fake.WithContent([]byte{'a', 0, 'b'}))
 	var preview = newPreview(t, api)
 
 	uitest.OnUI(t, preview.serviceCtx.App, func() {
@@ -194,7 +195,7 @@ func TestObjectPreview__BinaryContentIsNotShown(t *testing.T) {
 }
 
 func TestObjectPreview__DownloadErrorIsReportedAndRetriedOnReopen(t *testing.T) {
-	var api = &fakeS3BucketsApi{head: newTextHead("text/plain", 5), contentErr: errors.New("access denied")}
+	var api = s3fake.New(s3fake.WithHead(newTextHead("text/plain", 5)), s3fake.WithContentErr(errors.New("access denied")))
 	var preview = newPreview(t, api)
 	var callback, received = uitest.CaptureErrors()
 	preview.ErrorMessageCallback = callback
@@ -209,8 +210,7 @@ func TestObjectPreview__DownloadErrorIsReportedAndRetriedOnReopen(t *testing.T) 
 	}
 	awaitPreviewText(t, preview, "Failed")
 
-	api.contentErr = nil
-	api.content = []byte("recovered")
+	api.SetContent([]byte("recovered"), nil)
 	uitest.OnUI(t, preview.serviceCtx.App, func() {
 		preview.SetVisible(false)
 		preview.SetVisible(true)
@@ -219,7 +219,7 @@ func TestObjectPreview__DownloadErrorIsReportedAndRetriedOnReopen(t *testing.T) 
 }
 
 func TestDetailsView__PreviewTabOnlyDownloadsOnceItIsOpened(t *testing.T) {
-	var api = &fakeS3BucketsApi{head: newTextHead("text/plain", 5), content: []byte("hello")}
+	var api = s3fake.New(s3fake.WithHead(newTextHead("text/plain", 5)), s3fake.WithContent([]byte("hello")))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.S3BucketsApi](api)
 	var view = NewS3bucketsDetailsView(
 		NewBucketListTable(serviceCtx),
@@ -233,7 +233,7 @@ func TestDetailsView__PreviewTabOnlyDownloadsOnceItIsOpened(t *testing.T) {
 		view.objectPreview.SetObject("bucket", "notes.txt")
 		serviceCtx.App.SetFocus(view.objectDetailsTable)
 	})
-	if api.contentCalls.Load() != 0 {
+	if api.ContentCalls() != 0 {
 		t.Fatalf("downloaded before the tab was opened")
 	}
 
@@ -242,17 +242,13 @@ func TestDetailsView__PreviewTabOnlyDownloadsOnceItIsOpened(t *testing.T) {
 	awaitPreviewText(t, view.objectPreview, "hello")
 	uitest.PressKey(t, serviceCtx.App, tcell.KeyTab)
 	uitest.PressKey(t, serviceCtx.App, tcell.KeyTab)
-	if api.contentCalls.Load() != 1 {
-		t.Errorf("content downloads after reopening = %d, want 1", api.contentCalls.Load())
+	if api.ContentCalls() != 1 {
+		t.Errorf("content downloads after reopening = %d, want 1", api.ContentCalls())
 	}
 }
 
 func TestDetailsView__SelectingObjectUsesTheBucketItWasListedFrom(t *testing.T) {
-	var api = &fakeS3BucketsApi{
-		buckets: []types.Bucket{newBucket("alpha"), newBucket("beta")},
-		objects: []types.Object{newObject("notes.txt", 5)},
-		head:    newTextHead("text/plain", 5),
-	}
+	var api = s3fake.New(s3fake.WithBuckets([]types.Bucket{newBucket("alpha"), newBucket("beta")}), s3fake.WithObjects([]types.Object{newObject("notes.txt", 5)}), s3fake.WithHead(newTextHead("text/plain", 5)))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.S3BucketsApi](api)
 	var view = NewS3bucketsDetailsView(
 		NewBucketListTable(serviceCtx),
@@ -278,8 +274,8 @@ func TestDetailsView__SelectingObjectUsesTheBucketItWasListedFrom(t *testing.T) 
 		uitest.PressEnter(view.objectsTable)
 	})
 
-	uitest.Eventually(t, serviceCtx.App, func() bool { return api.headTargets.Load() != nil })
-	if got := api.headTargets.Load(); got != "alpha/notes.txt" {
+	uitest.Eventually(t, serviceCtx.App, func() bool { return api.LastHeadTarget() != "" })
+	if got := api.LastHeadTarget(); got != "alpha/notes.txt" {
 		t.Errorf("HeadObject target = %v, want alpha/notes.txt", got)
 	}
 }

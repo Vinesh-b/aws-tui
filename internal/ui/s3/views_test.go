@@ -1,6 +1,7 @@
 package s3
 
 import (
+	"aws-tui/internal/ui/s3/s3fake"
 	"testing"
 
 	"aws-tui/internal/ui/core"
@@ -11,7 +12,7 @@ import (
 
 func TestHomeView__ResetKeyLoadsBucketsFromApi(t *testing.T) {
 	var appCtx = uitest.NewAppContext()
-	var page = NewS3bucketsHomeView(appCtx, &fakeS3BucketsApi{buckets: []types.Bucket{newBucket("orders-bucket")}})
+	var page = NewS3bucketsHomeView(appCtx, s3fake.New(s3fake.WithBuckets([]types.Bucket{newBucket("orders-bucket")})))
 	var screen = uitest.ShowPage(t, appCtx.App, page)
 
 	uitest.PressRune(t, appCtx.App, core.APP_KEY_BINDINGS.Reset)

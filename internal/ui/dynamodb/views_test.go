@@ -1,6 +1,7 @@
 package dynamodb
 
 import (
+	"aws-tui/internal/ui/dynamodb/dynamodbfake"
 	"testing"
 
 	"aws-tui/internal/awsapi"
@@ -10,7 +11,7 @@ import (
 
 func TestHomeView__ResetKeyLoadsTablesFromApi(t *testing.T) {
 	var appCtx = uitest.NewAppContext()
-	var page = NewDynamoDBHomeView(appCtx, &fakeDynamoDBApi{tables: []string{"orders-table"}})
+	var page = NewDynamoDBHomeView(appCtx, dynamodbfake.New(dynamodbfake.WithTables([]string{"orders-table"})))
 	var screen = uitest.ShowPage(t, appCtx.App, page)
 
 	uitest.PressRune(t, appCtx.App, core.APP_KEY_BINDINGS.Reset)

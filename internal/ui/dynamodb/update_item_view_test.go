@@ -1,12 +1,11 @@
 package dynamodb
 
 import (
-	"context"
+	"aws-tui/internal/ui/dynamodb/dynamodbfake"
 	"encoding/json"
 	"errors"
 	"slices"
 	"strings"
-	"sync"
 	"testing"
 
 	"aws-tui/internal/awsapi"
@@ -99,59 +98,25 @@ func TestDiffItem__SameKeyNumberWrittenDifferentlyIsNotAChange(t *testing.T) {
 	}
 }
 
-type fakeUpdateItemApi struct {
-	fakeDynamoDBApi
-	mtx       sync.Mutex
-	tableName string
-	key       map[string]any
-	set       map[string]any
-	remove    []string
-	calls     int
-	updateErr error
-
-	deleted   []itemRef
-	deleteErr error
-}
-
-func (f *fakeUpdateItemApi) DeleteItem(ctx context.Context, tableName string, key map[string]any) error {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
-	f.deleted = append(f.deleted, itemRef{tableName: tableName, key: key})
-	return f.deleteErr
-}
-
-func (f *fakeUpdateItemApi) deletedItems() []itemRef {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
-	return slices.Clone(f.deleted)
-}
-
-func (f *fakeUpdateItemApi) UpdateItem(
-	ctx context.Context, tableName string, key map[string]any, set map[string]any, remove []string,
-) error {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
-	f.calls++
-	f.tableName, f.key, f.set, f.remove = tableName, key, set, remove
-	return f.updateErr
-}
-
-func (f *fakeUpdateItemApi) updateCalls() int {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
-	return f.calls
+func lastUpdate(t *testing.T, api *dynamodbfake.Api) dynamodbfake.Update {
+	t.Helper()
+	var updates = api.Updates()
+	if len(updates) == 0 {
+		t.Fatal("Expected an update but got none")
+	}
+	return updates[len(updates)-1]
 }
 
 type updateItemFixture struct {
 	table *DynamoDBGenericTable
-	api   *fakeUpdateItemApi
+	api   *dynamodbfake.Api
 }
 
-func newUpdateItemFixture(t *testing.T, api *fakeUpdateItemApi) *updateItemFixture {
+func newUpdateItemFixture(t *testing.T, api *dynamodbfake.Api) *updateItemFixture {
 	t.Helper()
-	api.description = newTableDescription("orders", hashKey("id"))
-	if api.items == nil {
-		api.items = []map[string]any{{"id": "a1", "status": "new", "note": "x"}, {"id": "a2", "status": "old"}}
+	api.SetDescription(newTableDescription("orders", hashKey("id")))
+	if api.Items() == nil {
+		api.SetItems([]map[string]any{{"id": "a1", "status": "new", "note": "x"}, {"id": "a2", "status": "old"}})
 	}
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.DynamoDBApi](api)
 	var table = NewDynamoDBGenericTable(serviceCtx)
@@ -162,7 +127,7 @@ func newUpdateItemFixture(t *testing.T, api *fakeUpdateItemApi) *updateItemFixtu
 	})
 	table.SetSelectedTable("orders")
 	table.ExecuteSearch(DDBTableScan, expression.Expression{}, true)
-	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetTable().GetRowCount() == len(api.items)+1 })
+	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetTable().GetRowCount() == len(api.Items())+1 })
 	return &updateItemFixture{table: table, api: api}
 }
 
@@ -175,7 +140,7 @@ func (f *updateItemFixture) press(t *testing.T, key tcell.Key, r rune) {
 	uitest.OnUI(t, f.app(), func() {})
 }
 
-func newUpdateItemPageView(t *testing.T, api *fakeUpdateItemApi, item map[string]any) *DynamoDBUpdateItemPageView {
+func newUpdateItemPageView(t *testing.T, api *dynamodbfake.Api, item map[string]any) *DynamoDBUpdateItemPageView {
 	t.Helper()
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.DynamoDBApi](api)
 	var view = NewDynamoDBUpdateItemPageView(serviceCtx)
@@ -194,7 +159,7 @@ func (v *DynamoDBUpdateItemPageView) editorText(t *testing.T) string {
 }
 
 func TestUpdateItemPageView__LoadsTheSelectedItemAndSavesOnlyTheChanges(t *testing.T) {
-	var api = &fakeUpdateItemApi{}
+	var api = dynamodbfake.New()
 	var view = newUpdateItemPageView(t, api, map[string]any{"id": "a1", "status": "new", "note": "x"})
 	var updated = make(chan string, 1)
 	view.SetOnItemUpdated(func(table string) { updated <- table })
@@ -212,11 +177,12 @@ func TestUpdateItemPageView__LoadsTheSelectedItemAndSavesOnlyTheChanges(t *testi
 	if table := <-updated; table != "orders" {
 		t.Errorf("updated table = %q", table)
 	}
-	if api.tableName != "orders" || !reflectEqualJson(api.key, `{"id":"a1"}`) {
-		t.Errorf("Unexpected target %q %v", api.tableName, api.key)
+	var update = lastUpdate(t, api)
+	if update.TableName != "orders" || !reflectEqualJson(update.Key, `{"id":"a1"}`) {
+		t.Errorf("Unexpected target %q %v", update.TableName, update.Key)
 	}
-	if !reflectEqualJson(api.set, `{"status":"shipped","extra":1}`) || !slices.Equal(api.remove, []string{"note"}) {
-		t.Errorf("Unexpected update set=%v remove=%v", api.set, api.remove)
+	if !reflectEqualJson(update.Set, `{"status":"shipped","extra":1}`) || !slices.Equal(update.Remove, []string{"note"}) {
+		t.Errorf("Unexpected update set=%v remove=%v", update.Set, update.Remove)
 	}
 	uitest.Eventually(t, view.serviceCtx.App, func() bool {
 		return strings.Contains(view.resultOutput.GetText(), "Item updated in orders")
@@ -224,7 +190,7 @@ func TestUpdateItemPageView__LoadsTheSelectedItemAndSavesOnlyTheChanges(t *testi
 }
 
 func TestUpdateItemPageView__FurtherEditsAreComparedAgainstWhatWasSaved(t *testing.T) {
-	var api = &fakeUpdateItemApi{}
+	var api = dynamodbfake.New()
 	var view = newUpdateItemPageView(t, api, map[string]any{"id": "a1", "status": "new"})
 	var updated = make(chan string, 2)
 	view.SetOnItemUpdated(func(table string) { updated <- table })
@@ -241,13 +207,14 @@ func TestUpdateItemPageView__FurtherEditsAreComparedAgainstWhatWasSaved(t *testi
 	})
 
 	<-updated
-	if !reflectEqualJson(api.set, `{"note":"x"}`) || len(api.remove) != 0 {
-		t.Errorf("Unexpected update set=%v remove=%v", api.set, api.remove)
+	var update = lastUpdate(t, api)
+	if !reflectEqualJson(update.Set, `{"note":"x"}`) || len(update.Remove) != 0 {
+		t.Errorf("Unexpected update set=%v remove=%v", update.Set, update.Remove)
 	}
 }
 
 func TestUpdateItemPageView__NoChangesDoesNotCallTheApi(t *testing.T) {
-	var api = &fakeUpdateItemApi{}
+	var api = dynamodbfake.New()
 	var view = newUpdateItemPageView(t, api, map[string]any{"id": "a1", "status": "new"})
 
 	uitest.OnUI(t, view.serviceCtx.App, func() {
@@ -256,8 +223,8 @@ func TestUpdateItemPageView__NoChangesDoesNotCallTheApi(t *testing.T) {
 	})
 
 	uitest.Eventually(t, view.serviceCtx.App, func() bool { return view.resultOutput.GetText() == "No changes to save" })
-	if api.updateCalls() != 0 {
-		t.Errorf("Expected no api calls but got %d", api.updateCalls())
+	if len(api.Updates()) != 0 {
+		t.Errorf("Expected no api calls but got %d", len(api.Updates()))
 	}
 }
 
@@ -268,7 +235,7 @@ func TestUpdateItemPageView__InvalidEditsAreReportedWithoutCallingTheApi(t *test
 		"key removed": {`{"status":"new"}`, "can't be removed"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			var api = &fakeUpdateItemApi{}
+			var api = dynamodbfake.New()
 			var view = newUpdateItemPageView(t, api, map[string]any{"id": "a1", "status": "new"})
 			var callback, received = uitest.CaptureErrors()
 			view.itemInput.ErrorMessageCallback = callback
@@ -282,15 +249,15 @@ func TestUpdateItemPageView__InvalidEditsAreReportedWithoutCallingTheApi(t *test
 			if message := uitest.AwaitError(t, received); !strings.Contains(message, tc.want) {
 				t.Errorf("error = %q, want one containing %q", message, tc.want)
 			}
-			if api.updateCalls() != 0 {
-				t.Errorf("Expected no api calls but got %d", api.updateCalls())
+			if len(api.Updates()) != 0 {
+				t.Errorf("Expected no api calls but got %d", len(api.Updates()))
 			}
 		})
 	}
 }
 
 func TestUpdateItemPageView__ReportsApiError(t *testing.T) {
-	var api = &fakeUpdateItemApi{updateErr: errors.New("ConditionalCheckFailed")}
+	var api = dynamodbfake.New(dynamodbfake.WithUpdateErr(errors.New("ConditionalCheckFailed")))
 	var view = newUpdateItemPageView(t, api, map[string]any{"id": "a1", "status": "new"})
 	var callback, received = uitest.CaptureErrors()
 	view.resultOutput.ErrorMessageCallback = callback
@@ -316,7 +283,7 @@ func TestUpdateItemPageView__RequiresATableAndALoadedItem(t *testing.T) {
 		"nothing loaded": {func(v *DynamoDBUpdateItemPageView) {}, "No item loaded"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			var api = &fakeUpdateItemApi{}
+			var api = dynamodbfake.New()
 			var view = newUpdateItemPageView(t, api, map[string]any{"id": "a1"})
 			var callback, received = uitest.CaptureErrors()
 			view.itemInput.ErrorMessageCallback = callback
@@ -327,15 +294,15 @@ func TestUpdateItemPageView__RequiresATableAndALoadedItem(t *testing.T) {
 			if message := uitest.AwaitError(t, received); !strings.Contains(message, tc.want) {
 				t.Errorf("error = %q, want one containing %q", message, tc.want)
 			}
-			if api.updateCalls() != 0 {
-				t.Errorf("Expected no api calls but got %d", api.updateCalls())
+			if len(api.Updates()) != 0 {
+				t.Errorf("Expected no api calls but got %d", len(api.Updates()))
 			}
 		})
 	}
 }
 
 func TestUpdateItemPageView__LoadWithoutASelectedItemReportsAnError(t *testing.T) {
-	var view = newUpdateItemPageView(t, &fakeUpdateItemApi{}, nil)
+	var view = newUpdateItemPageView(t, dynamodbfake.New(), nil)
 	var callback, received = uitest.CaptureErrors()
 	view.itemInput.ErrorMessageCallback = callback
 
@@ -348,7 +315,7 @@ func TestUpdateItemPageView__LoadWithoutASelectedItemReportsAnError(t *testing.T
 
 func TestUpdateItemPageView__ShowingTheTabKeepsUnsavedEdits(t *testing.T) {
 	var item = map[string]any{"id": "a1", "status": "new"}
-	var view = newUpdateItemPageView(t, &fakeUpdateItemApi{}, item)
+	var view = newUpdateItemPageView(t, dynamodbfake.New(), item)
 
 	uitest.OnUI(t, view.serviceCtx.App, view.LoadSelectedItemIfUnedited)
 	if shown := jsonItem(t, view.editorText(t)); shown["status"] != "new" {
@@ -378,7 +345,7 @@ func TestUpdateItemPageView__ShowingTheTabKeepsUnsavedEdits(t *testing.T) {
 }
 
 func TestUpdateItemPageView__EmptySelectionLeavesTheEditorAloneWhenShown(t *testing.T) {
-	var view = newUpdateItemPageView(t, &fakeUpdateItemApi{}, nil)
+	var view = newUpdateItemPageView(t, dynamodbfake.New(), nil)
 	var callback, received = uitest.CaptureErrors()
 	view.itemInput.ErrorMessageCallback = callback
 

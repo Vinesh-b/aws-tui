@@ -1,6 +1,7 @@
 package dynamodb
 
 import (
+	"aws-tui/internal/ui/dynamodb/dynamodbfake"
 	"testing"
 
 	"aws-tui/internal/awsapi"
@@ -20,10 +21,7 @@ type messageViewFixture struct {
 
 func newMessageViewFixture(t *testing.T, items ...map[string]any) *messageViewFixture {
 	t.Helper()
-	var api = &fakeUpdateItemApi{fakeDynamoDBApi: fakeDynamoDBApi{
-		description: newTableDescription("orders", hashKey("id")),
-		items:       items,
-	}}
+	var api = dynamodbfake.New(dynamodbfake.WithDescription(newTableDescription("orders", hashKey("id"))), dynamodbfake.WithItems(items))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.DynamoDBApi](api)
 	var page = NewDynamoDBItemsPageView(NewDynamoDBGenericTable(serviceCtx), serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)

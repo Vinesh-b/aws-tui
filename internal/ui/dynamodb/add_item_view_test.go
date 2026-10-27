@@ -1,42 +1,17 @@
 package dynamodb
 
 import (
-	"context"
+	"aws-tui/internal/ui/dynamodb/dynamodbfake"
 	"encoding/json"
 	"errors"
 	"strings"
-	"sync"
 	"testing"
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/uitest"
 )
 
-type fakePutItemApi struct {
-	fakeDynamoDBApi
-	mtx    sync.Mutex
-	table  string
-	item   map[string]any
-	calls  int
-	putErr error
-}
-
-func (f *fakePutItemApi) PutItem(ctx context.Context, tableName string, item map[string]any) error {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
-	f.calls++
-	f.table = tableName
-	f.item = item
-	return f.putErr
-}
-
-func (f *fakePutItemApi) putCalls() int {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
-	return f.calls
-}
-
-func newAddItemView(t *testing.T, api *fakePutItemApi) *DynamoDBAddItemPageView {
+func newAddItemView(t *testing.T, api *dynamodbfake.Api) *DynamoDBAddItemPageView {
 	t.Helper()
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.DynamoDBApi](api)
 	var view = NewDynamoDBAddItemPageView(serviceCtx)
@@ -45,7 +20,7 @@ func newAddItemView(t *testing.T, api *fakePutItemApi) *DynamoDBAddItemPageView 
 }
 
 func TestAddItemView__AddsTheItemToTheSelectedTable(t *testing.T) {
-	var api = &fakePutItemApi{}
+	var api = dynamodbfake.New()
 	var view = newAddItemView(t, api)
 	var added = make(chan string, 1)
 	view.SetOnItemAdded(func(table string) { added <- table })
@@ -55,16 +30,20 @@ func TestAddItemView__AddsTheItemToTheSelectedTable(t *testing.T) {
 	uitest.OnUI(t, view.serviceCtx.App, view.AddItem)
 
 	var table = <-added
-	if table != "orders" || api.table != "orders" {
-		t.Fatalf("Expected table orders but got %q / %q", table, api.table)
+	var puts = api.Puts()
+	if len(puts) != 1 {
+		t.Fatalf("Expected one put but got %v", puts)
 	}
-	if api.item["id"] != "a1" || api.item["big"] != json.Number("12345678901234567890") {
-		t.Fatalf("Unexpected item %v", api.item)
+	if table != "orders" || puts[0].TableName != "orders" {
+		t.Fatalf("Expected table orders but got %q / %q", table, puts[0].TableName)
+	}
+	if item := puts[0].Item; item["id"] != "a1" || item["big"] != json.Number("12345678901234567890") {
+		t.Fatalf("Unexpected item %v", item)
 	}
 }
 
 func TestAddItemView__ReportsApiError(t *testing.T) {
-	var api = &fakePutItemApi{putErr: errors.New("access denied")}
+	var api = dynamodbfake.New(dynamodbfake.WithPutErr(errors.New("access denied")))
 	var view = newAddItemView(t, api)
 	var callback, received = uitest.CaptureErrors()
 	view.resultOutput.ErrorMessageCallback = callback
@@ -88,7 +67,7 @@ func TestAddItemView__RejectsInvalidInputWithoutCallingTheApi(t *testing.T) {
 		"blank input": ``,
 	} {
 		t.Run(name, func(t *testing.T) {
-			var api = &fakePutItemApi{}
+			var api = dynamodbfake.New()
 			var view = newAddItemView(t, api)
 			var callback, received = uitest.CaptureErrors()
 			view.itemInput.ErrorMessageCallback = callback
@@ -98,15 +77,15 @@ func TestAddItemView__RejectsInvalidInputWithoutCallingTheApi(t *testing.T) {
 			uitest.OnUI(t, view.serviceCtx.App, view.AddItem)
 
 			uitest.AwaitError(t, received)
-			if api.putCalls() != 0 {
-				t.Fatalf("Expected no api calls but got %d", api.putCalls())
+			if len(api.Puts()) != 0 {
+				t.Fatalf("Expected no api calls but got %d", len(api.Puts()))
 			}
 		})
 	}
 }
 
 func TestAddItemView__RequiresASelectedTable(t *testing.T) {
-	var api = &fakePutItemApi{}
+	var api = dynamodbfake.New()
 	var view = newAddItemView(t, api)
 	var callback, received = uitest.CaptureErrors()
 	view.itemInput.ErrorMessageCallback = callback
@@ -117,13 +96,13 @@ func TestAddItemView__RequiresASelectedTable(t *testing.T) {
 	if message := uitest.AwaitError(t, received); !strings.Contains(message, "No table") {
 		t.Fatalf("Unexpected error %q", message)
 	}
-	if api.putCalls() != 0 {
-		t.Fatalf("Expected no api calls but got %d", api.putCalls())
+	if len(api.Puts()) != 0 {
+		t.Fatalf("Expected no api calls but got %d", len(api.Puts()))
 	}
 }
 
 func TestAddItemView__FormatKeepsLargeNumbers(t *testing.T) {
-	var view = newAddItemView(t, &fakePutItemApi{})
+	var view = newAddItemView(t, dynamodbfake.New())
 	view.itemInput.SetText(`{"big":12345678901234567890}`, false)
 
 	uitest.OnUI(t, view.serviceCtx.App, view.FormatItem)
@@ -149,7 +128,7 @@ func TestItemsPageView__HasAnAddItemTab(t *testing.T) {
 }
 
 func TestAddItemView__CopiesTheSelectedItemAsATemplate(t *testing.T) {
-	var view = newAddItemView(t, &fakePutItemApi{})
+	var view = newAddItemView(t, dynamodbfake.New())
 	view.SetSelectedItemFunc(func() (map[string]any, bool) {
 		return map[string]any{"id": "u1", "age": float64(30)}, true
 	})
@@ -164,7 +143,7 @@ func TestAddItemView__CopiesTheSelectedItemAsATemplate(t *testing.T) {
 }
 
 func TestAddItemView__CopyWithoutSelectedItemReportsError(t *testing.T) {
-	var view = newAddItemView(t, &fakePutItemApi{})
+	var view = newAddItemView(t, dynamodbfake.New())
 	var callback, received = uitest.CaptureErrors()
 	view.itemInput.ErrorMessageCallback = callback
 	view.itemInput.SetText("keep", false)

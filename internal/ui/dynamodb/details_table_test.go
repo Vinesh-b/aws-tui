@@ -1,6 +1,7 @@
 package dynamodb
 
 import (
+	"aws-tui/internal/ui/dynamodb/dynamodbfake"
 	"testing"
 	"time"
 
@@ -123,10 +124,7 @@ func TestDetailsTable__SelectedTableArn(t *testing.T) {
 }
 
 func TestDetailsTable__TagsAreLoadedIntoTheirSectionOnceTheTableIsDescribed(t *testing.T) {
-	var api = &fakeDynamoDBApi{
-		description: newDescribedTable(),
-		tags:        []types.Tag{{Key: aws.String("team"), Value: aws.String("orders")}, {Key: aws.String("env"), Value: aws.String("prod")}},
-	}
+	var api = dynamodbfake.New(dynamodbfake.WithDescription(newDescribedTable()), dynamodbfake.WithTags([]types.Tag{{Key: aws.String("team"), Value: aws.String("orders")}, {Key: aws.String("env"), Value: aws.String("prod")}}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.DynamoDBApi](api)
 	var table = NewDynamoDBDetailsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)

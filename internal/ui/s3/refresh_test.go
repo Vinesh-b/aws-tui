@@ -1,61 +1,19 @@
 package s3
 
 import (
-	"context"
+	"aws-tui/internal/ui/s3/s3fake"
 	"errors"
-	"sync/atomic"
 	"testing"
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/uitest"
 
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
-type fakeS3BucketsApi struct {
-	awsapi.S3BucketsApi
-	buckets []types.Bucket
-	objects []types.Object
-	dirs    []types.CommonPrefix
-	head    s3.HeadObjectOutput
-	err     error
-
-	content      []byte
-	contentErr   error
-	headCalls    atomic.Int32
-	headTargets  atomic.Value
-	contentCalls atomic.Int32
-}
-
-func (f *fakeS3BucketsApi) ListBuckets(ctx context.Context, force bool) ([]types.Bucket, error) {
-	return f.buckets, f.err
-}
-
-func (f *fakeS3BucketsApi) ListObjects(
-	ctx context.Context, bucketName string, prefix string, force bool,
-) ([]types.Object, []types.CommonPrefix, error) {
-	return f.objects, f.dirs, f.err
-}
-
-func (f *fakeS3BucketsApi) HeadObject(
-	ctx context.Context, bucketArn string, objectKey string, force bool,
-) (s3.HeadObjectOutput, error) {
-	f.headCalls.Add(1)
-	f.headTargets.Store(bucketArn + "/" + objectKey)
-	return f.head, f.err
-}
-
-func (f *fakeS3BucketsApi) GetObjectContent(
-	ctx context.Context, bucketName string, objectKey string, maxBytes int64,
-) ([]byte, error) {
-	f.contentCalls.Add(1)
-	return f.content, f.contentErr
-}
-
 func TestBucketListTable__RefreshLoadsBucketsFromApi(t *testing.T) {
-	var api = &fakeS3BucketsApi{buckets: []types.Bucket{newBucket("logs"), newBucket("assets")}}
+	var api = s3fake.New(s3fake.WithBuckets([]types.Bucket{newBucket("logs"), newBucket("assets")}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.S3BucketsApi](api)
 	var table = NewBucketListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -70,7 +28,7 @@ func TestBucketListTable__RefreshLoadsBucketsFromApi(t *testing.T) {
 }
 
 func TestBucketListTable__RefreshKeepsOnlyBucketsMatchingSearchText(t *testing.T) {
-	var api = &fakeS3BucketsApi{buckets: []types.Bucket{newBucket("logs"), newBucket("assets")}}
+	var api = s3fake.New(s3fake.WithBuckets([]types.Bucket{newBucket("logs"), newBucket("assets")}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.S3BucketsApi](api)
 	var table = NewBucketListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -85,7 +43,7 @@ func TestBucketListTable__RefreshKeepsOnlyBucketsMatchingSearchText(t *testing.T
 }
 
 func TestBucketListTable__RefreshReportsApiError(t *testing.T) {
-	var api = &fakeS3BucketsApi{err: errors.New("access denied")}
+	var api = s3fake.New(s3fake.WithErr(errors.New("access denied")))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.S3BucketsApi](api)
 	var table = NewBucketListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -100,10 +58,7 @@ func TestBucketListTable__RefreshReportsApiError(t *testing.T) {
 }
 
 func TestBucketObjectsTable__RefreshListsObjectsOfSelectedBucket(t *testing.T) {
-	var api = &fakeS3BucketsApi{
-		objects: []types.Object{newObject("readme.txt", 1536)},
-		dirs:    []types.CommonPrefix{newDir("docs/")},
-	}
+	var api = s3fake.New(s3fake.WithObjects([]types.Object{newObject("readme.txt", 1536)}), s3fake.WithDirs([]types.CommonPrefix{newDir("docs/")}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.S3BucketsApi](api)
 	var table = NewBucketObjectsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -120,9 +75,7 @@ func TestBucketObjectsTable__RefreshListsObjectsOfSelectedBucket(t *testing.T) {
 }
 
 func TestBucketObjectsTable__RefreshDropsTheCurrentDirEntryFromObjects(t *testing.T) {
-	var api = &fakeS3BucketsApi{
-		objects: []types.Object{newObject("docs/", 0), newObject("docs/guide.md", 2048)},
-	}
+	var api = s3fake.New(s3fake.WithObjects([]types.Object{newObject("docs/", 0), newObject("docs/guide.md", 2048)}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.S3BucketsApi](api)
 	var table = NewBucketObjectsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -139,7 +92,7 @@ func TestBucketObjectsTable__RefreshDropsTheCurrentDirEntryFromObjects(t *testin
 }
 
 func TestBucketObjectsTable__RefreshReportsApiError(t *testing.T) {
-	var api = &fakeS3BucketsApi{err: errors.New("access denied")}
+	var api = s3fake.New(s3fake.WithErr(errors.New("access denied")))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.S3BucketsApi](api)
 	var table = NewBucketObjectsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -154,7 +107,7 @@ func TestBucketObjectsTable__RefreshReportsApiError(t *testing.T) {
 }
 
 func TestObjectDetailsTable__RefreshShowsHeadObjectOutput(t *testing.T) {
-	var api = &fakeS3BucketsApi{head: newHeadObject()}
+	var api = s3fake.New(s3fake.WithHead(newHeadObject()))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.S3BucketsApi](api)
 	var table = NewS3ObjectDetailsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -165,7 +118,7 @@ func TestObjectDetailsTable__RefreshShowsHeadObjectOutput(t *testing.T) {
 }
 
 func TestObjectDetailsTable__RefreshFailureKeepsPreviousDetails(t *testing.T) {
-	var api = &fakeS3BucketsApi{err: errors.New("access denied")}
+	var api = s3fake.New(s3fake.WithErr(errors.New("access denied")))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.S3BucketsApi](api)
 	var table = NewS3ObjectDetailsTable(serviceCtx)
 	table.data = newHeadObject()
