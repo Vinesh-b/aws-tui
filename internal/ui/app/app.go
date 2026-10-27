@@ -301,6 +301,31 @@ func WithSessionPollAtStart() Option {
 	return func(options *appOptions) { options.pollSessionAtStart = true }
 }
 
+// settingsStore keeps the settings the user chooses, and saves them in the
+// settings file when the app has one. It is only used on the UI goroutine.
+type settingsStore struct {
+	path  string
+	saved settings.Settings
+}
+
+func (inst *settingsStore) Settings() settings.Settings {
+	return inst.saved
+}
+
+func (inst *settingsStore) Update(change func(saved *settings.Settings)) error {
+	change(&inst.saved)
+	if inst.path == "" {
+		return nil
+	}
+	return settings.Save(inst.path, inst.saved)
+}
+
+// rebuildPagesForKeys replaces every page that can be built again but the one
+// the keys were changed on, so the pages take the new keys
+func rebuildPagesForKeys(pages *tview.Pages, items []*ServiceItem, changedOn *ServiceItem) {
+	rebuildPages(pages, items, func(item *ServiceItem) bool { return item != changedOn })
+}
+
 // loadSettings reads the saved settings. Problems with them are returned to be
 // logged, since the app still starts, with the defaults for what is missing.
 func loadSettings(path string) (settings.Settings, []error) {
@@ -327,7 +352,7 @@ func CreateApplication(
 	var saved, problems = loadSettings(options.settingsPath)
 
 	// Before any view is built, as views list their keys in their help.
-	problems = append(problems, core.ApplyKeyBindingOverrides(saved.KeyBindings)...)
+	problems = append(problems, core.ApplyKeyBindingOverrides(saved.Keys)...)
 
 	var appTheme = core.DefaultTheme()
 	if saved.Theme != "" {
@@ -351,7 +376,8 @@ func CreateApplication(
 		appContext = core.NewAppContext(ctx, app, &config, inAppLogger, &appTheme)
 	)
 	appContext.PollSessionAtStart = options.pollSessionAtStart
-	appContext.DownloadDir = saved.DownloadDir
+	var store = &settingsStore{path: options.settingsPath, saved: saved}
+	appContext.DownloadDir = saved.Files.DownloadDir
 	appContext.QueriesPath = settings.QueriesPath(options.settingsPath)
 
 	for _, problem := range problems {
@@ -419,7 +445,7 @@ func CreateApplication(
 			return services.NewHelpHomeView(appContext)
 		}),
 		themedServiceItem(" "+string(core.SETTINGS), "Configure and tweak the app", rune('s'), func() core.ServicePage {
-			return services.NewSettingsView(appContext)
+			return services.NewSettingsView(appContext, store)
 		}),
 		staticServiceItem(" "+string(core.DEBUG_LOGS), "View debug logs", rune('0'),
 			errorTextArea,
@@ -557,11 +583,8 @@ func CreateApplication(
 	// again for a new theme. The views that stay, as they hold the log or
 	// are used to switch pages, are given the colours of the theme.
 	appContext.OnThemeChanged(func() {
-		if options.settingsPath != "" {
-			saved.Theme = appContext.Theme.Name
-			if err := settings.Save(options.settingsPath, saved); err != nil {
-				appContext.Logger.Print(err)
-			}
+		if err := store.Update(func(saved *settings.Settings) { saved.Theme = appContext.Theme.Name }); err != nil {
+			appContext.Logger.Print(err)
 		}
 
 		rebuildThemedPages(pages, serviceViews)
@@ -580,6 +603,17 @@ func CreateApplication(
 				if item.MainText == name {
 					app.SetFocus(item.ServicePage.GetLastFocusedView())
 				}
+			}
+		}
+	})
+
+	// Views take some keys when they are built, so the pages are built again
+	// for a new key, but the settings, where the key was changed, which
+	// shows the new keys itself
+	appContext.OnKeyBindingsChanged(func() {
+		for _, item := range serviceViews {
+			if serviceName(item) == string(core.SETTINGS) {
+				rebuildPagesForKeys(pages, serviceViews, item)
 			}
 		}
 	})

@@ -117,25 +117,65 @@ func TestDefaultPath__IsInsideTheConfigDirectory(t *testing.T) {
 func TestSave__ThenLoadKeepsTheDownloadDir(t *testing.T) {
 	var path = filepath.Join(t.TempDir(), "settings.json")
 
-	if err := Save(path, Settings{Theme: "Nord", DownloadDir: "~/Downloads"}); err != nil {
+	if err := Save(path, Settings{Theme: "Nord", Files: Files{DownloadDir: "~/Downloads"}}); err != nil {
 		t.Fatal(err)
 	}
 	var loaded, err = Load(path)
 
-	if err != nil || loaded.DownloadDir != "~/Downloads" {
+	if err != nil || loaded.Files.DownloadDir != "~/Downloads" {
 		t.Errorf("Load = %+v, %v, want the download dir", loaded, err)
 	}
 }
 
 func TestSave__ThenLoadKeepsTheKeyBindings(t *testing.T) {
 	var path = filepath.Join(t.TempDir(), "settings.json")
-	if err := Save(path, Settings{KeyBindings: map[string]string{"reset": "R"}}); err != nil {
+	if err := Save(path, Settings{Keys: map[string]string{"reset": "R"}}); err != nil {
 		t.Fatal(err)
 	}
 
 	var loaded, err = Load(path)
 
-	if err != nil || loaded.KeyBindings["reset"] != "R" {
+	if err != nil || loaded.Keys["reset"] != "R" {
 		t.Errorf("loaded = %+v, err = %v", loaded, err)
+	}
+}
+
+func TestSave__WritesASectionForEachPageOfTheSettings(t *testing.T) {
+	var path = filepath.Join(t.TempDir(), "settings.json")
+
+	if err := Save(path, Settings{
+		Theme: "Nord",
+		Files: Files{DownloadDir: "~/Downloads"},
+		Keys:  map[string]string{"reset": "R"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	var written, _ = os.ReadFile(path)
+	var want = `{
+  "theme": "Nord",
+  "files": {
+    "downloadDir": "~/Downloads"
+  },
+  "keys": {
+    "reset": "R"
+  }
+}
+`
+	if string(written) != want {
+		t.Errorf("file =\n%s\nwant\n%s", written, want)
+	}
+}
+
+func TestSave__LeavesOutTheSectionsThatAreNotSet(t *testing.T) {
+	var path = filepath.Join(t.TempDir(), "settings.json")
+
+	if err := Save(path, Settings{Theme: "Nord"}); err != nil {
+		t.Fatal(err)
+	}
+
+	var written, _ = os.ReadFile(path)
+	if want := "{\n  \"theme\": \"Nord\"\n}\n"; string(written) != want {
+		t.Errorf("file = %q, want %q", written, want)
 	}
 }

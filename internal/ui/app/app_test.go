@@ -404,7 +404,7 @@ func TestCreateApplication__StartsWithTheSavedKeyBindings(t *testing.T) {
 	t.Cleanup(func() { core.APP_KEY_BINDINGS = original })
 
 	var path = filepath.Join(t.TempDir(), "settings.json")
-	var chosen = settings.Settings{KeyBindings: map[string]string{"reset": "R", "nope": "x"}}
+	var chosen = settings.Settings{Keys: map[string]string{"reset": "R", "nope": "x"}}
 	if err := settings.Save(path, chosen); err != nil {
 		t.Fatal(err)
 	}
@@ -475,4 +475,84 @@ func awaitInUse(t *testing.T, app *tview.Application, screen tcell.SimulationScr
 		time.Sleep(20 * time.Millisecond) // sleep-ok: polling the screen
 	}
 	t.Fatalf("settings never showed %s as in use:\n%s", theme, uitest.ScreenText(screen))
+}
+
+func TestRebuildPagesForKeys__ReplacesEveryPageButTheOneTheKeysChangedOn(t *testing.T) {
+	var pages = tview.NewPages()
+	var build = func() core.ServicePage { return &countingPage{Box: tview.NewBox()} }
+	var data = newServiceItem("data", "", 'd', build)
+	var themed = themedServiceItem("themed", "", 't', build)
+	var settingsItem = themedServiceItem("settings", "", 's', build)
+	var oldData, oldThemed, oldSettings = data.ServicePage, themed.ServicePage, settingsItem.ServicePage
+	for _, item := range []*ServiceItem{data, themed, settingsItem} {
+		pages.AddPage(item.MainText, item.ServicePage, true, item == settingsItem)
+	}
+
+	rebuildPagesForKeys(pages, []*ServiceItem{data, themed, settingsItem}, settingsItem)
+
+	if data.ServicePage == oldData || themed.ServicePage == oldThemed {
+		t.Error("the other pages should take the new keys")
+	}
+	if settingsItem.ServicePage != oldSettings {
+		t.Error("the page the keys changed on should be kept")
+	}
+	if got := pages.GetPageNames(true); !slices.Equal(got, []string{"settings"}) {
+		t.Errorf("visible pages = %v, want only settings", got)
+	}
+}
+
+func TestSettingsStore__UpdateSavesTheSettingsFile(t *testing.T) {
+	var path = filepath.Join(t.TempDir(), "settings.json")
+	var store = &settingsStore{path: path, saved: settings.Settings{Theme: "Nord"}}
+
+	if err := store.Update(func(saved *settings.Settings) { saved.Keys = map[string]string{"reset": "R"} }); err != nil {
+		t.Fatal(err)
+	}
+
+	var loaded, _ = settings.Load(path)
+	if loaded.Theme != "Nord" || loaded.Keys["reset"] != "R" {
+		t.Errorf("file = %+v, want the theme kept and the key added", loaded)
+	}
+	if store.Settings().Keys["reset"] != "R" {
+		t.Error("the store does not have the change")
+	}
+}
+
+func TestSettingsStore__WithoutAFileKeepsTheSettingsForTheRun(t *testing.T) {
+	var store = &settingsStore{}
+
+	if err := store.Update(func(saved *settings.Settings) { saved.Theme = "Nord" }); err != nil {
+		t.Fatal(err)
+	}
+
+	if store.Settings().Theme != "Nord" {
+		t.Error("the change was not kept")
+	}
+}
+
+func TestCreateApplication__AKeyChangedInTheSettingsIsSavedToTheFile(t *testing.T) {
+	var original = core.APP_KEY_BINDINGS
+	t.Cleanup(func() { core.APP_KEY_BINDINGS = original })
+	var path = filepath.Join(t.TempDir(), "settings.json")
+	var tuiApp, screen = startApp(t, WithSettingsFile(path))
+	openSettings(tuiApp)
+	awaitInUse(t, tuiApp, screen, "Default")
+
+	// The keys are two pages on from the themes, and reset is found by
+	// searching for what it does
+	typeRunes(tuiApp, "gtgt")
+	uitest.AwaitScreenText(t, tuiApp, screen, "toggleServicesMenu")
+	typeRunes(tuiApp, "/Load the table again")
+	pressEnter(tuiApp)
+	typeRunes(tuiApp, string(core.APP_KEY_BINDINGS.NextSearch))
+	pressEnter(tuiApp)
+	uitest.AwaitScreenText(t, tuiApp, screen, "reset r")
+	tuiApp.QueueEvent(tcell.NewEventKey(tcell.KeyBackspace, 0, tcell.ModNone))
+	typeRunes(tuiApp, "R")
+	pressEnter(tuiApp)
+
+	uitest.Eventually(t, tuiApp, func() bool {
+		var saved, _ = settings.Load(path)
+		return saved.Keys["reset"] == "R"
+	}, "reset is saved on R")
 }

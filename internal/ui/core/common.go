@@ -38,6 +38,7 @@ type AppContext struct {
 	listenersMtx      sync.Mutex
 	apiResetListeners []*func()
 	themeListeners    []func()
+	keyListeners      []func()
 	openResource      func(resource arn.ARN) error
 	// focusedTable is the table that last had the focus, to save with :w, and
 	// focusedLinks the details that last had it, to open their links. They
@@ -135,6 +136,19 @@ func (inst *AppContext) SetTheme(theme AppTheme) {
 
 func (inst *AppContext) OnThemeChanged(listener func()) {
 	inst.themeListeners = append(inst.themeListeners, listener)
+}
+
+// KeyBindingsChanged tells the listeners that APP_KEY_BINDINGS changed, so the
+// views that took their keys when they were built can be built again. It is
+// called on the UI goroutine.
+func (inst *AppContext) KeyBindingsChanged() {
+	for _, listener := range inst.keyListeners {
+		listener()
+	}
+}
+
+func (inst *AppContext) OnKeyBindingsChanged(listener func()) {
+	inst.keyListeners = append(inst.keyListeners, listener)
 }
 
 func NewAppContext(

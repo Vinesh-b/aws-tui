@@ -111,6 +111,9 @@ type KeyBindings struct {
 	RemoveItemSequence  string
 }
 
+// defaultKeyBindings are the keys the app starts with, before the settings
+var defaultKeyBindings = APP_KEY_BINDINGS
+
 var APP_KEY_BINDINGS = KeyBindings{
 	Help:               '?',
 	CommandLine:        ':',

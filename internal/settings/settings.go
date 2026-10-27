@@ -19,16 +19,21 @@ const (
 	tempFilePatt = ".settings-*.tmp"
 )
 
-// Settings are the choices of the user. A field that is empty has not been
-// chosen, and the app uses its default.
+// Settings are the choices of the user, a section for each page of the
+// Settings page of the app. A field that is empty has not been chosen, and the
+// app uses its default.
 type Settings struct {
 	Theme string `json:"theme,omitempty"`
-	// DownloadDir is the directory proposed when saving a table to a file. It
-	// is not set in the app, but by editing the settings file.
+	Files Files  `json:"files,omitzero"`
+	// Keys replaces default keys, by binding name such as "reset". Only the
+	// keys that differ from their default are kept.
+	Keys map[string]string `json:"keys,omitempty"`
+}
+
+// Files are the settings of the files the app writes
+type Files struct {
+	// DownloadDir is the directory proposed when saving a table to a file
 	DownloadDir string `json:"downloadDir,omitempty"`
-	// KeyBindings replaces default keys, by binding name such as "reset". Like
-	// DownloadDir it is set by editing the settings file.
-	KeyBindings map[string]string `json:"keyBindings,omitempty"`
 }
 
 // DefaultPath is where the settings file is kept, in the config directory of the

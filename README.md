@@ -23,7 +23,7 @@ Other targets: `make build-all` (linux, darwin, windows), `make test`, `make cle
 
 ## Keys
 
-The keys follow Vim where they can. `?` lists the keys of the selected pane, and the Help page (`:help`) lists them all as they are bound. Every key in the tables below can be changed in the settings file, under the name in the last column (see [Changing keys](#changing-keys)).
+The keys follow Vim where they can. `?` lists the keys of the selected pane, and the Help page (`:help`) lists them all as they are bound. Every key in the tables below can be changed on the Keys page of the settings, or in the settings file under the name in the last column (see [Key settings](#key-settings)).
 
 ### Moving around
 
@@ -114,35 +114,31 @@ Commands are completed as they are typed: Tab puts the selected completion in, a
 
 ## Settings
 
-The settings are kept in `settings.json` in the config directory of the user:
+The Settings page (`:settings`) has a page for each section of the settings file. Changes apply straight away and are saved.
+
+| Page | Section of `settings.json` | Holds |
+|---|---|---|
+| Theme | `theme` | The colours of the app |
+| Files | `files` | `downloadDir`, the directory tables are saved to with `:w` |
+| Keys | `keys` | The keys that differ from their default |
+
+On the Files and Keys pages, Enter changes the selected setting, and `x` or `dd` puts back its default. Changed settings are shown in another colour, and `/` searches them.
+
+The settings file is `settings.json` in the config directory of the user:
 
 - Linux: `~/.config/aws-tui/`
 - macOS: `~/Library/Application Support/aws-tui/`
 - Windows: `%AppData%\aws-tui\`
 
-If the file cannot be read, the app starts with the defaults and logs why in the Debug Logs page.
-
-### Theme
-
-The theme chosen in the Settings page is saved and used the next time the app starts. A theme that does not exist is replaced by the default one.
-
-### Download directory
-
-`downloadDir` is the directory tables are saved to as csv files:
-
-```json
-{"downloadDir": "~/Downloads"}
-```
-
-Without it the working directory is used, and either way the directory follows the last file saved. Existing files are never overwritten.
-
-### Changing keys
-
-`keyBindings` maps the setting name of a key, from the tables in [Keys](#keys), to the key to use:
+It looks like this, with only the settings that were changed:
 
 ```json
 {
-  "keyBindings": {
+  "theme": "Nord",
+  "files": {
+    "downloadDir": "~/Downloads"
+  },
+  "keys": {
     "reset": "R",
     "clearTable": "Ctrl+D",
     "historyModKey": "Ctrl",
@@ -152,16 +148,26 @@ Without it the working directory is used, and either way the directory follows t
 }
 ```
 
-What a setting takes depends on the kind of key:
+If the file cannot be read, the app starts with the defaults and logs why in the Debug Logs page.
+
+### Theme
+
+The theme is used the next time the app starts too. A theme that does not exist is replaced by the default one.
+
+### Files
+
+`downloadDir` is the directory tables are saved to as csv files. Without it the working directory is used, and either way the directory follows the last file saved while the app runs. Existing files are never overwritten.
+
+### Key settings
+
+`keys` maps the setting name of a key, from the tables in [Keys](#keys), to the key to use. What a setting takes depends on the kind of key:
 
 - **A character**, for most keys: one character, or `space`.
 - **A special key**: a name such as `Esc`, `Enter`, `Tab`, `Backspace`, `PgUp`, `PgDn`, `Up`, `Down`, `Left`, `Right`, `Home`, `End`, `Ctrl+X` or `Ctrl+Space`.
 - **A modifier** (the settings ending in `ModKey`): `Alt`, `Ctrl` or `Shift`.
 - **A sequence** (the settings ending in `Sequence`): two or more characters, or `""` to turn the sequence off.
 
-A setting is ignored, and logged in the Debug Logs page, when its name is unknown, its key can't be read, or its key is already used by another key of the same view. A key can't be the first key of a sequence either, as it would always wait for the rest of the sequence.
-
-Settings that name keys which no longer exist, such as `saveTable`, `quit` or `loadMoreData`, are ignored in the same way.
+A key can't be used when it can't be read, or is already used by another key of the same view. A key can't be the first key of a sequence either, as it would always wait for the rest of the sequence. The Keys page says why and keeps the old key; in the file, the setting is ignored and logged in the Debug Logs page, as are names that are not keys.
 
 ### Terminals
 

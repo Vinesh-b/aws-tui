@@ -95,16 +95,35 @@ func keyBindingFields(bindings *KeyBindings) map[string]keyBinding {
 	}
 }
 
-// ApplyKeyBindingOverrides changes APP_KEY_BINDINGS to what the user chose in
-// the settings file, keyed by binding name such as "reset" or "viewFocusUp". It
-// must run before any view is built, as views list their keys in their help
-// when they are created.
+// ApplyKeyBindingOverrides sets APP_KEY_BINDINGS to the default keys with what
+// the user chose in the settings file, keyed by binding name such as "reset"
+// or "viewFocusUp". It must run before any view is built, as views list their
+// keys in their help when they are created.
 //
 // An override that names no binding, cannot be read, or would give two
 // bindings of one view the same key is skipped and returned as an error, so
 // the caller can report it and the app still starts.
 func ApplyKeyBindingOverrides(overrides map[string]string) []error {
-	return applyKeyBindingOverrides(&APP_KEY_BINDINGS, overrides)
+	var bindings = defaultKeyBindings
+	var errs = applyKeyBindingOverrides(&bindings, overrides)
+	APP_KEY_BINDINGS = bindings
+	for i, err := range errs {
+		errs[i] = fmt.Errorf("in the settings file: %w", err)
+	}
+	return errs
+}
+
+// ChangeKeyBinding sets the named binding to the key, written as in the
+// settings file, unless the key can't be read or another binding of its views
+// has it. It is only used on the UI goroutine, and views built before take the
+// key when they are built again.
+func ChangeKeyBinding(name string, key string) error {
+	var bindings = APP_KEY_BINDINGS
+	if errs := applyKeyBindingOverrides(&bindings, map[string]string{name: key}); len(errs) > 0 {
+		return errs[0]
+	}
+	APP_KEY_BINDINGS = bindings
+	return nil
 }
 
 func applyKeyBindingOverrides(bindings *KeyBindings, overrides map[string]string) []error {
@@ -123,13 +142,13 @@ func applyKeyBindingOverrides(bindings *KeyBindings, overrides map[string]string
 	for _, name := range names {
 		var field, ok = fields[name]
 		if !ok {
-			errs = append(errs, fmt.Errorf("unknown key binding %q in the settings file", name))
+			errs = append(errs, fmt.Errorf("unknown key binding %q", name))
 			continue
 		}
 
 		var undo, err = setKeyBinding(field, overrides[name])
 		if err != nil {
-			errs = append(errs, fmt.Errorf("key binding %q in the settings file: %w", name, err))
+			errs = append(errs, fmt.Errorf("key binding %q: %w", name, err))
 			continue
 		}
 		undos[name] = undo
@@ -147,14 +166,14 @@ func applyKeyBindingOverrides(bindings *KeyBindings, overrides map[string]string
 		if other != "" {
 			undo()
 			errs = append(errs, fmt.Errorf(
-				"key binding %q in the settings file: %q is already used by %q", name, overrides[name], other,
+				"key binding %q: %q is already used by %q", name, overrides[name], other,
 			))
 			continue
 		}
 		if done, other := turnedOffSequenceConflict(fields, name); other != "" {
 			undo()
 			errs = append(errs, fmt.Errorf(
-				"key binding %q in the settings file: turning it off leaves %q unreachable, as %q starts with its key",
+				"key binding %q: turning it off leaves %q unreachable, as %q starts with its key",
 				name, done, other,
 			))
 		}
