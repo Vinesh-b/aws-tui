@@ -45,6 +45,9 @@ type AppContext struct {
 	// are only used on the UI goroutine.
 	focusedTable tableSaver
 	focusedLinks linkOpener
+	// session is the one monitor of the session for all the status bars
+	session     *SessionMonitor
+	sessionOnce sync.Once
 }
 
 // linkOpener is a view with values that link to resources

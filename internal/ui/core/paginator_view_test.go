@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"math"
-	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -14,22 +13,39 @@ import (
 	"github.com/rivo/tview"
 )
 
-func TestPaginatorView__StopEndsThePollingGoroutine(t *testing.T) {
-	var before = runtime.NumGoroutine()
-	var view = CreatePaginatorView("service", newTestAppContext())
-	if runtime.NumGoroutine() <= before {
-		t.Fatal("expected the paginator to start a polling goroutine")
+// newSubscribedPaginator is a bar subscribed to a monitor whose polls are
+// dropped, so the test sets the session on its own goroutine
+func newSubscribedPaginator(t *testing.T) (*PaginatorView, *AppContext) {
+	t.Helper()
+	var appCtx, monitor, _ = newMonitorTest(t)
+	monitor.queue = func(func()) {}
+	var view = CreatePaginatorView("service", appCtx)
+	t.Cleanup(view.Stop)
+	return view, appCtx
+}
+
+func TestPaginatorView__ShowsTheSessionOfTheMonitor(t *testing.T) {
+	var view, appCtx = newSubscribedPaginator(t)
+	if view.session != nil {
+		t.Fatalf("session = %+v, want it loading", view.session)
 	}
+
+	appCtx.Session().set(&sessionInfo{profile: "dev"})
+
+	if view.session == nil || view.session.profile != "dev" {
+		t.Errorf("session = %+v, want the one of the monitor", view.session)
+	}
+}
+
+func TestPaginatorView__StopEndsTheSubscription(t *testing.T) {
+	var view, appCtx = newSubscribedPaginator(t)
 
 	view.Stop()
 	view.Stop()
+	appCtx.Session().set(&sessionInfo{profile: "dev"})
 
-	var deadline = time.Now().Add(2 * time.Second)
-	for runtime.NumGoroutine() > before && time.Now().Before(deadline) {
-		time.Sleep(5 * time.Millisecond) // sleep-ok: polling the goroutine count, there is no app to wait on
-	}
-	if got := runtime.NumGoroutine(); got > before {
-		t.Errorf("goroutines = %d, want %d or fewer once stopped", got, before)
+	if view.session != nil {
+		t.Errorf("session = %+v, want a stopped bar left alone", view.session)
 	}
 }
 
@@ -47,8 +63,8 @@ func newTestPaginator(t *testing.T, serviceColour tcell.Color) (*PaginatorView, 
 	var appCtx = NewAppContext(context.Background(), tview.NewApplication(), nil, nil, &theme)
 
 	tview.Styles.BorderColor = serviceColour
-	var view = CreatePaginatorView("Step Functions", appCtx)
-	t.Cleanup(view.Stop)
+	// The session is set by the tests, so the bar does not look it up
+	var view = newPaginatorView("Step Functions", appCtx)
 
 	view.SetPages([]string{"StateMachines", "Execution Details"})
 	view.SetCurrentPage(1)
@@ -315,43 +331,17 @@ func TestSessionProfileName__PickedProfileIsShownOverEnvironment(t *testing.T) {
 	}
 }
 
-func TestPaginatorView__ApiResetClearsSessionAndDropsStaleUpdates(t *testing.T) {
-	var appCtx = newTestAppContext()
-	// Not polled, as a woken poller would call AWS
-	var view = newPaginatorView("service", appCtx)
-	t.Cleanup(view.Stop)
-	view.session = &sessionInfo{profile: "old"}
+func TestPaginatorView__ApiResetClearsTheSession(t *testing.T) {
+	var view, appCtx = newSubscribedPaginator(t)
+	appCtx.Session().set(&sessionInfo{profile: "old"})
 
 	notifyApiReset(appCtx)
 
 	if view.session != nil {
 		t.Errorf("session = %+v, want it cleared until the new profile is polled", view.session)
 	}
-	if got := view.generation.Load(); got != 1 {
+	if got := appCtx.Session().generation.Load(); got != 1 {
 		t.Errorf("generation = %d, want 1", got)
-	}
-	select {
-	case <-view.refresh:
-	default:
-		t.Error("expected the poller to be woken")
-	}
-}
-
-func TestPaginatorView__StopRemovesApiResetListener(t *testing.T) {
-	var appCtx = newTestAppContext()
-	var first = newPaginatorView("first", appCtx)
-	var second = newPaginatorView("second", appCtx)
-	t.Cleanup(second.Stop)
-
-	first.Stop()
-	first.Stop()
-
-	if got := len(appCtx.apiResetListeners); got != 1 {
-		t.Fatalf("listeners = %d, want 1", got)
-	}
-	notifyApiReset(appCtx)
-	if first.generation.Load() != 0 || second.generation.Load() != 1 {
-		t.Error("only the running paginator should be told of the reset")
 	}
 }
 

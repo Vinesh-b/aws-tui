@@ -6,11 +6,8 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"github.com/rivo/uniseg"
@@ -48,23 +45,21 @@ type PaginatorView struct {
 	onPageSelected func(name string)
 	theme          AppTheme
 	serviceColour  tcell.Color
-	stop           chan struct{}
 	stopOnce       *sync.Once
-	// refresh wakes the poller when the api clients are reset
-	refresh chan struct{}
-	// generation counts the api client resets, so a poll made with the old
-	// clients is not shown once they are replaced
-	generation       atomic.Int64
-	removeOnApiReset func()
+	unsubscribe    func()
 }
 
+// CreatePaginatorView is the status bar of the service, which shows the
+// session the app looks up for all the bars
 func CreatePaginatorView(service string, appContext *AppContext) *PaginatorView {
 	var view = newPaginatorView(service, appContext)
-	go view.pollSession(appContext)
+	view.unsubscribe = appContext.Session().Subscribe(func(session *sessionInfo) {
+		view.session = session
+	})
 	return view
 }
 
-// newPaginatorView is the view without the polling of the session started
+// newPaginatorView is the view without the session
 func newPaginatorView(service string, appContext *AppContext) *PaginatorView {
 	var view = &PaginatorView{
 		Box:         tview.NewBox(),
@@ -73,114 +68,11 @@ func newPaginatorView(service string, appContext *AppContext) *PaginatorView {
 		theme:       *appContext.Theme,
 		// The colour scheme of a service is set while its views are built
 		serviceColour: tview.Styles.BorderColor,
-		stop:          make(chan struct{}),
 		stopOnce:      &sync.Once{},
-		refresh:       make(chan struct{}, 1),
+		unsubscribe:   func() {},
 	}
 	view.SetBorderPadding(0, 0, 1, 1)
-
-	// Called on the UI goroutine, so the session can be cleared directly
-	view.removeOnApiReset = appContext.OnApiClientsReset(func() {
-		view.generation.Add(1)
-		view.session = nil
-		select {
-		case view.refresh <- struct{}{}:
-		default:
-		}
-	})
-
 	return view
-}
-
-// firstPollDelay is how long the session details are loading for.
-func firstPollDelay(appContext *AppContext) time.Duration {
-	if appContext.PollSessionAtStart {
-		return 0
-	}
-	return CredsPollRate
-}
-
-func (inst *PaginatorView) pollSession(appContext *AppContext) {
-	// wait returns false when the view has been stopped, and returns early when
-	// the api clients are reset
-	var wait = func(delay time.Duration) bool {
-		select {
-		case <-inst.stop:
-			return false
-		case <-inst.refresh:
-			return true
-		case <-time.After(delay):
-			return true
-		}
-	}
-
-	var app = appContext.App
-	var delay = firstPollDelay(appContext)
-
-	for {
-		if !wait(delay) {
-			return
-		}
-		delay = CredsPollRate
-
-		var generation = inst.generation.Load()
-		var isStale = func() bool { return inst.generation.Load() != generation }
-		var setSession = func(session sessionInfo) {
-			app.QueueUpdateDraw(func() {
-				if !isStale() {
-					inst.session = &session
-				}
-			})
-		}
-
-		var logger = appContext.Logger
-		var apiClients = appContext.GetApiClients()
-
-		var creds, err = apiClients.Config.Credentials.Retrieve(appContext.Ctx)
-		if err != nil {
-			logger.Print(err.Error())
-			setSession(sessionInfo{err: err.Error()})
-			continue
-		}
-
-		identity, err := apiClients.Sts.GetCallerIdentity(
-			appContext.Ctx,
-			&sts.GetCallerIdentityInput{},
-		)
-		if err != nil {
-			logger.Print(err.Error())
-			setSession(sessionInfo{err: err.Error()})
-			continue
-		}
-
-		var session = sessionInfo{
-			profile:   sessionProfileName(apiClients.Profile),
-			accountId: aws.ToString(identity.Account),
-			userId:    aws.ToString(identity.UserId),
-		}
-
-		if creds.CanExpire == false {
-			session.duration = math.MinInt64
-			setSession(session)
-			continue
-		}
-
-		for time.Now().Before(creds.Expires) && !isStale() {
-			session.duration = creds.Expires.Sub(time.Now()).Truncate(time.Second)
-			setSession(session)
-			if !wait(CredsPollRate) {
-				return
-			}
-		}
-
-		if isStale() {
-			// Poll the new clients straight away
-			delay = 0
-			continue
-		}
-		session.duration = 0
-		setSession(session)
-	}
 }
 
 // sessionProfileName is the profile picked by the user, or the one the clients
@@ -195,12 +87,10 @@ func sessionProfileName(clientsProfile string) string {
 	return "unset"
 }
 
-// Stop ends the polling of the session details.
+// Stop ends the subscription to the session details, for a bar that is
+// replaced
 func (inst *PaginatorView) Stop() {
-	inst.stopOnce.Do(func() {
-		inst.removeOnApiReset()
-		close(inst.stop)
-	})
+	inst.stopOnce.Do(func() { inst.unsubscribe() })
 }
 
 func (inst *PaginatorView) SetServiceName(text string) {
