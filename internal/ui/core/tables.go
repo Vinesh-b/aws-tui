@@ -139,26 +139,20 @@ func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppConte
 		AddRuneToggleOverlay("HELP", view.HelpView, APP_KEY_BINDINGS.Help, true).
 		AddRuneToggleOverlay("DOWNLOAD", view.SaveFileView, APP_KEY_BINDINGS.SaveTable, false)
 
-	view.SaveFileView.Input.SetDefaultPathFunc(func() string {
-		return filepath.Join(appCtx.DownloadDir, defaultCsvName(view.title, time.Now()))
-	})
+	view.SaveFileView.Input.SetDefaultPathFunc(view.defaultCsvPath)
 
 	view.SaveFileView.Input.SetOnSaveFunc(func(filename string) {
-		var rows = view.snapshotRows()
-		go func() {
-			var savedPath, err = writeCsvFile(filename, rows)
-			var message = "Saved to " + savedPath
+		view.saveCsv(filename, func(savedPath string, err error) {
 			if err != nil {
-				message = err.Error()
+				view.SaveFileView.Input.SetStatusMessage(err.Error())
+				return
 			}
-			appCtx.App.QueueUpdateDraw(func() {
-				if err == nil {
-					appCtx.DownloadDir = filepath.Dir(savedPath)
-				}
-				view.SaveFileView.Input.SetStatusMessage(message)
-			})
-		}()
+			view.SaveFileView.Input.SetStatusMessage("Saved to " + savedPath)
+		})
 	})
+
+	// The table to save with :w is the one that had the focus last
+	table.SetFocusFunc(func() { appCtx.focusedTable = view })
 
 	view.SaveFileView.Input.SetOnCloseFunc(func() {
 		view.ToggleOverlay("DOWNLOAD", true)
@@ -397,6 +391,31 @@ func escapeCsvFormula(text string) string {
 		return "'" + text
 	}
 	return text
+}
+
+func (inst *SelectableTable[T]) holds(view tview.Primitive) bool {
+	return view == inst.table
+}
+
+// defaultCsvPath is where the table is proposed to be saved
+func (inst *SelectableTable[T]) defaultCsvPath() string {
+	return filepath.Join(inst.appCtx.DownloadDir, defaultCsvName(inst.title, time.Now()))
+}
+
+// saveCsv writes the rows shown to a new csv file in the background, and then
+// calls done on the UI goroutine. The directory proposed for the next file
+// follows the file saved.
+func (inst *SelectableTable[T]) saveCsv(filename string, done func(savedPath string, err error)) {
+	var rows = inst.snapshotRows()
+	go func() {
+		var savedPath, err = writeCsvFile(filename, rows)
+		inst.appCtx.App.QueueUpdateDraw(func() {
+			if err == nil {
+				inst.appCtx.DownloadDir = filepath.Dir(savedPath)
+			}
+			done(savedPath, err)
+		})
+	}()
 }
 
 // defaultCsvName names the file after the table and the time it is saved, so

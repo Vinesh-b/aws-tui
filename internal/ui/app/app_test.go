@@ -298,6 +298,46 @@ func TestCreateApplication__SequencesChangeThePage(t *testing.T) {
 	uitest.AwaitScreenText(t, tuiApp, screen, "Log Group Details")
 }
 
+func pressEnter(app *tview.Application) {
+	app.QueueEvent(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone))
+}
+
+func TestCreateApplication__ColonCommandsGoToServices(t *testing.T) {
+	var tuiApp, screen = startApp(t)
+	openSettings(tuiApp)
+	awaitInUse(t, tuiApp, screen, "Default")
+
+	typeRunes(tuiApp, ":cloudwatchlogs")
+	pressEnter(tuiApp)
+
+	uitest.AwaitScreenText(t, tuiApp, screen, "Log Group Details")
+}
+
+func TestCreateApplication__ColonCommandsShowWhyTheyFailed(t *testing.T) {
+	var tuiApp, screen = startApp(t)
+	openSettings(tuiApp)
+	awaitInUse(t, tuiApp, screen, "Default")
+
+	typeRunes(tuiApp, ":nope")
+	pressEnter(tuiApp)
+
+	uitest.AwaitScreenText(t, tuiApp, screen, "not a command or service: nope")
+}
+
+func TestCreateApplication__EnterOnACompletionRunsIt(t *testing.T) {
+	var tuiApp, screen = startApp(t)
+	openSettings(tuiApp)
+	awaitInUse(t, tuiApp, screen, "Default")
+
+	// cloudwatch alone could be several services, and its first completion
+	// is the logs
+	typeRunes(tuiApp, ":cloudwatch")
+	uitest.AwaitScreenText(t, tuiApp, screen, "cloudwatchalarms")
+	pressEnter(tuiApp)
+
+	uitest.AwaitScreenText(t, tuiApp, screen, "Log Group Details")
+}
+
 func TestCreateApplication__PickingAThemeInSettingsKeepsTheSettingsPage(t *testing.T) {
 	var tuiApp, screen = startApp(t)
 	openSettings(tuiApp)

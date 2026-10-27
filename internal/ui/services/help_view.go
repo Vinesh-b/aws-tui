@@ -57,6 +57,7 @@ func helpText() string {
 	var both = func(a string, b string) string {
 		return strings.Join(slices.DeleteFunc([]string{a, b}, func(s string) bool { return s == "" }), " / ")
 	}
+	var command = func(name string) string { return core.FormatRune(keys.CommandLine) + name }
 	// The key that goes to the top alone waits for the rest of its sequence
 	var moveTop = core.FormatSequenceOr(keys.MoveTopSequence, core.FormatRune(keys.MovePageTopRune))
 	// withMod is the runes pressed with the modifier, written as "Alt+k/j"
@@ -85,6 +86,12 @@ func helpText() string {
 			{core.FormatKey(keys.Escape), "Hide the floating view, such as a menu or a search"},
 			{core.FormatRune(keys.Help), "Show the keys of the selected pane"},
 			{core.FormatRune(keys.Quit), "Hide the services menu"},
+		}},
+		{"Commands", [][2]string{
+			{core.FormatRune(keys.CommandLine), "Type a command; Tab completes it, Esc closes it"},
+			{command("q"), "Quit"},
+			{command("w [file]"), "Save the selected table to a csv file"},
+			{command("<service>"), "Go to the service, such as " + command("lambda") + " or " + command("logs")},
 		}},
 		{"Tables", [][2]string{
 			{core.FormatKey(keys.Done), "Open the selected item"},

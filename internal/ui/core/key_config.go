@@ -27,12 +27,14 @@ var keyBindingConflictGroups = [][]string{
 	{
 		"help", "reset", "loadMoreData", "saveTable", "find", "textCopy",
 		"moveUp", "moveDown", "moveTop", "moveBottom", "mark", "removeItem",
+		"commandLine",
 	},
 	{
 		"help", "find", "nextSearch", "prevSearch", "moveUp", "moveDown",
 		"moveLeft", "moveRight", "moveLineStart", "moveLineEnd", "moveTop",
 		"moveBottom", "textCopy", "textViewWordRight", "textViewWordLeft",
 		"textViewUndo", "textViewVisualMode", "textViewInsertMode",
+		"commandLine",
 	},
 	{"viewFocusUp", "viewFocusDown", "viewFocusLeft", "viewFocusRight"},
 	{"historyBack", "historyForward"},
@@ -42,6 +44,7 @@ func keyBindingFields(bindings *KeyBindings) map[string]keyBinding {
 	return map[string]keyBinding{
 		"help":               {rune: &bindings.Help},
 		"quit":               {rune: &bindings.Quit},
+		"commandLine":        {rune: &bindings.CommandLine},
 		"escape":             {key: &bindings.Escape},
 		"toggleServicesMenu": {key: &bindings.ToggleServicesMenu},
 		"toggleServicePages": {key: &bindings.ToggleServicePages},

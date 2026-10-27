@@ -8,6 +8,7 @@ import (
 	"log"
 	"regexp"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -38,6 +39,32 @@ type AppContext struct {
 	apiResetListeners []*func()
 	themeListeners    []func()
 	openResource      func(resource arn.ARN) error
+	// focusedTable is the table that last had the focus, to save with :w. It
+	// is only used on the UI goroutine.
+	focusedTable tableSaver
+}
+
+// tableSaver is a table that can be saved to a csv file
+type tableSaver interface {
+	holds(view tview.Primitive) bool
+	defaultCsvPath() string
+	saveCsv(filename string, done func(savedPath string, err error))
+}
+
+// SaveTable saves the table that has the focus to a csv file, to the path
+// proposed for it when the filename is empty, and then calls done on the UI
+// goroutine. It is an error if the focus is not on a table.
+func (inst *AppContext) SaveTable(
+	focused tview.Primitive, filename string, done func(savedPath string, err error),
+) error {
+	if inst.focusedTable == nil || !inst.focusedTable.holds(focused) {
+		return fmt.Errorf("the selected pane is not a table")
+	}
+	if strings.TrimSpace(filename) == "" {
+		filename = inst.focusedTable.defaultCsvPath()
+	}
+	inst.focusedTable.saveCsv(filename, done)
+	return nil
 }
 
 func (inst *AppContext) GetApiClients() *awsapi.AwsApiClients {

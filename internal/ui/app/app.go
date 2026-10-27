@@ -460,6 +460,20 @@ func CreateApplication(
 
 	var floatingServices = core.FloatingView("Quick select", servicesList, 70, 27)
 
+	var commandLine = core.NewCommandLine(appContext, pages)
+	var appCommands = &commands{
+		items:  serviceViews,
+		appCtx: appContext,
+		line:   commandLine,
+		show: func(item *ServiceItem) {
+			nav.showService(item)
+			serviceListHidden = true
+		},
+		quit: app.Stop,
+	}
+	commandLine.SetRunFunc(appCommands.Run)
+	commandLine.SetCompleteFunc(appCommands.Complete)
+
 	pages.
 		AddPage(FLOATING_SERVICE_LIST, floatingServices, true, true).
 		AddAndSwitchToPage(HOME_PAGE, flexLanding, true)
@@ -468,6 +482,9 @@ func CreateApplication(
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		event = core.NormalizeKeyEvent(event)
 		if event = sequencer.HandleEvent(event, app.GetFocus()); event == nil {
+			return nil
+		}
+		if event = commandLine.HandleEvent(event, app.GetFocus()); event == nil {
 			return nil
 		}
 		var hideServiceListFunc = func() {
@@ -544,6 +561,7 @@ func CreateApplication(
 		core.RestyleChrome(floatingServices, theme)
 		core.RestyleChrome(flexLanding, theme)
 		core.RestyleChrome(errorTextArea.TextView, theme)
+		commandLine.Restyle(theme)
 		versionView.SetTextColor(tcell.ColorGrey)
 
 		// The page the theme was picked on has been replaced
