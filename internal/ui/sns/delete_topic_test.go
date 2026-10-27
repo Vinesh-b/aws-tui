@@ -103,7 +103,7 @@ func TestDeleteTopic__CancellingDeletesNothing(t *testing.T) {
 func TestDeleteTopic__ReportsApiError(t *testing.T) {
 	var f = newDeleteTopicFixture(t, &fakeSnsApi{topics: []string{topicArn("orders")}})
 	uitest.Eventually(t, f.app(), func() bool { return f.table.GetTable().GetRowCount() == 2 })
-	f.api.err = errString("access denied")
+	f.api.setErr(errString("access denied"))
 
 	f.open(t)
 	f.confirm(t)

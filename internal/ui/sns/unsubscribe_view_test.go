@@ -122,7 +122,7 @@ func TestUnsubscribeView__PendingSubscriptionIsWarnedAboutAndReportsTheError(t *
 func TestUnsubscribeView__ReportsApiError(t *testing.T) {
 	var f = newUnsubscribeFixture(t, &fakeSnsApi{subscriptions: twoSubscriptions()})
 	uitest.Eventually(t, f.table.serviceCtx.App, func() bool { return f.table.GetTable().GetRowCount() == 3 })
-	f.api.err = errString("access denied")
+	f.api.setErr(errString("access denied"))
 
 	f.open(t)
 	f.confirm(t)

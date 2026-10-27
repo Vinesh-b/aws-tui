@@ -52,6 +52,19 @@ func (f *fakeSnsApi) record(call string) {
 	f.calls = append(f.calls, call)
 }
 
+func (f *fakeSnsApi) getErr() error {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return f.err
+}
+
+// setErr is safe to call while background loads are still hitting the fake
+func (f *fakeSnsApi) setErr(err error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	f.err = err
+}
+
 func (f *fakeSnsApi) ListTopics(ctx context.Context, force bool) ([]string, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
@@ -63,7 +76,7 @@ func (f *fakeSnsApi) GetTopicAttributes(ctx context.Context, arn string) (map[st
 	if arn == "" {
 		return nil, errTopicArnNotSet
 	}
-	return f.attributes, f.err
+	return f.attributes, f.getErr()
 }
 
 func (f *fakeSnsApi) ListTopicTags(ctx context.Context, arn string) ([]types.Tag, error) {
@@ -71,7 +84,7 @@ func (f *fakeSnsApi) ListTopicTags(ctx context.Context, arn string) ([]types.Tag
 	if arn == "" {
 		return nil, errTopicArnNotSet
 	}
-	return f.tags, f.err
+	return f.tags, f.getErr()
 }
 
 func (f *fakeSnsApi) ListTopicSubscriptions(ctx context.Context, arn string) ([]types.Subscription, error) {
@@ -86,8 +99,8 @@ func (f *fakeSnsApi) ListTopicSubscriptions(ctx context.Context, arn string) ([]
 
 func (f *fakeSnsApi) Subscribe(ctx context.Context, arn string, protocol string, endpoint string) (string, error) {
 	f.record("subscribe " + arn + " " + protocol + " " + endpoint)
-	if f.err != nil {
-		return "", f.err
+	if err := f.getErr(); err != nil {
+		return "", err
 	}
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
@@ -105,8 +118,8 @@ func (f *fakeSnsApi) Unsubscribe(ctx context.Context, arn string) error {
 	if arn == pendingConfirmation {
 		return errors.New("a subscription that is pending confirmation can't be deleted")
 	}
-	if f.err != nil {
-		return f.err
+	if err := f.getErr(); err != nil {
+		return err
 	}
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
@@ -118,8 +131,8 @@ func (f *fakeSnsApi) Unsubscribe(ctx context.Context, arn string) error {
 
 func (f *fakeSnsApi) DeleteTopic(ctx context.Context, arn string) error {
 	f.record("delete " + arn)
-	if f.err != nil {
-		return f.err
+	if err := f.getErr(); err != nil {
+		return err
 	}
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
@@ -129,8 +142,8 @@ func (f *fakeSnsApi) DeleteTopic(ctx context.Context, arn string) error {
 
 func (f *fakeSnsApi) CreateTopic(ctx context.Context, name string, fifo bool, dedup bool) (string, error) {
 	f.record(fmt.Sprintf("create %s fifo=%t dedup=%t", name, fifo, dedup))
-	if f.err != nil {
-		return "", f.err
+	if err := f.getErr(); err != nil {
+		return "", err
 	}
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
