@@ -68,6 +68,11 @@ func PressEnter(table TableView) {
 	handler(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(tview.Primitive) {})
 }
 
+func PressTableRune(table TableView, r rune) {
+	var handler = table.GetTable().InputHandler()
+	handler(tcell.NewEventKey(tcell.KeyRune, r, tcell.ModNone), func(tview.Primitive) {})
+}
+
 const asyncTimeout = 3 * time.Second
 
 func RunApp(t *testing.T, app *tview.Application) tcell.SimulationScreen {

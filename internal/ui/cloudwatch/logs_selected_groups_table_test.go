@@ -10,12 +10,11 @@ import (
 )
 
 func newSelectedGroupsTable(groups ...string) *SelectedGroupsTable {
-	var table = NewSelectedGroupsTable(uitest.NewServiceContext[awsapi.CloudWatchLogsApi]())
+	var marks = NewLogGroupMarks()
 	for _, group := range groups {
-		table.AddLogGroup(group)
+		marks.Add(group)
 	}
-	table.populateSelectedGroupsTable()
-	return table
+	return NewSelectedGroupsTable(uitest.NewServiceContext[awsapi.CloudWatchLogsApi](), marks)
 }
 
 func TestSelectedGroupsTable__ShowsGroupsSortedByName(t *testing.T) {
@@ -30,10 +29,10 @@ func TestSelectedGroupsTable__EmptyShowsOnlyHeading(t *testing.T) {
 	uitest.AssertTableRows(t, table, []core.TableRow{{"Name"}})
 }
 
-func TestSelectedGroupsTable__AddingSameGroupTwiceKeepsOneEntry(t *testing.T) {
+func TestSelectedGroupsTable__MarkingSameGroupTwiceKeepsOneEntry(t *testing.T) {
 	var table = newSelectedGroupsTable("/a", "/a")
 
-	if got := table.GetAllLogGroups(); !slices.Equal(got, []string{"/a"}) {
+	if got := table.marks.All(); !slices.Equal(got, []string{"/a"}) {
 		t.Errorf("groups = %v, want [/a]", got)
 	}
 }
@@ -41,19 +40,40 @@ func TestSelectedGroupsTable__AddingSameGroupTwiceKeepsOneEntry(t *testing.T) {
 func TestSelectedGroupsTable__EmptyGroupNameIsIgnored(t *testing.T) {
 	var table = newSelectedGroupsTable("")
 
-	if got := table.GetAllLogGroups(); len(got) != 0 {
+	if got := table.marks.All(); len(got) != 0 {
 		t.Errorf("groups = %v, want none", got)
 	}
 }
 
-func TestSelectedGroupsTable__RemovingGroup(t *testing.T) {
+func TestSelectedGroupsTable__MarkingAGroupListsIt(t *testing.T) {
+	var table = newSelectedGroupsTable("/b")
+
+	table.marks.Add("/a")
+
+	uitest.AssertTableRows(t, table, []core.TableRow{{"Name"}, {"/a"}, {"/b"}})
+}
+
+func TestSelectedGroupsTable__UnmarkKeyUnmarksTheSelectedGroup(t *testing.T) {
 	var table = newSelectedGroupsTable("/a", "/b")
+	table.Select(1, 0)
 
-	table.RemoveLogGroup("/a")
+	uitest.PressTableRune(table, 'u')
 
-	if got := table.GetAllLogGroups(); !slices.Equal(got, []string{"/b"}) {
+	if got := table.marks.All(); !slices.Equal(got, []string{"/b"}) {
 		t.Errorf("groups = %v, want [/b]", got)
 	}
+	uitest.AssertTableRows(t, table, []core.TableRow{{"Name"}, {"/b"}})
+}
+
+func TestSelectedGroupsTable__ResetKeyUnmarksAllGroups(t *testing.T) {
+	var table = newSelectedGroupsTable("/a", "/b")
+
+	uitest.PressTableRune(table, core.APP_KEY_BINDINGS.Reset)
+
+	if got := table.marks.Len(); got != 0 {
+		t.Errorf("groups = %v, want none", table.marks.All())
+	}
+	uitest.AssertTableRows(t, table, []core.TableRow{{"Name"}})
 }
 
 func TestSelectedGroupsTable__FirstGroupIsSelectedAfterPopulate(t *testing.T) {

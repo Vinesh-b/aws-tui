@@ -154,7 +154,30 @@ func (inst *LogGroupsPageView) InitInputCapture() {
 	})
 }
 
+// The pages of the logs. Events are between the two ways to find them, the
+// streams of a group and the records of an Insights query.
+const (
+	logsPageGroups = iota
+	logsPageStreams
+	logsPageEvents
+	logsPageInsights
+)
+
+// NewLogsHomeView opens the logs on the log groups
 func NewLogsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchLogsApi) core.ServicePage {
+	return newLogsRootView(appCtx, api, core.CLOUDWATCH_LOGS_GROUPS, logsPageGroups)
+}
+
+// NewLogsInsightsHomeView opens the logs on Insights
+func NewLogsInsightsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchLogsApi) core.ServicePage {
+	return newLogsRootView(appCtx, api, core.CLOUDWATCH_LOGS_INSIGHTS, logsPageInsights)
+}
+
+// newLogsRootView has the pages to go from the log groups down to their events,
+// and to query the log groups that are marked on the way with Insights
+func newLogsRootView(
+	appCtx *core.AppContext, api awsapi.CloudWatchLogsApi, name core.ViewId, startPage int,
+) core.ServicePage {
 	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0xBB00DD))
 	defer appCtx.Theme.ResetGlobalStyle()
 
@@ -174,13 +197,20 @@ func NewLogsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchLogsApi) core
 		NewLogGroupsTable(serviceCtx),
 		serviceCtx,
 	)
+	var logGroupsTable = logGroupsView.LogGroupsTable
+	var insightsView = NewLogsInsightsPageView(
+		NewSelectedGroupsTable(serviceCtx, logGroupsTable.Marks()),
+		NewInsightsQueryResultsTable(serviceCtx),
+		serviceCtx,
+	)
 
-	var serviceRootView = core.NewServiceRootView(string(core.CLOUDWATCH_LOGS_GROUPS), appCtx)
+	var serviceRootView = core.NewServiceRootView(string(name), appCtx)
 
 	serviceRootView.
 		AddAndSwitchToPage("Groups", logGroupsView, true).
 		AddPage("Streams", logStreamsView, true, true).
-		AddPage("Events", logEventsView, true, true)
+		AddPage("Events", logEventsView, true, true).
+		AddPage("Insights", insightsView, true, true)
 
 	serviceRootView.InitPageNavigation()
 
@@ -188,12 +218,37 @@ func NewLogsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchLogsApi) core
 		logStreamsView.LogStreamsTable.SetSelectedLogGroup(logGroup)
 		logStreamsView.LogStreamsTable.SetLogStreamSearchPrefix("")
 		logStreamsView.LogStreamsTable.RefreshStreams(true)
-		serviceRootView.ChangePage(1, nil)
+		serviceRootView.ChangePage(logsPageStreams, nil)
 	}
 
-	logGroupsView.LogGroupsTable.SetSelectedFunc(func(row, column int) {
-		showStreams(logGroupsView.LogGroupsTable.GetSelectedLogGroup())
+	var showEvents = func(logGroup string, logStream string) {
+		logEventsView.LogEventsTable.SetSelectedLogGroup(logGroup)
+		logEventsView.LogEventsTable.SetSelectedLogStream(logStream)
+		logEventsView.LogEventsTable.RefreshLogEvents(true)
+		serviceRootView.ChangePage(logsPageEvents, nil)
+	}
+
+	logGroupsTable.SetSelectedFunc(func(row, column int) {
+		showStreams(logGroupsTable.GetSelectedLogGroup())
 	})
+
+	// Without marks the log group the cursor is on is the one to query
+	logGroupsTable.SetQueryFunc(func() {
+		if logGroupsTable.Marks().Len() == 0 {
+			logGroupsTable.Marks().Add(logGroupsTable.GetSelectedLogGroup())
+		}
+		serviceRootView.ChangePage(logsPageInsights, nil)
+	})
+
+	insightsView.SelectLogGroups = func() {
+		serviceRootView.ChangePage(logsPageGroups, nil)
+		logGroupsView.DisplayMessage(
+			core.InfoPrompt,
+			"No log groups are marked. Mark them with %s, then press %s to query them",
+			core.FormatRune(logGroupMarkRune),
+			core.FormatRune(core.APP_KEY_BINDINGS.TableQuery),
+		)
+	}
 
 	serviceRootView.SetResourceOpener("logs", func(resource arn.ARN) {
 		if logGroup, ok := core.ArnResourceName(resource, "log-group"); ok {
@@ -202,18 +257,21 @@ func NewLogsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchLogsApi) core
 	})
 
 	logStreamsView.LogStreamsTable.SetSelectedFunc(func(row, column int) {
-		var logStream = logStreamsView.LogStreamsTable.GetSelectedLogStream()
-		var logGroup = logStreamsView.LogStreamsTable.GetSelectedLogGroup()
+		showEvents(
+			logStreamsView.LogStreamsTable.GetSelectedLogGroup(),
+			logStreamsView.LogStreamsTable.GetSelectedLogStream(),
+		)
+	})
 
-		logEventsView.LogEventsTable.SetSelectedLogGroup(logGroup)
-		logEventsView.LogEventsTable.SetSelectedLogStream(logStream)
-		logEventsView.LogEventsTable.RefreshLogEvents(true)
-		serviceRootView.ChangePage(2, nil)
+	insightsView.ResultsTable.SetSelectedFunc(func(row, column int) {
+		insightsView.OpenRecord(row, showEvents)
 	})
 
 	logEventsView.InitInputCapture()
 	logStreamsView.InitInputCapture()
 	logGroupsView.InitInputCapture()
+
+	serviceRootView.ChangePage(startPage, nil)
 
 	return serviceRootView
 }

@@ -1,6 +1,8 @@
 package cloudwatch
 
 import (
+	"slices"
+	"strings"
 	"testing"
 
 	"aws-tui/internal/awsapi"
@@ -30,16 +32,88 @@ func TestLogGroupsTable__ShowsHeadingAndOneRowPerGroup(t *testing.T) {
 	var table = newPopulatedLogGroupsTable("/aws/lambda/orders", "/aws/lambda/billing")
 
 	uitest.AssertTableRows(t, table, []core.TableRow{
-		{"Name"},
-		{"/aws/lambda/orders"},
-		{"/aws/lambda/billing"},
+		{"", "Name"},
+		{"", "/aws/lambda/orders"},
+		{"", "/aws/lambda/billing"},
 	})
 }
 
 func TestLogGroupsTable__EmptyDataShowsOnlyHeading(t *testing.T) {
 	var table = newPopulatedLogGroupsTable()
 
-	uitest.AssertTableRows(t, table, []core.TableRow{{"Name"}})
+	uitest.AssertTableRows(t, table, []core.TableRow{{"", "Name"}})
+}
+
+func TestLogGroupsTable__MarkKeyMarksTheGroupAndKeepsTheSelection(t *testing.T) {
+	var table = newPopulatedLogGroupsTable("/aws/lambda/orders", "/aws/lambda/billing")
+	table.Select(2, 0)
+
+	uitest.PressTableRune(table, logGroupMarkRune)
+
+	if got := table.Marks().All(); !slices.Equal(got, []string{"/aws/lambda/billing"}) {
+		t.Errorf("marks = %v, want [/aws/lambda/billing]", got)
+	}
+	uitest.AssertTableRows(t, table, []core.TableRow{
+		{"", "Name"},
+		{"", "/aws/lambda/orders"},
+		{logGroupMarker, "/aws/lambda/billing"},
+	})
+	if row, _ := table.GetTable().GetSelection(); row != 2 {
+		t.Errorf("selected row = %d, want 2", row)
+	}
+	if title := table.GetTitle(); !strings.Contains(title, "1 marked") {
+		t.Errorf("title = %q, want the marked count", title)
+	}
+}
+
+func TestLogGroupsTable__MarkKeyOnAMarkedGroupUnmarksIt(t *testing.T) {
+	var table = newPopulatedLogGroupsTable("/aws/lambda/orders")
+	table.Select(1, 0)
+
+	uitest.PressTableRune(table, logGroupMarkRune)
+	uitest.PressTableRune(table, logGroupMarkRune)
+
+	if got := table.Marks().Len(); got != 0 {
+		t.Errorf("marks = %v, want none", table.Marks().All())
+	}
+	uitest.AssertTableRows(t, table, []core.TableRow{{"", "Name"}, {"", "/aws/lambda/orders"}})
+	if title := table.GetTitle(); strings.Contains(title, "marked") {
+		t.Errorf("title = %q, want no marked count", title)
+	}
+}
+
+func TestLogGroupsTable__MarksAreShownAgainWhenTheGroupsAreShown(t *testing.T) {
+	var table = newPopulatedLogGroupsTable("/aws/lambda/orders", "/aws/lambda/billing")
+	table.Marks().Add("/aws/lambda/orders")
+
+	table.populateLogGroupsTable(table.data)
+
+	uitest.AssertTableRows(t, table, []core.TableRow{
+		{"", "Name"},
+		{logGroupMarker, "/aws/lambda/orders"},
+		{"", "/aws/lambda/billing"},
+	})
+}
+
+func TestLogGroupsTable__UnmarkingElsewhereClearsTheMarker(t *testing.T) {
+	var table = newPopulatedLogGroupsTable("/aws/lambda/orders")
+	table.Marks().Add("/aws/lambda/orders")
+
+	table.Marks().Clear()
+
+	uitest.AssertTableRows(t, table, []core.TableRow{{"", "Name"}, {"", "/aws/lambda/orders"}})
+}
+
+func TestLogGroupsTable__QueryKeyCallsTheQueryFunc(t *testing.T) {
+	var table = newPopulatedLogGroupsTable("/aws/lambda/orders")
+	var queried = false
+	table.SetQueryFunc(func() { queried = true })
+
+	uitest.PressTableRune(table, core.APP_KEY_BINDINGS.TableQuery)
+
+	if !queried {
+		t.Error("the query key did not call the query func")
+	}
 }
 
 func TestLogGroupsTable__SelectedFuncTracksSelectedGroup(t *testing.T) {

@@ -214,7 +214,7 @@ func TestLogGroupsTable__RefreshLoadsGroupsFromApi(t *testing.T) {
 
 	table.RefreshLogGroups(true)
 
-	uitest.AwaitRows(t, serviceCtx.App, table, []core.TableRow{{"Name"}, {"/aws/lambda/orders"}})
+	uitest.AwaitRows(t, serviceCtx.App, table, []core.TableRow{{"", "Name"}, {"", "/aws/lambda/orders"}})
 }
 
 func TestLogGroupsTable__RefreshReportsApiError(t *testing.T) {
@@ -242,7 +242,7 @@ func TestLogGroupsTable__FilterByNameShowsMatchingGroups(t *testing.T) {
 
 	table.FilterByName("ecs")
 
-	uitest.AwaitRows(t, serviceCtx.App, table, []core.TableRow{{"Name"}, {"/aws/ecs/web"}})
+	uitest.AwaitRows(t, serviceCtx.App, table, []core.TableRow{{"", "Name"}, {"", "/aws/ecs/web"}})
 }
 
 func TestLogStreamsTable__RefreshLoadsStreamsFromApi(t *testing.T) {

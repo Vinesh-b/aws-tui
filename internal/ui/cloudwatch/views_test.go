@@ -3,6 +3,8 @@ package cloudwatch
 import (
 	"testing"
 
+	"github.com/gdamore/tcell/v2"
+
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/uitest"
 
@@ -41,12 +43,53 @@ func TestLogsHomeView__ResetKeyLoadsLogGroupsFromApi(t *testing.T) {
 	uitest.AwaitScreenText(t, appCtx.App, screen, "/aws/lambda/orders")
 }
 
-func TestLogsInsightsHomeView__ResetKeyLoadsLogGroupsFromApi(t *testing.T) {
+// sendRune sends the key through the app as it would be pressed, which runs
+// the key handlers of the pages and redraws the screen
+func sendRune(t *testing.T, appCtx *core.AppContext, r rune, mod tcell.ModMask) {
+	t.Helper()
+	appCtx.App.QueueEvent(tcell.NewEventKey(tcell.KeyRune, r, mod))
+	uitest.OnUI(t, appCtx.App, func() {})
+}
+
+func TestLogsInsightsHomeView__OpensOnInsights(t *testing.T) {
 	var appCtx = uitest.NewAppContext()
-	var api = &fakeCloudWatchLogsApi{groups: []types.LogGroup{newLogGroup("/aws/lambda/orders")}}
-	var screen = uitest.ShowPage(t, appCtx.App, NewLogsInsightsHomeView(appCtx, api))
+	var screen = uitest.ShowPage(t, appCtx.App, NewLogsInsightsHomeView(appCtx, &fakeCloudWatchLogsApi{}))
+	appCtx.App.QueueUpdateDraw(func() {})
 
+	uitest.AwaitScreenText(t, appCtx.App, screen, "Saved Queries")
+}
+
+// showLogGroups shows the logs on the groups page with the groups loaded
+func showLogGroups(t *testing.T, appCtx *core.AppContext, names ...string) tcell.SimulationScreen {
+	t.Helper()
+	var groups []types.LogGroup
+	for _, name := range names {
+		groups = append(groups, newLogGroup(name))
+	}
+	var screen = uitest.ShowPage(t, appCtx.App, NewLogsHomeView(appCtx, &fakeCloudWatchLogsApi{groups: groups}))
 	uitest.PressRune(t, appCtx.App, core.APP_KEY_BINDINGS.Reset)
+	uitest.AwaitScreenText(t, appCtx.App, screen, names[0])
+	return screen
+}
 
-	uitest.AwaitScreenText(t, appCtx.App, screen, "/aws/lambda/orders")
+func TestLogsHomeView__MarkKeyMarksTheLogGroup(t *testing.T) {
+	var appCtx = uitest.NewAppContext()
+	var screen = showLogGroups(t, appCtx, "/aws/lambda/orders")
+
+	sendRune(t, appCtx, logGroupMarkRune, tcell.ModNone)
+
+	uitest.AwaitScreenText(t, appCtx.App, screen, "❬1 marked❭")
+	uitest.AwaitScreenText(t, appCtx.App, screen, logGroupMarker+" /aws/lambda/orders")
+}
+
+func TestLogsHomeView__QueryKeyWithoutMarksQueriesTheGroupItIsOn(t *testing.T) {
+	var appCtx = uitest.NewAppContext()
+	var screen = showLogGroups(t, appCtx, "/aws/lambda/orders")
+
+	sendRune(t, appCtx, core.APP_KEY_BINDINGS.TableQuery, tcell.ModNone)
+
+	uitest.AwaitScreenText(t, appCtx.App, screen, "Saved Queries")
+	// The groups page is the next one after Insights
+	sendRune(t, appCtx, core.APP_KEY_BINDINGS.PageForward, tcell.ModAlt)
+	uitest.AwaitScreenText(t, appCtx.App, screen, "❬1 marked❭")
 }

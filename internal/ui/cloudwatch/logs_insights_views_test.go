@@ -107,8 +107,7 @@ func newInsightsPageView(t *testing.T, api awsapi.CloudWatchLogsApi) *LogsInsigh
 	var resultsTable = NewInsightsQueryResultsTable(serviceCtx)
 	resultsTable.pollInterval = 5 * time.Millisecond
 	var view = NewLogsInsightsPageView(
-		NewLogGroupsTable(serviceCtx),
-		NewSelectedGroupsTable(serviceCtx),
+		NewSelectedGroupsTable(serviceCtx, NewLogGroupMarks()),
 		resultsTable,
 		serviceCtx,
 	)
@@ -116,21 +115,15 @@ func newInsightsPageView(t *testing.T, api awsapi.CloudWatchLogsApi) *LogsInsigh
 	return view
 }
 
-func TestInsightsPageView__SelectingALogGroupAddsItToTheSelectedGroups(t *testing.T) {
-	var api = &fakeInsightsApi{fakeCloudWatchLogsApi: fakeCloudWatchLogsApi{
-		groups: []types.LogGroup{newLogGroup("/aws/lambda/orders")},
-	}}
-	var view = newInsightsPageView(t, api)
+func TestInsightsPageView__MarkedLogGroupsAreListed(t *testing.T) {
+	var view = newInsightsPageView(t, &fakeInsightsApi{})
 	var app = view.serviceCtx.App
 
-	view.LogGroupsTable.RefreshLogGroups(true)
-	uitest.Eventually(t, app, func() bool { return view.LogGroupsTable.GetSelectedLogGroup() != "" })
-	uitest.OnUI(t, app, func() { uitest.PressEnter(view.LogGroupsTable) })
+	uitest.OnUI(t, app, func() { view.SelectedGroupsTable.marks.Add("/aws/lambda/orders") })
 
 	uitest.Eventually(t, app, func() bool {
-		return slices.Equal(view.SelectedGroupsTable.GetAllLogGroups(), []string{"/aws/lambda/orders"}) &&
-			view.SelectedGroupsTable.GetCellText(1, 0) == "/aws/lambda/orders"
-	})
+		return view.SelectedGroupsTable.GetCellText(1, 0) == "/aws/lambda/orders"
+	}, "the marked group is listed")
 }
 
 func TestInsightsPageView__RunningWithoutLogGroupsMovesToThemAndReportsIt(t *testing.T) {
@@ -143,12 +136,12 @@ func TestInsightsPageView__RunningWithoutLogGroupsMovesToThemAndReportsIt(t *tes
 
 	uitest.OnUI(t, app, func() { view.RunQuery() })
 
-	if got := uitest.AwaitError(t, received); got != "No log groups selected" {
+	if got := uitest.AwaitError(t, received); got != "No log groups marked" {
 		t.Errorf("message = %q", got)
 	}
 	uitest.OnUI(t, app, func() {
-		if name, _ := view.TabView.GetCurrentTab(); name != InsightsTabLogGroups {
-			t.Errorf("tab = %q, want %q", name, InsightsTabLogGroups)
+		if name, _ := view.TabView.GetCurrentTab(); name != InsightsTabGroups {
+			t.Errorf("tab = %q, want %q", name, InsightsTabGroups)
 		}
 	})
 	if started := api.startedQueries(); len(started) != 0 {
@@ -161,7 +154,7 @@ func TestInsightsPageView__RunningQueriesTheSelectedGroupsAndShowsTheResults(t *
 	var view = newInsightsPageView(t, api)
 	var app = view.serviceCtx.App
 	uitest.OnUI(t, app, func() {
-		view.SelectedGroupsTable.AddLogGroup("/aws/lambda/orders")
+		view.SelectedGroupsTable.marks.Add("/aws/lambda/orders")
 		view.QueryView.queryTextArea.SetText("fields @message", false)
 		view.RunQuery()
 	})
@@ -185,7 +178,7 @@ func TestInsightsPageView__RunningQueriesTheSelectedGroupsAndShowsTheResults(t *
 func runQuery(t *testing.T, view *LogsInsightsPageView) {
 	t.Helper()
 	uitest.OnUI(t, view.serviceCtx.App, func() {
-		view.SelectedGroupsTable.AddLogGroup("/aws/lambda/orders")
+		view.SelectedGroupsTable.marks.Add("/aws/lambda/orders")
 		view.RunQuery()
 	})
 }
@@ -292,7 +285,7 @@ func TestInsightsPageView__EmptyOrBackwardsQueriesAreNotRun(t *testing.T) {
 	var callback, received = uitest.CaptureErrors()
 	view.ResultsTable.ErrorMessageCallback = callback
 	uitest.OnUI(t, app, func() {
-		view.SelectedGroupsTable.AddLogGroup("/aws/lambda/orders")
+		view.SelectedGroupsTable.marks.Add("/aws/lambda/orders")
 		view.QueryView.queryTextArea.SetText("  ", false)
 		view.RunQuery()
 	})
