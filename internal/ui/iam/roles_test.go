@@ -172,7 +172,8 @@ func TestRoleDetailsTable__SlowerEarlierRoleDoesNotReplaceLatest(t *testing.T) {
 		table.RefreshDetails("orders")
 	})
 	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetCellText(0, 1) == "orders" })
-	time.Sleep(500 * time.Millisecond)
+	uitest.Consistently(t, serviceCtx.App, 500*time.Millisecond, func() bool { return table.GetCellText(0, 1) == "orders" },
+		"a stale role replaced the latest one")
 
 	uitest.OnUI(t, serviceCtx.App, func() {
 		if got := table.GetCellText(0, 1); got != "orders" {
@@ -236,7 +237,8 @@ func TestPrincipalPoliciesView__SlowDocumentOfPreviousPolicyIsDropped(t *testing
 	uitest.OnUI(t, app, func() { policies.PoliciesTable.Select(2, 0) })
 
 	uitest.Eventually(t, app, func() bool { return policies.DocumentView.GetText() == "{\n  \"Name\": \"fast\"\n}" })
-	time.Sleep(300 * time.Millisecond)
+	uitest.Consistently(t, app, 300*time.Millisecond, func() bool { return policies.DocumentView.GetText() == "{\n  \"Name\": \"fast\"\n}" },
+		"a slower policy replaced the selected one")
 	uitest.OnUI(t, app, func() {
 		if got := policies.DocumentView.GetText(); got != "{\n  \"Name\": \"fast\"\n}" {
 			t.Errorf("document = %q, want the selected policy's", got)

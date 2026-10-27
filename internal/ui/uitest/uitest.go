@@ -105,7 +105,9 @@ func OnUI(t *testing.T, app *tview.Application, fn func()) {
 	}
 }
 
-func Eventually(t *testing.T, app *tview.Application, condition func() bool) {
+// Eventually waits for the condition to hold. The optional description names
+// what was being waited for and is shown when it times out.
+func Eventually(t *testing.T, app *tview.Application, condition func() bool, description ...string) {
 	t.Helper()
 	var deadline = time.Now().Add(asyncTimeout)
 	for time.Now().Before(deadline) {
@@ -114,9 +116,37 @@ func Eventually(t *testing.T, app *tview.Application, condition func() bool) {
 		if ok {
 			return
 		}
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond) // sleep-ok: the polling interval
 	}
-	t.Fatal("condition not met before timeout")
+	t.Fatalf("condition not met within %s%s", asyncTimeout, describe(description))
+}
+
+// Consistently checks that the condition keeps holding for the whole duration
+// and fails as soon as it doesn't. Use it instead of sleeping and then asserting
+// that nothing has changed.
+func Consistently(
+	t *testing.T, app *tview.Application, duration time.Duration, condition func() bool, description ...string,
+) {
+	t.Helper()
+	var deadline = time.Now().Add(duration)
+	for {
+		var ok bool
+		OnUI(t, app, func() { ok = condition() })
+		if !ok {
+			t.Fatalf("condition stopped holding%s", describe(description))
+		}
+		if !time.Now().Before(deadline) {
+			return
+		}
+		time.Sleep(10 * time.Millisecond) // sleep-ok: the polling interval
+	}
+}
+
+func describe(description []string) string {
+	if len(description) == 0 {
+		return ""
+	}
+	return ": " + strings.Join(description, " ")
 }
 
 func CaptureErrors() (callback func(text string, a ...any), received chan string) {
@@ -190,7 +220,7 @@ func AwaitScreenText(t *testing.T, app *tview.Application, screen tcell.Simulati
 		if strings.Contains(text, want) {
 			return
 		}
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond) // sleep-ok: the polling interval
 	}
 	t.Fatalf("screen never showed %q", want)
 }

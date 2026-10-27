@@ -189,7 +189,8 @@ func TestTriggersView__SlowerEarlierLambdaIsDropped(t *testing.T) {
 		view.Refresh(ordersArn)
 	})
 	uitest.Eventually(t, app, func() bool { return view.ListTable.GetCellText(1, 0) == "orders-queue" })
-	time.Sleep(500 * time.Millisecond)
+	uitest.Consistently(t, app, 500*time.Millisecond, func() bool { return view.ListTable.GetCellText(1, 0) == "orders-queue" },
+		"a stale lambda replaced the latest one")
 
 	uitest.OnUI(t, app, func() {
 		if got := view.ListTable.GetCellText(1, 0); got != "orders-queue" {
@@ -278,7 +279,8 @@ func TestPermissionsView__SlowerEarlierLambdaIsDropped(t *testing.T) {
 		view.Refresh(ordersArn)
 	})
 	uitest.Eventually(t, app, func() bool { return view.GetText() == "{\n  \"Id\": \"orders\"\n}" })
-	time.Sleep(500 * time.Millisecond)
+	uitest.Consistently(t, app, 500*time.Millisecond, func() bool { return view.GetText() == "{\n  \"Id\": \"orders\"\n}" },
+		"a stale lambda replaced the latest one")
 
 	uitest.OnUI(t, app, func() {
 		if got := view.GetText(); got != "{\n  \"Id\": \"orders\"\n}" {

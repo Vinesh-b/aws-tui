@@ -74,7 +74,7 @@ func (f *fakeIamApi) ListRoles(ctx context.Context, force bool) ([]types.Role, e
 }
 
 func (f *fakeIamApi) GetRole(ctx context.Context, roleName string) (*types.Role, error) {
-	time.Sleep(f.roleDelay[roleName])
+	time.Sleep(f.roleDelay[roleName]) // sleep-ok: simulated api latency
 	if role, ok := f.rolesByName[roleName]; ok {
 		return role, f.err
 	}
@@ -82,7 +82,7 @@ func (f *fakeIamApi) GetRole(ctx context.Context, roleName string) (*types.Role,
 }
 
 func (f *fakeIamApi) principalDocument(policy awsapi.PrincipalPolicy) (string, error) {
-	time.Sleep(f.documentDelay[policy.Name])
+	time.Sleep(f.documentDelay[policy.Name]) // sleep-ok: simulated api latency
 	return f.documents[policy.Name], f.err
 }
 

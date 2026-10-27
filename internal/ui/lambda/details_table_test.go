@@ -171,7 +171,8 @@ func TestDetailsTable__TagsOfPreviousLambdaAreDropped(t *testing.T) {
 		table.RefreshDetails(functionWithArn("orders", ordersArn))
 	})
 	uitest.Eventually(t, app, func() bool { return table.GetCellText(12, 1) == "orders" })
-	time.Sleep(500 * time.Millisecond)
+	uitest.Consistently(t, app, 500*time.Millisecond, func() bool { return table.GetCellText(12, 1) == "orders" },
+		"a stale lambda replaced the latest one")
 
 	uitest.OnUI(t, app, func() {
 		if got := table.GetCellText(12, 1); got != "orders" {

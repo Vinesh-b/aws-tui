@@ -54,13 +54,13 @@ func (f *fakeLambdaApi) ListEventSourceMappings(
 	ctx context.Context, lambdaArn string,
 ) ([]types.EventSourceMappingConfiguration, error) {
 	f.askedFor("ListEventSourceMappings", lambdaArn)
-	time.Sleep(f.delays[lambdaArn])
+	time.Sleep(f.delays[lambdaArn]) // sleep-ok: simulated api latency
 	return f.mappings[lambdaArn], f.err
 }
 
 func (f *fakeLambdaApi) GetPolicy(ctx context.Context, lambdaArn string) (string, error) {
 	f.askedFor("GetPolicy", lambdaArn)
-	time.Sleep(f.delays[lambdaArn])
+	time.Sleep(f.delays[lambdaArn]) // sleep-ok: simulated api latency
 	return f.policies[lambdaArn], f.policyErr
 }
 
@@ -120,18 +120,18 @@ func TestListTable__FilterByNameShowsMatchingFunctions(t *testing.T) {
 
 func (f *fakeLambdaApi) ListTags(ctx context.Context, lambdaArn string) (map[string]string, error) {
 	f.askedFor("ListTags", lambdaArn)
-	time.Sleep(f.delays[lambdaArn])
+	time.Sleep(f.delays[lambdaArn]) // sleep-ok: simulated api latency
 	return f.tags[lambdaArn], f.tagsErr
 }
 
 func (f *fakeLambdaApi) ListVersions(ctx context.Context, lambdaArn string) ([]types.FunctionConfiguration, error) {
 	f.askedFor("ListVersions", lambdaArn)
-	time.Sleep(f.delays[lambdaArn])
+	time.Sleep(f.delays[lambdaArn]) // sleep-ok: simulated api latency
 	return f.versions[lambdaArn], f.err
 }
 
 func (f *fakeLambdaApi) ListAliases(ctx context.Context, lambdaArn string) ([]types.AliasConfiguration, error) {
 	f.askedFor("ListAliases", lambdaArn)
-	time.Sleep(f.delays[lambdaArn])
+	time.Sleep(f.delays[lambdaArn]) // sleep-ok: simulated api latency
 	return f.aliases[lambdaArn], f.err
 }

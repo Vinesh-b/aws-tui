@@ -394,7 +394,7 @@ func awaitInUse(t *testing.T, app *tview.Application, screen tcell.SimulationScr
 				return
 			}
 		}
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(20 * time.Millisecond) // sleep-ok: polling the screen
 	}
 	t.Fatalf("settings never showed %s as in use:\n%s", theme, uitest.ScreenText(screen))
 }

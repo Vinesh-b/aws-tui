@@ -26,7 +26,7 @@ func TestPaginatorView__StopEndsThePollingGoroutine(t *testing.T) {
 
 	var deadline = time.Now().Add(2 * time.Second)
 	for runtime.NumGoroutine() > before && time.Now().Before(deadline) {
-		time.Sleep(5 * time.Millisecond)
+		time.Sleep(5 * time.Millisecond) // sleep-ok: polling the goroutine count, there is no app to wait on
 	}
 	if got := runtime.NumGoroutine(); got > before {
 		t.Errorf("goroutines = %d, want %d or fewer once stopped", got, before)

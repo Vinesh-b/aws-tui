@@ -86,12 +86,11 @@ func TestDetailsPageView__FirstLoadDoesNotLoadDetailsWithoutAQueueUrl(t *testing
 			uitest.Eventually(t, serviceCtx.App, func() bool {
 				return len(queues) == 0 || view.QueueListTable.GetSelectedQueue() != ""
 			})
-			time.Sleep(200 * time.Millisecond)
 
 			select {
 			case message := <-received:
 				t.Fatalf("Unexpected error on first load: %q", message)
-			default:
+			case <-time.After(200 * time.Millisecond):
 			}
 			if slices.Contains(api.recorded(), "attributes ") || slices.Contains(api.recorded(), "tags ") {
 				t.Fatalf("Details were loaded without a queue URL: %v", api.recorded())

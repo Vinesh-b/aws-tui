@@ -175,20 +175,14 @@ func TestGenericTable__ResultsOfReplacedQueryAreDropped(t *testing.T) {
 	uitest.OnUI(t, app, func() { table.ExecuteSearch(DDBTableQuery, expression.Expression{}, true) })
 
 	// The second query waits for the first to stop using the api
-	time.Sleep(50 * time.Millisecond)
-	if got := len(api.QueriedIndexes()); got != 1 {
-		t.Fatalf("queries started = %d, want 1 while the first is in flight", got)
-	}
+	uitest.Consistently(t, app, 50*time.Millisecond, func() bool { return len(api.QueriedIndexes()) == 1 },
+		"the second query started while the first was in flight")
 	close(releaseFirst)
 	uitest.Eventually(t, app, func() bool { return len(api.QueriedIndexes()) == 2 })
 
 	// Give the first query's results time to reach the view
-	time.Sleep(300 * time.Millisecond)
-	uitest.OnUI(t, app, func() {
-		if got := table.GetTable().GetRowCount(); got != 0 {
-			t.Errorf("rows = %d before the latest query finished, want 0", got)
-		}
-	})
+	uitest.Consistently(t, app, 300*time.Millisecond, func() bool { return table.GetTable().GetRowCount() == 0 },
+		"rows were shown before the latest query finished")
 
 	close(releaseSecond)
 	uitest.AwaitRows(t, app, table, []core.TableRow{{"id"}, {"latest"}})

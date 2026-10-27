@@ -22,7 +22,13 @@ fmt-check:
 vet:
 	go vet ./...
 
-lint: fmt-check vet
+# Tests must wait with uitest.Eventually / uitest.Consistently, not sleep.
+# A sleep that really is needed is marked with a "sleep-ok: <reason>" comment.
+sleep-check:
+	@found="$$(grep -rn 'time\.Sleep' --include='*_test.go' --include='uitest.go' internal | grep -v 'sleep-ok')"; \
+	test -z "$$found" || { echo "Unmarked time.Sleep in tests, use uitest.Eventually or uitest.Consistently:"; echo "$$found"; exit 1; }
+
+lint: fmt-check vet sleep-check
 
 get-modules:
 	go mod download

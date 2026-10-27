@@ -196,12 +196,11 @@ func TestDetailsPageView__FirstLoadDoesNotLoadDetailsWithoutATopicArn(t *testing
 			uitest.Eventually(t, serviceCtx.App, func() bool {
 				return len(topics) == 0 || view.TopicListTable.GetSelectedTopic() != ""
 			})
-			time.Sleep(200 * time.Millisecond)
 
 			select {
 			case message := <-received:
 				t.Fatalf("Unexpected error on first load: %q", message)
-			default:
+			case <-time.After(200 * time.Millisecond):
 			}
 			if slices.ContainsFunc(api.Calls(), func(call string) bool { return strings.HasSuffix(call, " ") }) {
 				t.Fatalf("Details were loaded without a topic ARN: %v", api.Calls())

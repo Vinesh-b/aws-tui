@@ -263,10 +263,8 @@ func TestInsightsPageView__StoppingStopsTheQueryAndKeepsTheResultsSoFar(t *testi
 		t.Errorf("queries stopped = %v, want [query-1]", got)
 	}
 	var polls = api.pollCount()
-	time.Sleep(50 * time.Millisecond)
-	if got := api.pollCount(); got > polls+1 {
-		t.Errorf("the query was still polled after it was stopped: %d then %d", polls, got)
-	}
+	uitest.Consistently(t, app, 50*time.Millisecond, func() bool { return api.pollCount() <= polls+1 },
+		"the query was still polled after it was stopped")
 	uitest.OnUI(t, app, func() {
 		if got := view.ResultsTable.GetCellText(1, 0); got != "one" {
 			t.Errorf("results after stopping = %q, want the ones so far", got)
