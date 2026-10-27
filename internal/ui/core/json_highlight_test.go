@@ -176,7 +176,7 @@ func drawTextArea(t *testing.T, area *TextArea, width, height int) tcell.Simulat
 }
 
 func TestTextArea__JsonHighlightingColoursTheText(t *testing.T) {
-	var area = NewTextArea("json", newTestAppContext().Theme)
+	var area = NewTextArea("json", newTestAppContext())
 	area.SetJsonHighlighting(true)
 	area.SetText(sampleJson, false)
 
@@ -191,7 +191,7 @@ func TestTextArea__JsonHighlightingColoursTheText(t *testing.T) {
 }
 
 func TestTextArea__HighlightingFollowsTypedText(t *testing.T) {
-	var area = NewTextArea("json", newTestAppContext().Theme)
+	var area = NewTextArea("json", newTestAppContext())
 	area.SetJsonHighlighting(true)
 	area.SetText("", false)
 
@@ -211,7 +211,7 @@ func TestTextArea__HighlightingFollowsTypedText(t *testing.T) {
 }
 
 func TestTextArea__NoHighlightingByDefaultOrWhenDisabled(t *testing.T) {
-	var area = NewTextArea("json", newTestAppContext().Theme)
+	var area = NewTextArea("json", newTestAppContext())
 	area.SetText(sampleJson, false)
 
 	for _, enabled := range []bool{false, true} {

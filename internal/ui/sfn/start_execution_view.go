@@ -30,7 +30,7 @@ type SfnStartExecutionPageView struct {
 func NewSfnStartExecutionPageView(
 	serviceCtx *core.ServiceContext[awsapi.StateMachineApi],
 ) *SfnStartExecutionPageView {
-	var inputArea = core.NewTextArea("Input", serviceCtx.Theme)
+	var inputArea = core.NewTextArea("Input", serviceCtx.AppContext)
 	var resultOutput = core.NewSearchableTextView("Result", serviceCtx.AppContext)
 	var startButton = tview.NewButton("Start Execution")
 	var formatButton = tview.NewButton("Format Input")

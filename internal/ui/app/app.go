@@ -282,6 +282,7 @@ func (inst *navigator) restart() {
 type appOptions struct {
 	settingsPath       string
 	pollSessionAtStart bool
+	copyToSystem       func(text string) error
 }
 
 // Option changes how the application is created.
@@ -299,6 +300,12 @@ func WithSettingsFile(path string) Option {
 // they do not look up the credentials.
 func WithSessionPollAtStart() Option {
 	return func(options *appOptions) { options.pollSessionAtStart = true }
+}
+
+// WithSystemClipboard copies to the function in place of the clipboard of the
+// system, such as in tests, which should leave the clipboard of the user alone
+func WithSystemClipboard(copy func(text string) error) Option {
+	return func(options *appOptions) { options.copyToSystem = copy }
 }
 
 // settingsStore keeps the settings the user chooses, and saves them in the
@@ -376,6 +383,9 @@ func CreateApplication(
 		appContext = core.NewAppContext(ctx, app, &config, inAppLogger, &appTheme)
 	)
 	appContext.PollSessionAtStart = options.pollSessionAtStart
+	if options.copyToSystem != nil {
+		appContext.SetSystemClipboard(options.copyToSystem)
+	}
 	var store = &settingsStore{path: options.settingsPath, saved: saved}
 	appContext.DownloadDir = saved.Files.DownloadDir
 	appContext.QueriesPath = settings.QueriesPath(options.settingsPath)
@@ -616,6 +626,13 @@ func CreateApplication(
 				rebuildPagesForKeys(pages, serviceViews, item)
 			}
 		}
+	})
+
+	// Copied text is sent to the terminal too, which is reached through the
+	// screen the app draws on
+	app.SetBeforeDrawFunc(func(screen tcell.Screen) bool {
+		appContext.SetTerminal(screen)
+		return false
 	})
 
 	app.SetRoot(pages, true)

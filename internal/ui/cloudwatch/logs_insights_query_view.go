@@ -9,7 +9,6 @@ import (
 	"aws-tui/internal/settings"
 	"aws-tui/internal/ui/core"
 
-	"github.com/atotto/clipboard"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -116,13 +115,7 @@ func NewInsightsQueryInputView(appContext *core.AppContext) *InsightsQueryInputV
 			1, 0, false,
 		)
 
-	view.queryTextArea.SetClipboard(
-		func(s string) { clipboard.WriteAll(s) },
-		func() string {
-			var res, _ = clipboard.ReadAll()
-			return res
-		},
-	)
+	view.queryTextArea.SetClipboard(appContext.CopyText, appContext.PasteText)
 	view.queryTextArea.SetSelectedStyle(appContext.Theme.GetFocusFormItemStyle())
 	view.queryTextArea.
 		SetTitle("Query").

@@ -28,7 +28,7 @@ type SendEventPageView struct {
 func NewSendEventPageView(
 	serviceCtx *core.ServiceContext[awsapi.EventBridgeApi],
 ) *SendEventPageView {
-	var detailArea = core.NewTextArea("Detail", serviceCtx.Theme)
+	var detailArea = core.NewTextArea("Detail", serviceCtx.AppContext)
 	var resultOutput = core.NewSearchableTextView("Result", serviceCtx.AppContext)
 	var sourceInput = core.NewInputField(serviceCtx.Theme)
 	var detailTypeInput = core.NewInputField(serviceCtx.Theme)

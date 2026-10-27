@@ -377,7 +377,7 @@ func TestTabViewHorizontal__NumberKeysAreTypedIntoTextEntries(t *testing.T) {
 		{"input field", NewInputField(&theme), true},
 		{"tview input field", tview.NewInputField(), true},
 		{"date input", NewDateTimeInputField(&theme), true},
-		{"text area", NewTextArea("Payload", &theme), true},
+		{"text area", NewTextArea("Payload", newTestAppContext()), true},
 		{"tview text area", tview.NewTextArea(), true},
 		{"disabled text area", tview.NewTextArea().SetDisabled(true).(*tview.TextArea), false},
 		{"read only text", NewSearchableTextView("Policy", &AppContext{Theme: &theme, App: tview.NewApplication()}).syntaxArea, false},

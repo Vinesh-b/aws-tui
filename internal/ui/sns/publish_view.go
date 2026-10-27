@@ -32,8 +32,8 @@ type PublishPageView struct {
 func NewPublishPageView(
 	serviceCtx *core.ServiceContext[awsapi.SnsApi],
 ) *PublishPageView {
-	var messageArea = core.NewTextArea("Message", serviceCtx.Theme)
-	var attributesArea = core.NewTextArea("Message Attributes", serviceCtx.Theme)
+	var messageArea = core.NewTextArea("Message", serviceCtx.AppContext)
+	var attributesArea = core.NewTextArea("Message Attributes", serviceCtx.AppContext)
 	var resultOutput = core.NewSearchableTextView("Result", serviceCtx.AppContext)
 	var subjectInput = core.NewInputField(serviceCtx.Theme)
 	var groupIdInput = core.NewInputField(serviceCtx.Theme)

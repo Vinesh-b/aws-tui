@@ -14,7 +14,6 @@ import (
 	"log"
 	"strings"
 
-	"github.com/atotto/clipboard"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -592,8 +591,7 @@ func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventK
 		switch event.Rune() {
 		case APP_KEY_BINDINGS.TextCopy:
 			var row, col = inst.table.GetSelection()
-			var text = inst.GetCellText(row, col)
-			clipboard.WriteAll(text)
+			inst.appCtx.CopyText(inst.GetCellText(row, col))
 			return nil
 		}
 
@@ -994,8 +992,7 @@ func (inst *DetailsTable) SetInputCapture(capture func(event *tcell.EventKey) *t
 		switch event.Rune() {
 		case APP_KEY_BINDINGS.TextCopy:
 			var row, _ = inst.table.GetSelection()
-			var text = inst.GetCellText(row, detailsValueCol)
-			clipboard.WriteAll(text)
+			inst.appCtx.CopyText(inst.GetCellText(row, detailsValueCol))
 			return nil
 		}
 		return capture(event)

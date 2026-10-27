@@ -143,7 +143,7 @@ type LambdaInvokePageView struct {
 func NewLambdaInvokePageView(
 	serviceCtx *core.ServiceContext[awsapi.LambdaApi],
 ) *LambdaInvokePageView {
-	var payloadInput = core.NewTextArea("Payload", serviceCtx.Theme)
+	var payloadInput = core.NewTextArea("Payload", serviceCtx.AppContext)
 	var logResults = core.NewSearchableTextView("Logs", serviceCtx.AppContext)
 	var responseOutput = core.NewSearchableTextView("Response", serviceCtx.AppContext)
 	var invokeButton = tview.NewButton("Invoke")

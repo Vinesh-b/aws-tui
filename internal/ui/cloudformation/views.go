@@ -72,7 +72,8 @@ func NewStackEventsPageView(
 	stackEventsTable *StackEventsTable,
 	serviceContext *core.ServiceContext[awsapi.CloudFormationApi],
 ) *CloudFormationStackEventsPageView {
-	var expandedMsgView = tview.NewTextArea()
+	var expandedMsgView = tview.NewTextArea().
+		SetClipboard(serviceContext.CopyText, serviceContext.PasteText)
 	expandedMsgView.
 		SetBorder(true).
 		SetTitle("Message").

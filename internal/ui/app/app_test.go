@@ -556,3 +556,25 @@ func TestCreateApplication__AKeyChangedInTheSettingsIsSavedToTheFile(t *testing.
 		return saved.Keys["reset"] == "R"
 	}, "reset is saved on R")
 }
+
+func TestCreateApplication__CopiedTextIsSentToTheTerminal(t *testing.T) {
+	var systemCopies = make(chan string, 1)
+	var tuiApp, screen = startApp(t, WithSystemClipboard(func(text string) error {
+		systemCopies <- text
+		return nil
+	}))
+	openSettings(tuiApp)
+	awaitInUse(t, tuiApp, screen, "Default")
+	typeRunes(tuiApp, "gtgt")
+	uitest.AwaitScreenText(t, tuiApp, screen, "toggleServicesMenu")
+
+	// The first cell of the keys is the group of the first key
+	typeRunes(tuiApp, string(core.APP_KEY_BINDINGS.TextCopy))
+
+	uitest.Eventually(t, tuiApp, func() bool {
+		return string(screen.GetClipboardData()) == "Moving around"
+	}, "the terminal is sent the copied cell")
+	if got := <-systemCopies; got != "Moving around" {
+		t.Errorf("system clipboard = %q", got)
+	}
+}

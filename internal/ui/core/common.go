@@ -48,6 +48,7 @@ type AppContext struct {
 	// session is the one monitor of the session for all the status bars
 	session     *SessionMonitor
 	sessionOnce sync.Once
+	clipboard   appClipboard
 }
 
 // linkOpener is a view with values that link to resources
@@ -158,10 +159,11 @@ func NewAppContext(
 	ctx context.Context, app *tview.Application, config *aws.Config, logger *log.Logger, theme *AppTheme,
 ) *AppContext {
 	return &AppContext{
-		Ctx:    ctx,
-		App:    app,
-		Logger: logger,
-		Theme:  theme,
+		Ctx:       ctx,
+		App:       app,
+		Logger:    logger,
+		Theme:     theme,
+		clipboard: newAppClipboard(),
 	}
 }
 

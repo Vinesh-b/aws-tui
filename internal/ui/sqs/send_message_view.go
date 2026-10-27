@@ -31,8 +31,8 @@ type SendMessagePageView struct {
 func NewSendMessagePageView(
 	serviceCtx *core.ServiceContext[awsapi.SqsApi],
 ) *SendMessagePageView {
-	var bodyArea = core.NewTextArea("Message Body", serviceCtx.Theme)
-	var attributesArea = core.NewTextArea("Message Attributes", serviceCtx.Theme)
+	var bodyArea = core.NewTextArea("Message Body", serviceCtx.AppContext)
+	var attributesArea = core.NewTextArea("Message Attributes", serviceCtx.AppContext)
 	var resultOutput = core.NewSearchableTextView("Result", serviceCtx.AppContext)
 	var groupIdInput = core.NewInputField(serviceCtx.Theme)
 	var dedupIdInput = core.NewInputField(serviceCtx.Theme)

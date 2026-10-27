@@ -125,7 +125,7 @@ func helpText() string {
 		{"Text inputs", [][2]string{
 			{"Arrows", "Move the cursor"},
 			{"Shift+Arrows", "Select text"},
-			{"Ctrl+Q", "Copy the selected text (xclip is needed on Linux)"},
+			{"Ctrl+Q", "Copy the selected text"},
 		}},
 	}
 

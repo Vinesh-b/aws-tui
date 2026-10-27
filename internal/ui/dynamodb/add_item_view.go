@@ -30,7 +30,7 @@ type DynamoDBAddItemPageView struct {
 func NewDynamoDBAddItemPageView(
 	serviceCtx *core.ServiceContext[awsapi.DynamoDBApi],
 ) *DynamoDBAddItemPageView {
-	var itemInput = core.NewTextArea("Item", serviceCtx.Theme)
+	var itemInput = core.NewTextArea("Item", serviceCtx.AppContext)
 	var resultOutput = core.NewSearchableTextView("Result", serviceCtx.AppContext)
 	var addButton = tview.NewButton("Add Item")
 	var copyButton = tview.NewButton("Copy Selected Item")

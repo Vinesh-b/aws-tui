@@ -6,7 +6,6 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/atotto/clipboard"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -55,13 +54,7 @@ func NewSearchableTextView(title string, appContext *AppContext) *SearchableText
 	}
 
 	view.textArea.
-		SetClipboard(
-			func(s string) { clipboard.WriteAll(s) },
-			func() string {
-				var res, _ = clipboard.ReadAll()
-				return res
-			},
-		).
+		SetClipboard(appContext.CopyText, appContext.PasteText).
 		SetSelectedStyle(
 			tcell.Style{}.Background(appContext.Theme.MoreContrastBackgroundColor),
 		)

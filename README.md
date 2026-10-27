@@ -86,7 +86,7 @@ Tables that load their rows a page at a time, such as log events or S3 objects, 
 | `Esc` | Go back to normal mode | `escape` |
 | `i`, `u` / `Ctrl+R` | Insert mode, undo / redo; text views are read-only, so these change nothing yet | `textViewInsertMode`, `textViewUndo` / `textViewRedo` |
 
-In forms, `Down` and `Up` move to the next and previous field (`formFocusNext`, `formFocusPrev`). Text inputs keep their own keys: the arrows move the cursor, `Shift` + arrows select text, and `Ctrl+Q` copies it (xclip is needed on Linux). These can't be changed.
+In forms, `Down` and `Up` move to the next and previous field (`formFocusNext`, `formFocusPrev`). Text inputs keep their own keys: the arrows move the cursor, `Shift` + arrows select text, and `Ctrl+Q` copies it. These can't be changed.
 
 ### Sequences
 
@@ -170,6 +170,8 @@ The theme is used the next time the app starts too. A theme that does not exist 
 A key can't be used when it can't be read, or is already used by another key of the same view. A key can't be the first key of a sequence either, as it would always wait for the rest of the sequence. The Keys page says why and keeps the old key; in the file, the setting is ignored and logged in the Debug Logs page, as are names that are not keys.
 
 ### Terminals
+
+Copied text, with `y` or `Ctrl+Q`, goes to the clipboard of the terminal with the OSC 52 escape sequence, which works over SSH and in tmux, and to the clipboard of the system with xclip, xsel, wl-copy or pbcopy when one of them is installed. Most terminals take OSC 52, though some need it turned on in their settings; tmux passes it on with `set -g set-clipboard on`.
 
 Terminals without the newer keyboard protocols, such as tmux without `extended-keys`, send `Ctrl+H` as Backspace and `Ctrl+M` as Enter. The services menu is on `Ctrl+Space` for that reason, and Backspace moves to the pane on the left like `Ctrl+H`, except in text inputs.
 

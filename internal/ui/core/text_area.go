@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/atotto/clipboard"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -18,7 +17,8 @@ type TextArea struct {
 	titleExtra           string
 }
 
-func NewTextArea(title string, appTheme *AppTheme) *TextArea {
+func NewTextArea(title string, appCtx *AppContext) *TextArea {
+	var appTheme = appCtx.Theme
 	var t = newSyntaxTextArea()
 	var view = &TextArea{
 		syntaxTextArea:       t,
@@ -30,13 +30,7 @@ func NewTextArea(title string, appTheme *AppTheme) *TextArea {
 	}
 
 	view.
-		SetClipboard(
-			func(s string) { clipboard.WriteAll(s) },
-			func() string {
-				var res, _ = clipboard.ReadAll()
-				return res
-			},
-		).
+		SetClipboard(appCtx.CopyText, appCtx.PasteText).
 		SetSelectedStyle(
 			tcell.Style{}.Background(appTheme.MoreContrastBackgroundColor),
 		)

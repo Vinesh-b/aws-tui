@@ -42,7 +42,7 @@ type DynamoDBUpdateItemPageView struct {
 func NewDynamoDBUpdateItemPageView(
 	serviceCtx *core.ServiceContext[awsapi.DynamoDBApi],
 ) *DynamoDBUpdateItemPageView {
-	var itemInput = core.NewTextArea("Item", serviceCtx.Theme)
+	var itemInput = core.NewTextArea("Item", serviceCtx.AppContext)
 	var resultOutput = core.NewSearchableTextView("Result", serviceCtx.AppContext)
 	var updateButton = tview.NewButton("Update Item")
 	var reloadButton = tview.NewButton("Load Selected Item")
