@@ -163,21 +163,9 @@ const (
 	logsPageInsights
 )
 
-// NewLogsHomeView opens the logs on the log groups
-func NewLogsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchLogsApi) core.ServicePage {
-	return newLogsRootView(appCtx, api, core.CLOUDWATCH_LOGS_GROUPS, logsPageGroups)
-}
-
-// NewLogsInsightsHomeView opens the logs on Insights
-func NewLogsInsightsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchLogsApi) core.ServicePage {
-	return newLogsRootView(appCtx, api, core.CLOUDWATCH_LOGS_INSIGHTS, logsPageInsights)
-}
-
-// newLogsRootView has the pages to go from the log groups down to their events,
+// NewLogsHomeView has the pages to go from the log groups down to their events,
 // and to query the log groups that are marked on the way with Insights
-func newLogsRootView(
-	appCtx *core.AppContext, api awsapi.CloudWatchLogsApi, name core.ViewId, startPage int,
-) core.ServicePage {
+func NewLogsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchLogsApi) core.ServicePage {
 	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0xBB00DD))
 	defer appCtx.Theme.ResetGlobalStyle()
 
@@ -204,7 +192,7 @@ func newLogsRootView(
 		serviceCtx,
 	)
 
-	var serviceRootView = core.NewServiceRootView(string(name), appCtx)
+	var serviceRootView = core.NewServiceRootView(string(core.CLOUDWATCH_LOGS), appCtx)
 
 	serviceRootView.
 		AddAndSwitchToPage("Groups", logGroupsView, true).
@@ -270,8 +258,6 @@ func newLogsRootView(
 	logEventsView.InitInputCapture()
 	logStreamsView.InitInputCapture()
 	logGroupsView.InitInputCapture()
-
-	serviceRootView.ChangePage(startPage, nil)
 
 	return serviceRootView
 }

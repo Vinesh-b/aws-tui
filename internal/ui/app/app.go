@@ -245,9 +245,6 @@ func CreateApplication(
 				awsapi.NewCloudWatchMetricsApi(appContext.Logger),
 			)
 		}),
-		newServiceItem("󰺮 "+string(core.CLOUDWATCH_LOGS_INSIGHTS), "Query and filter logs", rune('2'), func() core.ServicePage {
-			return cloudwatch.NewLogsInsightsHomeView(appContext, awsapi.NewCloudWatchLogsApi(appContext.Logger))
-		}),
 		newServiceItem("󰆼 "+string(core.DYNAMODB), "View and search DynamoDB tables", rune('3'), func() core.ServicePage {
 			return dynamodb.NewDynamoDBHomeView(appContext, awsapi.NewDynamoDBApi(appContext.Logger))
 		}),
@@ -264,7 +261,7 @@ func CreateApplication(
 		newServiceItem("󰙵 "+string(core.SYSTEMS_MANAGER), "Application parameters", rune('6'), func() core.ServicePage {
 			return ssm.NewSystemManagerHomeView(appContext, awsapi.NewSystemsManagerApi(appContext.Logger))
 		}),
-		newServiceItem(" "+string(core.CLOUDWATCH_LOGS_GROUPS), "Logs groups and streams", rune('7'), func() core.ServicePage {
+		newServiceItem(" "+string(core.CLOUDWATCH_LOGS), "Log groups, streams and Insights queries", rune('7'), func() core.ServicePage {
 			return cloudwatch.NewLogsHomeView(appContext, awsapi.NewCloudWatchLogsApi(appContext.Logger))
 		}),
 		newServiceItem("󰘘 "+string(core.EVENTBRIDGE), "Event buses, rules, schedules...", rune('8'), func() core.ServicePage {

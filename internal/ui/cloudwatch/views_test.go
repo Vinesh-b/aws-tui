@@ -51,14 +51,6 @@ func sendRune(t *testing.T, appCtx *core.AppContext, r rune, mod tcell.ModMask) 
 	uitest.OnUI(t, appCtx.App, func() {})
 }
 
-func TestLogsInsightsHomeView__OpensOnInsights(t *testing.T) {
-	var appCtx = uitest.NewAppContext()
-	var screen = uitest.ShowPage(t, appCtx.App, NewLogsInsightsHomeView(appCtx, &fakeCloudWatchLogsApi{}))
-	appCtx.App.QueueUpdateDraw(func() {})
-
-	uitest.AwaitScreenText(t, appCtx.App, screen, "Saved Queries")
-}
-
 // showLogGroups shows the logs on the groups page with the groups loaded
 func showLogGroups(t *testing.T, appCtx *core.AppContext, names ...string) tcell.SimulationScreen {
 	t.Helper()
