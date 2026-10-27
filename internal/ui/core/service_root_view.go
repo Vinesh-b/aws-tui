@@ -17,6 +17,7 @@ type PagedServicePage interface {
 	CurrentServicePage() string
 	// ShowServicePage shows the page with the name, if there is one
 	ShowServicePage(name string)
+	MoveServicePage(offset int)
 	SetServicePageChangedFunc(handler func(name string))
 }
 
@@ -183,25 +184,17 @@ func (inst *ServiceRootView) Close() {
 }
 
 func (inst *ServiceRootView) InitPageNavigation() {
-	var numPages = len(inst.orderedPages)
 	inst.ChangePage(0, nil)
+}
 
-	inst.pages.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Modifiers() {
-		case APP_KEY_BINDINGS.PageChangeModKey:
-			switch event.Rune() {
-			case APP_KEY_BINDINGS.PageBack:
-				inst.pageIndex = (inst.pageIndex - 1 + numPages) % numPages
-				inst.ChangePage(inst.pageIndex, nil)
-				return nil
-			case APP_KEY_BINDINGS.PageForward:
-				inst.pageIndex = (inst.pageIndex + 1) % numPages
-				inst.ChangePage(inst.pageIndex, nil)
-				return nil
-			}
-		}
-		return event
-	})
+// MoveServicePage shows the page offset from the one shown, such as 1 for the
+// next, going round from the last page to the first
+func (inst *ServiceRootView) MoveServicePage(offset int) {
+	var count = len(inst.orderedPages)
+	if count == 0 {
+		return
+	}
+	inst.ChangePage(((inst.pageIndex+offset)%count+count)%count, nil)
 }
 
 func (inst *ServiceRootView) GetLastFocusedView() tview.Primitive {

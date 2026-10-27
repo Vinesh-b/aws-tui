@@ -12,38 +12,63 @@ import (
 // the timeoutlen of Vim
 const SequenceTimeout = time.Second
 
-// keySequence is the keys of a sequence binding and the key the views know
-// that it does
+// keySequence is the keys of a sequence binding and what it does on the
+// focused view. That returns the event to pass on to the view, for sequences
+// that do what a key of the views does, or nil.
 type keySequence struct {
 	keys []rune
-	does *tcell.EventKey
+	does func(focused tview.Primitive) *tcell.EventKey
 }
 
-// keySequences are the sequences as they are bound now
-func keySequences() []keySequence {
-	var keys = APP_KEY_BINDINGS
-	return []keySequence{
-		{[]rune(keys.MoveTopSequence), tcell.NewEventKey(tcell.KeyRune, keys.MovePageTopRune, tcell.ModNone)},
-		{[]rune(keys.PageForwardSequence), tcell.NewEventKey(tcell.KeyRune, keys.PageForward, keys.PageChangeModKey)},
-		{[]rune(keys.PageBackSequence), tcell.NewEventKey(tcell.KeyRune, keys.PageBack, keys.PageChangeModKey)},
-		{[]rune(keys.OpenLinkSequence), tcell.NewEventKey(tcell.KeyRune, keys.OpenLink, tcell.ModNone)},
+// passRune passes the key of the views on, for a sequence that does what it does
+func passRune(r rune) func(tview.Primitive) *tcell.EventKey {
+	return func(tview.Primitive) *tcell.EventKey {
+		return tcell.NewEventKey(tcell.KeyRune, r, tcell.ModNone)
 	}
 }
 
-// KeySequencer turns the key sequences of the bindings, such as gg, into the
-// keys the views handle, so the views need not know about sequences. The keys
-// of a sequence are held back until it is complete. A key that ends no
+// keySequences are the sequences as they are bound now
+func (inst *KeySequencer) keySequences() []keySequence {
+	var keys = APP_KEY_BINDINGS
+	var movePage = func(offset int) func(tview.Primitive) *tcell.EventKey {
+		return func(tview.Primitive) *tcell.EventKey {
+			inst.movePage(offset)
+			return nil
+		}
+	}
+	return []keySequence{
+		{[]rune(keys.MoveTopSequence), passRune(keys.MovePageTopRune)},
+		{[]rune(keys.RemoveItemSequence), passRune(keys.RemoveItem)},
+		{[]rune(keys.PageForwardSequence), movePage(1)},
+		{[]rune(keys.PageBackSequence), movePage(-1)},
+		{[]rune(keys.OpenLinkSequence), func(focused tview.Primitive) *tcell.EventKey {
+			inst.appCtx.OpenLink(focused)
+			return nil
+		}},
+	}
+}
+
+// KeySequencer runs the key sequences of the bindings, such as gg. The keys of
+// a sequence are held back until it is complete. A key that ends no
 // sequence drops the keys before it, as in Vim, and is then taken on its own.
 // Text typed into an input is never held back. It is only used on the UI
 // goroutine.
 type KeySequencer struct {
+	appCtx    *AppContext
+	movePage  func(offset int)
 	pending   []rune
 	pendingAt time.Time
 	now       func() time.Time
 }
 
-func NewKeySequencer() *KeySequencer {
-	return &KeySequencer{now: time.Now}
+func NewKeySequencer(appCtx *AppContext) *KeySequencer {
+	return &KeySequencer{appCtx: appCtx, movePage: func(int) {}, now: time.Now}
+}
+
+// SetMovePageFunc sets what moves the service in front to the page offset
+// from the one shown, such as 1 for the next
+func (inst *KeySequencer) SetMovePageFunc(movePage func(offset int)) {
+	inst.movePage = movePage
 }
 
 // HandleEvent returns the event to pass on to the focused view, which is nil
@@ -62,13 +87,13 @@ func (inst *KeySequencer) HandleEvent(event *tcell.EventKey, focused tview.Primi
 
 	var typed = append(slices.Clone(inst.pending), event.Rune())
 	var started = false
-	for _, sequence := range keySequences() {
+	for _, sequence := range inst.keySequences() {
 		if len(sequence.keys) == 0 {
 			continue
 		}
 		if slices.Equal(sequence.keys, typed) {
 			inst.pending = nil
-			return sequence.does
+			return sequence.does(focused)
 		}
 		if len(sequence.keys) > len(typed) && slices.Equal(sequence.keys[:len(typed)], typed) {
 			started = true

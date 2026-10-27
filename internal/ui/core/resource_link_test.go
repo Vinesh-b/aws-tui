@@ -105,10 +105,6 @@ func newLinkedDetailsTable(t *testing.T) (*DetailsTable, *[]string) {
 	return table, opened
 }
 
-func pressDetailsRune(table *DetailsTable, r rune) {
-	table.table.InputHandler()(tcell.NewEventKey(tcell.KeyRune, r, tcell.ModNone), func(p tview.Primitive) {})
-}
-
 func TestDetailsTableLinks__LinkedValuesAreUnderlined(t *testing.T) {
 	var table, _ = newLinkedDetailsTable(t)
 
@@ -124,13 +120,20 @@ func TestDetailsTableLinks__LinkedValuesAreUnderlined(t *testing.T) {
 	}
 }
 
-func TestDetailsTableLinks__KeyOpensLinkOfSelectedRow(t *testing.T) {
+// openLinkOf opens the link of the selected row of the table, with the focus
+// on it as when gx is typed
+func openLinkOf(table *DetailsTable) {
+	table.appCtx.App.SetFocus(table.table)
+	table.appCtx.OpenLink(table.table)
+}
+
+func TestDetailsTableLinks__OpenLinkOpensTheLinkOfTheSelectedRow(t *testing.T) {
 	var table, opened = newLinkedDetailsTable(t)
 
 	table.Select(0, 0)
-	pressDetailsRune(table, APP_KEY_BINDINGS.OpenLink)
+	openLinkOf(table)
 	table.Select(1, 0)
-	pressDetailsRune(table, APP_KEY_BINDINGS.OpenLink)
+	openLinkOf(table)
 
 	var want = "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/orders"
 	if len(*opened) != 1 || (*opened)[0] != want {
@@ -138,19 +141,15 @@ func TestDetailsTableLinks__KeyOpensLinkOfSelectedRow(t *testing.T) {
 	}
 }
 
-func TestDetailsTableLinks__KeyWithoutLinkGoesToService(t *testing.T) {
-	var table, _ = newLinkedDetailsTable(t)
-	var passed = false
-	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		passed = event.Rune() == APP_KEY_BINDINGS.OpenLink
-		return event
-	})
+func TestDetailsTableLinks__OpenLinkOnAnotherViewOpensNothing(t *testing.T) {
+	var table, opened = newLinkedDetailsTable(t)
+	table.Select(1, 0)
+	table.appCtx.App.SetFocus(table.table)
 
-	table.Select(0, 0)
-	pressDetailsRune(table, APP_KEY_BINDINGS.OpenLink)
+	table.appCtx.OpenLink(tview.NewTable())
 
-	if !passed {
-		t.Error("key on a row without a link should reach the service's capture")
+	if len(*opened) != 0 {
+		t.Errorf("opened = %v, want nothing", *opened)
 	}
 }
 
@@ -161,7 +160,7 @@ func TestDetailsTableLinks__FailureIsReported(t *testing.T) {
 	table.ErrorMessageCallback = func(text string, a ...any) { reported = a[0].(string) }
 
 	table.Select(1, 0)
-	pressDetailsRune(table, APP_KEY_BINDINGS.OpenLink)
+	openLinkOf(table)
 
 	if reported != "can't open logs resources" {
 		t.Errorf("reported = %q", reported)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -228,13 +229,11 @@ func (inst *PaginatorView) pageBarOffset() int {
 	return pillWidth(inst.serviceName) + 1
 }
 
-// pageKeysHint is the keys that change page, shown after the page pills.
+// pageKeysHint is the keys that change page, shown after the page pills. It
+// is empty when the sequences that change page are turned off.
 func pageKeysHint() string {
 	var keys = APP_KEY_BINDINGS
-	if len(keys.PageBackSequence) > 0 && len(keys.PageForwardSequence) > 0 {
-		return keys.PageBackSequence + " " + keys.PageForwardSequence
-	}
-	return FormatModRune(keys.PageChangeModKey, keys.PageBack) + " " + FormatRune(keys.PageForward)
+	return strings.TrimSpace(keys.PageBackSequence + " " + keys.PageForwardSequence)
 }
 
 // formatSessionDuration shows hours and minutes, or minutes, and seconds only
@@ -310,11 +309,11 @@ func (inst *PaginatorView) Draw(screen tcell.Screen) {
 	drawPill(screen, x, y, maxX, inst.serviceName, serviceStyle, theme.BackgroundColour)
 	var pos = inst.pageBar.Draw(screen, min(x+inst.pageBarOffset(), maxX), y, maxX)
 
-	if len(inst.pageBar.GetPills()) > 1 {
+	if hint := pageKeysHint(); len(inst.pageBar.GetPills()) > 1 && len(hint) > 0 {
 		var hintStyle = tcell.StyleDefault.
 			Background(theme.BackgroundColour).
 			Foreground(theme.PlaceholderTextColour)
-		pos = drawText(screen, min(pos+2, maxX), y, maxX, pageKeysHint(), hintStyle)
+		pos = drawText(screen, min(pos+2, maxX), y, maxX, hint, hintStyle)
 	}
 
 	var segments = inst.sessionSegments()

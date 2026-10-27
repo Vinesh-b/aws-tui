@@ -1,8 +1,11 @@
 package core
 
 import (
+	"slices"
 	"testing"
 	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -10,15 +13,18 @@ import (
 
 type sequencerTest struct {
 	t         *testing.T
+	appCtx    *AppContext
 	sequencer *KeySequencer
 	clock     time.Time
 	focused   tview.Primitive
+	moves     []int
 }
 
 func newSequencerTest(t *testing.T) *sequencerTest {
-	var test = &sequencerTest{t: t, clock: time.Now(), focused: tview.NewTable()}
-	test.sequencer = NewKeySequencer()
+	var test = &sequencerTest{t: t, appCtx: newTestAppContext(), clock: time.Now(), focused: tview.NewTable()}
+	test.sequencer = NewKeySequencer(test.appCtx)
 	test.sequencer.now = func() time.Time { return test.clock }
+	test.sequencer.SetMovePageFunc(func(offset int) { test.moves = append(test.moves, offset) })
 	return test
 }
 
@@ -50,26 +56,55 @@ func keepBindings(t *testing.T) {
 	t.Cleanup(func() { APP_KEY_BINDINGS = original })
 }
 
-func TestKeySequencer__SequencesDoTheKeysTheyAreNamedAfter(t *testing.T) {
+func TestKeySequencer__SomeSequencesDoTheKeyTheViewsKnow(t *testing.T) {
 	var keys = APP_KEY_BINDINGS
-	var tests = []struct {
-		sequence string
-		does     rune
-		mod      tcell.ModMask
-	}{
-		{"gg", keys.MovePageTopRune, tcell.ModNone},
-		{"gt", keys.PageForward, keys.PageChangeModKey},
-		{"gT", keys.PageBack, keys.PageChangeModKey},
-		{"gx", keys.OpenLink, tcell.ModNone},
+	var tests = map[string]rune{
+		"gg": keys.MovePageTopRune,
+		"dd": keys.RemoveItem,
 	}
-	for _, tt := range tests {
-		t.Run(tt.sequence, func(t *testing.T) {
+	for sequence, does := range tests {
+		t.Run(sequence, func(t *testing.T) {
 			var test = newSequencerTest(t)
-			var keys = []rune(tt.sequence)
+			var typed = []rune(sequence)
 
-			test.assertHeld(keys[0])
-			test.assertPassed(keys[1], tt.does, tt.mod)
+			test.assertHeld(typed[0])
+			test.assertPassed(typed[1], does, tcell.ModNone)
 		})
+	}
+}
+
+func TestKeySequencer__GtAndGTMoveThePage(t *testing.T) {
+	var test = newSequencerTest(t)
+
+	test.assertHeld('g')
+	test.assertHeld('t')
+	test.assertHeld('g')
+	test.assertHeld('T')
+
+	if !slices.Equal(test.moves, []int{1, -1}) {
+		t.Errorf("moves = %v, want next then previous", test.moves)
+	}
+}
+
+func TestKeySequencer__GxOpensTheLinkOfTheFocusedDetails(t *testing.T) {
+	var test = newSequencerTest(t)
+	var opened []string
+	test.appCtx.SetResourceOpener(func(resource arn.ARN) error {
+		opened = append(opened, resource.String())
+		return nil
+	})
+	var details = NewDetailsTable("details", test.appCtx)
+	var link = "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/orders"
+	details.SetData([]TableRow{DetailsLink("Log Group", "/aws/lambda/orders", link)})
+	details.Select(0, 0)
+	test.appCtx.App.SetFocus(details.table)
+	test.focused = details.table
+
+	test.assertHeld('g')
+	test.assertHeld('x')
+
+	if !slices.Equal(opened, []string{link}) {
+		t.Errorf("opened = %v, want the link of the row", opened)
 	}
 }
 
@@ -96,7 +131,10 @@ func TestKeySequencer__TheRestOfASequenceIsOnlyWaitedForAWhile(t *testing.T) {
 	test.clock = test.clock.Add(SequenceTimeout + time.Millisecond)
 
 	test.assertHeld('g')
-	test.assertPassed('t', APP_KEY_BINDINGS.PageForward, APP_KEY_BINDINGS.PageChangeModKey)
+	test.assertHeld('t')
+	if !slices.Equal(test.moves, []int{1}) {
+		t.Errorf("moves = %v, want the gt typed after the wait", test.moves)
+	}
 }
 
 func TestKeySequencer__OtherKeysStopTheSequenceAndStillWork(t *testing.T) {

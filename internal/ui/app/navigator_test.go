@@ -1,6 +1,7 @@
 package app
 
 import (
+	"slices"
 	"testing"
 
 	"aws-tui/internal/ui/core"
@@ -42,6 +43,11 @@ func (p *pagedPage) OpenResource(resource arn.ARN)                       { p.Sho
 func (p *pagedPage) ShowServicePage(name string) {
 	p.current = name
 	p.changed(name)
+}
+
+func (p *pagedPage) MoveServicePage(offset int) {
+	var index = slices.Index(p.pages, p.current) + offset
+	p.ShowServicePage(p.pages[(index%len(p.pages)+len(p.pages))%len(p.pages)])
 }
 
 type navigatorTest struct {

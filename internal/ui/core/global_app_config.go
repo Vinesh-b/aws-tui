@@ -56,7 +56,6 @@ func (inst *AppTheme) ChangeColourScheme(colour tcell.Color) {
 
 type KeyBindings struct {
 	Help               rune
-	Quit               rune
 	CommandLine        rune
 	Escape             tcell.Key
 	ToggleServicesMenu tcell.Key
@@ -64,12 +63,8 @@ type KeyBindings struct {
 	Reset              rune
 	LoadMoreData       rune
 	ClearTable         tcell.Key
-	SaveTable          rune
 	Done               tcell.Key
 	Find               rune
-	PageChangeModKey   tcell.ModMask
-	PageForward        rune
-	PageBack           rune
 	HistoryModKey      tcell.ModMask
 	HistoryBack        tcell.Key
 	HistoryForward     tcell.Key
@@ -97,7 +92,6 @@ type KeyBindings struct {
 	RemoveItem         rune
 	TextCopy           rune
 	ToggleRawView      rune
-	OpenLink           rune
 	TextViewUp         rune
 	TextViewDown       rune
 	TextViewPageUp     tcell.Key
@@ -115,11 +109,11 @@ type KeyBindings struct {
 	PageForwardSequence string
 	PageBackSequence    string
 	OpenLinkSequence    string
+	RemoveItemSequence  string
 }
 
 var APP_KEY_BINDINGS = KeyBindings{
 	Help:               '?',
-	Quit:               'q',
 	CommandLine:        ':',
 	Escape:             tcell.KeyESC,
 	ToggleServicesMenu: tcell.KeyCtrlSpace,
@@ -127,12 +121,8 @@ var APP_KEY_BINDINGS = KeyBindings{
 	Reset:              'r',
 	LoadMoreData:       'n',
 	ClearTable:         tcell.KeyCtrlX,
-	SaveTable:          'd',
 	Done:               tcell.KeyEnter,
 	Find:               '/',
-	PageChangeModKey:   tcell.ModAlt,
-	PageForward:        ']',
-	PageBack:           '[',
 	HistoryModKey:      tcell.ModAlt,
 	HistoryBack:        tcell.KeyLeft,
 	HistoryForward:     tcell.KeyRight,
@@ -160,7 +150,6 @@ var APP_KEY_BINDINGS = KeyBindings{
 	RemoveItem:         'x',
 	TextCopy:           'y',
 	ToggleRawView:      'J',
-	OpenLink:           'o',
 	TextViewPageUp:     tcell.KeyCtrlU,
 	TextViewPageDown:   tcell.KeyCtrlD,
 	TextViewWordLeft:   'b',
@@ -174,4 +163,5 @@ var APP_KEY_BINDINGS = KeyBindings{
 	PageForwardSequence: "gt",
 	PageBackSequence:    "gT",
 	OpenLinkSequence:    "gx",
+	RemoveItemSequence:  "dd",
 }

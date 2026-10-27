@@ -39,9 +39,25 @@ type AppContext struct {
 	apiResetListeners []*func()
 	themeListeners    []func()
 	openResource      func(resource arn.ARN) error
-	// focusedTable is the table that last had the focus, to save with :w. It
-	// is only used on the UI goroutine.
+	// focusedTable is the table that last had the focus, to save with :w, and
+	// focusedLinks the details that last had it, to open their links. They
+	// are only used on the UI goroutine.
 	focusedTable tableSaver
+	focusedLinks linkOpener
+}
+
+// linkOpener is a view with values that link to resources
+type linkOpener interface {
+	holds(view tview.Primitive) bool
+	openSelectedLink()
+}
+
+// OpenLink opens the resource the selected value of the focused view links
+// to. Views without links are left alone.
+func (inst *AppContext) OpenLink(focused tview.Primitive) {
+	if inst.focusedLinks != nil && inst.focusedLinks.holds(focused) {
+		inst.focusedLinks.openSelectedLink()
+	}
 }
 
 // tableSaver is a table that can be saved to a csv file
@@ -531,117 +547,4 @@ func (inst *BaseView) showOverlay(overlay *OverlayInfo) {
 func (inst *BaseView) hideOverlay(overlay *OverlayInfo) {
 	inst.HidePage(overlay.Id)
 	overlay.IsHidden = true
-}
-
-type WriteToFileView struct {
-	*tview.Flex
-	inputField   *InputField
-	message      *tview.TextView
-	saveButton   *Button
-	closeButton  *Button
-	tabNavigator *ViewNavigation1D
-	appCtx       *AppContext
-	defaultPath  func() string
-}
-
-func NewWriteToFileView(appContext *AppContext) *WriteToFileView {
-	var layout = tview.NewFlex()
-	var saveButton = NewButton("Save", appContext.Theme)
-	var closeButton = NewButton("Close", appContext.Theme)
-	var message = tview.NewTextView().SetLabel("Status ")
-	var filePathInput = NewInputField(appContext.Theme)
-	filePathInput.
-		SetLabel("File Path ").
-		SetText("./table-dump.csv")
-
-	layout.
-		SetDirection(tview.FlexRow).
-		AddItem(filePathInput, 1, 0, true).
-		AddItem(message, 0, 1, false).
-		AddItem(
-			tview.NewFlex().SetDirection(tview.FlexColumn).
-				AddItem(saveButton, 0, 1, true).
-				AddItem(closeButton, 0, 1, true),
-			1, 0, true,
-		)
-
-	var navigator = NewViewNavigation1D(layout,
-		[]View{
-			filePathInput,
-			saveButton,
-			closeButton,
-		},
-		appContext.App,
-	)
-
-	return &WriteToFileView{
-		Flex:         layout,
-		inputField:   filePathInput,
-		message:      message,
-		saveButton:   saveButton,
-		closeButton:  closeButton,
-		tabNavigator: navigator,
-		appCtx:       appContext,
-	}
-}
-
-func (inst *WriteToFileView) GetInputFlePath() string {
-	return inst.inputField.GetText()
-}
-
-// SetDefaultPathFunc sets how the proposed path is made each time the view is
-// shown.
-func (inst *WriteToFileView) SetDefaultPathFunc(defaultPath func() string) {
-	inst.defaultPath = defaultPath
-}
-
-func (inst *WriteToFileView) OnShow() {
-	if inst.defaultPath != nil {
-		inst.inputField.SetText(inst.defaultPath())
-	}
-	inst.message.SetText("")
-}
-
-func (inst *WriteToFileView) SetOnSaveFunc(handler func(filename string)) {
-	inst.saveButton.SetSelectedFunc(func() {
-		inst.message.SetText("Saving...")
-		handler(inst.GetInputFlePath())
-	})
-}
-
-func (inst *WriteToFileView) SetOnCloseFunc(handler func()) {
-	inst.closeButton.SetSelectedFunc(func() {
-		inst.message.SetText("")
-		handler()
-	})
-}
-
-func (inst *WriteToFileView) SetStatusMessage(msg string) {
-	inst.message.SetText(msg)
-}
-
-func (inst *WriteToFileView) GetLastFocusedView() tview.Primitive {
-	return inst.tabNavigator.GetLastFocusedView()
-}
-
-type FloatingWriteToFileView struct {
-	*tview.Flex
-	Input *WriteToFileView
-}
-
-func NewFloatingWriteToFileView(appContext *AppContext) *FloatingWriteToFileView {
-	var input = NewWriteToFileView(appContext)
-
-	return &FloatingWriteToFileView{
-		Flex:  FloatingView("Save", input, 70, 8),
-		Input: input,
-	}
-}
-
-func (inst *FloatingWriteToFileView) OnShow() {
-	inst.Input.OnShow()
-}
-
-func (inst *FloatingWriteToFileView) GetLastFocusedView() tview.Primitive {
-	return inst.Input.GetLastFocusedView()
 }

@@ -4,7 +4,6 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -64,24 +63,14 @@ func TestServiceRootView__WithoutPagesHasNoCurrentPage(t *testing.T) {
 	}
 }
 
-// pressPageKey sends the rune with the modifier to the pages of the view
-func pressPageKey(view *ServiceRootView, r rune, mod tcell.ModMask) {
-	view.pages.InputHandler()(tcell.NewEventKey(tcell.KeyRune, r, mod), func(tview.Primitive) {})
-}
+func TestServiceRootView__MovingPagesGoesRoundTheEnds(t *testing.T) {
+	var view, shown = newPagedRootView(t)
 
-func TestServiceRootView__PagesChangeWithThePageChangeModifier(t *testing.T) {
-	var original = APP_KEY_BINDINGS
-	t.Cleanup(func() { APP_KEY_BINDINGS = original })
-	APP_KEY_BINDINGS.PageChangeModKey = tcell.ModCtrl
-	var view, _ = newPagedRootView(t)
+	view.MoveServicePage(1)
+	view.MoveServicePage(1)
+	view.MoveServicePage(-1)
 
-	pressPageKey(view, APP_KEY_BINDINGS.PageForward, tcell.ModAlt)
-	if got := view.CurrentServicePage(); got != "Groups" {
-		t.Errorf("page after Alt = %q, want Groups as Alt is no longer the modifier", got)
-	}
-
-	pressPageKey(view, APP_KEY_BINDINGS.PageForward, tcell.ModCtrl)
-	if got := view.CurrentServicePage(); got != "Streams" {
-		t.Errorf("page after Ctrl = %q, want Streams", got)
+	if !slices.Equal(*shown, []string{"Streams", "Groups", "Streams"}) {
+		t.Errorf("pages shown = %v, want Streams, Groups, Streams", *shown)
 	}
 }

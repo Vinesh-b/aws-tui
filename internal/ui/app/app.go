@@ -204,6 +204,16 @@ func (inst *navigator) watch(item *ServiceItem) {
 	}
 }
 
+// movePage shows the page offset from the one shown, in the service in front
+func (inst *navigator) movePage(offset int) {
+	var name, _ = inst.pages.GetFrontPage()
+	if item, ok := inst.find(name); ok {
+		if paged, ok := item.ServicePage.(core.PagedServicePage); ok {
+			paged.MoveServicePage(offset)
+		}
+	}
+}
+
 // showService switches to the service, on the page it was left on
 func (inst *navigator) showService(item *ServiceItem) {
 	inst.pages.SwitchToPage(item.MainText)
@@ -436,7 +446,7 @@ func CreateApplication(
 	var pages = tview.NewPages()
 	var serviceListHidden = false
 	var nav = newNavigator(app, pages, serviceViews)
-	var sequencer = core.NewKeySequencer()
+	var sequencer = core.NewKeySequencer(appContext)
 
 	for _, item := range serviceViews {
 		var name = item.MainText
@@ -472,6 +482,14 @@ func CreateApplication(
 		quit: app.Stop,
 	}
 	commandLine.SetRunFunc(appCommands.Run)
+
+	// gt and gT change the page of the service in front, not of one behind
+	// the services menu
+	sequencer.SetMovePageFunc(func(offset int) {
+		if serviceListHidden {
+			nav.movePage(offset)
+		}
+	})
 	commandLine.SetCompleteFunc(appCommands.Complete)
 
 	pages.
@@ -510,16 +528,8 @@ func CreateApplication(
 			return nil
 		}
 
-		switch event.Rune() {
-		case core.APP_KEY_BINDINGS.Quit:
-			if !serviceListHidden && servicesList.IsEscapable() {
-				hideServiceListFunc()
-				return nil
-			}
-		}
-
 		switch event.Key() {
-		case core.APP_KEY_BINDINGS.Escape, tcell.Key(core.APP_KEY_BINDINGS.Quit):
+		case core.APP_KEY_BINDINGS.Escape:
 			if !serviceListHidden && servicesList.IsEscapable() {
 				hideServiceListFunc()
 				return nil

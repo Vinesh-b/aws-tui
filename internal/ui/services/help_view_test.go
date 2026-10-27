@@ -27,8 +27,8 @@ func TestHelpText__ListsTheDefaultKeys(t *testing.T) {
 	if line := helpLine(t, text, "Show or hide the services menu"); !strings.Contains(line, "Ctrl+Space") {
 		t.Errorf("line = %q, want Ctrl+Space", line)
 	}
-	if line := helpLine(t, text, "Go to the page on the left / right"); !strings.Contains(line, "Alt+[ / Alt+]") {
-		t.Errorf("line = %q, want Alt+[ / Alt+]", line)
+	if line := helpLine(t, text, "Go to the page on the left / right"); !strings.Contains(line, "gT / gt") {
+		t.Errorf("line = %q, want gT / gt", line)
 	}
 	if line := helpLine(t, text, "Go back / forward through the pages shown"); !strings.Contains(line, "Alt+Left / Alt+Right") {
 		t.Errorf("line = %q, want Alt+Left / Alt+Right", line)

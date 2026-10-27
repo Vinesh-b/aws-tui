@@ -52,21 +52,22 @@ func sendRune(t *testing.T, appCtx *core.AppContext, r rune, mod tcell.ModMask) 
 }
 
 // showLogGroups shows the logs on the groups page with the groups loaded
-func showLogGroups(t *testing.T, appCtx *core.AppContext, names ...string) tcell.SimulationScreen {
+func showLogGroups(t *testing.T, appCtx *core.AppContext, names ...string) (tcell.SimulationScreen, core.ServicePage) {
 	t.Helper()
 	var groups []types.LogGroup
 	for _, name := range names {
 		groups = append(groups, newLogGroup(name))
 	}
-	var screen = uitest.ShowPage(t, appCtx.App, NewLogsHomeView(appCtx, &fakeCloudWatchLogsApi{groups: groups}))
+	var page = NewLogsHomeView(appCtx, &fakeCloudWatchLogsApi{groups: groups})
+	var screen = uitest.ShowPage(t, appCtx.App, page)
 	uitest.PressRune(t, appCtx.App, core.APP_KEY_BINDINGS.Reset)
 	uitest.AwaitScreenText(t, appCtx.App, screen, names[0])
-	return screen
+	return screen, page
 }
 
 func TestLogsHomeView__MarkKeyMarksTheLogGroup(t *testing.T) {
 	var appCtx = uitest.NewAppContext()
-	var screen = showLogGroups(t, appCtx, "/aws/lambda/orders")
+	var screen, _ = showLogGroups(t, appCtx, "/aws/lambda/orders")
 
 	sendRune(t, appCtx, core.APP_KEY_BINDINGS.Mark, tcell.ModNone)
 
@@ -76,12 +77,13 @@ func TestLogsHomeView__MarkKeyMarksTheLogGroup(t *testing.T) {
 
 func TestLogsHomeView__QueryKeyWithoutMarksQueriesTheGroupItIsOn(t *testing.T) {
 	var appCtx = uitest.NewAppContext()
-	var screen = showLogGroups(t, appCtx, "/aws/lambda/orders")
+	var screen, page = showLogGroups(t, appCtx, "/aws/lambda/orders")
 
 	sendRune(t, appCtx, core.APP_KEY_BINDINGS.TableQuery, tcell.ModNone)
 
 	uitest.AwaitScreenText(t, appCtx.App, screen, "Saved Queries")
 	// The groups page is the next one after Insights
-	sendRune(t, appCtx, core.APP_KEY_BINDINGS.PageForward, core.APP_KEY_BINDINGS.PageChangeModKey)
+	uitest.OnUI(t, appCtx.App, func() { page.(core.PagedServicePage).MoveServicePage(1) })
+	appCtx.App.QueueUpdateDraw(func() {})
 	uitest.AwaitScreenText(t, appCtx.App, screen, "❬1 marked❭")
 }

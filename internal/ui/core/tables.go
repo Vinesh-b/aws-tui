@@ -94,7 +94,6 @@ type SelectableTable[T any] struct {
 	searchPositions      []CellPosition
 	currentSearchIdx     int
 	HelpView             *FloatingHelpView
-	SaveFileView         *FloatingWriteToFileView
 	ErrorMessageCallback func(text string, a ...any)
 }
 
@@ -115,7 +114,6 @@ func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppConte
 		searchPositions:      []CellPosition{},
 		currentSearchIdx:     0,
 		HelpView:             NewFloatingHelpView(appCtx),
-		SaveFileView:         NewFloatingWriteToFileView(appCtx),
 		ErrorMessageCallback: func(text string, a ...any) {},
 	}
 
@@ -124,7 +122,7 @@ func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppConte
 		AddRune(APP_KEY_BINDINGS.Help, "Help for selected view").
 		AddRune(APP_KEY_BINDINGS.Reset, "Reset table").
 		AddRune(APP_KEY_BINDINGS.LoadMoreData, "Load more data").
-		AddRune(APP_KEY_BINDINGS.SaveTable, "Save table to csv").
+		AddItem(FormatRune(APP_KEY_BINDINGS.CommandLine)+"w", "Save table to csv", nil).
 		AddRune(APP_KEY_BINDINGS.TextCopy, "Copy cell text to clipboard").
 		AddKey(APP_KEY_BINDINGS.ClearTable, "Clear table").
 		AddRune(APP_KEY_BINDINGS.MoveUpRune, "Move up one row").
@@ -136,27 +134,10 @@ func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppConte
 		AddRune(APP_KEY_BINDINGS.Find, "Search table")
 
 	view.
-		AddRuneToggleOverlay("HELP", view.HelpView, APP_KEY_BINDINGS.Help, true).
-		AddRuneToggleOverlay("DOWNLOAD", view.SaveFileView, APP_KEY_BINDINGS.SaveTable, false)
-
-	view.SaveFileView.Input.SetDefaultPathFunc(view.defaultCsvPath)
-
-	view.SaveFileView.Input.SetOnSaveFunc(func(filename string) {
-		view.saveCsv(filename, func(savedPath string, err error) {
-			if err != nil {
-				view.SaveFileView.Input.SetStatusMessage(err.Error())
-				return
-			}
-			view.SaveFileView.Input.SetStatusMessage("Saved to " + savedPath)
-		})
-	})
+		AddRuneToggleOverlay("HELP", view.HelpView, APP_KEY_BINDINGS.Help, true)
 
 	// The table to save with :w is the one that had the focus last
 	table.SetFocusFunc(func() { appCtx.focusedTable = view })
-
-	view.SaveFileView.Input.SetOnCloseFunc(func() {
-		view.ToggleOverlay("DOWNLOAD", true)
-	})
 
 	view.SetTitle(title).
 		SetTitleAlign(tview.AlignLeft).
@@ -683,6 +664,8 @@ func NewDetailsTable(title string, appCtx *AppContext) *DetailsTable {
 		}
 		return event
 	})
+	// The links opened with gx are those of the details that had the focus last
+	table.SetFocusFunc(func() { appCtx.focusedLinks = view })
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
 	view.SetSelectionChangedFunc(func(row, column int) {})
 
@@ -952,17 +935,23 @@ func (inst *DetailsTable) SetInputCapture(capture func(event *tcell.EventKey) *t
 			var text = inst.GetCellText(row, detailsValueCol)
 			clipboard.WriteAll(text)
 			return nil
-		case APP_KEY_BINDINGS.OpenLink:
-			var row, _ = inst.table.GetSelection()
-			if link, ok := inst.links[row]; ok {
-				if err := inst.appCtx.OpenResource(link); err != nil {
-					inst.ErrorMessageCallback("%s", err.Error())
-				}
-				return nil
-			}
 		}
 		return capture(event)
 	})
+}
+
+func (inst *DetailsTable) holds(view tview.Primitive) bool {
+	return view == inst.table
+}
+
+// openSelectedLink opens the resource the selected row links to, if it does
+func (inst *DetailsTable) openSelectedLink() {
+	var row, _ = inst.table.GetSelection()
+	if link, ok := inst.links[row]; ok {
+		if err := inst.appCtx.OpenResource(link); err != nil {
+			inst.ErrorMessageCallback("%s", err.Error())
+		}
+	}
 }
 
 // GetLink is the ARN the value of the row links to, if it has one

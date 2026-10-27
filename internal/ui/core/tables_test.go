@@ -914,14 +914,12 @@ func TestDefaultCsvName(t *testing.T) {
 	}
 }
 
-func TestSaveFileView__ProposesNameAndDirectoryWhenShown(t *testing.T) {
+func TestSelectableTable__ProposesANameInTheDownloadDirectory(t *testing.T) {
 	var appCtx = newTestAppContext()
 	appCtx.DownloadDir = t.TempDir()
 	var table = NewSelectableTable[string]("Buckets", TableRow{"col0"}, appCtx)
 
-	table.SaveFileView.OnShow()
-
-	var proposed = table.SaveFileView.Input.GetInputFlePath()
+	var proposed = table.defaultCsvPath()
 	if !strings.HasPrefix(proposed, filepath.Join(appCtx.DownloadDir, "buckets-")) || !strings.HasSuffix(proposed, ".csv") {
 		t.Fatalf("Unexpected proposed path %q", proposed)
 	}

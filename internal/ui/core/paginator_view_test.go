@@ -355,13 +355,16 @@ func TestPaginatorView__StopRemovesApiResetListener(t *testing.T) {
 	}
 }
 
-func TestPageKeysHint__FollowsThePageChangeModifierWithoutSequences(t *testing.T) {
+func TestPageKeysHint__FollowsThePageSequences(t *testing.T) {
 	var original = APP_KEY_BINDINGS
 	t.Cleanup(func() { APP_KEY_BINDINGS = original })
-	APP_KEY_BINDINGS.PageChangeModKey = tcell.ModCtrl
-	APP_KEY_BINDINGS.PageForwardSequence = ""
 
-	if got := pageKeysHint(); got != "Ctrl+[ ]" {
-		t.Errorf("hint = %q, want Ctrl+[ ]", got)
+	APP_KEY_BINDINGS.PageForwardSequence = ""
+	if got := pageKeysHint(); got != "gT" {
+		t.Errorf("hint = %q, want gT", got)
+	}
+	APP_KEY_BINDINGS.PageBackSequence = ""
+	if got := pageKeysHint(); got != "" {
+		t.Errorf("hint = %q, want none", got)
 	}
 }

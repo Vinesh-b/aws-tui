@@ -13,15 +13,15 @@ func TestApplyKeyBindingOverrides__ChangesRuneKeyAndModifierBindings(t *testing.
 	var errs = applyKeyBindingOverrides(&bindings, map[string]string{
 		"reset":            "R",
 		"clearTable":       "ctrl+d",
-		"saveTable":        "space",
-		"pageChangeModKey": "Ctrl",
+		"textCopy":         "space",
+		"viewResizeModKey": "Ctrl",
 	})
 
 	if len(errs) != 0 {
 		t.Fatalf("errors = %v", errs)
 	}
 	if bindings.Reset != 'R' || bindings.ClearTable != tcell.KeyCtrlD ||
-		bindings.SaveTable != ' ' || bindings.PageChangeModKey != tcell.ModCtrl {
+		bindings.TextCopy != ' ' || bindings.ViewResizeModKey != tcell.ModCtrl {
 		t.Errorf("bindings were not changed: %+v", bindings)
 	}
 }
@@ -35,7 +35,8 @@ func TestApplyKeyBindingOverrides__SkipsWhatCannotBeUsed(t *testing.T) {
 		"empty":             {"reset", "", "single character"},
 		"bad key":           {"clearTable", "banana", "not a key"},
 		"bad modifier":      {"viewResizeModKey", "meta", "not a modifier"},
-		"table conflict":    {"reset", "d", `already used by "saveTable"`},
+		"table conflict":    {"reset", "y", `already used by "textCopy"`},
+		"removed binding":   {"saveTable", "d", "unknown key binding"},
 		"focus conflict":    {"viewFocusUp", "Ctrl+J", `already used by "viewFocusDown"`},
 		"text view clash":   {"textViewWordLeft", "w", `already used by "textViewWordRight"`},
 		"one key sequence":  {"moveTopSequence", "g", "not a sequence"},
@@ -75,20 +76,20 @@ func TestApplyKeyBindingOverrides__KeepsTheValidOnesAlongsideBadOnes(t *testing.
 func TestApplyKeyBindingOverrides__AllowsSwappingTwoKeys(t *testing.T) {
 	var bindings = APP_KEY_BINDINGS
 
-	var errs = applyKeyBindingOverrides(&bindings, map[string]string{"reset": "d", "saveTable": "r"})
+	var errs = applyKeyBindingOverrides(&bindings, map[string]string{"reset": "y", "textCopy": "r"})
 
-	if len(errs) != 0 || bindings.Reset != 'd' || bindings.SaveTable != 'r' {
-		t.Errorf("errors = %v, reset = %q, saveTable = %q", errs, bindings.Reset, bindings.SaveTable)
+	if len(errs) != 0 || bindings.Reset != 'y' || bindings.TextCopy != 'r' {
+		t.Errorf("errors = %v, reset = %q, textCopy = %q", errs, bindings.Reset, bindings.TextCopy)
 	}
 }
 
 func TestApplyKeyBindingOverrides__ReportsBothSidesOfAClash(t *testing.T) {
 	var bindings = APP_KEY_BINDINGS
 
-	var errs = applyKeyBindingOverrides(&bindings, map[string]string{"reset": "x", "saveTable": "x"})
+	var errs = applyKeyBindingOverrides(&bindings, map[string]string{"reset": "z", "textCopy": "z"})
 
-	if len(errs) == 0 || bindings.Reset == bindings.SaveTable {
-		t.Errorf("errors = %v, reset = %q, saveTable = %q", errs, bindings.Reset, bindings.SaveTable)
+	if len(errs) == 0 || bindings.Reset == bindings.TextCopy {
+		t.Errorf("errors = %v, reset = %q, textCopy = %q", errs, bindings.Reset, bindings.TextCopy)
 	}
 }
 

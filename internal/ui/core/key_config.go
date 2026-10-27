@@ -22,10 +22,10 @@ type keyBinding struct {
 
 // keyBindingConflictGroups lists the bindings that are active in the same view
 // and so must not share a key. Bindings that are meant to share a key, such as
-// LoadMoreData and NextSearch, or Quit and TableQuery, are in no common group.
+// LoadMoreData and NextSearch, are in no common group.
 var keyBindingConflictGroups = [][]string{
 	{
-		"help", "reset", "loadMoreData", "saveTable", "find", "textCopy",
+		"help", "reset", "loadMoreData", "find", "textCopy",
 		"moveUp", "moveDown", "moveTop", "moveBottom", "mark", "removeItem",
 		"commandLine",
 	},
@@ -43,7 +43,6 @@ var keyBindingConflictGroups = [][]string{
 func keyBindingFields(bindings *KeyBindings) map[string]keyBinding {
 	return map[string]keyBinding{
 		"help":               {rune: &bindings.Help},
-		"quit":               {rune: &bindings.Quit},
 		"commandLine":        {rune: &bindings.CommandLine},
 		"escape":             {key: &bindings.Escape},
 		"toggleServicesMenu": {key: &bindings.ToggleServicesMenu},
@@ -51,12 +50,8 @@ func keyBindingFields(bindings *KeyBindings) map[string]keyBinding {
 		"reset":              {rune: &bindings.Reset},
 		"loadMoreData":       {rune: &bindings.LoadMoreData},
 		"clearTable":         {key: &bindings.ClearTable},
-		"saveTable":          {rune: &bindings.SaveTable},
 		"done":               {key: &bindings.Done},
 		"find":               {rune: &bindings.Find},
-		"pageChangeModKey":   {mod: &bindings.PageChangeModKey},
-		"pageForward":        {rune: &bindings.PageForward},
-		"pageBack":           {rune: &bindings.PageBack},
 		"historyModKey":      {mod: &bindings.HistoryModKey},
 		"historyBack":        {key: &bindings.HistoryBack},
 		"historyForward":     {key: &bindings.HistoryForward},
@@ -84,7 +79,6 @@ func keyBindingFields(bindings *KeyBindings) map[string]keyBinding {
 		"removeItem":         {rune: &bindings.RemoveItem},
 		"textCopy":           {rune: &bindings.TextCopy},
 		"toggleRawView":      {rune: &bindings.ToggleRawView},
-		"openLink":           {rune: &bindings.OpenLink},
 		"textViewPageUp":     {key: &bindings.TextViewPageUp},
 		"textViewPageDown":   {key: &bindings.TextViewPageDown},
 		"textViewWordRight":  {rune: &bindings.TextViewWordRight},
@@ -98,6 +92,7 @@ func keyBindingFields(bindings *KeyBindings) map[string]keyBinding {
 		"pageForwardSequence": {seq: &bindings.PageForwardSequence},
 		"pageBackSequence":    {seq: &bindings.PageBackSequence},
 		"openLinkSequence":    {seq: &bindings.OpenLinkSequence},
+		"removeItemSequence":  {seq: &bindings.RemoveItemSequence},
 	}
 }
 
@@ -295,13 +290,13 @@ func ParseModKey(text string) (tcell.ModMask, error) {
 // sequenceRunes are the rune bindings each sequence does, which are only
 // reached through the sequence while it is set, so they may share its first key
 var sequenceRunes = map[string]string{
-	"moveTopSequence":  "moveTop",
-	"openLinkSequence": "openLink",
+	"moveTopSequence":    "moveTop",
+	"removeItemSequence": "removeItem",
 }
 
 // modifiedRunes are the rune bindings only used with a modifier, which never
 // reach the sequences
-var modifiedRunes = []string{"pageForward", "pageBack", "viewResizeReset"}
+var modifiedRunes = []string{"viewResizeReset"}
 
 // sequenceConflict returns a binding the named one can't be told apart from
 // because of the sequences, or "" if there is none. A sequence clashes with a
