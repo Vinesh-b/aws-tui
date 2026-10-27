@@ -171,7 +171,7 @@ func (inst *TopicListTable) SetSelectionChangedFunc(handler func(row int, column
 func (inst *TopicListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
 	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
-		case core.APP_KEY_BINDINGS.Reset, core.APP_KEY_BINDINGS.LoadMoreData:
+		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshTopics(true)
 			return nil
 		}

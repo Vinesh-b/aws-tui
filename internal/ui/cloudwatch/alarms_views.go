@@ -86,13 +86,11 @@ func (inst *AlarmsDetailsPageView) InitInputCapture() {
 		refreshDetails()
 	})
 
+	inst.HistoryTable.SetLoadMoreFunc(func() { inst.HistoryTable.RefreshHistory(false) })
 	inst.HistoryTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			refreshDetails()
-			return nil
-		case core.APP_KEY_BINDINGS.LoadMoreData:
-			inst.HistoryTable.RefreshHistory(false)
 			return nil
 		}
 		return event

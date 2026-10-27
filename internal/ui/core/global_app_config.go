@@ -61,7 +61,6 @@ type KeyBindings struct {
 	ToggleServicesMenu tcell.Key
 	ToggleServicePages tcell.Key
 	Reset              rune
-	LoadMoreData       rune
 	ClearTable         tcell.Key
 	Done               tcell.Key
 	Find               rune
@@ -119,7 +118,6 @@ var APP_KEY_BINDINGS = KeyBindings{
 	ToggleServicesMenu: tcell.KeyCtrlSpace,
 	ToggleServicePages: tcell.KeyCtrlP,
 	Reset:              'r',
-	LoadMoreData:       'n',
 	ClearTable:         tcell.KeyCtrlX,
 	Done:               tcell.KeyEnter,
 	Find:               '/',

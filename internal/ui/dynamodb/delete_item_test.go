@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/gdamore/tcell/v2"
@@ -13,7 +14,7 @@ import (
 
 func (f *updateItemFixture) openDelete(t *testing.T) {
 	t.Helper()
-	f.press(t, tcell.KeyRune, deleteItemKey)
+	f.press(t, tcell.KeyRune, core.APP_KEY_BINDINGS.RemoveItem)
 	uitest.Eventually(t, f.app(), func() bool { return f.table.IsAnOverlayVisible() })
 }
 

@@ -170,7 +170,7 @@ func (inst *QueueListTable) SetSelectionChangedFunc(handler func(row int, column
 func (inst *QueueListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
 	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
-		case core.APP_KEY_BINDINGS.Reset, core.APP_KEY_BINDINGS.LoadMoreData:
+		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshQueues(true)
 			return nil
 		}

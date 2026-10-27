@@ -71,7 +71,8 @@ func NewDynamoDBGenericTable(
 	selectableTable.AddRuneToggleOverlay(SCAN_PAGE_NAME, scanView, core.APP_KEY_BINDINGS.TableScan, false)
 
 	var deleteView = core.NewFloatingConfirmView(serviceContext.AppContext, "Delete Item", "Delete")
-	selectableTable.AddRuneToggleOverlay(deleteItemOverlayId, deleteView, deleteItemKey, false)
+	// Removing the item from the table deletes it, after it is confirmed
+	selectableTable.AddRuneToggleOverlay(deleteItemOverlayId, deleteView, core.APP_KEY_BINDINGS.RemoveItem, false)
 
 	var table = &DynamoDBGenericTable{
 		SelectableTable:      selectableTable,
@@ -95,13 +96,11 @@ func NewDynamoDBGenericTable(
 	table.HighlightSearch = true
 	table.populateDynamoDBTable(false)
 	table.SetSelectionChangedFunc(func(row, column int) {})
+	table.SetLoadMoreFunc(func() { table.ExecuteSearch(table.lastTableOp, table.lastSearchExpr, false) })
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			table.ExecuteSearch(table.lastTableOp, table.lastSearchExpr, true)
-			return nil
-		case core.APP_KEY_BINDINGS.LoadMoreData:
-			table.ExecuteSearch(table.lastTableOp, table.lastSearchExpr, false)
 			return nil
 		}
 		return event
@@ -137,8 +136,12 @@ func NewDynamoDBGenericTable(
 		table.ToggleOverlay(deleteItemOverlayId, true)
 	})
 
+	var deleteKeys = core.FormatRune(core.APP_KEY_BINDINGS.RemoveItem)
+	if sequence := core.APP_KEY_BINDINGS.RemoveItemSequence; len(sequence) > 0 {
+		deleteKeys += ", " + sequence
+	}
 	table.HelpView.View.
-		AddItem(string(deleteItemKey), "Delete the selected item", nil).
+		AddItem(deleteKeys, "Delete the selected item", nil).
 		AddItem("f", "Jump to next search result", nil).
 		AddItem("F", "Jump to previous search result", nil).
 		AddItem("q", "To show query view", nil).
@@ -215,6 +218,7 @@ func (inst *DynamoDBGenericTable) populateDynamoDBTable(extend bool) {
 	inst.RefreshTitle(len(inst.data))
 
 	inst.table.Select(inst.lastSelectedRowIdx, 0)
+	inst.MoreLoaded()
 }
 
 // ExecuteSearch loads the items, cancelling any search still in flight. Only
@@ -323,9 +327,6 @@ func (inst *DynamoDBGenericTable) SetSelectionChangedFunc(
 	})
 	return inst
 }
-
-// deleteItemKey opens the delete confirmation for the selected item.
-const deleteItemKey = 'x'
 
 const deleteItemOverlayId = "DELETE_ITEM"
 

@@ -1295,3 +1295,131 @@ func TestDetailsTableRawView__KeyIsTypedIntoSearch(t *testing.T) {
 		t.Errorf("search = %q, want the key typed into it", got)
 	}
 }
+
+// newPagedTable has rows a to c and counts the times it loads more
+func newPagedTable(t *testing.T) (*SelectableTable[string], *int) {
+	t.Helper()
+	var table = NewSelectableTable[string]("Events", TableRow{"Name"}, newTestAppContext())
+	var loads = new(int)
+	table.SetLoadMoreFunc(func() { *loads++ })
+	setRows(table, "a", "b", "c")
+	return table, loads
+}
+
+func setRows(table *SelectableTable[string], names ...string) {
+	var rows []TableRow
+	for _, name := range names {
+		rows = append(rows, TableRow{name})
+	}
+	table.SetData(rows, names, 0)
+}
+
+func pressTableKey(table *SelectableTable[string], key tcell.Key, r rune) {
+	table.table.InputHandler()(tcell.NewEventKey(key, r, tcell.ModNone), func(tview.Primitive) {})
+}
+
+func selectedRow(table *SelectableTable[string]) int {
+	var row, _ = table.table.GetSelection()
+	return row
+}
+
+func TestSelectableTable__MovingDownFromTheLastRowLoadsMore(t *testing.T) {
+	var keys = map[string]func(*SelectableTable[string]){
+		"j":    func(table *SelectableTable[string]) { pressTableKey(table, tcell.KeyRune, 'j') },
+		"G":    func(table *SelectableTable[string]) { pressTableKey(table, tcell.KeyRune, 'G') },
+		"Down": func(table *SelectableTable[string]) { pressTableKey(table, tcell.KeyDown, 0) },
+		"PgDn": func(table *SelectableTable[string]) { pressTableKey(table, tcell.KeyPgDn, 0) },
+	}
+	for name, press := range keys {
+		t.Run(name, func(t *testing.T) {
+			var table, loads = newPagedTable(t)
+			table.Select(3, 0)
+
+			press(table)
+
+			if *loads != 1 {
+				t.Errorf("loads = %d, want 1", *loads)
+			}
+		})
+	}
+}
+
+func TestSelectableTable__MovingDownAboveTheLastRowLoadsNothing(t *testing.T) {
+	var table, loads = newPagedTable(t)
+	table.Select(2, 0)
+
+	pressTableKey(table, tcell.KeyRune, 'j')
+
+	if *loads != 0 || selectedRow(table) != 3 {
+		t.Errorf("loads = %d, row = %d, want no load and the last row", *loads, selectedRow(table))
+	}
+}
+
+func TestSelectableTable__MoreIsAskedForOnceUntilItComes(t *testing.T) {
+	var table, loads = newPagedTable(t)
+	table.Select(3, 0)
+
+	pressTableKey(table, tcell.KeyRune, 'j')
+	pressTableKey(table, tcell.KeyRune, 'j')
+
+	if *loads != 1 {
+		t.Errorf("loads = %d, want 1 while the rows are loading", *loads)
+	}
+}
+
+func TestSelectableTable__TheCursorStaysWhereItWasWhenMoreComes(t *testing.T) {
+	var table, loads = newPagedTable(t)
+	table.Select(3, 0)
+	pressTableKey(table, tcell.KeyRune, 'j')
+
+	setRows(table, "a", "b", "c", "d", "e")
+
+	if row := selectedRow(table); row != 3 {
+		t.Fatalf("row after more came = %d, want 3", row)
+	}
+	pressTableKey(table, tcell.KeyRune, 'j')
+	pressTableKey(table, tcell.KeyRune, 'j')
+	if row := selectedRow(table); row != 5 || *loads != 1 {
+		t.Errorf("row = %d, loads = %d, want the new last row without loading", row, *loads)
+	}
+	pressTableKey(table, tcell.KeyRune, 'j')
+	if *loads != 2 {
+		t.Errorf("loads = %d, want another load from the new last row", *loads)
+	}
+}
+
+func TestSelectableTable__RowsAddedToTheEndKeepTheCursor(t *testing.T) {
+	var table, loads = newPagedTable(t)
+	table.Select(3, 0)
+	pressTableKey(table, tcell.KeyRune, 'j')
+
+	table.ExtendData([]TableRow{{"d"}}, []string{"d"})
+
+	pressTableKey(table, tcell.KeyRune, 'j')
+	if row := selectedRow(table); row != 4 || *loads != 1 {
+		t.Errorf("row = %d, loads = %d, want the added row without loading", row, *loads)
+	}
+}
+
+func TestSelectableTable__LoadingTheRowsAgainSelectsTheFirst(t *testing.T) {
+	var table, _ = newPagedTable(t)
+	table.Select(3, 0)
+
+	setRows(table, "x", "y", "z")
+
+	if row := selectedRow(table); row != 1 {
+		t.Errorf("row = %d, want 1", row)
+	}
+}
+
+func TestSelectableTable__TablesThatLoadEverythingDoNotLoadMore(t *testing.T) {
+	var table = NewSelectableTable[string]("Functions", TableRow{"Name"}, newTestAppContext())
+	setRows(table, "a", "b")
+	table.Select(2, 0)
+
+	pressTableKey(table, tcell.KeyRune, 'j')
+
+	if row := selectedRow(table); row != 2 {
+		t.Errorf("row = %d, want 2", row)
+	}
+}

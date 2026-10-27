@@ -107,7 +107,7 @@ func (inst *BucketObjectsTable) populateS3ObjectsTable(
 
 	inst.SetTitleExtra(cleanedPrefix)
 	inst.SetData(tableData, privateData, 0)
-	inst.GetTable().Select(1, 0).ScrollToBeginning()
+	inst.GetTable().ScrollToBeginning()
 }
 
 func (inst *BucketObjectsTable) FilterByName(name string) {
@@ -202,13 +202,11 @@ func (inst *BucketObjectsTable) SetSelectionChangedFunc(handler func(row int, co
 }
 
 func (inst *BucketObjectsTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
+	inst.SetLoadMoreFunc(func() { inst.RefreshObjects(false) })
 	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshObjects(true)
-			return nil
-		case core.APP_KEY_BINDINGS.LoadMoreData:
-			inst.RefreshObjects(false)
 			return nil
 		}
 		return capture(event)

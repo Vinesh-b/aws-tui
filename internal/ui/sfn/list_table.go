@@ -121,7 +121,7 @@ func (inst *SfnListTable) SetSelectionChangedFunc(handler func(row int, column i
 func (inst *SfnListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
 	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
-		case core.APP_KEY_BINDINGS.Reset, core.APP_KEY_BINDINGS.LoadMoreData:
+		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshStateMachines(true)
 			return nil
 		}

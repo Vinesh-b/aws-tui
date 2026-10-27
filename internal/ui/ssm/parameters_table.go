@@ -77,7 +77,6 @@ func (inst *SSMParametersListTable) populateParametersTable(data []types.Paramet
 
 	inst.SetData(tableData, privateData, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
-	inst.Select(1, 0)
 }
 
 func (inst *SSMParametersListTable) FilterByName(name string) {
@@ -140,13 +139,11 @@ func (inst *SSMParametersListTable) SetSelectionChangedFunc(handler func(row int
 }
 
 func (inst *SSMParametersListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
+	inst.SetLoadMoreFunc(func() { inst.RefreshParameters("/", false) })
 	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshParameters("/", true)
-			return nil
-		case core.APP_KEY_BINDINGS.LoadMoreData:
-			inst.RefreshParameters("/", false)
 			return nil
 		}
 		return capture(event)

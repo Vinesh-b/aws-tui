@@ -47,13 +47,11 @@ func NewAlarmListTable(
 	view.SetSelectedFunc(func(row, column int) {})
 	view.SetSelectionChangedFunc(func(row, column int) {})
 
+	view.SetLoadMoreFunc(func() { view.RefreshAlarms(false) })
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			view.RefreshAlarms(true)
-			return nil
-		case core.APP_KEY_BINDINGS.LoadMoreData:
-			view.RefreshAlarms(false)
 			return nil
 		}
 		return event
@@ -85,7 +83,6 @@ func (inst *AlarmListTable) populateAlarmsTable(data []types.MetricAlarm) {
 
 	inst.SetData(tableData, data, 0)
 	inst.GetCell(0, 0).SetExpansion(1)
-	inst.Select(1, 0)
 	inst.ScrollToBeginning()
 }
 

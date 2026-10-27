@@ -115,13 +115,11 @@ func NewStackEventsPageView(
 }
 
 func (inst *CloudFormationStackEventsPageView) InitInputCapture() {
+	inst.stackEventsTable.SetLoadMoreFunc(func() { inst.stackEventsTable.RefreshEvents(false) })
 	inst.stackEventsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			inst.stackEventsTable.RefreshEvents(true)
-			return nil
-		case core.APP_KEY_BINDINGS.LoadMoreData:
-			inst.stackEventsTable.RefreshEvents(false)
 			return nil
 		}
 		return event

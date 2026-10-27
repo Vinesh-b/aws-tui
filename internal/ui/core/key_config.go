@@ -21,11 +21,11 @@ type keyBinding struct {
 }
 
 // keyBindingConflictGroups lists the bindings that are active in the same view
-// and so must not share a key. Bindings that are meant to share a key, such as
-// LoadMoreData and NextSearch, are in no common group.
+// and so must not share a key. Bindings that are never active together are in
+// no common group, so they may share one.
 var keyBindingConflictGroups = [][]string{
 	{
-		"help", "reset", "loadMoreData", "find", "textCopy",
+		"help", "reset", "find", "textCopy",
 		"moveUp", "moveDown", "moveTop", "moveBottom", "mark", "removeItem",
 		"commandLine",
 	},
@@ -48,7 +48,6 @@ func keyBindingFields(bindings *KeyBindings) map[string]keyBinding {
 		"toggleServicesMenu": {key: &bindings.ToggleServicesMenu},
 		"toggleServicePages": {key: &bindings.ToggleServicePages},
 		"reset":              {rune: &bindings.Reset},
-		"loadMoreData":       {rune: &bindings.LoadMoreData},
 		"clearTable":         {key: &bindings.ClearTable},
 		"done":               {key: &bindings.Done},
 		"find":               {rune: &bindings.Find},

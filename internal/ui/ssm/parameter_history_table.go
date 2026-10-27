@@ -144,13 +144,11 @@ func (inst *SSMParameterHistoryTable) SetSelectionChangedFunc(handler func(row i
 }
 
 func (inst *SSMParameterHistoryTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
+	inst.SetLoadMoreFunc(func() { inst.RefreshHistory(false) })
 	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshHistory(true)
-			return nil
-		case core.APP_KEY_BINDINGS.LoadMoreData:
-			inst.RefreshHistory(false)
 			return nil
 		}
 		return capture(event)

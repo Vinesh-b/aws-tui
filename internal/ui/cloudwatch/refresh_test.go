@@ -273,3 +273,25 @@ func TestLogEventsTable__RefreshLoadsEventsFromApi(t *testing.T) {
 		{"2024-01-02 03:04:05.678", "START"},
 	})
 }
+
+func TestLogStreamsTable__MovingDownFromTheLastRowLoadsTheNextPage(t *testing.T) {
+	var api = &fakeCloudWatchLogsApi{streams: []types.LogStream{newLogStream("stream-a", 0), newLogStream("stream-b", 0)}}
+	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudWatchLogsApi](api)
+	var table = NewLogStreamsTable(serviceCtx)
+	uitest.RunApp(t, serviceCtx.App)
+	table.RefreshStreams(true)
+	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetTable().GetRowCount() == 3 }, "the first page")
+
+	uitest.OnUI(t, serviceCtx.App, func() {
+		table.Select(2, 0)
+		uitest.PressTableRune(table, 'j')
+	})
+
+	// The fake gives the same streams for every page
+	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetTable().GetRowCount() == 5 }, "the next page")
+	uitest.OnUI(t, serviceCtx.App, func() {
+		if row, _ := table.GetTable().GetSelection(); row != 2 {
+			t.Errorf("row = %d, want the cursor to stay on 2", row)
+		}
+	})
+}

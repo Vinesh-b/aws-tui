@@ -106,7 +106,7 @@ func (inst *BucketListTable) SetSelectionChangedFunc(handler func(row int, colum
 func (inst *BucketListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
 	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
-		case core.APP_KEY_BINDINGS.Reset, core.APP_KEY_BINDINGS.LoadMoreData:
+		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshBuckets(true)
 			return nil
 		}

@@ -138,7 +138,7 @@ func (inst *EventBusListTable) SetSelectionChangedFunc(handler func(row int, col
 func (inst *EventBusListTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
 	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
-		case core.APP_KEY_BINDINGS.Reset, core.APP_KEY_BINDINGS.LoadMoreData:
+		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshEventBuss(true)
 			return nil
 		}

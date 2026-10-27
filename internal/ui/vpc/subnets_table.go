@@ -172,7 +172,7 @@ func (inst *VpcSubnetsTable) SetSelectionChangedFunc(handler func(row int, colum
 func (inst *VpcSubnetsTable) SetInputCapture(capture func(event *tcell.EventKey) *tcell.EventKey) {
 	inst.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
-		case core.APP_KEY_BINDINGS.Reset, core.APP_KEY_BINDINGS.LoadMoreData:
+		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshVpcSubnets(true, inst.selectedVpc)
 			return nil
 		}

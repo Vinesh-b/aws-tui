@@ -95,7 +95,7 @@ func helpText() string {
 		{"Tables", [][2]string{
 			{core.FormatKey(keys.Done), "Open the selected item"},
 			{core.FormatRune(keys.Reset), "Load the table again"},
-			{core.FormatRune(keys.LoadMoreData), "Load more rows"},
+			{core.FormatRune(keys.MoveDownRune) + " on the last row", "Load more rows, in tables that load them a page at a time"},
 			{core.FormatKey(keys.ClearTable), "Clear the table"},
 			{core.FormatRune(keys.Find), "Search the table"},
 			{both(core.FormatRune(keys.NextSearch), core.FormatRune(keys.PrevSearch)), "Go to the next / previous match"},
@@ -104,7 +104,7 @@ func helpText() string {
 			{core.FormatRune(keys.TableQuery), "Query the table, such as DynamoDB or the marked log groups"},
 			{core.FormatRune(keys.TableScan), "Scan the DynamoDB table"},
 			{core.FormatRune(keys.Mark), "Mark the log group to query with Insights"},
-			{either(core.FormatRune(keys.RemoveItem), keys.RemoveItemSequence), "Unmark the log group, or delete the saved query"},
+			{either(core.FormatRune(keys.RemoveItem), keys.RemoveItemSequence), "Unmark the log group, or delete the saved query or DynamoDB item"},
 		}},
 		{"Details", [][2]string{
 			{core.FormatRune(keys.TextCopy), "Copy the value of the selected row"},

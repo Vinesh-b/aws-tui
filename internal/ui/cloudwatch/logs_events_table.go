@@ -43,13 +43,11 @@ func NewLogEventsTable(
 
 	view.HighlightSearch = true
 	view.populateLogEventsTable(false)
+	view.SetLoadMoreFunc(func() { view.RefreshLogEvents(false) })
 	view.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			view.RefreshLogEvents(true)
-			return nil
-		case core.APP_KEY_BINDINGS.LoadMoreData:
-			view.RefreshLogEvents(false)
 			return nil
 		}
 		return event

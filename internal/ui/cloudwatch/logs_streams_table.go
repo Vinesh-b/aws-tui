@@ -52,13 +52,11 @@ func NewLogStreamsTable(
 		}
 	})
 
+	view.SetLoadMoreFunc(func() { view.RefreshStreams(false) })
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			view.RefreshStreams(true)
-			return nil
-		case core.APP_KEY_BINDINGS.LoadMoreData:
-			view.RefreshStreams(false)
 			return nil
 		}
 		return event

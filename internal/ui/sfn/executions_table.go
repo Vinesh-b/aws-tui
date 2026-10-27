@@ -95,6 +95,7 @@ func NewSfnExecutionsTable(
 	table.SetSelectedFunc(func(row, column int) {})
 	table.SetSelectionChangedFunc(func(row, column int) {})
 
+	table.SetLoadMoreFunc(func() { table.RefreshExecutions(false) })
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
@@ -114,9 +115,6 @@ func NewSfnExecutionsTable(
 					"Unsupported type: %s", table.selectedExecution.StateMachineType,
 				)
 			}
-		case core.APP_KEY_BINDINGS.LoadMoreData:
-			table.RefreshExecutions(false)
-			return nil
 		}
 		return event
 	})

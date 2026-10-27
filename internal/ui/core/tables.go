@@ -95,6 +95,13 @@ type SelectableTable[T any] struct {
 	currentSearchIdx     int
 	HelpView             *FloatingHelpView
 	ErrorMessageCallback func(text string, a ...any)
+	// loadMore loads the next rows when the cursor moves down from the last
+	// row. It is nil for tables that load all their rows at once.
+	loadMore func()
+	// loadingMore is true from asking for more rows until they come, with
+	// moreFrom the row the cursor was on, which stays selected
+	loadingMore bool
+	moreFrom    int
 }
 
 func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppContext) *SelectableTable[T] {
@@ -121,7 +128,6 @@ func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppConte
 		AddKey(APP_KEY_BINDINGS.Escape, "Hide current floating view").
 		AddRune(APP_KEY_BINDINGS.Help, "Help for selected view").
 		AddRune(APP_KEY_BINDINGS.Reset, "Reset table").
-		AddRune(APP_KEY_BINDINGS.LoadMoreData, "Load more data").
 		AddItem(FormatRune(APP_KEY_BINDINGS.CommandLine)+"w", "Save table to csv", nil).
 		AddRune(APP_KEY_BINDINGS.TextCopy, "Copy cell text to clipboard").
 		AddKey(APP_KEY_BINDINGS.ClearTable, "Clear table").
@@ -191,6 +197,7 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 	}
 
 	if len(data) == 0 {
+		inst.MoreLoaded()
 		return nil
 	}
 
@@ -210,7 +217,7 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 	inst.colourRows(1, data, privateData)
 
 	if len(privateData) == 0 {
-		inst.table.Select(1, 0)
+		inst.table.Select(inst.rowAfterLoad(), 0)
 		return nil
 	}
 
@@ -238,7 +245,7 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 	}
 
 	// Select last, as the selection changed handlers read the private data
-	inst.table.Select(1, 0)
+	inst.table.Select(inst.rowAfterLoad(), 0)
 
 	return nil
 }
@@ -306,6 +313,8 @@ func (inst *SelectableTable[T]) ExtendData(data []TableRow, privateData []T) err
 	}
 
 	inst.rowCount += len(data)
+	// The cursor stays on the last row it was on, which is moreFrom
+	inst.MoreLoaded()
 
 	inst.RefreshTitle(0)
 
@@ -372,6 +381,55 @@ func escapeCsvFormula(text string) string {
 		return "'" + text
 	}
 	return text
+}
+
+// SetLoadMoreFunc sets how the table loads its next rows, which it does when
+// the cursor moves down from the last row, as in a list that scrolls on
+func (inst *SelectableTable[T]) SetLoadMoreFunc(loadMore func()) {
+	inst.loadMore = loadMore
+}
+
+// MoreLoaded is called when the rows asked for have come, which SetData and
+// ExtendData do. Tables that show their rows in another way call it.
+func (inst *SelectableTable[T]) MoreLoaded() {
+	inst.loadingMore = false
+}
+
+// movesPastLastRow is true for a key that moves the cursor down while it is on
+// the last row, when the table has more rows to load and is not loading them
+func (inst *SelectableTable[T]) movesPastLastRow(event *tcell.EventKey) bool {
+	var row, _ = inst.table.GetSelection()
+	if inst.loadMore == nil || inst.loadingMore || row != inst.table.GetRowCount()-1 {
+		return false
+	}
+	switch event.Key() {
+	case tcell.KeyDown, tcell.KeyPgDn, tcell.KeyCtrlF, tcell.KeyEnd:
+		return true
+	case tcell.KeyRune:
+		// The table moves with j and G whatever the bindings are
+		var r = event.Rune()
+		return event.Modifiers() == tcell.ModNone && (r == 'j' || r == 'G' ||
+			r == APP_KEY_BINDINGS.MoveDownRune || r == APP_KEY_BINDINGS.MovePageBottomRune)
+	}
+	return false
+}
+
+func (inst *SelectableTable[T]) askForMore() {
+	var row, _ = inst.table.GetSelection()
+	inst.loadingMore = true
+	inst.moreFrom = row
+	inst.loadMore()
+}
+
+// rowAfterLoad is the row to select once the rows are set: the one the cursor
+// was on when more rows were asked for, or else the first
+func (inst *SelectableTable[T]) rowAfterLoad() int {
+	var row = 1
+	if inst.loadingMore && inst.moreFrom <= inst.rowCount {
+		row = inst.moreFrom
+	}
+	inst.MoreLoaded()
+	return row
 }
 
 func (inst *SelectableTable[T]) holds(view tview.Primitive) bool {
@@ -514,10 +572,14 @@ func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventK
 		// ToDo: Why does it dead-lock without this with rapid key inputs?
 		if inst.table.GetRowCount() <= 1 {
 			switch event.Rune() {
-			case APP_KEY_BINDINGS.Reset, APP_KEY_BINDINGS.LoadMoreData:
+			case APP_KEY_BINDINGS.Reset:
 				return capture(event)
 			}
 			return nil
+		}
+
+		if inst.movesPastLastRow(event) {
+			inst.askForMore()
 		}
 
 		switch event.Key() {
