@@ -21,23 +21,151 @@ make build        # outputs ./bin/aws-tui
 
 Other targets: `make build-all` (linux, darwin, windows), `make test`, `make clean`.
 
-## Navigation
+## Keys
 
-Alt+Left and Alt+Right go back and forward through the services and pages that were shown, like the history of a browser. Opening a link to another service, such as the log group of a lambda, can be gone back from. Switching profile or region starts the history again, as the pages are loaded again.
+The keys follow Vim where they can. `?` lists the keys of the selected pane, and the Help page (`:help`) lists them all as they are bound. Every key in the tables below can be changed in the settings file, under the name in the last column (see [Changing keys](#changing-keys)).
 
-Tables that load their rows a page at a time, such as log events or S3 objects, load the next page when the cursor moves down from the last row, with `j`, Down, PgDn or `G`. The cursor stays where it was, so moving down again goes on into the new rows.
+### Moving around
 
-## Commands
+| Key | Does | Setting |
+|---|---|---|
+| `Ctrl+Space` | Show or hide the services menu | `toggleServicesMenu` |
+| `Ctrl+P` | Show or hide the pages of the service | `toggleServicePages` |
+| `gT` / `gt` | Go to the page on the left / right | `pageBackSequence` / `pageForwardSequence` |
+| `Alt+Left` / `Alt+Right` | Go back / forward through the pages shown | `historyModKey` + `historyBack` / `historyForward` |
+| `Ctrl+K` / `Ctrl+J` | Move to the pane above / below | `viewFocusUp` / `viewFocusDown` |
+| `Ctrl+H` / `Ctrl+L` | Move to the pane on the left / right | `viewFocusLeft` / `viewFocusRight` |
+| `Alt+h` `Alt+j` `Alt+k` `Alt+l` | Move the split between two panes | `viewResizeModKey` + the move keys |
+| `Alt+0` | Put the splits back | `viewResizeReset` |
+| `Esc` | Hide a floating view, such as a menu or a search | `escape` |
+| `?` | Show the keys of the selected pane | `help` |
+| `1`–`9` | Go to a tab, in views with tabs | — |
 
-As in Vim, `:` opens a command line at the bottom, outside text inputs. `:q` quits, `:w` saves the selected table to a csv file, at the path given or else in the download directory, named after the table, and the name of a service goes to it, such as `:lambda`, `:cloudwatchlogs` or a short name: `:logs`, `:alarms`, `:metrics`, `:ddb`, `:sfn`, `:s3`, `:ssm`, `:cfn` and `:profile`. The start of a name is enough when only one service has it. Commands are completed as they are typed; Tab puts a completion in, and Enter runs it. What a command did, or why it failed, stays in the line until the next key.
+Going back and forward works like the history of a browser, and also across services: after following a link, such as the log group of a lambda, going back returns to where the link was. Switching profile or region starts the history again, as the pages are loaded again.
+
+### Tables
+
+| Key | Does | Setting |
+|---|---|---|
+| `j` / `k` | Move down / up a row | `moveDown` / `moveUp` |
+| `gg` / `G` | Go to the first / last row | `moveTopSequence` / `moveBottom` |
+| `PgDn` / `PgUp`, `Ctrl+F` / `Ctrl+B` | Move a page down / up | — |
+| `Enter` | Open the selected item | `done` |
+| `r` | Load the table again | `reset` |
+| `Ctrl+X` | Clear the table | `clearTable` |
+| `/` | Search the table | `find` |
+| `n` / `N` | Go to the next / previous match | `nextSearch` / `prevSearch` |
+| `y` | Copy the text of the cell | `textCopy` |
+| `q` | Query the table, such as a DynamoDB table, or the marked log groups with Insights | `tableQuery` |
+| `s` | Scan the DynamoDB table | `tableScan` |
+| `m` | Mark a log group to query with Insights | `mark` |
+| `x`, `dd` | Unmark a log group, delete a saved query, or delete a DynamoDB item once it is confirmed | `removeItem`, `removeItemSequence` |
+
+Tables that load their rows a page at a time, such as log events or S3 objects, load the next page when the cursor moves down from the last row (with `j`, Down, PgDn or `G`). The cursor stays where it was, so moving down again goes on into the new rows.
+
+### Details
+
+| Key | Does | Setting |
+|---|---|---|
+| `y` | Copy the value of the selected row | `textCopy` |
+| `J` | Switch between the details and the API response as JSON | `toggleRawView` |
+| `gx` | Open the resource an underlined value links to | `openLinkSequence` |
+
+### Text views
+
+| Key | Does | Setting |
+|---|---|---|
+| `h` `j` `k` `l` | Move left, down, up, right | `moveLeft`, `moveDown`, `moveUp`, `moveRight` |
+| `w` / `b` | Move a word forward / back | `textViewWordRight` / `textViewWordLeft` |
+| `^` / `$` | Move to the start / end of the line | `moveLineStart` / `moveLineEnd` |
+| `gg` / `G` | Move to the top / bottom | `moveTopSequence` / `moveBottom` |
+| `Ctrl+U` / `Ctrl+D` | Move a page up / down | `textViewPageUp` / `textViewPageDown` |
+| `/`, `n` / `N` | Search, and go to the next / previous match | `find`, `nextSearch` / `prevSearch` |
+| `v` | Select text in visual mode | `textViewVisualMode` |
+| `y` | Copy the selected text, in visual mode | `textCopy` |
+| `Esc` | Go back to normal mode | `escape` |
+| `i`, `u` / `Ctrl+R` | Insert mode, undo / redo; text views are read-only, so these change nothing yet | `textViewInsertMode`, `textViewUndo` / `textViewRedo` |
+
+In forms, `Down` and `Up` move to the next and previous field (`formFocusNext`, `formFocusPrev`). Text inputs keep their own keys: the arrows move the cursor, `Shift` + arrows select text, and `Ctrl+Q` copies it (xclip is needed on Linux). These can't be changed.
+
+### Sequences
+
+`gg`, `gt`, `gT`, `gx` and `dd` are sequences: keys typed one after the other, as in Vim.
+
+- A sequence waits a second for its next key.
+- A key that doesn't continue a sequence drops the keys typed before it, and then does what it does on its own.
+- While a sequence starts with a key, that key does nothing on its own: `g` alone waits for the rest of `gg`, `gt`, `gT` or `gx`.
+- Sequences never take keys typed into a text input.
+- `gg` does what the key `moveTop` (`g`) does in tables and text views. That key is only reached on its own when `moveTopSequence` is turned off or moved to other keys.
+
+### Commands
+
+`:` opens a command line at the bottom of the screen, outside text inputs (setting: `commandLine`).
+
+| Command | Does |
+|---|---|
+| `:q`, `:quit` | Quit |
+| `:w [file]`, `:write [file]` | Save the selected table to a csv file, at the path given or else in the download directory, named after the table |
+| `:<service>` | Go to the service |
+
+A service is named by its name in lower case without spaces, such as `:lambda` or `:cloudwatchlogs`, or by a short name: `:logs`, `:alarms`, `:metrics`, `:ddb`, `:sfn`, `:s3`, `:ssm`, `:cfn` or `:profile`. The start of a name is enough when only one service has it, and `:help` and `:settings` open those pages.
+
+Commands are completed as they are typed: Tab puts the selected completion in, and Enter runs it. What a command did, or why it failed, stays in the line until the next key.
 
 ## Settings
 
-The theme chosen in the Settings page is saved and used the next time the app starts. It is kept in `settings.json` in the config directory of the user (`~/.config/aws-tui/` on Linux, `~/Library/Application Support/aws-tui/` on macOS, `%AppData%\aws-tui\` on Windows). If the file cannot be read, or names a theme that does not exist, the app starts with the default theme and logs why in the Debug Logs page.
+The settings are kept in `settings.json` in the config directory of the user:
 
-To choose the directory proposed when saving a table to csv, set `downloadDir` in `settings.json`, for example `{"downloadDir": "~/Downloads"}`. Without it the working directory is used, and either way the directory follows the last file saved. Existing files are never overwritten.
+- Linux: `~/.config/aws-tui/`
+- macOS: `~/Library/Application Support/aws-tui/`
+- Windows: `%AppData%\aws-tui\`
 
-To change a key, set `keyBindings` in `settings.json` to the name of the binding and the key, for example `{"keyBindings": {"reset": "R", "clearTable": "Ctrl+D", "historyModKey": "Ctrl"}}`. A key is one character (or `space`) for most bindings, a name such as `Esc`, `Enter`, `PgUp`, `Ctrl+X` or `Ctrl+Space` for the others, and `Alt`, `Ctrl` or `Shift` for the modifiers. The names are `help`, `commandLine`, `escape`, `toggleServicesMenu`, `toggleServicePages`, `reset`, `clearTable`, `done`, `find`, `historyModKey`, `historyBack`, `historyForward`, `viewFocusUp`, `viewFocusDown`, `viewFocusLeft`, `viewFocusRight`, `viewResizeModKey`, `viewResizeReset`, `moveUp`, `moveDown`, `moveLeft`, `moveRight`, `moveLineStart`, `moveLineEnd`, `moveTop`, `moveBottom`, `nextSearch`, `prevSearch`, `formFocusNext`, `formFocusPrev`, `tableScan`, `tableQuery`, `mark`, `removeItem`, `textCopy`, `toggleRawView`, `textViewPageUp`, `textViewPageDown`, `textViewWordRight`, `textViewWordLeft`, `textViewUndo`, `textViewRedo`, `textViewVisualMode`, `textViewInsertMode`, `moveTopSequence`, `pageForwardSequence`, `pageBackSequence`, `openLinkSequence` and `removeItemSequence`. The help views show the keys in use. A key that is unknown, cannot be read, or is already used by another binding in the same view is ignored and logged in the Debug Logs page. The sequences are keys typed one after the other, like the commands of Vim: `gg` goes to the top, `gt` and `gT` to the page on the right and left, and `gx` opens a link and `dd`, like `x`, unmarks a log group or deletes a saved query or, after it is confirmed, a DynamoDB item. Each is set as its keys, such as `{"keyBindings": {"pageForwardSequence": "]p"}}`, or as `""` to turn it off. A sequence waits a second for its next key, and a key that ends no sequence drops the keys typed before it. While a sequence starts with a key, that key does nothing on its own. The number keys that switch tabs, and the keys of text inputs such as Shift+Arrows to select, cannot be changed. Terminals without the newer keyboard protocols, such as tmux without `extended-keys`, send Ctrl+H as Backspace, so Backspace also moves to the pane on the left outside text inputs.
+If the file cannot be read, the app starts with the defaults and logs why in the Debug Logs page.
+
+### Theme
+
+The theme chosen in the Settings page is saved and used the next time the app starts. A theme that does not exist is replaced by the default one.
+
+### Download directory
+
+`downloadDir` is the directory tables are saved to as csv files:
+
+```json
+{"downloadDir": "~/Downloads"}
+```
+
+Without it the working directory is used, and either way the directory follows the last file saved. Existing files are never overwritten.
+
+### Changing keys
+
+`keyBindings` maps the setting name of a key, from the tables in [Keys](#keys), to the key to use:
+
+```json
+{
+  "keyBindings": {
+    "reset": "R",
+    "clearTable": "Ctrl+D",
+    "historyModKey": "Ctrl",
+    "pageForwardSequence": "]p",
+    "openLinkSequence": ""
+  }
+}
+```
+
+What a setting takes depends on the kind of key:
+
+- **A character**, for most keys: one character, or `space`.
+- **A special key**: a name such as `Esc`, `Enter`, `Tab`, `Backspace`, `PgUp`, `PgDn`, `Up`, `Down`, `Left`, `Right`, `Home`, `End`, `Ctrl+X` or `Ctrl+Space`.
+- **A modifier** (the settings ending in `ModKey`): `Alt`, `Ctrl` or `Shift`.
+- **A sequence** (the settings ending in `Sequence`): two or more characters, or `""` to turn the sequence off.
+
+A setting is ignored, and logged in the Debug Logs page, when its name is unknown, its key can't be read, or its key is already used by another key of the same view. A key can't be the first key of a sequence either, as it would always wait for the rest of the sequence.
+
+Settings that name keys which no longer exist, such as `saveTable`, `quit` or `loadMoreData`, are ignored in the same way.
+
+### Terminals
+
+Terminals without the newer keyboard protocols, such as tmux without `extended-keys`, send `Ctrl+H` as Backspace and `Ctrl+M` as Enter. The services menu is on `Ctrl+Space` for that reason, and Backspace moves to the pane on the left like `Ctrl+H`, except in text inputs.
 
 ## Project layout
 
