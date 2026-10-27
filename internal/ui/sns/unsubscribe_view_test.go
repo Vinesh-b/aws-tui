@@ -1,6 +1,7 @@
 package sns
 
 import (
+	"aws-tui/internal/ui/sns/snsfake"
 	"slices"
 	"strings"
 	"testing"
@@ -15,11 +16,11 @@ import (
 
 type unsubscribeFixture struct {
 	table  *SubscriptionsTable
-	api    *fakeSnsApi
+	api    *snsfake.Api
 	errors <-chan string
 }
 
-func newUnsubscribeFixture(t *testing.T, api *fakeSnsApi) *unsubscribeFixture {
+func newUnsubscribeFixture(t *testing.T, api *snsfake.Api) *unsubscribeFixture {
 	t.Helper()
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SnsApi](api)
 	var table = NewSubscriptionsTable(serviceCtx)
@@ -68,7 +69,7 @@ func twoSubscriptions() []types.Subscription {
 }
 
 func TestUnsubscribeView__ConfirmingDeletesTheSelectedSubscriptionAndReloads(t *testing.T) {
-	var f = newUnsubscribeFixture(t, &fakeSnsApi{subscriptions: twoSubscriptions()})
+	var f = newUnsubscribeFixture(t, snsfake.New(snsfake.WithSubscriptions(twoSubscriptions())))
 	uitest.Eventually(t, f.table.serviceCtx.App, func() bool { return f.table.GetTable().GetRowCount() == 3 })
 	uitest.OnUI(t, f.table.serviceCtx.App, func() { f.table.Select(2, 0) })
 
@@ -82,14 +83,14 @@ func TestUnsubscribeView__ConfirmingDeletesTheSelectedSubscriptionAndReloads(t *
 		subscriptionHeadings,
 		{"email", "a@example.com", "Confirmed", "arn:sub:1"},
 	})
-	if !slices.Contains(f.api.recorded(), "unsubscribe arn:sub:2") {
-		t.Errorf("Unexpected calls %v", f.api.recorded())
+	if !slices.Contains(f.api.Calls(), "unsubscribe arn:sub:2") {
+		t.Errorf("Unexpected calls %v", f.api.Calls())
 	}
 	uitest.Eventually(t, f.table.serviceCtx.App, func() bool { return !f.table.IsAnOverlayVisible() })
 }
 
 func TestUnsubscribeView__CancellingDeletesNothing(t *testing.T) {
-	var f = newUnsubscribeFixture(t, &fakeSnsApi{subscriptions: twoSubscriptions()})
+	var f = newUnsubscribeFixture(t, snsfake.New(snsfake.WithSubscriptions(twoSubscriptions())))
 	uitest.Eventually(t, f.table.serviceCtx.App, func() bool { return f.table.GetTable().GetRowCount() == 3 })
 
 	f.open(t)
@@ -97,15 +98,13 @@ func TestUnsubscribeView__CancellingDeletesNothing(t *testing.T) {
 	f.press(t, tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone))
 
 	uitest.Eventually(t, f.table.serviceCtx.App, func() bool { return !f.table.IsAnOverlayVisible() })
-	if slices.ContainsFunc(f.api.recorded(), func(call string) bool { return strings.HasPrefix(call, "unsubscribe") }) {
-		t.Errorf("Unexpected calls %v", f.api.recorded())
+	if len(f.api.CallsWithPrefix("unsubscribe")) != 0 {
+		t.Errorf("Unexpected calls %v", f.api.Calls())
 	}
 }
 
 func TestUnsubscribeView__PendingSubscriptionIsWarnedAboutAndReportsTheError(t *testing.T) {
-	var f = newUnsubscribeFixture(t, &fakeSnsApi{
-		subscriptions: []types.Subscription{subscription("email", "b@example.com", pendingConfirmation)},
-	})
+	var f = newUnsubscribeFixture(t, snsfake.New(snsfake.WithSubscriptions([]types.Subscription{subscription("email", "b@example.com", pendingConfirmation)})))
 	uitest.Eventually(t, f.table.serviceCtx.App, func() bool { return f.table.GetTable().GetRowCount() == 2 })
 
 	f.open(t)
@@ -120,9 +119,9 @@ func TestUnsubscribeView__PendingSubscriptionIsWarnedAboutAndReportsTheError(t *
 }
 
 func TestUnsubscribeView__ReportsApiError(t *testing.T) {
-	var f = newUnsubscribeFixture(t, &fakeSnsApi{subscriptions: twoSubscriptions()})
+	var f = newUnsubscribeFixture(t, snsfake.New(snsfake.WithSubscriptions(twoSubscriptions())))
 	uitest.Eventually(t, f.table.serviceCtx.App, func() bool { return f.table.GetTable().GetRowCount() == 3 })
-	f.api.setErr(errString("access denied"))
+	f.api.SetErr(errString("access denied"))
 
 	f.open(t)
 	f.confirm(t)
@@ -133,7 +132,7 @@ func TestUnsubscribeView__ReportsApiError(t *testing.T) {
 }
 
 func TestUnsubscribeView__NothingSelectedReportsAnError(t *testing.T) {
-	var f = newUnsubscribeFixture(t, &fakeSnsApi{})
+	var f = newUnsubscribeFixture(t, snsfake.New())
 	uitest.AwaitRows(t, f.table.serviceCtx.App, f.table, []core.TableRow{subscriptionHeadings})
 
 	f.open(t)
@@ -145,8 +144,8 @@ func TestUnsubscribeView__NothingSelectedReportsAnError(t *testing.T) {
 	if got := uitest.AwaitError(t, f.errors); got != "No subscription selected" {
 		t.Errorf("error = %q", got)
 	}
-	if slices.ContainsFunc(f.api.recorded(), func(call string) bool { return strings.HasPrefix(call, "unsubscribe") }) {
-		t.Errorf("Unexpected calls %v", f.api.recorded())
+	if len(f.api.CallsWithPrefix("unsubscribe")) != 0 {
+		t.Errorf("Unexpected calls %v", f.api.Calls())
 	}
 }
 

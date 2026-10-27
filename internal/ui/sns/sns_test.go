@@ -1,6 +1,7 @@
 package sns
 
 import (
+	"aws-tui/internal/ui/sns/snsfake"
 	"errors"
 	"slices"
 	"strings"
@@ -50,7 +51,7 @@ func TestTopicListTable__SelectingRowTracksSelectedTopicArn(t *testing.T) {
 }
 
 func TestTopicListTable__RefreshLoadsTopicsFromApi(t *testing.T) {
-	var api = &fakeSnsApi{topics: []string{topicArn("orders")}}
+	var api = snsfake.New(snsfake.WithTopics([]string{topicArn("orders")}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SnsApi](api)
 	var table = NewTopicListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -61,7 +62,7 @@ func TestTopicListTable__RefreshLoadsTopicsFromApi(t *testing.T) {
 }
 
 func TestTopicListTable__RefreshReportsApiError(t *testing.T) {
-	var api = &fakeSnsApi{err: errors.New("access denied")}
+	var api = snsfake.New(snsfake.WithErr(errors.New("access denied")))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SnsApi](api)
 	var table = NewTopicListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -76,7 +77,7 @@ func TestTopicListTable__RefreshReportsApiError(t *testing.T) {
 }
 
 func TestTopicListTable__FilterByNameShowsMatchingTopics(t *testing.T) {
-	var api = &fakeSnsApi{topics: []string{topicArn("orders"), topicArn("billing")}}
+	var api = snsfake.New(snsfake.WithTopics([]string{topicArn("orders"), topicArn("billing")}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SnsApi](api)
 	var table = NewTopicListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -131,7 +132,7 @@ func TestTopicDetailsTable__PopulatesFromAttributes(t *testing.T) {
 }
 
 func TestTopicDetailsTable__RefreshLoadsAttributesFromApi(t *testing.T) {
-	var api = &fakeSnsApi{attributes: newTopicAttributes()}
+	var api = snsfake.New(snsfake.WithAttributes(newTopicAttributes()))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SnsApi](api)
 	var table = NewTopicDetailsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -142,7 +143,7 @@ func TestTopicDetailsTable__RefreshLoadsAttributesFromApi(t *testing.T) {
 }
 
 func TestTopicDetailsTable__RefreshReportsApiError(t *testing.T) {
-	var api = &fakeSnsApi{err: errors.New("topic does not exist")}
+	var api = snsfake.New(snsfake.WithErr(errors.New("topic does not exist")))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SnsApi](api)
 	var table = NewTopicDetailsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -158,7 +159,7 @@ func TestTopicDetailsTable__RefreshReportsApiError(t *testing.T) {
 
 func TestHomeView__ResetKeyLoadsTopicsAndTheirDetails(t *testing.T) {
 	var appCtx = uitest.NewAppContext()
-	var api = &fakeSnsApi{topics: []string{topicArn("orders-topic")}, attributes: newTopicAttributes()}
+	var api = snsfake.New(snsfake.WithTopics([]string{topicArn("orders-topic")}), snsfake.WithAttributes(newTopicAttributes()))
 	var screen = uitest.ShowPage(t, appCtx.App, NewSnsHomeView(appCtx, api))
 
 	uitest.PressRune(t, appCtx.App, core.APP_KEY_BINDINGS.Reset)
@@ -168,10 +169,7 @@ func TestHomeView__ResetKeyLoadsTopicsAndTheirDetails(t *testing.T) {
 }
 
 func TestDetailsPageView__TagsAreLoadedForTheSelectedTopic(t *testing.T) {
-	var api = &fakeSnsApi{
-		topics: []string{topicArn("orders")}, attributes: newTopicAttributes(),
-		tags: []types.Tag{{Key: aws.String("env"), Value: aws.String("prod")}},
-	}
+	var api = snsfake.New(snsfake.WithTopics([]string{topicArn("orders")}), snsfake.WithAttributes(newTopicAttributes()), snsfake.WithTags([]types.Tag{{Key: aws.String("env"), Value: aws.String("prod")}}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SnsApi](api)
 	var view = NewSnsDetailsPageView(NewTopicListTable(serviceCtx), NewTopicDetailsTable(serviceCtx), serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -187,7 +185,7 @@ func TestDetailsPageView__FirstLoadDoesNotLoadDetailsWithoutATopicArn(t *testing
 		"no topics": nil,
 	} {
 		t.Run(name, func(t *testing.T) {
-			var api = &fakeSnsApi{topics: topics, attributes: newTopicAttributes()}
+			var api = snsfake.New(snsfake.WithTopics(topics), snsfake.WithAttributes(newTopicAttributes()))
 			var serviceCtx = uitest.NewServiceContextWith[awsapi.SnsApi](api)
 			var view = NewSnsDetailsPageView(NewTopicListTable(serviceCtx), NewTopicDetailsTable(serviceCtx), serviceCtx)
 			var callback, received = uitest.CaptureErrors()
@@ -205,8 +203,8 @@ func TestDetailsPageView__FirstLoadDoesNotLoadDetailsWithoutATopicArn(t *testing
 				t.Fatalf("Unexpected error on first load: %q", message)
 			default:
 			}
-			if slices.ContainsFunc(api.recorded(), func(call string) bool { return strings.HasSuffix(call, " ") }) {
-				t.Fatalf("Details were loaded without a topic ARN: %v", api.recorded())
+			if slices.ContainsFunc(api.Calls(), func(call string) bool { return strings.HasSuffix(call, " ") }) {
+				t.Fatalf("Details were loaded without a topic ARN: %v", api.Calls())
 			}
 		})
 	}

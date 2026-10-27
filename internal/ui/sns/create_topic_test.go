@@ -1,6 +1,7 @@
 package sns
 
 import (
+	"aws-tui/internal/ui/sns/snsfake"
 	"slices"
 	"strings"
 	"testing"
@@ -46,10 +47,10 @@ func TestValidTopicName(t *testing.T) {
 
 type createTopicFixture struct {
 	table *TopicListTable
-	api   *fakeSnsApi
+	api   *snsfake.Api
 }
 
-func newCreateTopicFixture(t *testing.T, api *fakeSnsApi) *createTopicFixture {
+func newCreateTopicFixture(t *testing.T, api *snsfake.Api) *createTopicFixture {
 	t.Helper()
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SnsApi](api)
 	var table = NewTopicListTable(serviceCtx)
@@ -98,11 +99,11 @@ func (f *createTopicFixture) status(t *testing.T) string {
 }
 
 func (f *createTopicFixture) createCalls() []string {
-	return slices.DeleteFunc(f.api.recorded(), func(call string) bool { return !strings.HasPrefix(call, "create ") })
+	return f.api.CallsWithPrefix("create ")
 }
 
 func TestCreateTopic__CreatesAStandardTopicAndReloads(t *testing.T) {
-	var f = newCreateTopicFixture(t, &fakeSnsApi{})
+	var f = newCreateTopicFixture(t, snsfake.New())
 	f.open(t)
 	uitest.OnUI(t, f.app(), func() { f.view().nameInput.SetText(" orders ") })
 
@@ -118,7 +119,7 @@ func TestCreateTopic__CreatesAStandardTopicAndReloads(t *testing.T) {
 }
 
 func TestCreateTopic__CreatesAFifoTopicWithContentBasedDeduplication(t *testing.T) {
-	var f = newCreateTopicFixture(t, &fakeSnsApi{})
+	var f = newCreateTopicFixture(t, snsfake.New())
 	f.open(t)
 	uitest.OnUI(t, f.app(), func() {
 		f.view().nameInput.SetText("orders")
@@ -135,7 +136,7 @@ func TestCreateTopic__CreatesAFifoTopicWithContentBasedDeduplication(t *testing.
 }
 
 func TestCreateTopic__InvalidNameIsReportedWithoutCallingTheApi(t *testing.T) {
-	var f = newCreateTopicFixture(t, &fakeSnsApi{})
+	var f = newCreateTopicFixture(t, snsfake.New())
 	f.open(t)
 	uitest.OnUI(t, f.app(), func() { f.view().nameInput.SetText("my topic") })
 
@@ -150,7 +151,7 @@ func TestCreateTopic__InvalidNameIsReportedWithoutCallingTheApi(t *testing.T) {
 }
 
 func TestCreateTopic__ReportsApiError(t *testing.T) {
-	var f = newCreateTopicFixture(t, &fakeSnsApi{err: errString("access denied")})
+	var f = newCreateTopicFixture(t, snsfake.New(snsfake.WithErr(errString("access denied"))))
 	f.open(t)
 	uitest.OnUI(t, f.app(), func() { f.view().nameInput.SetText("orders") })
 
@@ -160,7 +161,7 @@ func TestCreateTopic__ReportsApiError(t *testing.T) {
 }
 
 func TestCreateTopic__StartsCleanEachTimeItIsShown(t *testing.T) {
-	var f = newCreateTopicFixture(t, &fakeSnsApi{})
+	var f = newCreateTopicFixture(t, snsfake.New())
 	uitest.OnUI(t, f.app(), func() {
 		f.view().nameInput.SetText("left over")
 		f.view().typeDropDown.SetCurrentOption(1)

@@ -1,6 +1,7 @@
 package sns
 
 import (
+	"aws-tui/internal/ui/sns/snsfake"
 	"errors"
 	"slices"
 	"testing"
@@ -13,7 +14,7 @@ import (
 	"github.com/rivo/tview"
 )
 
-func newSubscribeTable(t *testing.T, api *fakeSnsApi) *SubscriptionsTable {
+func newSubscribeTable(t *testing.T, api *snsfake.Api) *SubscriptionsTable {
 	t.Helper()
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SnsApi](api)
 	var table = NewSubscriptionsTable(serviceCtx)
@@ -26,7 +27,7 @@ func statusMessage(table *SubscriptionsTable) string {
 }
 
 func TestSubscribeView__SubscribesTheEndpointAndReloadsTheTable(t *testing.T) {
-	var api = &fakeSnsApi{subscribeArn: "arn:sub:new"}
+	var api = snsfake.New(snsfake.WithSubscribeArn("arn:sub:new"))
 	var table = newSubscribeTable(t, api)
 	table.RefreshSubscriptions(topicArn("orders"))
 	uitest.AwaitRows(t, table.serviceCtx.App, table, []core.TableRow{subscriptionHeadings})
@@ -42,13 +43,13 @@ func TestSubscribeView__SubscribesTheEndpointAndReloadsTheTable(t *testing.T) {
 	uitest.Eventually(t, table.serviceCtx.App, func() bool {
 		return statusMessage(table) == "Subscription created: arn:sub:new"
 	})
-	if !slices.Contains(api.recorded(), "subscribe "+topicArn("orders")+" email a@example.com") {
-		t.Errorf("Unexpected calls %v", api.recorded())
+	if !slices.Contains(api.Calls(), "subscribe "+topicArn("orders")+" email a@example.com") {
+		t.Errorf("Unexpected calls %v", api.Calls())
 	}
 }
 
 func TestSubscribeView__SubscribeButtonUsesTheSelectedProtocolAndEndpoint(t *testing.T) {
-	var api = &fakeSnsApi{subscribeArn: "arn:sub:new"}
+	var api = snsfake.New(snsfake.WithSubscribeArn("arn:sub:new"))
 	var table = newSubscribeTable(t, api)
 	table.topicArn = topicArn("orders")
 	var view = table.SubscribeView.Input
@@ -60,13 +61,13 @@ func TestSubscribeView__SubscribeButtonUsesTheSelectedProtocolAndEndpoint(t *tes
 
 	uitest.Eventually(t, table.serviceCtx.App, func() bool {
 		return slices.Contains(
-			api.recorded(), "subscribe "+topicArn("orders")+" sqs arn:aws:sqs:us-east-1:1:queue",
+			api.Calls(), "subscribe "+topicArn("orders")+" sqs arn:aws:sqs:us-east-1:1:queue",
 		)
 	})
 }
 
 func TestSubscribeView__ReportsApiError(t *testing.T) {
-	var api = &fakeSnsApi{err: errors.New("invalid endpoint")}
+	var api = snsfake.New(snsfake.WithErr(errors.New("invalid endpoint")))
 	var table = newSubscribeTable(t, api)
 	table.topicArn = topicArn("orders")
 
@@ -81,7 +82,7 @@ func TestSubscribeView__RejectsMissingTopicOrEndpointWithoutCallingTheApi(t *tes
 		"no endpoint": {topicArn("orders"), "  ", "Endpoint is empty"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			var api = &fakeSnsApi{}
+			var api = snsfake.New()
 			var table = newSubscribeTable(t, api)
 			table.topicArn = tc.topic
 
@@ -90,7 +91,7 @@ func TestSubscribeView__RejectsMissingTopicOrEndpointWithoutCallingTheApi(t *tes
 			if got := statusMessage(table); got != tc.want {
 				t.Errorf("status = %q, want %q", got, tc.want)
 			}
-			if calls := api.recorded(); len(calls) != 0 {
+			if calls := api.Calls(); len(calls) != 0 {
 				t.Errorf("Expected no api calls but got %v", calls)
 			}
 		})
@@ -98,7 +99,7 @@ func TestSubscribeView__RejectsMissingTopicOrEndpointWithoutCallingTheApi(t *tes
 }
 
 func TestSubscribeView__OpensWithTheSubscribeKeyAndStartsClean(t *testing.T) {
-	var api = &fakeSnsApi{}
+	var api = snsfake.New()
 	var table = newSubscribeTable(t, api)
 	var app = table.serviceCtx.App
 	uitest.OnUI(t, app, func() {

@@ -1,6 +1,7 @@
 package sns
 
 import (
+	"aws-tui/internal/ui/sns/snsfake"
 	"errors"
 	"testing"
 
@@ -46,7 +47,7 @@ func TestSubscriptionsTable__ShowsSortedSubscriptionsWithStatus(t *testing.T) {
 }
 
 func TestSubscriptionsTable__RefreshLoadsSubscriptionsFromApi(t *testing.T) {
-	var api = &fakeSnsApi{subscriptions: []types.Subscription{subscription("email", "a@example.com", "arn:sub:1")}}
+	var api = snsfake.New(snsfake.WithSubscriptions([]types.Subscription{subscription("email", "a@example.com", "arn:sub:1")}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SnsApi](api)
 	var table = NewSubscriptionsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -60,7 +61,7 @@ func TestSubscriptionsTable__RefreshLoadsSubscriptionsFromApi(t *testing.T) {
 }
 
 func TestSubscriptionsTable__RefreshWithoutTopicClearsTheTable(t *testing.T) {
-	var api = &fakeSnsApi{subscriptions: []types.Subscription{subscription("email", "a@example.com", "arn:sub:1")}}
+	var api = snsfake.New(snsfake.WithSubscriptions([]types.Subscription{subscription("email", "a@example.com", "arn:sub:1")}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SnsApi](api)
 	var table = NewSubscriptionsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -73,7 +74,7 @@ func TestSubscriptionsTable__RefreshWithoutTopicClearsTheTable(t *testing.T) {
 }
 
 func TestSubscriptionsTable__RefreshReportsApiError(t *testing.T) {
-	var api = &fakeSnsApi{err: errors.New("access denied")}
+	var api = snsfake.New(snsfake.WithErr(errors.New("access denied")))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SnsApi](api)
 	var table = NewSubscriptionsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -88,10 +89,7 @@ func TestSubscriptionsTable__RefreshReportsApiError(t *testing.T) {
 }
 
 func TestDetailsPageView__SubscriptionsAreLoadedForTheSelectedTopic(t *testing.T) {
-	var api = &fakeSnsApi{
-		topics: []string{topicArn("orders")}, attributes: newTopicAttributes(),
-		subscriptions: []types.Subscription{subscription("email", "a@example.com", "arn:sub:1")},
-	}
+	var api = snsfake.New(snsfake.WithTopics([]string{topicArn("orders")}), snsfake.WithAttributes(newTopicAttributes()), snsfake.WithSubscriptions([]types.Subscription{subscription("email", "a@example.com", "arn:sub:1")}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SnsApi](api)
 	var view = NewSnsDetailsPageView(NewTopicListTable(serviceCtx), NewTopicDetailsTable(serviceCtx), serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)

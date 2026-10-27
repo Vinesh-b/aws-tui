@@ -1,6 +1,7 @@
 package sns
 
 import (
+	"aws-tui/internal/ui/sns/snsfake"
 	"slices"
 	"strings"
 	"testing"
@@ -16,13 +17,13 @@ import (
 type deleteTopicFixture struct {
 	page   *SnsDetailsPageView
 	table  *TopicListTable
-	api    *fakeSnsApi
+	api    *snsfake.Api
 	errors <-chan string
 }
 
-func newDeleteTopicFixture(t *testing.T, api *fakeSnsApi) *deleteTopicFixture {
+func newDeleteTopicFixture(t *testing.T, api *snsfake.Api) *deleteTopicFixture {
 	t.Helper()
-	api.attributes = newTopicAttributes()
+	api.SetAttributes(newTopicAttributes())
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SnsApi](api)
 	var page = NewSnsDetailsPageView(NewTopicListTable(serviceCtx), NewTopicDetailsTable(serviceCtx), serviceCtx)
 	var callback, received = uitest.CaptureErrors()
@@ -65,11 +66,11 @@ func (f *deleteTopicFixture) message(t *testing.T) string {
 }
 
 func (f *deleteTopicFixture) deleteCalls() []string {
-	return slices.DeleteFunc(f.api.recorded(), func(call string) bool { return !strings.HasPrefix(call, "delete ") })
+	return f.api.CallsWithPrefix("delete ")
 }
 
 func TestDeleteTopic__ConfirmingDeletesTheSelectedTopicAndReloads(t *testing.T) {
-	var f = newDeleteTopicFixture(t, &fakeSnsApi{topics: []string{topicArn("billing"), topicArn("orders")}})
+	var f = newDeleteTopicFixture(t, snsfake.New(snsfake.WithTopics([]string{topicArn("billing"), topicArn("orders")})))
 	uitest.Eventually(t, f.app(), func() bool { return f.table.GetTable().GetRowCount() == 3 })
 	uitest.OnUI(t, f.app(), func() { f.table.Select(2, 0) })
 
@@ -87,7 +88,7 @@ func TestDeleteTopic__ConfirmingDeletesTheSelectedTopicAndReloads(t *testing.T) 
 }
 
 func TestDeleteTopic__CancellingDeletesNothing(t *testing.T) {
-	var f = newDeleteTopicFixture(t, &fakeSnsApi{topics: []string{topicArn("orders")}})
+	var f = newDeleteTopicFixture(t, snsfake.New(snsfake.WithTopics([]string{topicArn("orders")})))
 	uitest.Eventually(t, f.app(), func() bool { return f.table.GetTable().GetRowCount() == 2 })
 
 	f.open(t)
@@ -101,9 +102,9 @@ func TestDeleteTopic__CancellingDeletesNothing(t *testing.T) {
 }
 
 func TestDeleteTopic__ReportsApiError(t *testing.T) {
-	var f = newDeleteTopicFixture(t, &fakeSnsApi{topics: []string{topicArn("orders")}})
+	var f = newDeleteTopicFixture(t, snsfake.New(snsfake.WithTopics([]string{topicArn("orders")})))
 	uitest.Eventually(t, f.app(), func() bool { return f.table.GetTable().GetRowCount() == 2 })
-	f.api.setErr(errString("access denied"))
+	f.api.SetErr(errString("access denied"))
 
 	f.open(t)
 	f.confirm(t)
@@ -114,7 +115,7 @@ func TestDeleteTopic__ReportsApiError(t *testing.T) {
 }
 
 func TestDeleteTopic__NothingSelectedReportsAnError(t *testing.T) {
-	var f = newDeleteTopicFixture(t, &fakeSnsApi{})
+	var f = newDeleteTopicFixture(t, snsfake.New())
 	uitest.AwaitRows(t, f.app(), f.table, []core.TableRow{topicHeadings})
 
 	f.open(t)
@@ -132,10 +133,7 @@ func TestDeleteTopic__NothingSelectedReportsAnError(t *testing.T) {
 }
 
 func TestDeleteTopic__DeletingTheOnlyTopicEmptiesTheOtherViews(t *testing.T) {
-	var f = newDeleteTopicFixture(t, &fakeSnsApi{
-		topics:        []string{topicArn("orders")},
-		subscriptions: twoSubscriptions(),
-	})
+	var f = newDeleteTopicFixture(t, snsfake.New(snsfake.WithTopics([]string{topicArn("orders")}), snsfake.WithSubscriptions(twoSubscriptions())))
 	uitest.Eventually(t, f.app(), func() bool {
 		return f.page.TopicDetailsTable.GetCellText(0, 1) == "orders" &&
 			f.page.SubscriptionsTable.GetTable().GetRowCount() == 3 &&
@@ -154,7 +152,7 @@ func TestDeleteTopic__DeletingTheOnlyTopicEmptiesTheOtherViews(t *testing.T) {
 }
 
 func TestDeleteTopic__DeletingOneOfManyShowsTheNextTopic(t *testing.T) {
-	var f = newDeleteTopicFixture(t, &fakeSnsApi{topics: []string{topicArn("billing"), topicArn("orders")}})
+	var f = newDeleteTopicFixture(t, snsfake.New(snsfake.WithTopics([]string{topicArn("billing"), topicArn("orders")})))
 	uitest.Eventually(t, f.app(), func() bool { return f.page.PublishView.selectedTopicArn == topicArn("billing") })
 
 	f.open(t)

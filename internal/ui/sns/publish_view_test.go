@@ -1,6 +1,7 @@
 package sns
 
 import (
+	"aws-tui/internal/ui/sns/snsfake"
 	"context"
 	"errors"
 	"strings"
@@ -16,7 +17,7 @@ import (
 )
 
 type fakePublishApi struct {
-	fakeSnsApi
+	*snsfake.Api
 	pmtx       sync.Mutex
 	topicArn   string
 	message    string
@@ -58,7 +59,7 @@ func newPublishView(t *testing.T, api *fakePublishApi) *PublishPageView {
 }
 
 func TestPublishView__PublishesTheMessageToTheSelectedTopic(t *testing.T) {
-	var api = &fakePublishApi{}
+	var api = &fakePublishApi{Api: snsfake.New()}
 	var view = newPublishView(t, api)
 	view.SetSelectedTopic(topicArn("orders"))
 	view.messageArea.SetText("hello\nworld", false)
@@ -84,7 +85,7 @@ func TestPublishView__PublishesTheMessageToTheSelectedTopic(t *testing.T) {
 }
 
 func TestPublishView__FifoTopicSendsGroupAndDeduplicationId(t *testing.T) {
-	var api = &fakePublishApi{}
+	var api = &fakePublishApi{Api: snsfake.New()}
 	var view = newPublishView(t, api)
 	view.SetSelectedTopic(topicArn("orders.fifo"))
 	view.messageArea.SetText("hello", false)
@@ -116,7 +117,7 @@ func TestPublishView__RejectsInvalidInputWithoutCallingTheApi(t *testing.T) {
 		}, "line 1"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			var api = &fakePublishApi{}
+			var api = &fakePublishApi{Api: snsfake.New()}
 			var view = newPublishView(t, api)
 			var callback, received = uitest.CaptureErrors()
 			view.messageArea.ErrorMessageCallback = callback
@@ -137,7 +138,7 @@ func TestPublishView__RejectsInvalidInputWithoutCallingTheApi(t *testing.T) {
 }
 
 func TestPublishView__ReportsApiError(t *testing.T) {
-	var api = &fakePublishApi{publishErr: errors.New("access denied")}
+	var api = &fakePublishApi{Api: snsfake.New(), publishErr: errors.New("access denied")}
 	var view = newPublishView(t, api)
 	var callback, received = uitest.CaptureErrors()
 	view.resultOutput.ErrorMessageCallback = callback
@@ -152,7 +153,7 @@ func TestPublishView__ReportsApiError(t *testing.T) {
 }
 
 func TestPublishView__FormatIndentsJsonAndLeavesOtherTextAlone(t *testing.T) {
-	var view = newPublishView(t, &fakePublishApi{})
+	var view = newPublishView(t, &fakePublishApi{Api: snsfake.New()})
 	var callback, received = uitest.CaptureErrors()
 	view.messageArea.ErrorMessageCallback = callback
 
@@ -171,9 +172,9 @@ func TestPublishView__FormatIndentsJsonAndLeavesOtherTextAlone(t *testing.T) {
 }
 
 func TestDetailsPageView__SelectingATopicSelectsItForPublishing(t *testing.T) {
-	var api = &fakePublishApi{fakeSnsApi: fakeSnsApi{
-		topics: []string{topicArn("orders")}, attributes: newTopicAttributes(),
-	}}
+	var api = &fakePublishApi{Api: snsfake.New(
+		snsfake.WithTopics([]string{topicArn("orders")}), snsfake.WithAttributes(newTopicAttributes()),
+	)}
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SnsApi](api)
 	var view = NewSnsDetailsPageView(NewTopicListTable(serviceCtx), NewTopicDetailsTable(serviceCtx), serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
