@@ -279,6 +279,25 @@ func TestCreateApplication__HistoryKeysGoBackAndForwardBetweenServices(t *testin
 	uitest.AwaitScreenText(t, tuiApp, screen, "The bar at the bottom of a service")
 }
 
+func typeRunes(app *tview.Application, text string) {
+	for _, r := range text {
+		app.QueueEvent(tcell.NewEventKey(tcell.KeyRune, r, tcell.ModNone))
+	}
+}
+
+func TestCreateApplication__SequencesChangeThePage(t *testing.T) {
+	var tuiApp, screen = startApp(t)
+	// The home page starts with the services list focused, 7 opens the logs
+	typeRunes(tuiApp, "7")
+	uitest.AwaitScreenText(t, tuiApp, screen, "Log Group Details")
+
+	typeRunes(tuiApp, core.APP_KEY_BINDINGS.PageForwardSequence)
+	uitest.AwaitScreenText(t, tuiApp, screen, "Log Stream Details")
+
+	typeRunes(tuiApp, core.APP_KEY_BINDINGS.PageBackSequence)
+	uitest.AwaitScreenText(t, tuiApp, screen, "Log Group Details")
+}
+
 func TestCreateApplication__PickingAThemeInSettingsKeepsTheSettingsPage(t *testing.T) {
 	var tuiApp, screen = startApp(t)
 	openSettings(tuiApp)

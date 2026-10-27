@@ -17,6 +17,7 @@ type keyBinding struct {
 	rune *rune
 	key  *tcell.Key
 	mod  *tcell.ModMask
+	seq  *string
 }
 
 // keyBindingConflictGroups lists the bindings that are active in the same view
@@ -89,6 +90,11 @@ func keyBindingFields(bindings *KeyBindings) map[string]keyBinding {
 		"textViewRedo":       {key: &bindings.TextViewRedo},
 		"textViewVisualMode": {rune: &bindings.TextViewVisualMode},
 		"textViewInsertMode": {rune: &bindings.TextViewInsertMode},
+
+		"moveTopSequence":     {seq: &bindings.MoveTopSequence},
+		"pageForwardSequence": {seq: &bindings.PageForwardSequence},
+		"pageBackSequence":    {seq: &bindings.PageBackSequence},
+		"openLinkSequence":    {seq: &bindings.OpenLinkSequence},
 	}
 }
 
@@ -137,10 +143,22 @@ func applyKeyBindingOverrides(bindings *KeyBindings, overrides map[string]string
 		if !applied {
 			continue
 		}
-		if other := conflictingBinding(fields, name); other != "" {
+		var other = conflictingBinding(fields, name)
+		if other == "" {
+			other = sequenceConflict(fields, name)
+		}
+		if other != "" {
 			undo()
 			errs = append(errs, fmt.Errorf(
 				"key binding %q in the settings file: %q is already used by %q", name, overrides[name], other,
+			))
+			continue
+		}
+		if done, other := turnedOffSequenceConflict(fields, name); other != "" {
+			undo()
+			errs = append(errs, fmt.Errorf(
+				"key binding %q in the settings file: turning it off leaves %q unreachable, as %q starts with its key",
+				name, done, other,
 			))
 		}
 	}
@@ -160,6 +178,14 @@ func setKeyBinding(field keyBinding, text string) (func(), error) {
 		var old = *field.rune
 		*field.rune = parsed
 		return func() { *field.rune = old }, nil
+	case field.seq != nil:
+		var parsed, err = ParseKeySequence(text)
+		if err != nil {
+			return nil, err
+		}
+		var old = *field.seq
+		*field.seq = parsed
+		return func() { *field.seq = old }, nil
 	case field.key != nil:
 		var parsed, err = ParseKey(text)
 		if err != nil {
@@ -261,4 +287,107 @@ func ParseModKey(text string) (tcell.ModMask, error) {
 		return tcell.ModShift, nil
 	}
 	return 0, fmt.Errorf("%q is not a modifier, use Alt, Ctrl or Shift", text)
+}
+
+// sequenceRunes are the rune bindings each sequence does, which are only
+// reached through the sequence while it is set, so they may share its first key
+var sequenceRunes = map[string]string{
+	"moveTopSequence":  "moveTop",
+	"openLinkSequence": "openLink",
+}
+
+// modifiedRunes are the rune bindings only used with a modifier, which never
+// reach the sequences
+var modifiedRunes = []string{"pageForward", "pageBack", "viewResizeReset"}
+
+// sequenceConflict returns a binding the named one can't be told apart from
+// because of the sequences, or "" if there is none. A sequence clashes with a
+// sequence that starts it, and with a key that is its first key, as that key
+// would always wait for the rest of the sequence.
+func sequenceConflict(fields map[string]keyBinding, name string) string {
+	var field = fields[name]
+	if field.seq == nil && (field.rune == nil || slices.Contains(modifiedRunes, name)) {
+		return ""
+	}
+
+	var names = make([]string, 0, len(fields))
+	for other := range fields {
+		names = append(names, other)
+	}
+	sort.Strings(names)
+
+	for _, other := range names {
+		if other == name {
+			continue
+		}
+		var o = fields[other]
+		switch {
+		case field.seq != nil && o.seq != nil:
+			if startsWith(*field.seq, *o.seq) || startsWith(*o.seq, *field.seq) {
+				return other
+			}
+		case field.seq != nil && o.rune != nil:
+			if runeStartsSequence(fields, other, *field.seq) {
+				return other
+			}
+		case field.rune != nil && o.seq != nil:
+			if runeStartsSequence(fields, name, *o.seq) {
+				return other
+			}
+		}
+	}
+	return ""
+}
+
+// startsWith is true when the sequence is set and starts the other one
+func startsWith(sequence string, other string) bool {
+	return len(sequence) > 0 && len(other) > 0 && strings.HasPrefix(other, sequence)
+}
+
+// runeStartsSequence is true when the rune binding is the first key of the
+// sequence and can't be reached because of it
+func runeStartsSequence(fields map[string]keyBinding, runeName string, sequence string) bool {
+	if len(sequence) == 0 || slices.Contains(modifiedRunes, runeName) {
+		return false
+	}
+	var first, _ = utf8.DecodeRuneInString(sequence)
+	if *fields[runeName].rune != first {
+		return false
+	}
+	// A key a sequence does is reached through it while that sequence is set
+	for seqName, done := range sequenceRunes {
+		if done == runeName && len(*fields[seqName].seq) > 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// ParseKeySequence reads a sequence of two or more keys such as "gg", or ""
+// to turn the sequence off.
+func ParseKeySequence(text string) (string, error) {
+	if text == "" {
+		return "", nil
+	}
+	if utf8.RuneCountInString(text) < 2 {
+		return "", fmt.Errorf("%q is not a sequence, use two or more keys such as gg, or nothing to turn it off", text)
+	}
+	for _, r := range text {
+		if r == utf8.RuneError || unicode.IsControl(r) || unicode.IsSpace(r) {
+			return "", fmt.Errorf("%q is not a sequence, it can only have keys that type a character", text)
+		}
+	}
+	return text, nil
+}
+
+// turnedOffSequenceConflict returns the rune binding a sequence that is off
+// does, and a sequence that starts with that rune, which then can't be
+// reached. Both are "" when there is no such clash.
+func turnedOffSequenceConflict(fields map[string]keyBinding, name string) (string, string) {
+	var field = fields[name]
+	var done, ok = sequenceRunes[name]
+	if field.seq == nil || len(*field.seq) > 0 || !ok {
+		return "", ""
+	}
+	return done, sequenceConflict(fields, done)
 }

@@ -129,7 +129,7 @@ func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppConte
 		AddKey(APP_KEY_BINDINGS.ClearTable, "Clear table").
 		AddRune(APP_KEY_BINDINGS.MoveUpRune, "Move up one row").
 		AddRune(APP_KEY_BINDINGS.MoveDownRune, "Move down one row").
-		AddRune(APP_KEY_BINDINGS.MovePageTopRune, "Go to first item").
+		AddItem(FormatSequenceOr(APP_KEY_BINDINGS.MoveTopSequence, FormatRune(APP_KEY_BINDINGS.MovePageTopRune)), "Go to first item", nil).
 		AddRune(APP_KEY_BINDINGS.MovePageBottomRune, "Go to last item").
 		AddKey(tcell.KeyPgUp, "Go up a page").
 		AddKey(tcell.KeyPgDn, "Go down a page").

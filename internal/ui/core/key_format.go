@@ -54,6 +54,14 @@ func FormatRune(r rune) string {
 	return string(r)
 }
 
+// FormatSequenceOr renders the sequence, or the key when the sequence is off
+func FormatSequenceOr(sequence string, key string) string {
+	if len(sequence) > 0 {
+		return sequence
+	}
+	return key
+}
+
 // FormatModRune renders a rune pressed with a modifier, for example "Alt+]".
 func FormatModRune(mod tcell.ModMask, r rune) string {
 	return strings.Join(append(modifierNames(mod), FormatRune(r)), "+")

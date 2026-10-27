@@ -116,7 +116,7 @@ func NewSearchableTextView(title string, appContext *AppContext) *SearchableText
 		AddRune(APP_KEY_BINDINGS.TextViewWordLeft, "Move back one word").
 		AddKey(APP_KEY_BINDINGS.TextViewPageUp, "Move page up").
 		AddKey(APP_KEY_BINDINGS.TextViewPageDown, "Move page down").
-		AddRune(APP_KEY_BINDINGS.MovePageTopRune, "Move to top").
+		AddItem(FormatSequenceOr(APP_KEY_BINDINGS.MoveTopSequence, FormatRune(APP_KEY_BINDINGS.MovePageTopRune)), "Move to top", nil).
 		AddRune(APP_KEY_BINDINGS.MovePageBottomRune, "Move to bottom").
 		AddRune(APP_KEY_BINDINGS.TextViewVisualMode, "Visual mode to select Text").
 		AddRune(APP_KEY_BINDINGS.TextCopy, "Copy selected text in visual mode")

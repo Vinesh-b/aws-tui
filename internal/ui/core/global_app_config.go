@@ -107,6 +107,13 @@ type KeyBindings struct {
 	TextViewRedo       tcell.Key
 	TextViewVisualMode rune
 	TextViewInsertMode rune
+
+	// Sequences are keys typed one after the other that do what the key they
+	// are named after does, like the commands of Vim. Empty turns one off.
+	MoveTopSequence     string
+	PageForwardSequence string
+	PageBackSequence    string
+	OpenLinkSequence    string
 }
 
 var APP_KEY_BINDINGS = KeyBindings{
@@ -160,4 +167,9 @@ var APP_KEY_BINDINGS = KeyBindings{
 	TextViewRedo:       tcell.KeyCtrlR,
 	TextViewVisualMode: 'v',
 	TextViewInsertMode: 'i',
+
+	MoveTopSequence:     "gg",
+	PageForwardSequence: "gt",
+	PageBackSequence:    "gT",
+	OpenLinkSequence:    "gx",
 }

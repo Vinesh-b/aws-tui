@@ -30,14 +30,21 @@ func TestApplyKeyBindingOverrides__SkipsWhatCannotBeUsed(t *testing.T) {
 	var tests = map[string]struct {
 		name, value, wantErr string
 	}{
-		"unknown name":    {"nope", "x", "unknown key binding"},
-		"two characters":  {"reset", "rr", "single character"},
-		"empty":           {"reset", "", "single character"},
-		"bad key":         {"clearTable", "banana", "not a key"},
-		"bad modifier":    {"viewResizeModKey", "meta", "not a modifier"},
-		"table conflict":  {"reset", "d", `already used by "saveTable"`},
-		"focus conflict":  {"viewFocusUp", "Ctrl+J", `already used by "viewFocusDown"`},
-		"text view clash": {"textViewWordLeft", "w", `already used by "textViewWordRight"`},
+		"unknown name":      {"nope", "x", "unknown key binding"},
+		"two characters":    {"reset", "rr", "single character"},
+		"empty":             {"reset", "", "single character"},
+		"bad key":           {"clearTable", "banana", "not a key"},
+		"bad modifier":      {"viewResizeModKey", "meta", "not a modifier"},
+		"table conflict":    {"reset", "d", `already used by "saveTable"`},
+		"focus conflict":    {"viewFocusUp", "Ctrl+J", `already used by "viewFocusDown"`},
+		"text view clash":   {"textViewWordLeft", "w", `already used by "textViewWordRight"`},
+		"one key sequence":  {"moveTopSequence", "g", "not a sequence"},
+		"space in sequence": {"moveTopSequence", "g g", "not a sequence"},
+		"same sequence":     {"openLinkSequence", "gt", `already used by "pageForwardSequence"`},
+		"sequence prefix":   {"openLinkSequence", "g", "not a sequence"},
+		"longer sequence":   {"openLinkSequence", "ggx", `already used by "moveTopSequence"`},
+		"key starts one":    {"tableScan", "g", `already used by "moveTopSequence"`},
+		"strands its key":   {"moveTopSequence", "", `leaves "moveTop" unreachable`},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -98,6 +105,24 @@ func TestDefaultKeyBindings__HaveNoConflicts(t *testing.T) {
 				t.Errorf("default %q shares its key with %q", name, other)
 			}
 		}
+	}
+	for name := range fields {
+		if other := sequenceConflict(fields, name); other != "" {
+			t.Errorf("default %q can't be told apart from %q", name, other)
+		}
+	}
+}
+
+func TestApplyKeyBindingOverrides__SequencesCanMoveOrBeTurnedOff(t *testing.T) {
+	var bindings = APP_KEY_BINDINGS
+
+	var errs = applyKeyBindingOverrides(&bindings, map[string]string{
+		"moveTopSequence":  "zz",
+		"openLinkSequence": "",
+	})
+
+	if len(errs) != 0 || bindings.MoveTopSequence != "zz" || bindings.OpenLinkSequence != "" {
+		t.Errorf("errors = %v, moveTop = %q, openLink = %q", errs, bindings.MoveTopSequence, bindings.OpenLinkSequence)
 	}
 }
 

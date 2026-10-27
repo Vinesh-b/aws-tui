@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"aws-tui/internal/ui/core"
@@ -51,7 +52,13 @@ type helpSection struct {
 // set in the settings file
 func helpText() string {
 	var keys = core.APP_KEY_BINDINGS
-	var both = func(a string, b string) string { return a + " / " + b }
+	// both is the keys of an action and its opposite, without the keys of
+	// sequences that are turned off
+	var both = func(a string, b string) string {
+		return strings.Join(slices.DeleteFunc([]string{a, b}, func(s string) bool { return s == "" }), " / ")
+	}
+	// The key that goes to the top alone waits for the rest of its sequence
+	var moveTop = core.FormatSequenceOr(keys.MoveTopSequence, core.FormatRune(keys.MovePageTopRune))
 	// withMod is the runes pressed with the modifier, written as "Alt+k/j"
 	var withMod = func(mod tcell.ModMask, first rune, others ...rune) string {
 		var names = []string{core.FormatModRune(mod, first)}
@@ -67,6 +74,7 @@ func helpText() string {
 			{core.FormatKey(keys.ToggleServicePages), "Show or hide the pages of the service"},
 			{both(core.FormatModRune(keys.PageChangeModKey, keys.PageBack), core.FormatModRune(keys.PageChangeModKey, keys.PageForward)),
 				"Go to the page on the left / right"},
+			{both(keys.PageBackSequence, keys.PageForwardSequence), "Go to the page on the left / right"},
 			{both(core.FormatModKey(keys.HistoryModKey, keys.HistoryBack), core.FormatModKey(keys.HistoryModKey, keys.HistoryForward)),
 				"Go back / forward through the pages shown"},
 			{both(core.FormatKey(keys.ViewFocusUp), core.FormatKey(keys.ViewFocusDown)), "Move to the pane above / below"},
@@ -85,7 +93,7 @@ func helpText() string {
 			{core.FormatKey(keys.ClearTable), "Clear the table"},
 			{core.FormatRune(keys.Find), "Search the table"},
 			{both(core.FormatRune(keys.NextSearch), core.FormatRune(keys.PrevSearch)), "Go to the next / previous match"},
-			{both(core.FormatRune(keys.MovePageTopRune), core.FormatRune(keys.MovePageBottomRune)), "Go to the first / last row"},
+			{both(moveTop, core.FormatRune(keys.MovePageBottomRune)), "Go to the first / last row"},
 			{core.FormatRune(keys.TextCopy), "Copy the text of the cell"},
 			{core.FormatRune(keys.SaveTable), "Save the table to a csv file"},
 			{core.FormatRune(keys.TableQuery), "Query the table, such as DynamoDB or the marked log groups"},
@@ -97,6 +105,7 @@ func helpText() string {
 			{core.FormatRune(keys.TextCopy), "Copy the value of the selected row"},
 			{core.FormatRune(keys.ToggleRawView), "Switch between the details and the api response as json"},
 			{core.FormatRune(keys.OpenLink), "Open the resource an underlined value links to"},
+			{keys.OpenLinkSequence, "Open the resource an underlined value links to"},
 		}},
 		{"Text views", [][2]string{
 			{withMod(tcell.ModNone, keys.MoveUpRune, keys.MoveDownRune, keys.MoveLeftRune, keys.MoveRightRune),
@@ -104,6 +113,7 @@ func helpText() string {
 			{both(core.FormatRune(keys.TextViewWordRight), core.FormatRune(keys.TextViewWordLeft)), "Move a word forward / back"},
 			{both(core.FormatRune(keys.MoveLineStartRune), core.FormatRune(keys.MoveLineEndRune)), "Move to the start / end of the line"},
 			{both(core.FormatKey(keys.TextViewPageUp), core.FormatKey(keys.TextViewPageDown)), "Move a page up / down"},
+			{both(moveTop, core.FormatRune(keys.MovePageBottomRune)), "Move to the top / bottom"},
 			{core.FormatRune(keys.TextViewVisualMode), "Select text in visual mode"},
 			{core.FormatRune(keys.TextCopy), "Copy the selected text, in visual mode"},
 			{core.FormatKey(keys.Escape), "Go back to normal mode"},
@@ -120,6 +130,10 @@ func helpText() string {
 	for _, section := range sections {
 		fmt.Fprintf(&text, "\n%s:\n", section.heading)
 		for _, key := range section.keys {
+			// A sequence that is turned off has no keys to list
+			if key[0] == "" {
+				continue
+			}
 			fmt.Fprintf(&text, " %-22s %s\n", key[0], key[1])
 		}
 	}

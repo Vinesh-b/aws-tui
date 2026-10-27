@@ -178,7 +178,7 @@ func TestPaginatorView__CutsSessionDetailsOffBeforeThePills(t *testing.T) {
 	var screen = drawPaginator(t, view, 80)
 
 	var line = screenLine(screen)
-	if !strings.Contains(line, "🭃Execution Details🭎  Alt+[ ]  Profile") {
+	if !strings.Contains(line, "🭃Execution Details🭎  gT gt  Profile") {
 		t.Errorf("line = %q, want the pills and hint kept and the session details after them", line)
 	}
 }
@@ -246,10 +246,10 @@ func TestPaginatorView__ShowsPageKeysOnlyWithMoreThanOnePage(t *testing.T) {
 	var view, theme = newTestPaginator(t, tcell.ColorBlue)
 
 	var screen = drawPaginator(t, view, 120)
-	if !strings.Contains(screenLine(screen), "🭃Execution Details🭎  Alt+[ ]") {
+	if !strings.Contains(screenLine(screen), "🭃Execution Details🭎  gT gt") {
 		t.Errorf("line = %q, want the page keys after the pills", screenLine(screen))
 	}
-	if fg, _ := lineColours(t, screen, "Alt+[ ]"); fg != theme.PlaceholderTextColour {
+	if fg, _ := lineColours(t, screen, "gT gt"); fg != theme.PlaceholderTextColour {
 		t.Errorf("hint fg = %x, want %x", fg.Hex(), theme.PlaceholderTextColour.Hex())
 	}
 
@@ -355,10 +355,11 @@ func TestPaginatorView__StopRemovesApiResetListener(t *testing.T) {
 	}
 }
 
-func TestPageKeysHint__FollowsThePageChangeModifier(t *testing.T) {
+func TestPageKeysHint__FollowsThePageChangeModifierWithoutSequences(t *testing.T) {
 	var original = APP_KEY_BINDINGS
 	t.Cleanup(func() { APP_KEY_BINDINGS = original })
 	APP_KEY_BINDINGS.PageChangeModKey = tcell.ModCtrl
+	APP_KEY_BINDINGS.PageForwardSequence = ""
 
 	if got := pageKeysHint(); got != "Ctrl+[ ]" {
 		t.Errorf("hint = %q, want Ctrl+[ ]", got)

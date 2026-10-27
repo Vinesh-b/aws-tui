@@ -436,6 +436,7 @@ func CreateApplication(
 	var pages = tview.NewPages()
 	var serviceListHidden = false
 	var nav = newNavigator(app, pages, serviceViews)
+	var sequencer = core.NewKeySequencer()
 
 	for _, item := range serviceViews {
 		var name = item.MainText
@@ -466,6 +467,9 @@ func CreateApplication(
 	var lastFocus = app.GetFocus()
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		event = core.NormalizeKeyEvent(event)
+		if event = sequencer.HandleEvent(event, app.GetFocus()); event == nil {
+			return nil
+		}
 		var hideServiceListFunc = func() {
 			pages.HidePage(FLOATING_SERVICE_LIST)
 			app.SetFocus(lastFocus)
