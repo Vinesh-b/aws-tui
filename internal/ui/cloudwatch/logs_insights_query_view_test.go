@@ -281,7 +281,7 @@ func TestInsightsQueryView__DeletingASavedQueryForgetsIt(t *testing.T) {
 	}
 	view.savedTable.Select(1, 0)
 
-	view.deleteSelectedQuery()
+	uitest.PressTableRune(view.savedTable, core.APP_KEY_BINDINGS.RemoveItem)
 
 	uitest.AssertTableRows(t, view.savedTable, []core.TableRow{{"Name"}, {"b"}})
 	var kept, _ = settings.LoadQueries(path)

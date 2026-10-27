@@ -34,6 +34,8 @@ func FormatKey(key tcell.Key) string {
 		return "Home"
 	case tcell.KeyEnd:
 		return "End"
+	case tcell.KeyCtrlSpace:
+		return "Ctrl+Space"
 	}
 
 	if key >= tcell.KeyCtrlA && key <= tcell.KeyCtrlZ {
@@ -54,16 +56,25 @@ func FormatRune(r rune) string {
 
 // FormatModRune renders a rune pressed with a modifier, for example "Alt+]".
 func FormatModRune(mod tcell.ModMask, r rune) string {
-	var parts []string
+	return strings.Join(append(modifierNames(mod), FormatRune(r)), "+")
+}
+
+// FormatModKey renders a special key pressed with a modifier, for example
+// "Alt+Left".
+func FormatModKey(mod tcell.ModMask, key tcell.Key) string {
+	return strings.Join(append(modifierNames(mod), FormatKey(key)), "+")
+}
+
+func modifierNames(mod tcell.ModMask) []string {
+	var names []string
 	if mod&tcell.ModCtrl != 0 {
-		parts = append(parts, "Ctrl")
+		names = append(names, "Ctrl")
 	}
 	if mod&tcell.ModAlt != 0 {
-		parts = append(parts, "Alt")
+		names = append(names, "Alt")
 	}
 	if mod&tcell.ModShift != 0 {
-		parts = append(parts, "Shift")
+		names = append(names, "Shift")
 	}
-	parts = append(parts, FormatRune(r))
-	return strings.Join(parts, "+")
+	return names
 }

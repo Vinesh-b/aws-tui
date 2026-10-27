@@ -188,7 +188,7 @@ func (inst *ServiceRootView) InitPageNavigation() {
 
 	inst.pages.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Modifiers() {
-		case tcell.ModAlt:
+		case APP_KEY_BINDINGS.PageChangeModKey:
 			switch event.Rune() {
 			case APP_KEY_BINDINGS.PageBack:
 				inst.pageIndex = (inst.pageIndex - 1 + numPages) % numPages

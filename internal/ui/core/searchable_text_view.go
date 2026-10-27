@@ -118,7 +118,7 @@ func NewSearchableTextView(title string, appContext *AppContext) *SearchableText
 		AddKey(APP_KEY_BINDINGS.TextViewPageDown, "Move page down").
 		AddRune(APP_KEY_BINDINGS.MovePageTopRune, "Move to top").
 		AddRune(APP_KEY_BINDINGS.MovePageBottomRune, "Move to bottom").
-		AddItem("v", "Visual mode to select Text", nil).
+		AddRune(APP_KEY_BINDINGS.TextViewVisualMode, "Visual mode to select Text").
 		AddRune(APP_KEY_BINDINGS.TextCopy, "Copy selected text in visual mode")
 
 	return view
@@ -234,7 +234,7 @@ func (inst *SearchableTextView) baseKeyInuptHandler(event *tcell.EventKey) *tcel
 		tcell.KeyCtrlU, tcell.KeyBackspace2, tcell.KeyDelete, tcell.KeyTab,
 		tcell.KeyEnter:
 		return nil
-	case tcell.KeyEsc:
+	case APP_KEY_BINDINGS.Escape:
 		inst.vimMode = VimModeNormal
 		var _, _, end_pos = inst.textArea.GetSelection()
 		inst.textArea.Select(end_pos, end_pos)
@@ -269,10 +269,10 @@ func (inst *SearchableTextView) normalModeInputHandler(event *tcell.EventKey) *t
 	var updateSearch = false
 
 	switch event.Rune() {
-	case 'v':
+	case APP_KEY_BINDINGS.TextViewVisualMode:
 		inst.vimMode = VimModeVisual
 		return nil
-	case 'i':
+	case APP_KEY_BINDINGS.TextViewInsertMode:
 		inst.vimMode = VimModeInsert
 		return nil
 	case APP_KEY_BINDINGS.MoveUpRune:
@@ -341,7 +341,7 @@ func (inst *SearchableTextView) visualModeInputHandler(event *tcell.EventKey) *t
 	}
 
 	switch event.Rune() {
-	case 'v':
+	case APP_KEY_BINDINGS.TextViewVisualMode:
 		inst.vimMode = VimModeNormal
 		return nil
 	case APP_KEY_BINDINGS.TextCopy:

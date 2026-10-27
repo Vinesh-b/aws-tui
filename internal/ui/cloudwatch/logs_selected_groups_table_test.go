@@ -57,7 +57,7 @@ func TestSelectedGroupsTable__UnmarkKeyUnmarksTheSelectedGroup(t *testing.T) {
 	var table = newSelectedGroupsTable("/a", "/b")
 	table.Select(1, 0)
 
-	uitest.PressTableRune(table, 'u')
+	uitest.PressTableRune(table, core.APP_KEY_BINDINGS.RemoveItem)
 
 	if got := table.marks.All(); !slices.Equal(got, []string{"/b"}) {
 		t.Errorf("groups = %v, want [/b]", got)

@@ -230,7 +230,8 @@ func (inst *PaginatorView) pageBarOffset() int {
 
 // pageKeysHint is the keys that change page, shown after the page pills.
 func pageKeysHint() string {
-	return fmt.Sprintf("Alt+%c %c", APP_KEY_BINDINGS.PageBack, APP_KEY_BINDINGS.PageForward)
+	return FormatModRune(APP_KEY_BINDINGS.PageChangeModKey, APP_KEY_BINDINGS.PageBack) + " " +
+		FormatRune(APP_KEY_BINDINGS.PageForward)
 }
 
 // formatSessionDuration shows hours and minutes, or minutes, and seconds only

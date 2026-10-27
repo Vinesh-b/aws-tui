@@ -92,6 +92,8 @@ type KeyBindings struct {
 	FormFocusPrev      tcell.Key
 	TableScan          rune
 	TableQuery         rune
+	Mark               rune
+	RemoveItem         rune
 	TextCopy           rune
 	ToggleRawView      rune
 	OpenLink           rune
@@ -103,13 +105,15 @@ type KeyBindings struct {
 	TextViewWordLeft   rune
 	TextViewUndo       rune
 	TextViewRedo       tcell.Key
+	TextViewVisualMode rune
+	TextViewInsertMode rune
 }
 
 var APP_KEY_BINDINGS = KeyBindings{
 	Help:               '?',
 	Quit:               'q',
 	Escape:             tcell.KeyESC,
-	ToggleServicesMenu: tcell.KeyCtrlM,
+	ToggleServicesMenu: tcell.KeyCtrlSpace,
 	ToggleServicePages: tcell.KeyCtrlP,
 	Reset:              'r',
 	LoadMoreData:       'n',
@@ -143,6 +147,8 @@ var APP_KEY_BINDINGS = KeyBindings{
 	FormFocusPrev:      tcell.KeyUp,
 	TableScan:          's',
 	TableQuery:         'q',
+	Mark:               'm',
+	RemoveItem:         'x',
 	TextCopy:           'y',
 	ToggleRawView:      'J',
 	OpenLink:           'o',
@@ -152,4 +158,6 @@ var APP_KEY_BINDINGS = KeyBindings{
 	TextViewWordRight:  'w',
 	TextViewUndo:       'u',
 	TextViewRedo:       tcell.KeyCtrlR,
+	TextViewVisualMode: 'v',
+	TextViewInsertMode: 'i',
 }

@@ -201,7 +201,7 @@ func (inst *InsightsQueryInputView) initSavedQueries() {
 		inst.appCtx.App.SetFocus(inst.queryTextArea)
 	})
 	inst.savedTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Rune() == 'd' {
+		if event.Rune() == core.APP_KEY_BINDINGS.RemoveItem {
 			inst.deleteSelectedQuery()
 			return nil
 		}

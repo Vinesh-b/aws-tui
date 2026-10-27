@@ -132,14 +132,15 @@ func NewViewNavigation2D(
 			return event
 		}
 
-		switch event.Key() {
+		var key = paneKey(event, view.keyLeft, view.app.GetFocus())
+		switch key {
 		case view.keyUp, view.keyDown, view.keyLeft, view.keyRight:
 			var rowIdx, colIdx = view.currentFocus()
 			var focused = view.orderedViews[rowIdx][colIdx]
-			if nested, ok := focused.(NestedNavigation); ok && nested.NavigateWithin(event.Key()) {
+			if nested, ok := focused.(NestedNavigation); ok && nested.NavigateWithin(key) {
 				return nil
 			}
-			view.move(event.Key(), true)
+			view.move(key, true)
 			return nil
 		}
 

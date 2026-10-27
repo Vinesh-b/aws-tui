@@ -354,3 +354,13 @@ func TestPaginatorView__StopRemovesApiResetListener(t *testing.T) {
 		t.Error("only the running paginator should be told of the reset")
 	}
 }
+
+func TestPageKeysHint__FollowsThePageChangeModifier(t *testing.T) {
+	var original = APP_KEY_BINDINGS
+	t.Cleanup(func() { APP_KEY_BINDINGS = original })
+	APP_KEY_BINDINGS.PageChangeModKey = tcell.ModCtrl
+
+	if got := pageKeysHint(); got != "Ctrl+[ ]" {
+		t.Errorf("hint = %q, want Ctrl+[ ]", got)
+	}
+}

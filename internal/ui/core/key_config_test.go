@@ -104,7 +104,8 @@ func TestDefaultKeyBindings__HaveNoConflicts(t *testing.T) {
 func TestParseKey__ReadsWhatFormatKeyWrites(t *testing.T) {
 	for _, key := range []tcell.Key{
 		tcell.KeyESC, tcell.KeyEnter, tcell.KeyPgUp, tcell.KeyPgDn, tcell.KeyUp,
-		tcell.KeyCtrlX, tcell.KeyCtrlA, tcell.KeyCtrlZ,
+		tcell.KeyCtrlX, tcell.KeyCtrlA, tcell.KeyCtrlZ, tcell.KeyCtrlSpace,
+		tcell.KeyBackspace,
 	} {
 		if got, err := ParseKey(FormatKey(key)); err != nil || got != key {
 			t.Errorf("ParseKey(%q) = %v, %v; want %v", FormatKey(key), got, err, key)

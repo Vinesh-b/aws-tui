@@ -15,6 +15,9 @@ func TestFormatKey(t *testing.T) {
 		tcell.KeyCtrlU: "Ctrl+U",
 		tcell.KeyEnter: "Enter",
 		tcell.KeyUp:    "Up",
+
+		tcell.KeyCtrlSpace: "Ctrl+Space",
+		tcell.KeyBackspace: "Backspace",
 	}
 	for key, want := range tests {
 		if got := FormatKey(key); got != want {
@@ -37,6 +40,12 @@ func TestFormatModRune(t *testing.T) {
 		t.Errorf("got %q", got)
 	}
 	if got := FormatModRune(tcell.ModCtrl|tcell.ModShift, 'x'); got != "Ctrl+Shift+x" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestFormatModKey(t *testing.T) {
+	if got := FormatModKey(tcell.ModAlt, tcell.KeyLeft); got != "Alt+Left" {
 		t.Errorf("got %q", got)
 	}
 }

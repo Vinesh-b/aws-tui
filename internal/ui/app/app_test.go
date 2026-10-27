@@ -270,13 +270,13 @@ func TestCreateApplication__HistoryKeysGoBackAndForwardBetweenServices(t *testin
 	awaitInUse(t, tuiApp, screen, "Default")
 	tuiApp.QueueEvent(tcell.NewEventKey(core.APP_KEY_BINDINGS.ToggleServicesMenu, 0, tcell.ModNone))
 	tuiApp.QueueEvent(tcell.NewEventKey(tcell.KeyRune, '?', tcell.ModNone))
-	uitest.AwaitScreenText(t, tuiApp, screen, "Service-Name, Page-Name")
+	uitest.AwaitScreenText(t, tuiApp, screen, "The bar at the bottom of a service")
 
 	pressHistoryKey(tuiApp, core.APP_KEY_BINDINGS.HistoryBack)
 	awaitInUse(t, tuiApp, screen, "Default")
 
 	pressHistoryKey(tuiApp, core.APP_KEY_BINDINGS.HistoryForward)
-	uitest.AwaitScreenText(t, tuiApp, screen, "Service-Name, Page-Name")
+	uitest.AwaitScreenText(t, tuiApp, screen, "The bar at the bottom of a service")
 }
 
 func TestCreateApplication__PickingAThemeInSettingsKeepsTheSettingsPage(t *testing.T) {

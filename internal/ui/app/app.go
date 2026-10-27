@@ -465,6 +465,7 @@ func CreateApplication(
 
 	var lastFocus = app.GetFocus()
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		event = core.NormalizeKeyEvent(event)
 		var hideServiceListFunc = func() {
 			pages.HidePage(FLOATING_SERVICE_LIST)
 			app.SetFocus(lastFocus)

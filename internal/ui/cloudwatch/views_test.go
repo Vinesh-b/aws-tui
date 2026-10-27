@@ -68,7 +68,7 @@ func TestLogsHomeView__MarkKeyMarksTheLogGroup(t *testing.T) {
 	var appCtx = uitest.NewAppContext()
 	var screen = showLogGroups(t, appCtx, "/aws/lambda/orders")
 
-	sendRune(t, appCtx, logGroupMarkRune, tcell.ModNone)
+	sendRune(t, appCtx, core.APP_KEY_BINDINGS.Mark, tcell.ModNone)
 
 	uitest.AwaitScreenText(t, appCtx.App, screen, "❬1 marked❭")
 	uitest.AwaitScreenText(t, appCtx.App, screen, logGroupMarker+" /aws/lambda/orders")
@@ -82,6 +82,6 @@ func TestLogsHomeView__QueryKeyWithoutMarksQueriesTheGroupItIsOn(t *testing.T) {
 
 	uitest.AwaitScreenText(t, appCtx.App, screen, "Saved Queries")
 	// The groups page is the next one after Insights
-	sendRune(t, appCtx, core.APP_KEY_BINDINGS.PageForward, tcell.ModAlt)
+	sendRune(t, appCtx, core.APP_KEY_BINDINGS.PageForward, core.APP_KEY_BINDINGS.PageChangeModKey)
 	uitest.AwaitScreenText(t, appCtx.App, screen, "❬1 marked❭")
 }

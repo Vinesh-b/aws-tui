@@ -48,7 +48,7 @@ func TestLogGroupsTable__MarkKeyMarksTheGroupAndKeepsTheSelection(t *testing.T) 
 	var table = newPopulatedLogGroupsTable("/aws/lambda/orders", "/aws/lambda/billing")
 	table.Select(2, 0)
 
-	uitest.PressTableRune(table, logGroupMarkRune)
+	uitest.PressTableRune(table, core.APP_KEY_BINDINGS.Mark)
 
 	if got := table.Marks().All(); !slices.Equal(got, []string{"/aws/lambda/billing"}) {
 		t.Errorf("marks = %v, want [/aws/lambda/billing]", got)
@@ -70,8 +70,8 @@ func TestLogGroupsTable__MarkKeyOnAMarkedGroupUnmarksIt(t *testing.T) {
 	var table = newPopulatedLogGroupsTable("/aws/lambda/orders")
 	table.Select(1, 0)
 
-	uitest.PressTableRune(table, logGroupMarkRune)
-	uitest.PressTableRune(table, logGroupMarkRune)
+	uitest.PressTableRune(table, core.APP_KEY_BINDINGS.Mark)
+	uitest.PressTableRune(table, core.APP_KEY_BINDINGS.Mark)
 
 	if got := table.Marks().Len(); got != 0 {
 		t.Errorf("marks = %v, want none", table.Marks().All())

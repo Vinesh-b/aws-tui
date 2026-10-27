@@ -45,7 +45,7 @@ func NewSelectedGroupsTable(
 		case core.APP_KEY_BINDINGS.Reset:
 			view.marks.Clear()
 			return nil
-		case rune('u'):
+		case core.APP_KEY_BINDINGS.RemoveItem:
 			var groupName = view.GetSelectedLogGroup()
 			serviceViewCtx.Logger.Printf("Removing: %v", groupName)
 			view.marks.Remove(groupName)

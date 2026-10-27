@@ -25,13 +25,13 @@ type keyBinding struct {
 var keyBindingConflictGroups = [][]string{
 	{
 		"help", "reset", "loadMoreData", "saveTable", "find", "textCopy",
-		"moveUp", "moveDown", "moveTop", "moveBottom",
+		"moveUp", "moveDown", "moveTop", "moveBottom", "mark", "removeItem",
 	},
 	{
 		"help", "find", "nextSearch", "prevSearch", "moveUp", "moveDown",
 		"moveLeft", "moveRight", "moveLineStart", "moveLineEnd", "moveTop",
 		"moveBottom", "textCopy", "textViewWordRight", "textViewWordLeft",
-		"textViewUndo",
+		"textViewUndo", "textViewVisualMode", "textViewInsertMode",
 	},
 	{"viewFocusUp", "viewFocusDown", "viewFocusLeft", "viewFocusRight"},
 	{"historyBack", "historyForward"},
@@ -76,6 +76,8 @@ func keyBindingFields(bindings *KeyBindings) map[string]keyBinding {
 		"formFocusPrev":      {key: &bindings.FormFocusPrev},
 		"tableScan":          {rune: &bindings.TableScan},
 		"tableQuery":         {rune: &bindings.TableQuery},
+		"mark":               {rune: &bindings.Mark},
+		"removeItem":         {rune: &bindings.RemoveItem},
 		"textCopy":           {rune: &bindings.TextCopy},
 		"toggleRawView":      {rune: &bindings.ToggleRawView},
 		"openLink":           {rune: &bindings.OpenLink},
@@ -85,6 +87,8 @@ func keyBindingFields(bindings *KeyBindings) map[string]keyBinding {
 		"textViewWordLeft":   {rune: &bindings.TextViewWordLeft},
 		"textViewUndo":       {rune: &bindings.TextViewUndo},
 		"textViewRedo":       {key: &bindings.TextViewRedo},
+		"textViewVisualMode": {rune: &bindings.TextViewVisualMode},
+		"textViewInsertMode": {rune: &bindings.TextViewInsertMode},
 	}
 }
 
@@ -215,10 +219,13 @@ func ParseKey(text string) (tcell.Key, error) {
 	var lower = strings.ToLower(strings.TrimSpace(text))
 
 	if letter, ok := strings.CutPrefix(lower, "ctrl+"); ok {
+		if letter == "space" {
+			return tcell.KeyCtrlSpace, nil
+		}
 		if len(letter) == 1 && letter[0] >= 'a' && letter[0] <= 'z' {
 			return tcell.KeyCtrlA + tcell.Key(letter[0]-'a'), nil
 		}
-		return 0, fmt.Errorf("%q is not a key, Ctrl needs a letter such as Ctrl+X", text)
+		return 0, fmt.Errorf("%q is not a key, Ctrl needs a letter or Space such as Ctrl+X", text)
 	}
 
 	var named = map[string]tcell.Key{
@@ -226,7 +233,7 @@ func ParseKey(text string) (tcell.Key, error) {
 		"escape":    tcell.KeyESC,
 		"enter":     tcell.KeyEnter,
 		"tab":       tcell.KeyTab,
-		"backspace": tcell.KeyBackspace2,
+		"backspace": tcell.KeyBackspace,
 		"pgup":      tcell.KeyPgUp,
 		"pgdn":      tcell.KeyPgDn,
 		"up":        tcell.KeyUp,

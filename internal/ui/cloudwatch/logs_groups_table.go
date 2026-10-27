@@ -17,9 +17,7 @@ import (
 const (
 	logGroupMarkCol = 0
 	logGroupNameCol = 1
-	// logGroupMarkRune marks the log group, to be queried by Insights
-	logGroupMarkRune = ' '
-	logGroupMarker   = "●"
+	logGroupMarker  = "●"
 )
 
 type LogGroupsTable struct {
@@ -60,7 +58,7 @@ func NewLogGroupsTable(
 		case core.APP_KEY_BINDINGS.Reset, core.APP_KEY_BINDINGS.LoadMoreData:
 			view.RefreshLogGroups(true)
 			return nil
-		case logGroupMarkRune:
+		case core.APP_KEY_BINDINGS.Mark:
 			var row, _ = view.GetTable().GetSelection()
 			if row > 0 {
 				view.marks.Toggle(view.GetPrivateData(row, logGroupNameCol))

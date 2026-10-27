@@ -3,6 +3,9 @@ package core
 import (
 	"regexp"
 	"testing"
+
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 )
 
 func TestMatchLines__MatchesCountRuneForEveryMatch(t *testing.T) {
@@ -28,5 +31,24 @@ func TestMatchLines__MatchesCountRuneForEveryMatch(t *testing.T) {
 				t.Errorf("%q match %d at %d: got %d, want %d", text, i, pos[0], lines[i], want)
 			}
 		}
+	}
+}
+
+func TestSearchableTextView__VisualModeFollowsItsKeyBinding(t *testing.T) {
+	var original = APP_KEY_BINDINGS
+	t.Cleanup(func() { APP_KEY_BINDINGS = original })
+	APP_KEY_BINDINGS.TextViewVisualMode = 'V'
+	var view = NewSearchableTextView("Record", newTestAppContext())
+	var press = func(r rune) {
+		view.textArea.InputHandler()(tcell.NewEventKey(tcell.KeyRune, r, tcell.ModNone), func(tview.Primitive) {})
+	}
+
+	press('v')
+	if view.vimMode != VimModeNormal {
+		t.Fatalf("v changed the mode to %v, want it to stay normal", view.vimMode)
+	}
+	press('V')
+	if view.vimMode != VimModeVisual {
+		t.Errorf("V gave mode %v, want visual", view.vimMode)
 	}
 }

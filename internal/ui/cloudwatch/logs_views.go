@@ -233,7 +233,7 @@ func NewLogsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchLogsApi) core
 		logGroupsView.DisplayMessage(
 			core.InfoPrompt,
 			"No log groups are marked. Mark them with %s, then press %s to query them",
-			core.FormatRune(logGroupMarkRune),
+			core.FormatRune(core.APP_KEY_BINDINGS.Mark),
 			core.FormatRune(core.APP_KEY_BINDINGS.TableQuery),
 		)
 	}
