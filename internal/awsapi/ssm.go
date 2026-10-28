@@ -19,6 +19,14 @@ type SystemsManagerApi interface {
 		ctx context.Context,
 		name string, reset bool,
 	) ([]types.ParameterHistory, error)
+	PutParameter(
+		ctx context.Context,
+		name string, value string, paramType types.ParameterType,
+	) error
+	CreateParameter(
+		ctx context.Context,
+		name string, value string, paramType types.ParameterType,
+	) error
 }
 
 type systemsManagerApi struct {
@@ -103,4 +111,61 @@ func (inst *systemsManagerApi) GetParameterHistory(
 	}
 
 	return output.Parameters, nil
+}
+
+// PutParameter stores the value as a new version of an existing parameter
+func (inst *systemsManagerApi) PutParameter(
+	ctx context.Context,
+	name string, value string, paramType types.ParameterType,
+) error {
+	if err := requireArg("parameter name", name); err != nil {
+		return err
+	}
+	if err := requireArg("parameter value", value); err != nil {
+		return err
+	}
+
+	var _, err = GetAwsApiClients().ssm.PutParameter(
+		ctx,
+		&ssm.PutParameterInput{
+			Name:      aws.String(name),
+			Value:     aws.String(value),
+			Type:      paramType,
+			Overwrite: aws.Bool(true),
+		},
+	)
+	if err != nil {
+		return inst.logErr(err)
+	}
+
+	return nil
+}
+
+// CreateParameter adds a parameter that does not exist yet, and fails rather
+// than replace one that does
+func (inst *systemsManagerApi) CreateParameter(
+	ctx context.Context,
+	name string, value string, paramType types.ParameterType,
+) error {
+	if err := requireArg("parameter name", name); err != nil {
+		return err
+	}
+	if err := requireArg("parameter value", value); err != nil {
+		return err
+	}
+
+	var _, err = GetAwsApiClients().ssm.PutParameter(
+		ctx,
+		&ssm.PutParameterInput{
+			Name:      aws.String(name),
+			Value:     aws.String(value),
+			Type:      paramType,
+			Overwrite: aws.Bool(false),
+		},
+	)
+	if err != nil {
+		return inst.logErr(err)
+	}
+
+	return nil
 }

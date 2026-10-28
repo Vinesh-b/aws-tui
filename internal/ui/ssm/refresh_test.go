@@ -1,38 +1,19 @@
 package ssm
 
 import (
-	"context"
 	"errors"
 	"testing"
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"aws-tui/internal/ui/ssm/ssmfake"
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
 )
 
-type fakeSystemsManagerApi struct {
-	awsapi.SystemsManagerApi
-	parameters []types.Parameter
-	history    []types.ParameterHistory
-	err        error
-}
-
-func (f *fakeSystemsManagerApi) GetParametersByPath(
-	ctx context.Context, path string, reset bool,
-) ([]types.Parameter, error) {
-	return f.parameters, f.err
-}
-
-func (f *fakeSystemsManagerApi) GetParameterHistory(
-	ctx context.Context, name string, reset bool,
-) ([]types.ParameterHistory, error) {
-	return f.history, f.err
-}
-
 func TestParametersTable__RefreshLoadsParametersFromApi(t *testing.T) {
-	var api = &fakeSystemsManagerApi{parameters: []types.Parameter{newParameter("/app/db/host", 3)}}
+	var api = ssmfake.New(ssmfake.WithParameters([]types.Parameter{newParameter("/app/db/host", 3)}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SystemsManagerApi](api)
 	var table = NewSSMParametersListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -46,7 +27,7 @@ func TestParametersTable__RefreshLoadsParametersFromApi(t *testing.T) {
 }
 
 func TestParametersTable__RefreshReportsApiError(t *testing.T) {
-	var api = &fakeSystemsManagerApi{err: errors.New("access denied")}
+	var api = ssmfake.New(ssmfake.WithErr(errors.New("access denied")))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SystemsManagerApi](api)
 	var table = NewSSMParametersListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -61,9 +42,9 @@ func TestParametersTable__RefreshReportsApiError(t *testing.T) {
 }
 
 func TestParametersTable__FilterByNameShowsMatchingParameters(t *testing.T) {
-	var api = &fakeSystemsManagerApi{parameters: []types.Parameter{
+	var api = ssmfake.New(ssmfake.WithParameters([]types.Parameter{
 		newParameter("/app/db/host", 1), newParameter("/app/cache/url", 1),
-	}}
+	}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SystemsManagerApi](api)
 	var table = NewSSMParametersListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -79,7 +60,7 @@ func TestParametersTable__FilterByNameShowsMatchingParameters(t *testing.T) {
 }
 
 func TestParameterHistoryTable__RefreshLoadsHistoryFromApi(t *testing.T) {
-	var api = &fakeSystemsManagerApi{history: []types.ParameterHistory{newHistory(2, "new"), newHistory(1, "old")}}
+	var api = ssmfake.New(ssmfake.WithHistory([]types.ParameterHistory{newHistory(2, "new"), newHistory(1, "old")}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SystemsManagerApi](api)
 	var table = NewSSMParameterHistoryTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)

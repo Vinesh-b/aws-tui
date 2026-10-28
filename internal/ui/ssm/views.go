@@ -19,6 +19,8 @@ const (
 	SsmTabNameParameterHistory SsmTabName = "Parameter History"
 	SsmTabNameValue            SsmTabName = "Value"
 	SsmTabNameDetails          SsmTabName = "Details"
+	SsmTabNameUpdate           SsmTabName = "Update Value"
+	SsmTabNameCreate           SsmTabName = "Create Parameter"
 )
 
 type ParametersPageView struct {
@@ -27,6 +29,8 @@ type ParametersPageView struct {
 	SSMParameterHistoryTable *SSMParameterHistoryTable
 	ParameterDetailsTable    *ParameterDetailsTable
 	ParameterValueView       *core.JsonTextView[any]
+	UpdateValueView          *ParameterUpdateValuePageView
+	CreateParameterView      *ParameterCreatePageView
 	DetailsTabView           *core.TabViewHorizontal
 	TabView                  *core.TabViewHorizontal
 	serviceCtx               *core.ServiceContext[awsapi.SystemsManagerApi]
@@ -34,6 +38,8 @@ type ParametersPageView struct {
 
 func NewParametersPageView(
 	parameterDetailsTable *ParameterDetailsTable,
+	updateValueView *ParameterUpdateValuePageView,
+	createParameterView *ParameterCreatePageView,
 	ssmParamsListTable *SSMParametersListTable,
 	ssmParamHistoryTable *SSMParameterHistoryTable,
 	serviceCtx *core.ServiceContext[awsapi.SystemsManagerApi],
@@ -54,14 +60,16 @@ func NewParametersPageView(
 
 	var detailsTabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab(SsmTabNameValue, paramValueView.TextView, 0, 1, true).
-		AddTab(SsmTabNameDetails, parameterDetailsTable, 0, 1, true)
+		AddTab(SsmTabNameDetails, parameterDetailsTable, 0, 1, true).
+		AddTab(SsmTabNameUpdate, updateValueView, 0, 1, true).
+		AddTab(SsmTabNameCreate, createParameterView, 0, 1, true)
 
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab(SsmTabNameParameters, ssmParamsListTable, 0, 1, true).
 		AddTab(SsmTabNameParameterHistory, ssmParamHistoryTable, 0, 1, true)
 
-	const detailsSize = 25
-	const itemsTableSize = 75
+	const detailsSize = 40
+	const itemsTableSize = 60
 
 	var mainPage = core.NewResizableView(
 		detailsTabView, detailsSize,
@@ -91,6 +99,8 @@ func NewParametersPageView(
 		SSMParameterHistoryTable: ssmParamHistoryTable,
 		ParameterDetailsTable:    parameterDetailsTable,
 		ParameterValueView:       paramValueView,
+		UpdateValueView:          updateValueView,
+		CreateParameterView:      createParameterView,
 		DetailsTabView:           detailsTabView,
 		TabView:                  tabView,
 		serviceCtx:               serviceCtx,
@@ -102,6 +112,17 @@ func (inst *ParametersPageView) InitInputCapture() {
 		var parameter = inst.SSMParametersListTable.GetSelectedParameter()
 		inst.ParameterValueView.SetText(parameter)
 		inst.ParameterDetailsTable.RefreshDetails(parameter)
+		inst.UpdateValueView.SetSelectedParameter(parameter)
+	})
+
+	// The new parameter is in the listing once it is loaded again
+	inst.CreateParameterView.SetOnParameterCreated(func(name string) {
+		inst.SSMParametersListTable.RefreshParameters("/", true)
+	})
+
+	// The listing has the old value until it is loaded again
+	inst.UpdateValueView.SetOnValueUpdated(func(parameter types.Parameter) {
+		inst.SSMParametersListTable.RefreshParameters("/", true)
 	})
 
 	inst.SSMParameterHistoryTable.SetSelectionChangedFunc(func(row, column int) {
@@ -149,6 +170,8 @@ func NewSystemManagerHomeView(appCtx *core.AppContext, api awsapi.SystemsManager
 
 	var parametersView = NewParametersPageView(
 		NewParameterDetailsTable(serviceCtx),
+		NewParameterUpdateValuePageView(serviceCtx),
+		NewParameterCreatePageView(serviceCtx),
 		NewSSMParametersListTable(serviceCtx),
 		NewSSMParameterHistoryTable(serviceCtx),
 		serviceCtx,

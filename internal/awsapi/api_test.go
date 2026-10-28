@@ -255,6 +255,18 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 		{"put secret value", func() error {
 			return NewSecretsManagerApi(logger).PutSecretValue(context.Background(), "id", "")
 		}, "secret value not set"},
+		{"put parameter name", func() error {
+			return NewSystemsManagerApi(logger).PutParameter(context.Background(), "", "value", "String")
+		}, "parameter name not set"},
+		{"put parameter value", func() error {
+			return NewSystemsManagerApi(logger).PutParameter(context.Background(), "/name", "", "String")
+		}, "parameter value not set"},
+		{"create parameter name", func() error {
+			return NewSystemsManagerApi(logger).CreateParameter(context.Background(), "", "value", "String")
+		}, "parameter name not set"},
+		{"create parameter value", func() error {
+			return NewSystemsManagerApi(logger).CreateParameter(context.Background(), "/name", "", "String")
+		}, "parameter value not set"},
 		{"ssm path", func() error {
 			var _, err = NewSystemsManagerApi(logger).GetParametersByPath(context.Background(), "", true)
 			return err
