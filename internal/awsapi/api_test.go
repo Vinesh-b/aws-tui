@@ -273,6 +273,18 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 		{"delete parameter", func() error {
 			return NewSystemsManagerApi(logger).DeleteParameter(context.Background(), "")
 		}, "parameter name not set"},
+		{"describe key", func() error {
+			var _, err = NewKmsApi(logger).DescribeKey(context.Background(), "")
+			return err
+		}, "key ID not set"},
+		{"key tags", func() error {
+			var _, err = NewKmsApi(logger).ListTags(context.Background(), true, "")
+			return err
+		}, "key ID not set"},
+		{"key policy", func() error {
+			var _, err = NewKmsApi(logger).GetKeyPolicy(context.Background(), "")
+			return err
+		}, "key ID not set"},
 		{"ssm path", func() error {
 			var _, err = NewSystemsManagerApi(logger).GetParametersByPath(context.Background(), "", true)
 			return err

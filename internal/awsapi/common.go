@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
@@ -39,6 +40,7 @@ type AwsApiClients struct {
 	ec2            *ec2.Client
 	eventbridge    *eventbridge.Client
 	iam            *iam.Client
+	kms            *kms.Client
 	lambda         *lambda.Client
 	secretsmanager *secretsmanager.Client
 	sfn            *sfn.Client
@@ -63,6 +65,7 @@ func newAwsApiClients(cfg aws.Config, profile string) *AwsApiClients {
 		ec2:            ec2.NewFromConfig(cfg),
 		eventbridge:    eventbridge.NewFromConfig(cfg),
 		iam:            iam.NewFromConfig(cfg),
+		kms:            kms.NewFromConfig(cfg),
 		lambda:         lambda.NewFromConfig(cfg),
 		secretsmanager: secretsmanager.NewFromConfig(cfg),
 		sfn:            sfn.NewFromConfig(cfg),

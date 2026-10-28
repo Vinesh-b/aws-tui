@@ -9,6 +9,7 @@ import (
 	"aws-tui/internal/ui/dynamodb"
 	"aws-tui/internal/ui/eventbridge"
 	"aws-tui/internal/ui/iam"
+	"aws-tui/internal/ui/kms"
 	"aws-tui/internal/ui/lambda"
 	"aws-tui/internal/ui/s3"
 	"aws-tui/internal/ui/secretsmanager"
@@ -451,6 +452,9 @@ func CreateApplication(
 		}),
 		newServiceItem("󰂚 "+string(core.SNS), "Topics and their attributes", rune('󰯉'), func() core.ServicePage {
 			return sns.NewSnsHomeView(appContext, awsapi.NewSnsApi(appContext.Logger))
+		}),
+		newServiceItem("󰯄 "+string(core.KMS), "Encryption keys, aliases and policies", rune('󰯉'), func() core.ServicePage {
+			return kms.NewKmsHomeView(appContext, awsapi.NewKmsApi(appContext.Logger))
 		}),
 		newServiceItem("󰌋 "+string(core.SECRETS_MANAGER), "Secrets and their values", rune('󰯉'), func() core.ServicePage {
 			return secretsmanager.NewSecretsManagerHomeView(appContext, awsapi.NewSecretsManagerApi(appContext.Logger))
