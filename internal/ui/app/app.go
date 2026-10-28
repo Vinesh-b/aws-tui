@@ -7,6 +7,7 @@ import (
 	"aws-tui/internal/ui/cloudwatch"
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/dynamodb"
+	"aws-tui/internal/ui/ec2"
 	"aws-tui/internal/ui/eventbridge"
 	"aws-tui/internal/ui/iam"
 	"aws-tui/internal/ui/kms"
@@ -453,6 +454,9 @@ func CreateApplication(
 		}),
 		newServiceItem(" "+string(core.CLOUDWATCH_METRICS), "View metrics", rune('󰯉'), func() core.ServicePage {
 			return cloudwatch.NewMetricsHomeView(appContext, awsapi.NewCloudWatchMetricsApi(appContext.Logger))
+		}),
+		newServiceItem(" "+string(core.EC2), "Instances and their details", rune('󰯉'), func() core.ServicePage {
+			return ec2.NewEc2HomeView(appContext, awsapi.NewEc2Api(appContext.Logger))
 		}),
 		newServiceItem("󱇱 "+string(core.VPC), "VPCs, endpoints, subnets...", rune('󰯉'), func() core.ServicePage {
 			return vpc.NewVpcHomeView(appContext, awsapi.NewEc2Api(appContext.Logger))

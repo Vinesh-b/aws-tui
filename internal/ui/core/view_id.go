@@ -11,6 +11,7 @@ const (
 	CLOUDWATCH_METRICS ViewId = "CloudWatch Metrics"
 	CLOUDFORMATION     ViewId = "CloudFormation"
 	DYNAMODB           ViewId = "DynamoDB"
+	EC2                ViewId = "EC2"
 	EVENTBRIDGE        ViewId = "EventBridge"
 	IAM                ViewId = "IAM"
 	S3BUCKETS          ViewId = "S3 Buckets"

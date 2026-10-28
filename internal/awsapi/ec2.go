@@ -10,6 +10,9 @@ import (
 )
 
 type Ec2Api interface {
+	// ListInstances returns every instance of the account in the region,
+	// whatever its state, without the reservations they were launched in.
+	ListInstances(ctx context.Context, force bool) ([]types.Instance, error)
 	ListVpcs(ctx context.Context, force bool) ([]types.Vpc, error)
 	DescribeVpcEndpoints(ctx context.Context, force bool, vpcId string) ([]types.VpcEndpoint, error)
 	DescribeVpcSubnets(ctx context.Context, force bool, vpcId string) ([]types.Subnet, error)
@@ -97,6 +100,26 @@ func (inst *ec2Api) DescribeVpcSecurityGroups(ctx context.Context, force bool, v
 	})
 
 	sortByKey(result, func(g types.SecurityGroup) *string { return g.GroupId })
+
+	return result, inst.logErr(err)
+}
+
+func (inst *ec2Api) ListInstances(ctx context.Context, force bool) ([]types.Instance, error) {
+	var reservations, err = collectTokenPages(func(token *string) ([]types.Reservation, *string, error) {
+		var output, err = GetAwsApiClients().ec2.DescribeInstances(ctx,
+			&ec2.DescribeInstancesInput{NextToken: token},
+		)
+		if err != nil {
+			return nil, nil, err
+		}
+		return output.Reservations, output.NextToken, nil
+	})
+
+	var result []types.Instance
+	for _, reservation := range reservations {
+		result = append(result, reservation.Instances...)
+	}
+	sortByKey(result, func(i types.Instance) *string { return i.InstanceId })
 
 	return result, inst.logErr(err)
 }
