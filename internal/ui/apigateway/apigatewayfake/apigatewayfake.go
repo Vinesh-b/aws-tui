@@ -11,6 +11,8 @@ import (
 
 	"aws-tui/internal/awsapi"
 
+	"github.com/aws/aws-sdk-go-v2/service/apigateway"
+
 	"github.com/aws/aws-sdk-go-v2/service/apigateway/types"
 )
 
@@ -24,6 +26,19 @@ type Api struct {
 
 	resources        map[string][]types.Resource
 	resourceListings int
+
+	invokeOutput *apigateway.TestInvokeMethodOutput
+	invocations  []Invocation
+}
+
+// Invocation is a call of TestInvokeMethod.
+type Invocation struct {
+	RestApiId           string
+	ResourceId          string
+	HttpMethod          string
+	PathWithQueryString string
+	Body                string
+	Headers             map[string]string
 }
 
 type Option func(*Api)
@@ -35,6 +50,11 @@ func WithApis(apis []types.RestApi) Option {
 // WithResources sets the resources of the API with the id.
 func WithResources(restApiId string, resources []types.Resource) Option {
 	return func(f *Api) { f.setResources(restApiId, resources) }
+}
+
+// WithInvokeOutput sets what testing a method returns.
+func WithInvokeOutput(output *apigateway.TestInvokeMethodOutput) Option {
+	return func(f *Api) { f.invokeOutput = output }
 }
 func WithErr(err error) Option { return func(f *Api) { f.err = err } }
 
@@ -91,4 +111,28 @@ func (f *Api) ListResources(ctx context.Context, force bool, restApiId string) (
 	defer f.mtx.Unlock()
 	f.resourceListings++
 	return f.resources[restApiId], f.err
+}
+
+// Invocations are the calls of TestInvokeMethod, in order.
+func (f *Api) Invocations() []Invocation {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return append([]Invocation(nil), f.invocations...)
+}
+
+func (f *Api) TestInvokeMethod(
+	ctx context.Context,
+	restApiId string,
+	resourceId string,
+	httpMethod string,
+	pathWithQueryString string,
+	body string,
+	headers map[string]string,
+) (*apigateway.TestInvokeMethodOutput, error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	f.invocations = append(f.invocations, Invocation{
+		restApiId, resourceId, httpMethod, pathWithQueryString, body, headers,
+	})
+	return f.invokeOutput, f.err
 }

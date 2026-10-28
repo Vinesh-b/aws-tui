@@ -19,9 +19,10 @@ const noResourcesMessage = "This REST API has no resources"
 
 // methodNodeRef is the reference of a node that shows a method of a resource.
 type methodNodeRef struct {
-	path   string
-	method types.Method
-	name   string
+	resourceId string
+	path       string
+	method     types.Method
+	name       string
 }
 
 // ApiGatewayEndpointsTreeView shows the resources of the selected REST API as
@@ -32,7 +33,7 @@ type ApiGatewayEndpointsTreeView struct {
 	*tview.TreeView
 	serviceCtx *core.ServiceContext[awsapi.ApiGatewayApi]
 	selectedId string
-	onMethod   func(path string, name string, method *types.Method)
+	onMethod   func(resourceId string, path string, name string, method *types.Method)
 
 	ErrorMessageCallback func(text string, a ...any)
 }
@@ -57,12 +58,12 @@ func NewApiGatewayEndpointsTreeView(
 	})
 	view.SetChangedFunc(func(node *tview.TreeNode) {
 		if ref, ok := node.GetReference().(*methodNodeRef); ok {
-			view.onMethod(ref.path, ref.name, &ref.method)
+			view.onMethod(ref.resourceId, ref.path, ref.name, &ref.method)
 		} else {
-			view.onMethod("", "", nil)
+			view.onMethod("", "", "", nil)
 		}
 	})
-	view.onMethod = func(string, string, *types.Method) {}
+	view.onMethod = func(string, string, string, *types.Method) {}
 	view.showMessage(noEndpointsMessage)
 
 	return view
@@ -71,7 +72,7 @@ func NewApiGatewayEndpointsTreeView(
 // SetMethodSelectedFunc sets what is called when the cursor moves to a method,
 // and with no method when it moves to anything else.
 func (inst *ApiGatewayEndpointsTreeView) SetMethodSelectedFunc(
-	handler func(path string, name string, method *types.Method),
+	handler func(resourceId string, path string, name string, method *types.Method),
 ) {
 	inst.onMethod = handler
 }
@@ -130,7 +131,7 @@ func (inst *ApiGatewayEndpointsTreeView) SetResources(apiName string, resources 
 	}
 
 	inst.SetRoot(root)
-	inst.onMethod("", "", nil)
+	inst.onMethod("", "", "", nil)
 	if children := root.GetChildren(); len(children) > 0 {
 		inst.SetCurrentNode(children[0])
 	}
@@ -151,7 +152,7 @@ func resourceNode(resource types.Resource) *tview.TreeNode {
 	for _, method := range methods {
 		node.AddChild(tview.NewTreeNode(tview.Escape(method)).
 			SetReference(&methodNodeRef{
-				path: aws.ToString(resource.Path), name: method, method: resource.ResourceMethods[method],
+				resourceId: aws.ToString(resource.Id), path: aws.ToString(resource.Path), name: method, method: resource.ResourceMethods[method],
 			}).
 			SetColor(methodColour(method)))
 	}
@@ -174,7 +175,7 @@ func methodColour(method string) tcell.Color {
 }
 
 func (inst *ApiGatewayEndpointsTreeView) showMessage(message string) {
-	inst.onMethod("", "", nil)
+	inst.onMethod("", "", "", nil)
 	inst.SetRoot(tview.NewTreeNode(message).
 		SetSelectable(false).
 		SetColor(tcell.ColorGrey))

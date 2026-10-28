@@ -4,6 +4,8 @@ import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/apigateway/types"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -13,6 +15,7 @@ type ApiGatewayTabName = string
 const (
 	ApiGatewayTabNameDetails   ApiGatewayTabName = "Details"
 	ApiGatewayTabNameEndpoints ApiGatewayTabName = "Endpoints"
+	ApiGatewayTabNameTest      ApiGatewayTabName = "Test"
 )
 
 type ApiGatewayApisPageView struct {
@@ -21,6 +24,7 @@ type ApiGatewayApisPageView struct {
 	DetailsTable       *ApiGatewayDetailsTable
 	EndpointsView      *ApiGatewayEndpointsTreeView
 	MethodDetailsTable *ApiGatewayMethodDetailsTable
+	TestView           *ApiGatewayTestPageView
 	TabView            *core.TabViewHorizontal
 	serviceCtx         *core.ServiceContext[awsapi.ApiGatewayApi]
 }
@@ -32,7 +36,11 @@ func NewApiGatewayApisPageView(
 ) *ApiGatewayApisPageView {
 	var endpointsView = NewApiGatewayEndpointsTreeView(serviceCtx)
 	var methodDetailsTable = NewApiGatewayMethodDetailsTable(serviceCtx)
-	endpointsView.SetMethodSelectedFunc(methodDetailsTable.SetMethod)
+	var testView = NewApiGatewayTestPageView(serviceCtx)
+	endpointsView.SetMethodSelectedFunc(func(resourceId string, path string, name string, method *types.Method) {
+		methodDetailsTable.SetMethod(path, name, method)
+		testView.SetMethod(resourceId, path, name, method != nil)
+	})
 
 	const endpointsTreeSize = 4000
 	const methodDetailsSize = 6000
@@ -43,7 +51,8 @@ func NewApiGatewayApisPageView(
 	)
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab(ApiGatewayTabNameDetails, detailsTable, 0, 1, true).
-		AddTab(ApiGatewayTabNameEndpoints, endpointsPage, 0, 1, true)
+		AddTab(ApiGatewayTabNameEndpoints, endpointsPage, 0, 1, true).
+		AddTab(ApiGatewayTabNameTest, testView, 0, 1, true)
 
 	const tabViewSize = 3000
 	const apisTableSize = 5000
@@ -62,6 +71,7 @@ func NewApiGatewayApisPageView(
 		DetailsTable:       detailsTable,
 		EndpointsView:      endpointsView,
 		MethodDetailsTable: methodDetailsTable,
+		TestView:           testView,
 		TabView:            tabView,
 		serviceCtx:         serviceCtx,
 	}
@@ -94,6 +104,7 @@ func (inst *ApiGatewayApisPageView) initInputCapture() {
 		var api = inst.ApisTable.GetSelectedApi()
 		inst.DetailsTable.SetApi(api)
 		inst.EndpointsView.SetApi(api)
+		inst.TestView.SetApi(aws.ToString(api.Id))
 	})
 }
 

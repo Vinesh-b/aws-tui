@@ -127,7 +127,7 @@ func TestEndpointsTreeView__SetApiReportsApiError(t *testing.T) {
 func TestEndpointsTreeView__MovingToAMethodSelectsItAndToAnythingElseSelectsNone(t *testing.T) {
 	var view = NewApiGatewayEndpointsTreeView(uitest.NewServiceContext[awsapi.ApiGatewayApi]())
 	var selected []string
-	view.SetMethodSelectedFunc(func(path string, name string, method *types.Method) {
+	view.SetMethodSelectedFunc(func(resourceId string, path string, name string, method *types.Method) {
 		if method == nil {
 			selected = append(selected, "none")
 		} else {
