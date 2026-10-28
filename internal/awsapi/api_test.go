@@ -270,6 +270,9 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 		{"delete secret", func() error {
 			return NewSecretsManagerApi(logger).DeleteSecret(context.Background(), "")
 		}, "secret ID not set"},
+		{"delete parameter", func() error {
+			return NewSystemsManagerApi(logger).DeleteParameter(context.Background(), "")
+		}, "parameter name not set"},
 		{"ssm path", func() error {
 			var _, err = NewSystemsManagerApi(logger).GetParametersByPath(context.Background(), "", true)
 			return err

@@ -94,3 +94,14 @@ func TestParameterDetailsTable__PopulatesFromParameter(t *testing.T) {
 		{"Last Modified", "2024-01-02 03:04:05"},
 	})
 }
+
+func TestParametersTable__EmptyTableHasNoSelectedParameter(t *testing.T) {
+	var table = newPopulatedParametersTable(newParameter("/app/db/host", 3))
+	table.Select(1, 0)
+
+	table.populateParametersTable(nil)
+
+	if table.GetSelectedParameter().Name != nil {
+		t.Errorf("selected parameter = %v, want none", table.GetSelectedParameter())
+	}
+}

@@ -27,6 +27,10 @@ type SystemsManagerApi interface {
 		ctx context.Context,
 		name string, value string, paramType types.ParameterType,
 	) error
+	DeleteParameter(
+		ctx context.Context,
+		name string,
+	) error
 }
 
 type systemsManagerApi struct {
@@ -162,6 +166,26 @@ func (inst *systemsManagerApi) CreateParameter(
 			Type:      paramType,
 			Overwrite: aws.Bool(false),
 		},
+	)
+	if err != nil {
+		return inst.logErr(err)
+	}
+
+	return nil
+}
+
+// DeleteParameter deletes the parameter and its history for good
+func (inst *systemsManagerApi) DeleteParameter(
+	ctx context.Context,
+	name string,
+) error {
+	if err := requireArg("parameter name", name); err != nil {
+		return err
+	}
+
+	var _, err = GetAwsApiClients().ssm.DeleteParameter(
+		ctx,
+		&ssm.DeleteParameterInput{Name: aws.String(name)},
 	)
 	if err != nil {
 		return inst.logErr(err)

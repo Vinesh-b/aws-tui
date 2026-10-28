@@ -32,8 +32,10 @@ type Api struct {
 	err        error
 	putErr     error
 	createErr  error
+	deleteErr  error
 	puts       []Put
 	creates    []Put
+	deleted    []string
 }
 
 type Option func(*Api)
@@ -50,6 +52,8 @@ func WithErr(err error) Option    { return func(f *Api) { f.err = err } }
 func WithPutErr(err error) Option { return func(f *Api) { f.putErr = err } }
 
 func WithCreateErr(err error) Option { return func(f *Api) { f.createErr = err } }
+
+func WithDeleteErr(err error) Option { return func(f *Api) { f.deleteErr = err } }
 
 func New(options ...Option) *Api {
 	var f = &Api{}
@@ -70,6 +74,19 @@ func (f *Api) Puts() []Put {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 	return slices.Clone(f.puts)
+}
+
+// Deleted returns the name of every parameter deleted so far.
+func (f *Api) Deleted() []string {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return slices.Clone(f.deleted)
+}
+
+func (f *Api) Parameters() []types.Parameter {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return f.parameters
 }
 
 // Creates returns every parameter created so far.
@@ -116,5 +133,15 @@ func (f *Api) CreateParameter(
 		return f.createErr
 	}
 	f.creates = append(f.creates, Put{Name: name, Value: value, Type: paramType})
+	return nil
+}
+
+func (f *Api) DeleteParameter(ctx context.Context, name string) error {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	if f.deleteErr != nil {
+		return f.deleteErr
+	}
+	f.deleted = append(f.deleted, name)
 	return nil
 }
