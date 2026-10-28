@@ -53,16 +53,79 @@ func newCommandsTest(appCtx *core.AppContext) *commandsTest {
 	for _, name := range []core.ViewId{
 		core.LAMBDA, core.CLOUDWATCH_LOGS, core.CLOUDWATCH_ALARMS, core.DYNAMODB, core.DEBUG_LOGS, core.HELP,
 	} {
-		items = append(items, staticServiceItem("󰘧 "+string(name), "", 'x', &countingPage{Box: tview.NewBox()}))
+		var page core.ServicePage = &countingPage{Box: tview.NewBox()}
+		if name == core.CLOUDWATCH_LOGS {
+			page = newPagedPage("logs", "Groups", "Streams", "Events", "Insights")
+		}
+		items = append(items, staticServiceItem("󰘧 "+string(name), "", 'x', page))
 	}
 	test.commands = &commands{
 		items:  items,
 		appCtx: appCtx,
 		line:   test.line,
-		show:   func(item *ServiceItem) { test.shown = append(test.shown, serviceName(item)) },
-		quit:   func() { test.quits++ },
+		show: func(item *ServiceItem, page string) {
+			test.shown = append(test.shown, strings.TrimSpace(serviceName(item)+" "+page))
+		},
+		quit: func() { test.quits++ },
 	}
 	return test
+}
+
+func TestCommands__GoToThePageOfTheServiceTheyName(t *testing.T) {
+	var tests = map[string]string{
+		"cloudwatchlogs streams": "CloudWatch Logs Streams",
+		"logs Streams":           "CloudWatch Logs Streams",
+		"logs  ev":               "CloudWatch Logs Events",
+	}
+	for command, want := range tests {
+		t.Run(command, func(t *testing.T) {
+			var test = newCommandsTest(uitest.NewAppContext())
+
+			test.commands.Run(command, nil)
+
+			if !slices.Equal(test.shown, []string{want}) {
+				t.Errorf("shown = %v, want %s", test.shown, want)
+			}
+		})
+	}
+}
+
+func TestCommands__ReportPagesTheyCannotGoTo(t *testing.T) {
+	var tests = map[string]string{
+		"logs nope":   "CloudWatch Logs has no page nope",
+		"lambda tabs": "Lambda has no pages",
+	}
+	for command, want := range tests {
+		t.Run(command, func(t *testing.T) {
+			var test = newCommandsTest(uitest.NewAppContext())
+
+			test.commands.Run(command, nil)
+
+			if _, errors := test.line.shown(); !slices.Equal(errors, []string{want}) || len(test.shown) != 0 {
+				t.Errorf("errors = %v, shown = %v, want %q", errors, test.shown, want)
+			}
+		})
+	}
+}
+
+func TestCommands__CompleteThePagesOfTheService(t *testing.T) {
+	var test = newCommandsTest(uitest.NewAppContext())
+
+	var tests = map[string][]string{
+		"logs ":            {"logs groups", "logs streams", "logs events", "logs insights"},
+		"cloudwatchlogs s": {"cloudwatchlogs streams"},
+		"LOGS e":           {"logs events"},
+		"logs streams":     nil,
+		"logs x":           nil,
+		"lambda ":          nil,
+		"nope ":            nil,
+		"w out.csv":        nil,
+	}
+	for text, want := range tests {
+		if got := test.commands.Complete(text); !slices.Equal(got, want) {
+			t.Errorf("%q completes to %v, want %v", text, got, want)
+		}
+	}
 }
 
 func TestCommands__GoToTheServiceTheyName(t *testing.T) {

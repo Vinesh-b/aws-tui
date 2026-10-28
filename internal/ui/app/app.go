@@ -223,6 +223,19 @@ func (inst *navigator) showService(item *ServiceItem) {
 	inst.history.Visit(locationOf(item))
 }
 
+// showServicePage switches to the service on the page, which is the only visit
+// recorded, not the page the service was left on
+func (inst *navigator) showServicePage(item *ServiceItem, page string) {
+	inst.history.WithoutRecording(func() {
+		inst.pages.SwitchToPage(item.MainText)
+		if paged, ok := item.ServicePage.(core.PagedServicePage); ok {
+			paged.ShowServicePage(page)
+		}
+		inst.app.SetFocus(item.ServicePage.GetLastFocusedView())
+	})
+	inst.history.Visit(locationOf(item))
+}
+
 // openResource switches to the page of the service of the resource and opens
 // it there. Going back returns to where the link was opened from.
 func (inst *navigator) openResource(resource arn.ARN) error {
@@ -519,8 +532,12 @@ func CreateApplication(
 		items:  serviceViews,
 		appCtx: appContext,
 		line:   commandLine,
-		show: func(item *ServiceItem) {
-			nav.showService(item)
+		show: func(item *ServiceItem, page string) {
+			if page == "" {
+				nav.showService(item)
+			} else {
+				nav.showServicePage(item, page)
+			}
 			serviceListHidden = true
 		},
 		quit: app.Stop,

@@ -35,6 +35,7 @@ func newPagedPage(service string, pages ...string) *pagedPage {
 }
 
 func (p *pagedPage) GetLastFocusedView() tview.Primitive                 { return p.Box }
+func (p *pagedPage) ServicePages() []string                              { return p.pages }
 func (p *pagedPage) CurrentServicePage() string                          { return p.current }
 func (p *pagedPage) SetServicePageChangedFunc(handler func(name string)) { p.changed = handler }
 func (p *pagedPage) OpensArnService(service string) bool                 { return service == p.service }
@@ -261,4 +262,16 @@ func TestOpenResource__ServiceWithoutPageIsAnError(t *testing.T) {
 	if err == nil || err.Error() != "can't open iam resources" {
 		t.Errorf("error = %v", err)
 	}
+}
+
+func TestNavigator__ShowingAPageRecordsOnlyThatPage(t *testing.T) {
+	var test = newNavigatorTest(t)
+	test.show("Lambda")
+	var logs, _ = test.nav.find("Logs")
+
+	test.nav.showServicePage(logs, "Streams")
+
+	test.assertAt("Logs", "Streams")
+	test.back()
+	test.assertAt("Lambda", "Functions")
 }

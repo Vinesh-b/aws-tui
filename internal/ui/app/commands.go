@@ -46,14 +46,22 @@ type messageLine interface {
 	ShowError(text string)
 }
 
+// pageCommand is the name of a page of a service as it is typed, in lower case
+// without spaces
+func pageCommand(name string) string {
+	return strings.ToLower(strings.ReplaceAll(name, " ", ""))
+}
+
 // commands runs what is typed in the command line: :q quits, :w [file] saves
-// the table that has the focus, and the name of a service goes to it
+// the table that has the focus, and the name of a service goes to it, as does
+// the name followed by one of its pages, such as :logs streams
 type commands struct {
 	items  []*ServiceItem
 	appCtx *core.AppContext
 	line   messageLine
-	// show shows the service, and quit stops the app
-	show func(item *ServiceItem)
+	// show shows the service, on the page if there is one, and quit stops the
+	// app
+	show func(item *ServiceItem, page string)
 	quit func()
 }
 
@@ -73,8 +81,12 @@ func (inst *commands) names() []string {
 
 // Complete lists the commands that start with what is typed
 func (inst *commands) Complete(text string) []string {
-	var typed = strings.ToLower(strings.TrimSpace(text))
-	if typed == "" || strings.ContainsRune(typed, ' ') {
+	var typed = strings.ToLower(strings.TrimLeft(text, " "))
+	if command, typedPage, found := strings.Cut(typed, " "); found {
+		return inst.completePage(command, strings.TrimLeft(typedPage, " "))
+	}
+	typed = strings.TrimSpace(typed)
+	if typed == "" {
 		return nil
 	}
 
@@ -82,6 +94,29 @@ func (inst *commands) Complete(text string) []string {
 	for _, name := range inst.names() {
 		if strings.HasPrefix(name, typed) && name != typed {
 			entries = append(entries, name)
+		}
+	}
+	return entries
+}
+
+// completePage lists the pages of the service the command names that start
+// with what is typed, each with the command in front as it replaces the text
+func (inst *commands) completePage(command string, typedPage string) []string {
+	var item, err = inst.findService(command)
+	if err != nil {
+		return nil
+	}
+	var paged, ok = item.ServicePage.(core.PagedServicePage)
+	if !ok {
+		return nil
+	}
+
+	typedPage = pageCommand(typedPage)
+	var entries []string
+	for _, page := range paged.ServicePages() {
+		var name = pageCommand(page)
+		if strings.HasPrefix(name, typedPage) && name != typedPage {
+			entries = append(entries, command+" "+name)
 		}
 	}
 	return entries
@@ -114,8 +149,44 @@ func (inst *commands) Run(text string, focused tview.Primitive) {
 			inst.line.ShowError(err.Error())
 			return
 		}
-		inst.show(item)
+		var page, pageErr = inst.findPage(item, argument)
+		if pageErr != nil {
+			inst.line.ShowError(pageErr.Error())
+			return
+		}
+		inst.show(item, page)
 	}
+}
+
+// findPage is the page of the service the typed name is or begins the name of
+// when only one page does, which is empty when no page is typed
+func (inst *commands) findPage(item *ServiceItem, typed string) (string, error) {
+	typed = pageCommand(typed)
+	if typed == "" {
+		return "", nil
+	}
+	var paged, ok = item.ServicePage.(core.PagedServicePage)
+	if !ok {
+		return "", fmt.Errorf("%s has no pages", serviceName(item))
+	}
+
+	var started []string
+	for _, page := range paged.ServicePages() {
+		if pageCommand(page) == typed {
+			return page, nil
+		}
+		if strings.HasPrefix(pageCommand(page), typed) {
+			started = append(started, page)
+		}
+	}
+
+	switch len(started) {
+	case 0:
+		return "", fmt.Errorf("%s has no page %s", serviceName(item), typed)
+	case 1:
+		return started[0], nil
+	}
+	return "", fmt.Errorf("%s could be %s", typed, strings.Join(started, ", "))
 }
 
 // findService is the service the command names, or begins the name of when

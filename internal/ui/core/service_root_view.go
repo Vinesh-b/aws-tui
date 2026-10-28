@@ -15,6 +15,8 @@ const SERVICE_PAGES_LIST = "SERVICE_PAGES_LIST"
 type PagedServicePage interface {
 	ServicePage
 	CurrentServicePage() string
+	// ServicePages lists the names of the pages, in the order they are shown
+	ServicePages() []string
 	// ShowServicePage shows the page with the name, if there is one
 	ShowServicePage(name string)
 	MoveServicePage(offset int)
@@ -158,6 +160,10 @@ func (inst *ServiceRootView) CurrentServicePage() string {
 		return ""
 	}
 	return inst.orderedPages[inst.pageIndex]
+}
+
+func (inst *ServiceRootView) ServicePages() []string {
+	return slices.Clone(inst.orderedPages)
 }
 
 func (inst *ServiceRootView) ShowServicePage(name string) {
