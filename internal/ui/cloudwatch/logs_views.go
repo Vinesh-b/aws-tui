@@ -238,7 +238,10 @@ func NewLogsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchLogsApi) core
 		)
 	}
 
-	serviceRootView.SetResourceOpener("logs", func(resource arn.ARN) {
+	serviceRootView.SetResourceOpener("logs", func(resource arn.ARN) bool {
+		_, ok := core.ArnResourceName(resource, "log-group")
+		return ok
+	}, func(resource arn.ARN) {
 		if logGroup, ok := core.ArnResourceName(resource, "log-group"); ok {
 			showStreams(logGroup)
 		}

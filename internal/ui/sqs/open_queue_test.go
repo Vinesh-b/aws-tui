@@ -6,6 +6,8 @@ import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/uitest"
+
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 )
 
 func newRunningQueueList(t *testing.T, api *fakeSqsApi) *QueueListTable {
@@ -43,7 +45,8 @@ func TestHomeView__OpensSqsResources(t *testing.T) {
 
 	var opener, ok = page.(core.ResourceOpener)
 
-	if !ok || !opener.OpensArnService("sqs") {
+	var queue, _ = arn.Parse("arn:aws:sqs:us-east-1:123456789012:orders")
+	if !ok || !opener.OpensArn(queue) {
 		t.Error("sqs page should open sqs resources")
 	}
 }

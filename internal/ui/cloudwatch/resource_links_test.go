@@ -18,10 +18,10 @@ func TestLogsHomeView__OpeningLogGroupShowsItsStreams(t *testing.T) {
 	var page = NewLogsHomeView(appCtx, api)
 	var screen = uitest.ShowPage(t, appCtx.App, page)
 	var opener, ok = page.(core.ResourceOpener)
-	if !ok || !opener.OpensArnService("logs") {
+	var resource, _ = arn.Parse("arn:aws:logs:us-east-1:123456789012:log-group:/aws/states/orders:*")
+	if !ok || !opener.OpensArn(resource) {
 		t.Fatal("logs page should open logs resources")
 	}
-	var resource, _ = arn.Parse("arn:aws:logs:us-east-1:123456789012:log-group:/aws/states/orders:*")
 
 	uitest.OnUI(t, appCtx.App, func() { opener.OpenResource(resource) })
 

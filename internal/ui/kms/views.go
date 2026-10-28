@@ -1,6 +1,8 @@
 package kms
 
 import (
+	"strings"
+
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
 
@@ -81,6 +83,17 @@ const (
 	kmsPagePolicy
 )
 
+// isOpenableKmsResource is true for the keys and aliases the KMS view shows,
+// whose resource is "key/<id>" or "alias/<name>"
+func isOpenableKmsResource(resource arn.ARN) bool {
+	for _, resourceType := range []string{"key/", "alias/"} {
+		if name, found := strings.CutPrefix(resource.Resource, resourceType); found {
+			return len(name) > 0
+		}
+	}
+	return false
+}
+
 func NewKmsHomeView(appCtx *core.AppContext, api awsapi.KmsApi) core.ServicePage {
 	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0xCC2264))
 	defer appCtx.Theme.ResetGlobalStyle()
@@ -111,7 +124,7 @@ func NewKmsHomeView(appCtx *core.AppContext, api awsapi.KmsApi) core.ServicePage
 		}
 	})
 
-	serviceRootView.SetResourceOpener("kms", func(resource arn.ARN) {
+	serviceRootView.SetResourceOpener("kms", isOpenableKmsResource, func(resource arn.ARN) {
 		serviceRootView.ChangePage(kmsPageKeys, nil)
 		keysView.KeysTable.Open(resource.Resource)
 	})

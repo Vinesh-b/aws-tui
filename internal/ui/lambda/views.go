@@ -322,7 +322,10 @@ func NewLambdaHomeView(
 
 	lambdasListTable.SetSelectedFunc(lambdaSelectedFunc)
 
-	serviceRootView.SetResourceOpener("lambda", func(resource arn.ARN) {
+	serviceRootView.SetResourceOpener("lambda", func(resource arn.ARN) bool {
+		_, ok := core.ArnResourceName(resource, "function")
+		return ok
+	}, func(resource arn.ARN) {
 		if name, ok := core.ArnResourceName(resource, "function"); ok {
 			serviceRootView.ChangePage(0, nil)
 			lambdasListTable.OpenLambda(name, func() { lambdaSelectedFunc(0, 0) })

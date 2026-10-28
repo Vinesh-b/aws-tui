@@ -7,6 +7,8 @@ import (
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/uitest"
 
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 )
@@ -61,7 +63,8 @@ func TestHomeView__OpensLambdaResources(t *testing.T) {
 
 	var opener, ok = page.(core.ResourceOpener)
 
-	if !ok || !opener.OpensArnService("lambda") {
+	var function, _ = arn.Parse("arn:aws:lambda:us-east-1:123456789012:function:orders")
+	if !ok || !opener.OpensArn(function) {
 		t.Error("lambda page should open lambda resources")
 	}
 }

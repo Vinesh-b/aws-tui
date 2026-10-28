@@ -3,6 +3,7 @@ package uitest
 import (
 	"context"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"io"
 	"log"
 	"strings"
@@ -20,10 +21,14 @@ type TableView interface {
 	GetTable() *tview.Table
 }
 
+// NewAppContext is an app context where every resource can be opened, as the
+// pages of the services that open them are not part of a test of one service
 func NewAppContext() *core.AppContext {
-	return core.NewAppContext(
+	var appCtx = core.NewAppContext(
 		context.Background(), tview.NewApplication(), nil, log.New(io.Discard, "", 0), &core.AppTheme{},
 	)
+	appCtx.SetResourceOpener(nil, func(arn.ARN) bool { return true })
+	return appCtx
 }
 
 func NewServiceContext[Api any]() *core.ServiceContext[Api] {

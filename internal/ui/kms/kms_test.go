@@ -11,6 +11,7 @@ import (
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/aws/aws-sdk-go-v2/service/kms/types"
 )
 
@@ -199,5 +200,25 @@ func TestKeysTable__OpenSelectsKeyByIdOrAlias(t *testing.T) {
 				return table.GetSelectedKey().keyId == tt.want
 			}, "key "+tt.want+" to be selected")
 		})
+	}
+}
+
+func TestIsOpenableKmsResource(t *testing.T) {
+	var tests = []struct {
+		resource string
+		want     bool
+	}{
+		{"arn:aws:kms:us-east-1:123456789012:key/1234abcd-12ab-34cd-56ef-1234567890ab", true},
+		{"arn:aws:kms:us-east-1:123456789012:alias/orders", true},
+		{"arn:aws:kms:us-east-1:123456789012:key/", false},
+		{"arn:aws:kms:us-east-1:123456789012:alias/", false},
+		{"arn:aws:kms:us-east-1:123456789012:grant/1234", false},
+	}
+
+	for _, tt := range tests {
+		var resource, _ = arn.Parse(tt.resource)
+		if got := isOpenableKmsResource(resource); got != tt.want {
+			t.Errorf("%s: got %v, want %v", tt.resource, got, tt.want)
+		}
 	}
 }

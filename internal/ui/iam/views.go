@@ -27,6 +27,21 @@ func principalNameFromArn(resource arn.ARN, resourceType string) (string, bool) 
 	return name, len(name) > 0
 }
 
+// isOpenableIamResource is true for the roles, users and policies the IAM
+// view shows. Policies are "policy/[<path>/]<name>".
+func isOpenableIamResource(resource arn.ARN) bool {
+	if _, ok := principalNameFromArn(resource, "role"); ok {
+		return true
+	}
+	if _, ok := principalNameFromArn(resource, "user"); ok {
+		return true
+	}
+	if path, found := strings.CutPrefix(resource.Resource, "policy/"); found {
+		return len(path) > 0 && !strings.HasSuffix(path, "/")
+	}
+	return false
+}
+
 func NewIamHomeView(appCtx *core.AppContext, api awsapi.IamApi) core.ServicePage {
 	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0xBB2244))
 	defer appCtx.Theme.ResetGlobalStyle()
@@ -60,7 +75,7 @@ func NewIamHomeView(appCtx *core.AppContext, api awsapi.IamApi) core.ServicePage
 
 	serviceRootView.InitPageNavigation()
 
-	serviceRootView.SetResourceOpener("iam", func(resource arn.ARN) {
+	serviceRootView.SetResourceOpener("iam", isOpenableIamResource, func(resource arn.ARN) {
 		if name, ok := principalNameFromArn(resource, "role"); ok {
 			serviceRootView.ChangePage(rolesPageIdx, nil)
 			rolesView.RoleListTable.Open(name)

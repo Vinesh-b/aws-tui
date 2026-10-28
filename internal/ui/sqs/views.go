@@ -113,7 +113,7 @@ func NewSqsHomeView(appCtx *core.AppContext, api awsapi.SqsApi) core.ServicePage
 
 	serviceRootView.InitPageNavigation()
 
-	serviceRootView.SetResourceOpener("sqs", func(resource arn.ARN) {
+	serviceRootView.SetResourceOpener("sqs", func(resource arn.ARN) bool { return len(resource.Resource) > 0 }, func(resource arn.ARN) {
 		serviceRootView.ChangePage(0, nil)
 		sqsDetailsView.QueueListTable.OpenQueue(resource.Resource)
 	})

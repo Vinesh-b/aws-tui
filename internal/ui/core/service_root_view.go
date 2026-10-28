@@ -34,7 +34,7 @@ type ServiceRootView struct {
 	lastFocusedView tview.Primitive
 	pagesListHidden bool
 	pageList        *tview.List
-	resourceOpeners map[string]func(resource arn.ARN)
+	resourceOpeners map[string]resourceOpener
 	pageChangedFunc func(name string)
 	appCtx          *AppContext
 }
@@ -56,7 +56,7 @@ func NewServiceRootView(
 		lastFocusedView: nil,
 		pagesListHidden: true,
 		pageList:        tview.NewList(),
-		resourceOpeners: map[string]func(resource arn.ARN){},
+		resourceOpeners: map[string]resourceOpener{},
 		pageChangedFunc: func(name string) {},
 		appCtx:          appContext,
 	}
@@ -228,20 +228,31 @@ func (inst *ServiceRootView) AddAndSwitchToPage(
 	return inst
 }
 
+// resourceOpener is how a service opens the resources of its ARNs that it can
+type resourceOpener struct {
+	opens func(resource arn.ARN) bool
+	open  func(resource arn.ARN)
+}
+
 // SetResourceOpener sets how the service opens resources from links in other
-// services, for ARNs of the service, such as "lambda".
-func (inst *ServiceRootView) SetResourceOpener(arnService string, open func(resource arn.ARN)) *ServiceRootView {
-	inst.resourceOpeners[arnService] = open
+// services, for ARNs of the service, such as "lambda". Only the resources
+// that opens is true for are linked to, and are passed to open.
+func (inst *ServiceRootView) SetResourceOpener(
+	arnService string,
+	opens func(resource arn.ARN) bool,
+	open func(resource arn.ARN),
+) *ServiceRootView {
+	inst.resourceOpeners[arnService] = resourceOpener{opens: opens, open: open}
 	return inst
 }
 
-func (inst *ServiceRootView) OpensArnService(service string) bool {
-	var _, ok = inst.resourceOpeners[service]
-	return ok
+func (inst *ServiceRootView) OpensArn(resource arn.ARN) bool {
+	var opener, ok = inst.resourceOpeners[resource.Service]
+	return ok && opener.opens(resource)
 }
 
 func (inst *ServiceRootView) OpenResource(resource arn.ARN) {
-	if open, ok := inst.resourceOpeners[resource.Service]; ok {
-		open(resource)
+	if opener, ok := inst.resourceOpeners[resource.Service]; ok && opener.opens(resource) {
+		opener.open(resource)
 	}
 }

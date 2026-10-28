@@ -1,6 +1,8 @@
 package app
 
 import (
+	"slices"
+
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/settings"
 	"aws-tui/internal/ui/apigateway"
@@ -243,7 +245,7 @@ func (inst *navigator) showServicePage(item *ServiceItem, page string) {
 func (inst *navigator) openResource(resource arn.ARN) error {
 	for _, item := range inst.items {
 		var opener, ok = item.ServicePage.(core.ResourceOpener)
-		if !ok || !opener.OpensArnService(resource.Service) {
+		if !ok || !opener.OpensArn(resource) {
 			continue
 		}
 		// The service is shown on the page it was left on before the
@@ -257,6 +259,14 @@ func (inst *navigator) openResource(resource arn.ARN) error {
 		return nil
 	}
 	return fmt.Errorf("can't open %s resources", resource.Service)
+}
+
+// canOpenResource is true if a service page can show the resource
+func (inst *navigator) canOpenResource(resource arn.ARN) bool {
+	return slices.ContainsFunc(inst.items, func(item *ServiceItem) bool {
+		var opener, ok = item.ServicePage.(core.ResourceOpener)
+		return ok && opener.OpensArn(resource)
+	})
 }
 
 // show shows the location without it being a new visit. It is false if the
@@ -531,7 +541,7 @@ func CreateApplication(
 		}
 		serviceListHidden = true
 		return nil
-	})
+	}, nav.canOpenResource)
 
 	var floatingServices = core.FloatingView("Quick select", servicesList, 70, 27)
 

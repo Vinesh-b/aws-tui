@@ -17,7 +17,7 @@ type openerPage struct {
 }
 
 func (p *openerPage) GetLastFocusedView() tview.Primitive { return p.Box }
-func (p *openerPage) OpensArnService(service string) bool { return service == p.service }
+func (p *openerPage) OpensArn(resource arn.ARN) bool      { return resource.Service == p.service }
 func (p *openerPage) OpenResource(resource arn.ARN)       { p.opened = append(p.opened, resource) }
 
 // pagedPage has pages of its own, like a service root view. Opening a resource
@@ -38,7 +38,7 @@ func (p *pagedPage) GetLastFocusedView() tview.Primitive                 { retur
 func (p *pagedPage) ServicePages() []string                              { return p.pages }
 func (p *pagedPage) CurrentServicePage() string                          { return p.current }
 func (p *pagedPage) SetServicePageChangedFunc(handler func(name string)) { p.changed = handler }
-func (p *pagedPage) OpensArnService(service string) bool                 { return service == p.service }
+func (p *pagedPage) OpensArn(resource arn.ARN) bool                      { return resource.Service == p.service }
 func (p *pagedPage) OpenResource(resource arn.ARN)                       { p.ShowServicePage(p.pages[len(p.pages)-1]) }
 
 func (p *pagedPage) ShowServicePage(name string) {

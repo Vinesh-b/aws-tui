@@ -58,14 +58,37 @@ func TestHomeView__OpensRolesUsersAndPolicies(t *testing.T) {
 			var page = NewIamHomeView(appCtx, api)
 			var screen = uitest.ShowPage(t, appCtx.App, page)
 			var opener, ok = page.(core.ResourceOpener)
-			if !ok || !opener.OpensArnService("iam") {
+			var resource, _ = arn.Parse(tt.arn)
+			if !ok || !opener.OpensArn(resource) {
 				t.Fatal("iam page should open iam resources")
 			}
-			var resource, _ = arn.Parse(tt.arn)
 
 			uitest.OnUI(t, appCtx.App, func() { opener.OpenResource(resource) })
 
 			uitest.AwaitScreenText(t, appCtx.App, screen, tt.want)
 		})
+	}
+}
+
+func TestIsOpenableIamResource(t *testing.T) {
+	var tests = []struct {
+		resource string
+		want     bool
+	}{
+		{"arn:aws:iam::123456789012:role/orders", true},
+		{"arn:aws:iam::123456789012:role/service-role/orders", true},
+		{"arn:aws:iam::123456789012:role/", false},
+		{"arn:aws:iam::123456789012:role/service-role/", false},
+		{"arn:aws:iam::123456789012:user/developers/alice", true},
+		{"arn:aws:iam::aws:policy/ReadOnlyAccess", true},
+		{"arn:aws:iam::123456789012:policy/", false},
+		{"arn:aws:iam::123456789012:group/admins", false},
+	}
+
+	for _, tt := range tests {
+		var resource, _ = arn.Parse(tt.resource)
+		if got := isOpenableIamResource(resource); got != tt.want {
+			t.Errorf("%s: got %v, want %v", tt.resource, got, tt.want)
+		}
 	}
 }

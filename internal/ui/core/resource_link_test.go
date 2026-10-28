@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
@@ -54,7 +55,7 @@ func TestAppContextOpenResource(t *testing.T) {
 	appCtx.SetResourceOpener(func(resource arn.ARN) error {
 		opened = resource
 		return nil
-	})
+	}, nil)
 
 	if err := appCtx.OpenResource(testFunctionArn); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -70,10 +71,17 @@ func TestAppContextOpenResource(t *testing.T) {
 func TestServiceRootView__OpensResourcesOfItsServices(t *testing.T) {
 	var view = NewServiceRootView("Lambda", newTestAppContext())
 	var opened []string
-	view.SetResourceOpener("lambda", func(resource arn.ARN) { opened = append(opened, resource.Resource) })
+	view.SetResourceOpener("lambda",
+		func(resource arn.ARN) bool { return strings.HasPrefix(resource.Resource, "function:") },
+		func(resource arn.ARN) { opened = append(opened, resource.Resource) },
+	)
 
-	if !view.OpensArnService("lambda") || view.OpensArnService("sqs") {
-		t.Errorf("opens lambda, sqs = %v, %v, want true, false", view.OpensArnService("lambda"), view.OpensArnService("sqs"))
+	var function = arn.ARN{Service: "lambda", Resource: "function:orders"}
+	var layer = arn.ARN{Service: "lambda", Resource: "layer:orders"}
+	var queue = arn.ARN{Service: "sqs", Resource: "orders"}
+	if !view.OpensArn(function) || view.OpensArn(layer) || view.OpensArn(queue) {
+		t.Errorf("opens function, layer, queue = %v, %v, %v, want true, false, false",
+			view.OpensArn(function), view.OpensArn(layer), view.OpensArn(queue))
 	}
 
 	view.OpenResource(arn.ARN{Service: "lambda", Resource: "function:orders"})
@@ -97,7 +105,7 @@ func newLinkedDetailsTable(t *testing.T) (*DetailsTable, *[]string) {
 	table.appCtx.SetResourceOpener(func(resource arn.ARN) error {
 		*opened = append(*opened, resource.String())
 		return nil
-	})
+	}, nil)
 	table.SetData([]TableRow{
 		{"Name", "orders"},
 		DetailsLink("Log Group", "/aws/lambda/orders", "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/orders"),
@@ -155,7 +163,7 @@ func TestDetailsTableLinks__OpenLinkOnAnotherViewOpensNothing(t *testing.T) {
 
 func TestDetailsTableLinks__FailureIsReported(t *testing.T) {
 	var table, _ = newLinkedDetailsTable(t)
-	table.appCtx.SetResourceOpener(func(resource arn.ARN) error { return errors.New("can't open logs resources") })
+	table.appCtx.SetResourceOpener(func(resource arn.ARN) error { return errors.New("can't open logs resources") }, nil)
 	var reported = ""
 	table.ErrorMessageCallback = func(text string, a ...any) { reported = a[0].(string) }
 
@@ -177,35 +185,49 @@ func TestDetailsTableLinks__NewDataReplacesLinks(t *testing.T) {
 	}
 }
 
-func TestIsIamResourceArn(t *testing.T) {
+func TestCanOpenResource(t *testing.T) {
+	var appCtx = newTestAppContext()
+	var asked []string
+	appCtx.SetResourceOpener(nil, func(resource arn.ARN) bool {
+		asked = append(asked, resource.String())
+		return resource.Service == "iam"
+	})
+
 	var tests = []struct {
 		text string
 		want bool
 	}{
 		{"arn:aws:iam::123456789012:role/orders", true},
-		{"arn:aws:iam::123456789012:role/service-role/orders", true},
-		{"arn:aws:iam::123456789012:role/", false},
-		{"arn:aws:iam::123456789012:role/service-role/", false},
-		{"arn:aws:iam::123456789012:user/alice", true},
-		{"arn:aws:iam::123456789012:user/developers/alice", true},
-		{"arn:aws:iam::aws:policy/ReadOnlyAccess", true},
-		{"arn:aws:iam::123456789012:policy/", false},
-		{"arn:aws:iam::123456789012:group/admins", false},
-		{"arn:aws:sts::123456789012:assumed-role/orders/session", false},
-		{"role/orders", false},
+		{"arn:aws:sqs:us-east-1:123456789012:orders", false},
+		{"arn:not-an-arn", false},
+		{"orders", false},
 		{"", false},
 	}
-
 	for _, tt := range tests {
-		if got := IsIamResourceArn(tt.text); got != tt.want {
+		if got := appCtx.CanOpenResource(tt.text); got != tt.want {
 			t.Errorf("%q: got %v, want %v", tt.text, got, tt.want)
 		}
 	}
+
+	appCtx.CanOpenResource("arn:aws:iam::123456789012:role/orders")
+	if len(asked) != 2 {
+		t.Errorf("pages were asked about %v, want one question per ARN, none for other text", asked)
+	}
 }
 
-func TestDetailsTableLinks__IamArnsAreLinked(t *testing.T) {
+func TestCanOpenResource__NothingOpensWithoutTheApp(t *testing.T) {
+	if newTestAppContext().CanOpenResource("arn:aws:iam::123456789012:role/orders") {
+		t.Error("no resource should be openable before the app sets how to open them")
+	}
+}
+
+func TestDetailsTableLinks__OpenableArnsAreLinked(t *testing.T) {
 	const roleArn = "arn:aws:iam::123456789012:role/service-role/orders"
-	var table = NewDetailsTable("details", newTestAppContext())
+	var appCtx = newTestAppContext()
+	appCtx.SetResourceOpener(nil, func(resource arn.ARN) bool {
+		return strings.HasPrefix(resource.Resource, "role/")
+	})
+	var table = NewDetailsTable("details", appCtx)
 
 	table.SetData([]TableRow{
 		{"Role", roleArn},
@@ -228,26 +250,5 @@ func TestDetailsTableLinks__IamArnsAreLinked(t *testing.T) {
 	}
 	if link, _ := table.GetLink(3); link != "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/orders" {
 		t.Errorf("explicit link = %q, want it kept over the role ARN in the value", link)
-	}
-}
-
-func TestIsKmsResourceArn(t *testing.T) {
-	var tests = []struct {
-		text string
-		want bool
-	}{
-		{"arn:aws:kms:us-east-1:123456789012:key/1234abcd-12ab-34cd-56ef-1234567890ab", true},
-		{"arn:aws:kms:us-east-1:123456789012:alias/orders", true},
-		{"arn:aws:kms:us-east-1:123456789012:key/", false},
-		{"arn:aws:kms:us-east-1:123456789012:alias/", false},
-		{"arn:aws:sqs:us-east-1:123456789012:key/1234", false},
-		{"key/1234", false},
-		{"", false},
-	}
-
-	for _, tt := range tests {
-		if got := IsKmsResourceArn(tt.text); got != tt.want {
-			t.Errorf("%q: got %v, want %v", tt.text, got, tt.want)
-		}
 	}
 }

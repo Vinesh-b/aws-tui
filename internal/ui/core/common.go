@@ -40,6 +40,9 @@ type AppContext struct {
 	themeListeners    []func()
 	keyListeners      []func()
 	openResource      func(resource arn.ARN) error
+	canOpenResource   func(resource arn.ARN) bool
+	linkableMtx       sync.Mutex
+	linkable          map[string]bool
 	// focusedTable is the table that last had the focus, to save with :w, and
 	// focusedLinks the details that last had it, to open their links. They
 	// are only used on the UI goroutine.

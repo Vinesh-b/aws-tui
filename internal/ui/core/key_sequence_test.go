@@ -92,7 +92,7 @@ func TestKeySequencer__GxOpensTheLinkOfTheFocusedDetails(t *testing.T) {
 	test.appCtx.SetResourceOpener(func(resource arn.ARN) error {
 		opened = append(opened, resource.String())
 		return nil
-	})
+	}, func(arn.ARN) bool { return true })
 	var details = NewDetailsTable("details", test.appCtx)
 	var link = "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/orders"
 	details.SetData([]TableRow{DetailsLink("Log Group", "/aws/lambda/orders", link)})
