@@ -3,15 +3,16 @@ package uitest
 import (
 	"context"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"io"
 	"log"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"aws-tui/internal/ui/core"
 
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -21,12 +22,26 @@ type TableView interface {
 	GetTable() *tview.Table
 }
 
+// cancels are how the apps of the app contexts made here end their background
+// work, by the context each was made with
+var (
+	cancelsMtx sync.Mutex
+	cancels    = map[*tview.Application]context.CancelFunc{}
+)
+
 // NewAppContext is an app context where every resource can be opened, as the
 // pages of the services that open them are not part of a test of one service
+//
+// Its context is cancelled when the test stops the app with RunApp, so what
+// runs in the background for the app, such as polling the session, stops too.
 func NewAppContext() *core.AppContext {
+	var ctx, cancel = context.WithCancel(context.Background())
 	var appCtx = core.NewAppContext(
-		context.Background(), tview.NewApplication(), nil, log.New(io.Discard, "", 0), &core.AppTheme{},
+		ctx, tview.NewApplication(), nil, log.New(io.Discard, "", 0), &core.AppTheme{},
 	)
+	cancelsMtx.Lock()
+	cancels[appCtx.App] = cancel
+	cancelsMtx.Unlock()
 	appCtx.SetResourceOpener(nil, func(arn.ARN) bool { return true })
 	return appCtx
 }
@@ -96,6 +111,12 @@ func RunApp(t *testing.T, app *tview.Application) tcell.SimulationScreen {
 	t.Cleanup(func() {
 		app.Stop()
 		<-stopped
+		cancelsMtx.Lock()
+		defer cancelsMtx.Unlock()
+		if cancel, ok := cancels[app]; ok {
+			cancel()
+			delete(cancels, app)
+		}
 	})
 	OnUI(t, app, func() {})
 	return screen

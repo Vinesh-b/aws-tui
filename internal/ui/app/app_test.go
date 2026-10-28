@@ -246,7 +246,9 @@ func startApp(t *testing.T, opts ...Option) (*tview.Application, tcell.Simulatio
 	var styles, borders = tview.Styles, tview.Borders
 	t.Cleanup(func() { tview.Styles, tview.Borders = styles, borders })
 
-	var tuiApp = CreateApplication(context.Background(), aws.Config{
+	var ctx, cancel = context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	var tuiApp = CreateApplication(ctx, aws.Config{
 		Region:      "us-east-1",
 		Credentials: credentials.NewStaticCredentialsProvider("key", "secret", ""),
 	}, "test-version", opts...)

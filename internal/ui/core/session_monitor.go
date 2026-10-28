@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"math"
 	"sync"
 	"sync/atomic"
@@ -45,7 +46,11 @@ func newSessionMonitor(appCtx *AppContext) *SessionMonitor {
 		appCtx: appCtx,
 		rate:   CredsPollRate,
 		retrieve: func(ctx context.Context) (aws.Credentials, error) {
-			return appCtx.GetApiClients().Config.Credentials.Retrieve(ctx)
+			var provider = appCtx.GetApiClients().Config.Credentials
+			if provider == nil {
+				return aws.Credentials{}, errors.New("no credentials are configured")
+			}
+			return provider.Retrieve(ctx)
 		},
 		identify: func(ctx context.Context) (string, string, error) {
 			var identity, err = appCtx.GetApiClients().Sts.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})

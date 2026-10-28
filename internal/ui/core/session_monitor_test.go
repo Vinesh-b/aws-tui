@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"aws-tui/internal/awsapi"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/rivo/tview"
 )
@@ -224,4 +226,16 @@ func TestSessionMonitor__StopsWithTheApp(t *testing.T) {
 	cancel()
 
 	waitFor(t, "the poller to stop", func() bool { return runtime.NumGoroutine() <= before })
+}
+
+func TestSessionMonitor__NoCredentialsConfiguredIsAnErrorNotAPanic(t *testing.T) {
+	awsapi.ResetAwsApiClients(aws.Config{}, "")
+	t.Cleanup(func() { awsapi.ResetAwsApiClients(aws.Config{}, "") })
+	var monitor = newSessionMonitor(newTestAppContext())
+
+	var _, err = monitor.retrieve(context.Background())
+
+	if err == nil {
+		t.Error("expected an error when the config has no credentials")
+	}
 }
