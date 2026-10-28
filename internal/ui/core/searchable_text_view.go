@@ -195,6 +195,26 @@ func (inst *SearchableTextView) updateSearchPosition() {
 	inst.textArea.SetOffset(scrollOffset, 0)
 }
 
+// scrollToCursor moves the scroll offsets the minimum needed to show the
+// cursor, because TextArea.Select leaves the offsets unchanged.
+func (inst *SearchableTextView) scrollToCursor() {
+	var _, _, width, height = inst.textArea.GetInnerRect()
+	var _, _, row, column = inst.textArea.GetCursor()
+	var rowOffset, columnOffset = inst.textArea.GetOffset()
+
+	if row < rowOffset {
+		rowOffset = row
+	} else if height > 0 && row >= rowOffset+height {
+		rowOffset = row - height + 1
+	}
+	if column < columnOffset {
+		columnOffset = column
+	} else if width > 0 && column >= columnOffset+width {
+		columnOffset = column - width + 1
+	}
+	inst.textArea.SetOffset(rowOffset, columnOffset)
+}
+
 func (inst *SearchableTextView) GetText() string {
 	return inst.textArea.GetText()
 }
@@ -284,10 +304,12 @@ func (inst *SearchableTextView) normalModeInputHandler(event *tcell.EventKey) *t
 		return tcell.NewEventKey(tcell.KeyCtrlE, 0, 0)
 	case APP_KEY_BINDINGS.MovePageTopRune:
 		inst.textArea.Select(0, 0)
+		inst.scrollToCursor()
 		return nil
 	case APP_KEY_BINDINGS.MovePageBottomRune:
 		var l = inst.textArea.GetTextLength()
 		inst.textArea.Select(l, l)
+		inst.scrollToCursor()
 		return nil
 	case APP_KEY_BINDINGS.TextViewWordRight:
 		return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModCtrl)
@@ -357,10 +379,13 @@ func (inst *SearchableTextView) visualModeInputHandler(event *tcell.EventKey) *t
 		var _, _, end = inst.textArea.GetSelection()
 		// Select always places the cursor at the end of selection, workaround TBD
 		inst.textArea.Select(end, 0)
+		// The cursor stays at the end of the selection, so show the top directly
+		inst.textArea.SetOffset(0, 0)
 		return nil
 	case APP_KEY_BINDINGS.MovePageBottomRune:
 		var _, start, _ = inst.textArea.GetSelection()
 		inst.textArea.Select(start, inst.textArea.GetTextLength())
+		inst.scrollToCursor()
 		return nil
 	case APP_KEY_BINDINGS.TextViewWordRight:
 		return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModCtrl|tcell.ModShift)
