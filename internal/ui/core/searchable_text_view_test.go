@@ -52,3 +52,20 @@ func TestSearchableTextView__VisualModeFollowsItsKeyBinding(t *testing.T) {
 		t.Errorf("V gave mode %v, want visual", view.vimMode)
 	}
 }
+
+func TestSearchableTextView__InsertKeyDoesNotMakeItEditable(t *testing.T) {
+	var view = NewSearchableTextView("Record", newTestAppContext())
+	view.SetText("abc", false)
+	var press = func(r rune) {
+		view.textArea.InputHandler()(tcell.NewEventKey(tcell.KeyRune, r, tcell.ModNone), func(tview.Primitive) {})
+	}
+
+	press(APP_KEY_BINDINGS.TextViewInsertMode)
+	press('x')
+	if view.vimMode != VimModeNormal {
+		t.Errorf("insert key gave mode %v, want normal", view.vimMode)
+	}
+	if got := view.GetText(); got != "abc" {
+		t.Errorf("text is %q after typing, want it unchanged", got)
+	}
+}

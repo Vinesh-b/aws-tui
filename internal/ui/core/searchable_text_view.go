@@ -266,7 +266,9 @@ func (inst *SearchableTextView) normalModeInputHandler(event *tcell.EventKey) *t
 		inst.vimMode = VimModeVisual
 		return nil
 	case APP_KEY_BINDINGS.TextViewInsertMode:
-		inst.vimMode = VimModeInsert
+		if !inst.readOnly {
+			inst.vimMode = VimModeInsert
+		}
 		return nil
 	case APP_KEY_BINDINGS.MoveUpRune:
 		return tcell.NewEventKey(tcell.KeyUp, 0, 0)
