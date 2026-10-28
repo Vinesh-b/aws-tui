@@ -21,12 +21,20 @@ type Api struct {
 	apis   []types.RestApi
 	err    error
 	listed int
+
+	resources        map[string][]types.Resource
+	resourceListings int
 }
 
 type Option func(*Api)
 
 func WithApis(apis []types.RestApi) Option {
 	return func(f *Api) { f.apis = apis }
+}
+
+// WithResources sets the resources of the API with the id.
+func WithResources(restApiId string, resources []types.Resource) Option {
+	return func(f *Api) { f.setResources(restApiId, resources) }
 }
 func WithErr(err error) Option { return func(f *Api) { f.err = err } }
 
@@ -56,4 +64,31 @@ func (f *Api) ListRestApis(ctx context.Context, force bool) ([]types.RestApi, er
 	defer f.mtx.Unlock()
 	f.listed++
 	return f.apis, f.err
+}
+
+func (f *Api) setResources(restApiId string, resources []types.Resource) {
+	if f.resources == nil {
+		f.resources = map[string][]types.Resource{}
+	}
+	f.resources[restApiId] = resources
+}
+
+func (f *Api) SetResources(restApiId string, resources []types.Resource) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	f.setResources(restApiId, resources)
+}
+
+// ResourceListings is how many times the resources of an API were listed.
+func (f *Api) ResourceListings() int {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return f.resourceListings
+}
+
+func (f *Api) ListResources(ctx context.Context, force bool, restApiId string) ([]types.Resource, error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	f.resourceListings++
+	return f.resources[restApiId], f.err
 }

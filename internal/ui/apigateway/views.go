@@ -11,15 +11,18 @@ import (
 type ApiGatewayTabName = string
 
 const (
-	ApiGatewayTabNameDetails ApiGatewayTabName = "Details"
+	ApiGatewayTabNameDetails   ApiGatewayTabName = "Details"
+	ApiGatewayTabNameEndpoints ApiGatewayTabName = "Endpoints"
 )
 
 type ApiGatewayApisPageView struct {
 	*core.ServicePageView
-	ApisTable    *ApiGatewayApisTable
-	DetailsTable *ApiGatewayDetailsTable
-	TabView      *core.TabViewHorizontal
-	serviceCtx   *core.ServiceContext[awsapi.ApiGatewayApi]
+	ApisTable          *ApiGatewayApisTable
+	DetailsTable       *ApiGatewayDetailsTable
+	EndpointsView      *ApiGatewayEndpointsTreeView
+	MethodDetailsTable *ApiGatewayMethodDetailsTable
+	TabView            *core.TabViewHorizontal
+	serviceCtx         *core.ServiceContext[awsapi.ApiGatewayApi]
 }
 
 func NewApiGatewayApisPageView(
@@ -27,8 +30,20 @@ func NewApiGatewayApisPageView(
 	detailsTable *ApiGatewayDetailsTable,
 	serviceCtx *core.ServiceContext[awsapi.ApiGatewayApi],
 ) *ApiGatewayApisPageView {
+	var endpointsView = NewApiGatewayEndpointsTreeView(serviceCtx)
+	var methodDetailsTable = NewApiGatewayMethodDetailsTable(serviceCtx)
+	endpointsView.SetMethodSelectedFunc(methodDetailsTable.SetMethod)
+
+	const endpointsTreeSize = 4000
+	const methodDetailsSize = 6000
+	var endpointsPage = core.NewResizableView(
+		endpointsView, endpointsTreeSize,
+		methodDetailsTable, methodDetailsSize,
+		tview.FlexColumn,
+	)
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
-		AddAndSwitchToTab(ApiGatewayTabNameDetails, detailsTable, 0, 1, true)
+		AddAndSwitchToTab(ApiGatewayTabNameDetails, detailsTable, 0, 1, true).
+		AddTab(ApiGatewayTabNameEndpoints, endpointsPage, 0, 1, true)
 
 	const tabViewSize = 3000
 	const apisTableSize = 5000
@@ -42,16 +57,26 @@ func NewApiGatewayApisPageView(
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
 	var view = &ApiGatewayApisPageView{
-		ServicePageView: serviceView,
-		ApisTable:       apisTable,
-		DetailsTable:    detailsTable,
-		TabView:         tabView,
-		serviceCtx:      serviceCtx,
+		ServicePageView:    serviceView,
+		ApisTable:          apisTable,
+		DetailsTable:       detailsTable,
+		EndpointsView:      endpointsView,
+		MethodDetailsTable: methodDetailsTable,
+		TabView:            tabView,
+		serviceCtx:         serviceCtx,
 	}
 
-	apisTable.ErrorMessageCallback = func(text string, a ...any) {
+	var errorHandler = func(text string, a ...any) {
 		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
 	}
+	apisTable.ErrorMessageCallback = errorHandler
+	endpointsView.ErrorMessageCallback = errorHandler
+
+	tabView.GetTab(ApiGatewayTabNameEndpoints).InitViewNavigation(
+		[][]core.View{
+			{endpointsView, methodDetailsTable},
+		},
+	)
 
 	view.InitViewNavigation(
 		[][]core.View{
@@ -66,7 +91,9 @@ func NewApiGatewayApisPageView(
 
 func (inst *ApiGatewayApisPageView) initInputCapture() {
 	inst.ApisTable.SetSelectionChangedFunc(func(row, column int) {
-		inst.DetailsTable.SetApi(inst.ApisTable.GetSelectedApi())
+		var api = inst.ApisTable.GetSelectedApi()
+		inst.DetailsTable.SetApi(api)
+		inst.EndpointsView.SetApi(api)
 	})
 }
 
