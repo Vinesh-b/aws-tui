@@ -41,6 +41,7 @@ func NewLogsInsightsPageView(
 	var queryView = NewInsightsQueryInputView(serviceCtx.AppContext)
 	var recordView = core.CreateJsonTableDataView(serviceCtx.AppContext, resultsTable, -1)
 	recordView.SetTitle("Record")
+	recordView.SetJsonHighlighting(true)
 
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab(InsightsTabQuery, queryView, 0, 1, true).
