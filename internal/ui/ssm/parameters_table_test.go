@@ -75,3 +75,22 @@ func TestParametersTable__SelectingHeadingKeepsPreviousSelection(t *testing.T) {
 		t.Errorf("selected parameter = %q, want %q", got, "/app/db/port")
 	}
 }
+
+func TestParameterDetailsTable__PopulatesFromParameter(t *testing.T) {
+	var table = NewParameterDetailsTable(uitest.NewServiceContext[awsapi.SystemsManagerApi]())
+	var parameter = newParameter("/app/db/host", 3)
+	parameter.ARN = aws.String("arn:aws:ssm:us-east-1:123456789012:parameter/app/db/host")
+	parameter.DataType = aws.String("text")
+	table.data = parameter
+
+	table.populateDetailsTable()
+
+	uitest.AssertDetailsRows(t, table.DetailsTable, []core.TableRow{
+		{"Name", "/app/db/host"},
+		{"ARN", "arn:aws:ssm:us-east-1:123456789012:parameter/app/db/host"},
+		{"Type", "String"},
+		{"Version", "3"},
+		{"Data Type", "text"},
+		{"Last Modified", "2024-01-02 03:04:05"},
+	})
+}
