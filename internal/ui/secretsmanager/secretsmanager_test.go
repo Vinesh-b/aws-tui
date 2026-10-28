@@ -98,6 +98,17 @@ func TestHomeView__ValueStaysHiddenUntilEnterIsPressed(t *testing.T) {
 	uitest.AwaitScreenText(t, appCtx.App, screen, "hunter2")
 }
 
+func TestHomeView__DetailsAreInTheFirstTab(t *testing.T) {
+	var api = &fakeSecretsManagerApi{secrets: []types.SecretListEntry{newSecret("db/password", "Database")}}
+	var appCtx = uitest.NewAppContext()
+	var page = NewSecretsManagerHomeView(appCtx, api)
+	var screen = uitest.ShowPage(t, appCtx.App, page)
+
+	uitest.PressRune(t, appCtx.App, core.APP_KEY_BINDINGS.Reset)
+
+	uitest.AwaitScreenText(t, appCtx.App, screen, "arn:db/password")
+}
+
 func TestSecretsTable__RefreshReportsApiError(t *testing.T) {
 	var api = &fakeSecretsManagerApi{err: errors.New("access denied")}
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SecretsManagerApi](api)
@@ -110,5 +121,36 @@ func TestSecretsTable__RefreshReportsApiError(t *testing.T) {
 
 	if got := uitest.AwaitError(t, received); got != "access denied" {
 		t.Errorf("message = %q, want %q", got, "access denied")
+	}
+}
+
+func TestSecretDetailsTable__PopulatesFromSecret(t *testing.T) {
+	var table = NewSecretDetailsTable(uitest.NewServiceContext[awsapi.SecretsManagerApi]())
+	var secret = newSecret("db/password", "Database")
+	secret.KmsKeyId = aws.String("kms-1")
+	secret.RotationEnabled = aws.Bool(true)
+	secret.CreatedDate = secret.LastChangedDate
+	table.data = secret
+
+	table.populateDetailsTable()
+
+	uitest.AssertDetailsRows(t, table.DetailsTable, []core.TableRow{
+		{"Name", "db/password"},
+		{"ARN", "arn:db/password"},
+		{"Description", "Database"},
+		{"KMS Key", "kms-1"},
+		{"Rotation Enabled", "true"},
+		{"Created", "2024-01-02 03:04:05"},
+		{"Last Changed", "2024-01-02 03:04:05"},
+		{"Last Accessed", ""},
+	})
+}
+
+func TestIndentJson__LaysOutJsonAndKeepsOtherText(t *testing.T) {
+	if got := indentJson(`{"a":1}`); got != "{\n  \"a\": 1\n}" {
+		t.Errorf("json = %q", got)
+	}
+	if got := indentJson("hunter2"); got != "hunter2" {
+		t.Errorf("text = %q, want it unchanged", got)
 	}
 }

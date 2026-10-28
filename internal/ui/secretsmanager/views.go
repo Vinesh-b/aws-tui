@@ -1,124 +1,88 @@
 package secretsmanager
 
 import (
-	"encoding/json"
-	"fmt"
-	"time"
-
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
-
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
-func formatTime(t *time.Time) string {
-	if t == nil {
-		return ""
-	}
-	return t.Format(dateTimeFormat)
-}
+type SecretsTabName = string
 
-// secretDetails is what is shown for a selected secret. The value stays hidden
-// until it is asked for with Enter.
-func secretDetails(secret types.SecretListEntry) string {
-	var details = map[string]any{
-		"Name":            aws.ToString(secret.Name),
-		"ARN":             aws.ToString(secret.ARN),
-		"Description":     aws.ToString(secret.Description),
-		"KmsKeyId":        aws.ToString(secret.KmsKeyId),
-		"Created":         formatTime(secret.CreatedDate),
-		"LastChanged":     formatTime(secret.LastChangedDate),
-		"LastAccessed":    formatTime(secret.LastAccessedDate),
-		"RotationEnabled": aws.ToBool(secret.RotationEnabled),
-	}
-	var bytes, _ = json.MarshalIndent(details, "", "  ")
-	return string(bytes)
-}
+const (
+	SecretsTabNameDetails SecretsTabName = "Details"
+	SecretsTabNameValue   SecretsTabName = "Value"
+)
 
-type SecretsManagerDetailsPageView struct {
+type SecretsPageView struct {
 	*core.ServicePageView
-	SecretsListTable *SecretsListTable
-	valueView        *core.JsonTextView[string]
-	serviceCtx       *core.ServiceContext[awsapi.SecretsManagerApi]
+	SecretsTable       *SecretsListTable
+	SecretDetailsTable *SecretDetailsTable
+	SecretValueView    *SecretValueView
+	TabView            *core.TabViewHorizontal
+	serviceCtx         *core.ServiceContext[awsapi.SecretsManagerApi]
 }
 
-func NewSecretsManagerDetailsPageView(
+func NewSecretsPageView(
+	secretDetailsTable *SecretDetailsTable,
+	secretValueView *SecretValueView,
 	secretsTable *SecretsListTable,
-	serviceViewCtx *core.ServiceContext[awsapi.SecretsManagerApi],
-) *SecretsManagerDetailsPageView {
-	var valueView = &core.JsonTextView[string]{
-		TextView:        core.NewSearchableTextView("Details", serviceViewCtx.AppContext),
-		ExtractTextFunc: func(data string) string { return data },
-	}
+	serviceCtx *core.ServiceContext[awsapi.SecretsManagerApi],
+) *SecretsPageView {
 
-	const valueViewSize = 25
-	const tableSize = 75
+	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
+		AddAndSwitchToTab(SecretsTabNameDetails, secretDetailsTable, 0, 1, true).
+		AddTab(SecretsTabNameValue, secretValueView, 0, 1, true)
+
+	const detailsSize = 25
+	const secretsTableSize = 75
 
 	var mainPage = core.NewResizableView(
-		valueView.TextView, valueViewSize,
-		secretsTable, tableSize,
+		tabView, detailsSize,
+		secretsTable, secretsTableSize,
 		tview.FlexRow,
 	)
-	var serviceView = core.NewServicePageView(serviceViewCtx.AppContext)
+
+	var serviceView = core.NewServicePageView(serviceCtx.AppContext)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
 
-	var view = &SecretsManagerDetailsPageView{
-		ServicePageView:  serviceView,
-		SecretsListTable: secretsTable,
-		valueView:        valueView,
-		serviceCtx:       serviceViewCtx,
-	}
-
-	secretsTable.ErrorMessageCallback = func(text string, a ...any) {
-		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
-	}
-
-	secretsTable.SetSelectionChangedFunc(func(row, column int) {
-		valueView.SetTitle("Details")
-		valueView.SetText(secretDetails(secretsTable.GetSelectedSecret()))
-	})
-	secretsTable.SetSelectedFunc(func(row, column int) {
-		view.showSecretValue(secretsTable.GetSelectedSecret())
-	})
-
-	view.InitViewNavigation(
+	serviceView.InitViewNavigation(
 		[][]core.View{
-			{valueView.TextView},
+			{tabView},
 			{secretsTable},
 		},
 	)
 
-	return view
+	var errorHandler = func(text string, a ...any) {
+		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
+	}
+	secretsTable.ErrorMessageCallback = errorHandler
+	secretValueView.ErrorMessageCallback = errorHandler
+
+	return &SecretsPageView{
+		ServicePageView:    serviceView,
+		SecretsTable:       secretsTable,
+		SecretDetailsTable: secretDetailsTable,
+		SecretValueView:    secretValueView,
+		TabView:            tabView,
+		serviceCtx:         serviceCtx,
+	}
 }
 
-func (inst *SecretsManagerDetailsPageView) showSecretValue(secret types.SecretListEntry) {
-	var value string
-	var loadErr error
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
-
-	dataLoader.AsyncLoadData(func() {
-		var output, err = inst.serviceCtx.Api.GetSecretValue(inst.serviceCtx.Ctx, aws.ToString(secret.ARN))
-		if err != nil {
-			loadErr = err
-			return
-		}
-		value = aws.ToString(output.SecretString)
-		if output.SecretString == nil && output.SecretBinary != nil {
-			value = fmt.Sprintf("<binary secret, %d bytes>", len(output.SecretBinary))
-		}
+func (inst *SecretsPageView) InitInputCapture() {
+	inst.SecretsTable.SetSelectionChangedFunc(func(row, column int) {
+		inst.SecretDetailsTable.RefreshDetails(inst.SecretsTable.GetSelectedSecret())
+		inst.SecretValueView.Clear()
 	})
 
-	dataLoader.AsyncUpdateView(inst.SecretsListTable.Box, func() {
-		if loadErr != nil {
-			inst.DisplayMessage(core.ErrorPrompt, "%s", loadErr.Error())
-			return
-		}
-		inst.valueView.SetTitle("Value")
-		inst.valueView.SetText(value)
+	// The value is only fetched when it is asked for
+	inst.SecretsTable.SetSelectedFunc(func(row, column int) {
+		var secret = inst.SecretsTable.GetSelectedSecret()
+		inst.SecretValueView.RefreshValue(aws.ToString(secret.ARN), func() {
+			inst.TabView.SwitchToTab(SecretsTabNameValue)
+		})
 	})
 }
 
@@ -127,14 +91,22 @@ func NewSecretsManagerHomeView(appCtx *core.AppContext, api awsapi.SecretsManage
 	defer appCtx.Theme.ResetGlobalStyle()
 
 	var serviceCtx = core.NewServiceViewContext(appCtx, api)
-	var detailsView = NewSecretsManagerDetailsPageView(
+
+	var secretsView = NewSecretsPageView(
+		NewSecretDetailsTable(serviceCtx),
+		NewSecretValueView(serviceCtx),
 		NewSecretsListTable(serviceCtx),
 		serviceCtx,
 	)
 
 	var serviceRootView = core.NewServiceRootView(string(core.SECRETS_MANAGER), appCtx)
-	serviceRootView.AddAndSwitchToPage("Secrets", detailsView, true)
+
+	serviceRootView.
+		AddAndSwitchToPage("Secrets", secretsView, true)
+
 	serviceRootView.InitPageNavigation()
+
+	secretsView.InitInputCapture()
 
 	return serviceRootView
 }

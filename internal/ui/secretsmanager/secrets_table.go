@@ -11,8 +11,6 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-const dateTimeFormat = "2006-01-02 15:04:05"
-
 type SecretsListTable struct {
 	*core.SelectableTable[types.SecretListEntry]
 	data           []types.SecretListEntry
@@ -62,7 +60,7 @@ func (inst *SecretsListTable) populateTable(data []types.SecretListEntry) {
 		tableData = append(tableData, core.TableRow{
 			aws.ToString(row.Name),
 			aws.ToString(row.Description),
-			formatTime(row.LastChangedDate),
+			core.FormatTime(row.LastChangedDate),
 		})
 		privateData = append(privateData, row)
 	}
