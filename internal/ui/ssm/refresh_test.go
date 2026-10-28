@@ -88,7 +88,7 @@ func TestParameterHistoryTable__RefreshLoadsHistoryFromApi(t *testing.T) {
 
 	uitest.AwaitRows(t, serviceCtx.App, table, []core.TableRow{
 		historyHeadings,
-		{"2", "SecureString", "new", "2024-01-02 03:04:05"},
-		{"1", "SecureString", "old", "2024-01-02 03:04:05"},
+		{"2", "SecureString", "new", "2024-01-02 03:04:05", "arn:aws:iam::123456789012:user/alice"},
+		{"1", "SecureString", "old", "2024-01-02 03:04:05", "arn:aws:iam::123456789012:user/alice"},
 	})
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
 )
 
-var historyHeadings = core.TableRow{"Version", "Type", "Value", "LastModified"}
+var historyHeadings = core.TableRow{"Version", "Type", "Value", "LastModified", "LastModifiedUser"}
 
 func newHistory(version int64, value string) types.ParameterHistory {
 	var modified = time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC)
@@ -21,6 +21,7 @@ func newHistory(version int64, value string) types.ParameterHistory {
 		Type:             types.ParameterTypeSecureString,
 		Value:            aws.String(value),
 		LastModifiedDate: &modified,
+		LastModifiedUser: aws.String("arn:aws:iam::123456789012:user/alice"),
 	}
 }
 
@@ -35,8 +36,8 @@ func TestParameterHistoryTable__ShowsHeadingsAndOneRowPerVersion(t *testing.T) {
 
 	uitest.AssertTableRows(t, table, []core.TableRow{
 		historyHeadings,
-		{"2", "SecureString", "new", "2024-01-02 03:04:05"},
-		{"1", "SecureString", "old", "2024-01-02 03:04:05"},
+		{"2", "SecureString", "new", "2024-01-02 03:04:05", "arn:aws:iam::123456789012:user/alice"},
+		{"1", "SecureString", "old", "2024-01-02 03:04:05", "arn:aws:iam::123456789012:user/alice"},
 	})
 }
 

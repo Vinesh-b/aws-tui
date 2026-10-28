@@ -35,6 +35,7 @@ func NewSSMParameterHistoryTable(
 				"Type",
 				"Value",
 				"LastModified",
+				"LastModifiedUser",
 			},
 			serviceViewCtx.AppContext,
 		),
@@ -73,6 +74,7 @@ func (inst *SSMParameterHistoryTable) populateTable(data []types.ParameterHistor
 			string(row.Type),
 			aws.ToString(row.Value),
 			aws.ToTime(row.LastModifiedDate).Format(time.DateTime),
+			aws.ToString(row.LastModifiedUser),
 		})
 		privateData = append(privateData, row)
 	}
