@@ -19,6 +19,10 @@ type SecretsManagerApi interface {
 		ctx context.Context,
 		secretId string,
 	) (*secretsmanager.GetSecretValueOutput, error)
+	PutSecretValue(
+		ctx context.Context,
+		secretId string, value string,
+	) error
 }
 
 type secretsManagerApi struct {
@@ -77,4 +81,30 @@ func (inst *secretsManagerApi) GetSecretValue(
 	}
 
 	return output, nil
+}
+
+// PutSecretValue stores the value as the new current version of the secret
+func (inst *secretsManagerApi) PutSecretValue(
+	ctx context.Context,
+	secretId string, value string,
+) error {
+	if err := requireArg("secret ID", secretId); err != nil {
+		return err
+	}
+	if err := requireArg("secret value", value); err != nil {
+		return err
+	}
+
+	var _, err = GetAwsApiClients().secretsmanager.PutSecretValue(
+		ctx,
+		&secretsmanager.PutSecretValueInput{
+			SecretId:     aws.String(secretId),
+			SecretString: aws.String(value),
+		},
+	)
+	if err != nil {
+		return inst.logErr(err)
+	}
+
+	return nil
 }

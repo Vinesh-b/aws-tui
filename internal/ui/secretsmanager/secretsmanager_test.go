@@ -1,7 +1,6 @@
 package secretsmanager
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -9,39 +8,15 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"aws-tui/internal/ui/secretsmanager/secretsmanagerfake"
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 	"github.com/gdamore/tcell/v2"
 )
 
 var secretHeadings = core.TableRow{"Name", "Description", "LastChanged"}
-
-// fakeSecretsManagerApi never changes after it is built, so it is safe to use
-// from the background goroutines of the UI.
-type fakeSecretsManagerApi struct {
-	awsapi.SecretsManagerApi
-	secrets []types.SecretListEntry
-	value   string
-	err     error
-}
-
-func (f *fakeSecretsManagerApi) ListSecrets(
-	ctx context.Context, reset bool,
-) ([]types.SecretListEntry, error) {
-	return f.secrets, f.err
-}
-
-func (f *fakeSecretsManagerApi) GetSecretValue(
-	ctx context.Context, secretId string,
-) (*secretsmanager.GetSecretValueOutput, error) {
-	if f.err != nil {
-		return nil, f.err
-	}
-	return &secretsmanager.GetSecretValueOutput{SecretString: aws.String(f.value)}, nil
-}
 
 func newSecret(name, description string) types.SecretListEntry {
 	var changed = time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC)
@@ -65,7 +40,7 @@ func TestSecretsTable__ShowsHeadingsAndOneRowPerSecret(t *testing.T) {
 }
 
 func TestSecretsTable__RefreshLoadsSecretsFromApi(t *testing.T) {
-	var api = &fakeSecretsManagerApi{secrets: []types.SecretListEntry{newSecret("db/password", "Database")}}
+	var api = secretsmanagerfake.New(secretsmanagerfake.WithSecrets([]types.SecretListEntry{newSecret("db/password", "Database")}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SecretsManagerApi](api)
 	var table = NewSecretsListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -79,10 +54,10 @@ func TestSecretsTable__RefreshLoadsSecretsFromApi(t *testing.T) {
 }
 
 func TestHomeView__ValueStaysHiddenUntilEnterIsPressed(t *testing.T) {
-	var api = &fakeSecretsManagerApi{
-		secrets: []types.SecretListEntry{newSecret("db/password", "Database")},
-		value:   "hunter2",
-	}
+	var api = secretsmanagerfake.New(
+		secretsmanagerfake.WithSecrets([]types.SecretListEntry{newSecret("db/password", "Database")}),
+		secretsmanagerfake.WithValue("hunter2"),
+	)
 	var appCtx = uitest.NewAppContext()
 	var page = NewSecretsManagerHomeView(appCtx, api)
 	var screen = uitest.ShowPage(t, appCtx.App, page)
@@ -99,7 +74,7 @@ func TestHomeView__ValueStaysHiddenUntilEnterIsPressed(t *testing.T) {
 }
 
 func TestHomeView__DetailsAreInTheFirstTab(t *testing.T) {
-	var api = &fakeSecretsManagerApi{secrets: []types.SecretListEntry{newSecret("db/password", "Database")}}
+	var api = secretsmanagerfake.New(secretsmanagerfake.WithSecrets([]types.SecretListEntry{newSecret("db/password", "Database")}))
 	var appCtx = uitest.NewAppContext()
 	var page = NewSecretsManagerHomeView(appCtx, api)
 	var screen = uitest.ShowPage(t, appCtx.App, page)
@@ -110,7 +85,7 @@ func TestHomeView__DetailsAreInTheFirstTab(t *testing.T) {
 }
 
 func TestSecretsTable__RefreshReportsApiError(t *testing.T) {
-	var api = &fakeSecretsManagerApi{err: errors.New("access denied")}
+	var api = secretsmanagerfake.New(secretsmanagerfake.WithErr(errors.New("access denied")))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SecretsManagerApi](api)
 	var table = NewSecretsListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -153,4 +128,30 @@ func TestIndentJson__LaysOutJsonAndKeepsOtherText(t *testing.T) {
 	if got := indentJson("hunter2"); got != "hunter2" {
 		t.Errorf("text = %q, want it unchanged", got)
 	}
+}
+
+func TestSecretsPageView__OpeningTheUpdateTabShowsTheCurrentValue(t *testing.T) {
+	var api = secretsmanagerfake.New(
+		secretsmanagerfake.WithSecrets([]types.SecretListEntry{newSecret("db/password", "Database")}),
+		secretsmanagerfake.WithValue("hunter2"),
+	)
+	var serviceCtx = uitest.NewServiceContextWith[awsapi.SecretsManagerApi](api)
+	var view = NewSecretsPageView(
+		NewSecretDetailsTable(serviceCtx),
+		NewSecretValueView(serviceCtx),
+		NewSecretUpdateValuePageView(serviceCtx),
+		NewSecretsListTable(serviceCtx),
+		serviceCtx,
+	)
+	view.InitInputCapture()
+	uitest.RunApp(t, serviceCtx.App)
+	view.SecretsTable.RefreshSecrets(true)
+	uitest.Eventually(t, serviceCtx.App, func() bool { return view.SecretsTable.GetTable().GetRowCount() == 2 })
+	uitest.OnUI(t, serviceCtx.App, func() { view.SecretsTable.Select(1, 0) })
+
+	uitest.OnUI(t, serviceCtx.App, func() { view.TabView.SwitchToTab(SecretsTabNameUpdate) })
+
+	uitest.Eventually(t, serviceCtx.App, func() bool {
+		return view.UpdateValueView.valueInput.GetText() == "hunter2"
+	}, "the current value is in the editor")
 }

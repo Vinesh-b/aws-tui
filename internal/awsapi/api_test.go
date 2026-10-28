@@ -249,6 +249,12 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			var _, err = NewSecretsManagerApi(logger).GetSecretValue(context.Background(), "")
 			return err
 		}, "secret ID not set"},
+		{"put secret id", func() error {
+			return NewSecretsManagerApi(logger).PutSecretValue(context.Background(), "", "value")
+		}, "secret ID not set"},
+		{"put secret value", func() error {
+			return NewSecretsManagerApi(logger).PutSecretValue(context.Background(), "id", "")
+		}, "secret value not set"},
 		{"ssm path", func() error {
 			var _, err = NewSystemsManagerApi(logger).GetParametersByPath(context.Background(), "", true)
 			return err

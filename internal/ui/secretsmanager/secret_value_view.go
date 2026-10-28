@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
@@ -75,4 +76,10 @@ func indentJson(text string) string {
 		return text
 	}
 	return indented.String()
+}
+
+// isJsonStructure is whether the text is a json object or array
+func isJsonStructure(text string) bool {
+	var trimmed = strings.TrimSpace(text)
+	return json.Valid([]byte(trimmed)) && (strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "["))
 }
