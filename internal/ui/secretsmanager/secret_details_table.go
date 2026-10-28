@@ -41,6 +41,7 @@ func (inst *SecretDetailsTable) populateDetailsTable() {
 		{"Created", core.FormatTime(inst.data.CreatedDate)},
 		{"Last Changed", core.FormatTime(inst.data.LastChangedDate)},
 		{"Last Accessed", core.FormatTime(inst.data.LastAccessedDate)},
+		{"Scheduled Deletion", core.FormatTime(inst.data.DeletedDate)},
 	}
 
 	inst.SetRawData(inst.data)

@@ -23,7 +23,14 @@ type SecretsManagerApi interface {
 		ctx context.Context,
 		secretId string, value string,
 	) error
+	DeleteSecret(
+		ctx context.Context,
+		secretId string,
+	) error
 }
+
+// SecretRecoveryWindowDays is how long a deleted secret can still be restored
+const SecretRecoveryWindowDays = 30
 
 type secretsManagerApi struct {
 	baseApi
@@ -100,6 +107,30 @@ func (inst *secretsManagerApi) PutSecretValue(
 		&secretsmanager.PutSecretValueInput{
 			SecretId:     aws.String(secretId),
 			SecretString: aws.String(value),
+		},
+	)
+	if err != nil {
+		return inst.logErr(err)
+	}
+
+	return nil
+}
+
+// DeleteSecret schedules the secret for deletion. It can be restored until the
+// recovery window ends.
+func (inst *secretsManagerApi) DeleteSecret(
+	ctx context.Context,
+	secretId string,
+) error {
+	if err := requireArg("secret ID", secretId); err != nil {
+		return err
+	}
+
+	var _, err = GetAwsApiClients().secretsmanager.DeleteSecret(
+		ctx,
+		&secretsmanager.DeleteSecretInput{
+			SecretId:             aws.String(secretId),
+			RecoveryWindowInDays: aws.Int64(SecretRecoveryWindowDays),
 		},
 	)
 	if err != nil {

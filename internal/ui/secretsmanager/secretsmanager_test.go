@@ -118,6 +118,7 @@ func TestSecretDetailsTable__PopulatesFromSecret(t *testing.T) {
 		{"Created", "2024-01-02 03:04:05"},
 		{"Last Changed", "2024-01-02 03:04:05"},
 		{"Last Accessed", ""},
+		{"Scheduled Deletion", ""},
 	})
 }
 
@@ -154,4 +155,16 @@ func TestSecretsPageView__OpeningTheUpdateTabShowsTheCurrentValue(t *testing.T) 
 	uitest.Eventually(t, serviceCtx.App, func() bool {
 		return view.UpdateValueView.valueInput.GetText() == "hunter2"
 	}, "the current value is in the editor")
+}
+
+func TestSecretsTable__EmptyTableHasNoSelectedSecret(t *testing.T) {
+	var table = NewSecretsListTable(uitest.NewServiceContext[awsapi.SecretsManagerApi]())
+	table.populateTable([]types.SecretListEntry{newSecret("db/password", "Database")})
+	table.Select(1, 0)
+
+	table.populateTable(nil)
+
+	if table.GetSelectedSecret().ARN != nil {
+		t.Errorf("selected secret = %v, want none", table.GetSelectedSecret())
+	}
 }

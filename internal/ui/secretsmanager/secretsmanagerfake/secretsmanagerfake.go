@@ -31,7 +31,9 @@ type Api struct {
 	value   string
 	err     error
 	putErr  error
+	delErr  error
 	puts    []Put
+	deleted []string
 }
 
 type Option func(*Api)
@@ -44,6 +46,8 @@ func WithValue(value string) Option { return func(f *Api) { f.value = value } }
 // WithErr is the error of listing the secrets and of getting a value.
 func WithErr(err error) Option    { return func(f *Api) { f.err = err } }
 func WithPutErr(err error) Option { return func(f *Api) { f.putErr = err } }
+
+func WithDeleteErr(err error) Option { return func(f *Api) { f.delErr = err } }
 
 func New(options ...Option) *Api {
 	var f = &Api{}
@@ -65,11 +69,24 @@ func (f *Api) SetValue(value string) {
 	f.value = value
 }
 
+func (f *Api) Secrets() []types.SecretListEntry {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return f.secrets
+}
+
 // Puts returns every value stored so far.
 func (f *Api) Puts() []Put {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 	return slices.Clone(f.puts)
+}
+
+// Deleted returns the ID of every secret deleted so far.
+func (f *Api) Deleted() []string {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return slices.Clone(f.deleted)
 }
 
 func (f *Api) ListSecrets(ctx context.Context, reset bool) ([]types.SecretListEntry, error) {
@@ -94,5 +111,15 @@ func (f *Api) PutSecretValue(ctx context.Context, secretId string, value string)
 		return f.putErr
 	}
 	f.puts = append(f.puts, Put{SecretId: secretId, Value: value})
+	return nil
+}
+
+func (f *Api) DeleteSecret(ctx context.Context, secretId string) error {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	if f.delErr != nil {
+		return f.delErr
+	}
+	f.deleted = append(f.deleted, secretId)
 	return nil
 }
