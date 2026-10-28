@@ -11,6 +11,7 @@ import (
 	"aws-tui/internal/ui/iam"
 	"aws-tui/internal/ui/lambda"
 	"aws-tui/internal/ui/s3"
+	"aws-tui/internal/ui/secretsmanager"
 	"aws-tui/internal/ui/services"
 	"aws-tui/internal/ui/sfn"
 	"aws-tui/internal/ui/sns"
@@ -450,6 +451,9 @@ func CreateApplication(
 		}),
 		newServiceItem("󰂚 "+string(core.SNS), "Topics and their attributes", rune('󰯉'), func() core.ServicePage {
 			return sns.NewSnsHomeView(appContext, awsapi.NewSnsApi(appContext.Logger))
+		}),
+		newServiceItem("󰌋 "+string(core.SECRETS_MANAGER), "Secrets and their values", rune('󰯉'), func() core.ServicePage {
+			return secretsmanager.NewSecretsManagerHomeView(appContext, awsapi.NewSecretsManagerApi(appContext.Logger))
 		}),
 		themedServiceItem("󰘥 "+string(core.HELP), "Help docs on how to use this app", rune('?'), func() core.ServicePage {
 			return services.NewHelpHomeView(appContext)

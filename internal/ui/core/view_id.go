@@ -13,6 +13,7 @@ const (
 	EVENTBRIDGE        ViewId = "EventBridge"
 	IAM                ViewId = "IAM"
 	S3BUCKETS          ViewId = "S3 Buckets"
+	SECRETS_MANAGER    ViewId = "Secrets Manager"
 	SNS                ViewId = "SNS"
 	SQS                ViewId = "SQS"
 	STATE_MACHINES     ViewId = "State Machines"

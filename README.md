@@ -4,7 +4,7 @@ A terminal UI for browsing AWS services, built with [tview](https://github.com/r
 
 ## Supported services
 
-Lambda, CloudWatch (Logs, Logs Insights, Alarms, Metrics), DynamoDB, IAM (Roles, Users, Policies), Step Functions, S3, Systems Manager (Parameter Store), EventBridge, CloudFormation, SQS, SNS and VPC.
+Lambda, CloudWatch (Logs, Logs Insights, Alarms, Metrics), DynamoDB, IAM (Roles, Users, Policies), Step Functions, S3, Systems Manager (Parameter Store), Secrets Manager, EventBridge, CloudFormation, SQS, SNS and VPC.
 
 ## Requirements
 
@@ -108,7 +108,7 @@ In forms, `Down` and `Up` move to the next and previous field (`formFocusNext`, 
 | `:w [file]`, `:write [file]` | Save the selected table to a csv file, at the path given or else in the download directory, named after the table |
 | `:<service>` | Go to the service |
 
-A service is named by its name in lower case without spaces, such as `:lambda` or `:cloudwatchlogs`, or by a short name: `:logs`, `:alarms`, `:metrics`, `:ddb`, `:sfn`, `:s3`, `:ssm`, `:cfn` or `:profile`. The start of a name is enough when only one service has it, and `:help` and `:settings` open those pages.
+A service is named by its name in lower case without spaces, such as `:lambda` or `:cloudwatchlogs`, or by a short name: `:logs`, `:alarms`, `:metrics`, `:ddb`, `:sfn`, `:s3`, `:ssm`, `:secrets`, `:cfn` or `:profile`. The start of a name is enough when only one service has it, and `:help` and `:settings` open those pages.
 
 Commands are completed as they are typed: Tab puts the selected completion in, and Enter runs it. What a command did, or why it failed, stays in the line until the next key.
 
@@ -188,7 +188,7 @@ internal/ui/core/   reusable widgets, table infrastructure and app-wide state
 internal/ui/services/  service picker, help and profile selection
 internal/ui/<service>/ views and tables for one service
                        (cloudformation, cloudwatch, dynamodb, eventbridge,
-                        iam, lambda, s3, sfn, sns, sqs, ssm, vpc)
+                        iam, lambda, s3, secretsmanager, sfn, sns, sqs, ssm, vpc)
 ```
 
 ## License

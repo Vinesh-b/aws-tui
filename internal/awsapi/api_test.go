@@ -245,6 +245,10 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			var _, err = lambdaApi.ListTags(context.Background(), "")
 			return err
 		}, "lambda ARN not set"},
+		{"secret value", func() error {
+			var _, err = NewSecretsManagerApi(logger).GetSecretValue(context.Background(), "")
+			return err
+		}, "secret ID not set"},
 		{"ssm path", func() error {
 			var _, err = NewSystemsManagerApi(logger).GetParametersByPath(context.Background(), "", true)
 			return err

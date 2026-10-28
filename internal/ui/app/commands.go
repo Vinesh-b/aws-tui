@@ -19,6 +19,7 @@ var serviceAliases = map[core.ViewId][]string{
 	core.CLOUDFORMATION:     {"cfn"},
 	core.DYNAMODB:           {"ddb"},
 	core.S3BUCKETS:          {"s3"},
+	core.SECRETS_MANAGER:    {"secrets"},
 	core.STATE_MACHINES:     {"sfn"},
 	core.SYSTEMS_MANAGER:    {"ssm"},
 	core.PROFILE_SELECTION:  {"profile"},
