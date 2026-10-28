@@ -1,6 +1,7 @@
 package kms
 
 import (
+	"slices"
 	"strings"
 
 	"aws-tui/internal/awsapi"
@@ -105,6 +106,10 @@ func (inst *KmsKeysTable) populateKeysTable() {
 // RefreshKeys loads the keys and their aliases, or only searches the keys that
 // are here when there is search text and force is not set.
 func (inst *KmsKeysTable) RefreshKeys(force bool) {
+	inst.refreshKeys(force, func() {})
+}
+
+func (inst *KmsKeysTable) refreshKeys(force bool, loaded func()) {
 	var search = inst.GetSearchText()
 	var allKeys = inst.allKeys
 	var data []kmsKey
@@ -137,7 +142,38 @@ func (inst *KmsKeysTable) RefreshKeys(force bool) {
 		inst.allKeys = allKeys
 		inst.data = data
 		inst.populateKeysTable()
+		loaded()
 	})
+}
+
+// Open selects the key of a "key/<id>" or "alias/<name>" ARN resource. The
+// keys are loaded again first if it isn't one of those loaded.
+func (inst *KmsKeysTable) Open(resource string) {
+	if inst.selectResource(resource) {
+		return
+	}
+
+	inst.refreshKeys(true, func() {
+		if !inst.selectResource(resource) {
+			inst.ErrorMessageCallback("Key %s not found", resource)
+		}
+	})
+}
+
+// selectResource shows all the keys, without a search, to select the one the
+// resource is for.
+func (inst *KmsKeysTable) selectResource(resource string) bool {
+	var idx = slices.IndexFunc(inst.allKeys, func(k kmsKey) bool {
+		return "key/"+k.keyId == resource || slices.Contains(k.aliases, resource)
+	})
+	if idx < 0 {
+		return false
+	}
+
+	inst.data = inst.allKeys
+	inst.populateKeysTable()
+	inst.Select(idx+1, 0)
+	return true
 }
 
 func (inst *KmsKeysTable) SetSelectionChangedFunc(handler func(row int, column int)) {

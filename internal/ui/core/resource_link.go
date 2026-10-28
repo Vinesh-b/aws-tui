@@ -49,6 +49,21 @@ func IsIamResourceArn(text string) bool {
 	return false
 }
 
+// IsKmsResourceArn is true for ARNs of the KMS keys and aliases the KMS view
+// shows, whose resource is "key/<id>" or "alias/<name>"
+func IsKmsResourceArn(text string) bool {
+	var parsed, err = arn.Parse(text)
+	if err != nil || parsed.Service != "kms" {
+		return false
+	}
+	for _, resourceType := range []string{"key", "alias"} {
+		if name, found := strings.CutPrefix(parsed.Resource, resourceType+"/"); found {
+			return len(name) > 0
+		}
+	}
+	return false
+}
+
 // ArnFor is the ARN of a resource of the service, in the partition, region and
 // account of the ARN given, for links to resources only known by their name.
 // It is empty if the given ARN can't be parsed.

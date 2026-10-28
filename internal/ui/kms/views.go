@@ -4,6 +4,7 @@ import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
 
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -108,6 +109,11 @@ func NewKmsHomeView(appCtx *core.AppContext, api awsapi.KmsApi) core.ServicePage
 			policyView.LoadPolicy(keyId)
 			serviceRootView.ChangePage(kmsPagePolicy, nil)
 		}
+	})
+
+	serviceRootView.SetResourceOpener("kms", func(resource arn.ARN) {
+		serviceRootView.ChangePage(kmsPageKeys, nil)
+		keysView.KeysTable.Open(resource.Resource)
 	})
 
 	return serviceRootView

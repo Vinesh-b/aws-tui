@@ -175,3 +175,29 @@ func TestKeyDetailsTable__RefreshLoadsDescriptionAndTags(t *testing.T) {
 
 	uitest.AwaitDetailsTag(t, serviceCtx.App, table.DetailsTable, "team", "payments")
 }
+
+func TestKeysTable__OpenSelectsKeyByIdOrAlias(t *testing.T) {
+	var tests = []struct {
+		resource string
+		want     string
+	}{
+		{"key/2222", "2222"},
+		{"alias/orders-old", "1111"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.resource, func(t *testing.T) {
+			var serviceCtx = uitest.NewServiceContextWith[awsapi.KmsApi](newApi())
+			var table = NewKmsKeysTable(serviceCtx)
+			uitest.RunApp(t, serviceCtx.App)
+			table.SetSelectionChangedFunc(func(row, column int) {})
+			uitest.OnUI(t, serviceCtx.App, func() { table.Select(3, 0) })
+
+			uitest.OnUI(t, serviceCtx.App, func() { table.Open(tt.resource) })
+
+			uitest.Eventually(t, serviceCtx.App, func() bool {
+				return table.GetSelectedKey().keyId == tt.want
+			}, "key "+tt.want+" to be selected")
+		})
+	}
+}

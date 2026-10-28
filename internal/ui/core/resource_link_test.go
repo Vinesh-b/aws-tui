@@ -230,3 +230,24 @@ func TestDetailsTableLinks__IamArnsAreLinked(t *testing.T) {
 		t.Errorf("explicit link = %q, want it kept over the role ARN in the value", link)
 	}
 }
+
+func TestIsKmsResourceArn(t *testing.T) {
+	var tests = []struct {
+		text string
+		want bool
+	}{
+		{"arn:aws:kms:us-east-1:123456789012:key/1234abcd-12ab-34cd-56ef-1234567890ab", true},
+		{"arn:aws:kms:us-east-1:123456789012:alias/orders", true},
+		{"arn:aws:kms:us-east-1:123456789012:key/", false},
+		{"arn:aws:kms:us-east-1:123456789012:alias/", false},
+		{"arn:aws:sqs:us-east-1:123456789012:key/1234", false},
+		{"key/1234", false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		if got := IsKmsResourceArn(tt.text); got != tt.want {
+			t.Errorf("%q: got %v, want %v", tt.text, got, tt.want)
+		}
+	}
+}
