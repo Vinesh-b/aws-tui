@@ -4,7 +4,7 @@ A terminal UI for browsing AWS services, built with [tview](https://github.com/r
 
 ## Supported services
 
-Lambda, CloudWatch (Logs, Logs Insights, Alarms, Metrics), DynamoDB, IAM (Roles, Users, Policies), Step Functions, S3, Systems Manager (Parameter Store), Secrets Manager, KMS, EventBridge, CloudFormation, SQS, SNS, EC2 and VPC.
+Lambda, CloudWatch (Logs, Logs Insights, Alarms, Metrics), DynamoDB, IAM (Roles, Users, Policies), Step Functions, S3, Systems Manager (Parameter Store), Secrets Manager, KMS, EventBridge, CloudFormation, SQS, SNS, API Gateway, EC2 and VPC.
 
 ## Requirements
 

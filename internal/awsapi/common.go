@@ -7,6 +7,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/apigateway"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
@@ -33,6 +34,7 @@ type AwsApiClients struct {
 	Sts     *sts.Client
 	Profile string
 
+	apigateway     *apigateway.Client
 	cloudformation *cloudformation.Client
 	cloudwatch     *cloudwatch.Client
 	cloudwatchlogs *cloudwatchlogs.Client
@@ -58,6 +60,7 @@ func newAwsApiClients(cfg aws.Config, profile string) *AwsApiClients {
 		Sts:     sts.NewFromConfig(cfg),
 		Profile: profile,
 
+		apigateway:     apigateway.NewFromConfig(cfg),
 		cloudformation: cloudformation.NewFromConfig(cfg),
 		cloudwatch:     cloudwatch.NewFromConfig(cfg),
 		cloudwatchlogs: cloudwatchlogs.NewFromConfig(cfg),

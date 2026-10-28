@@ -3,6 +3,7 @@ package app
 import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/settings"
+	"aws-tui/internal/ui/apigateway"
 	"aws-tui/internal/ui/cloudformation"
 	"aws-tui/internal/ui/cloudwatch"
 	"aws-tui/internal/ui/core"
@@ -454,6 +455,9 @@ func CreateApplication(
 		}),
 		newServiceItem(" "+string(core.CLOUDWATCH_METRICS), "View metrics", rune('󰯉'), func() core.ServicePage {
 			return cloudwatch.NewMetricsHomeView(appContext, awsapi.NewCloudWatchMetricsApi(appContext.Logger))
+		}),
+		newServiceItem("󰘦 "+string(core.API_GATEWAY), "REST APIs and their details", rune('󰯉'), func() core.ServicePage {
+			return apigateway.NewApiGatewayHomeView(appContext, awsapi.NewApiGatewayApi(appContext.Logger))
 		}),
 		newServiceItem(" "+string(core.EC2), "Instances and their details", rune('󰯉'), func() core.ServicePage {
 			return ec2.NewEc2HomeView(appContext, awsapi.NewEc2Api(appContext.Logger))
