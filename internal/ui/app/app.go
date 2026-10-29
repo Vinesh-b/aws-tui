@@ -310,6 +310,8 @@ type appOptions struct {
 	settingsPath       string
 	pollSessionAtStart bool
 	copyToSystem       func(text string) error
+	profile            string
+	startCommand       string
 }
 
 // Option changes how the application is created.
@@ -333,6 +335,17 @@ func WithSessionPollAtStart() Option {
 // system, such as in tests, which should leave the clipboard of the user alone
 func WithSystemClipboard(copy func(text string) error) Option {
 	return func(options *appOptions) { options.copyToSystem = copy }
+}
+
+// WithProfile names the profile the config was loaded with, which the app shows
+func WithProfile(profile string) Option {
+	return func(options *appOptions) { options.profile = profile }
+}
+
+// WithStartCommand runs the command, such as "logs streams", as if it was
+// typed in the command line once the app is created
+func WithStartCommand(command string) Option {
+	return func(options *appOptions) { options.startCommand = command }
 }
 
 // settingsStore keeps the settings the user chooses, and saves them in the
@@ -424,7 +437,7 @@ func CreateApplication(
 	config.Logger = logging.StandardLogger{Logger: inAppLogger}
 	// The api clients must log to the in-app view; SDK warnings written to the
 	// terminal would shift the whole screen.
-	appContext.ResetApiClients(config, "")
+	appContext.ResetApiClients(config, options.profile)
 
 	var serviceViews = []*ServiceItem{
 		newServiceItem("󰘧 "+string(core.LAMBDA), "Lambdas and logs", rune('1'), func() core.ServicePage {
@@ -679,5 +692,8 @@ func CreateApplication(
 	})
 
 	app.SetRoot(pages, true)
+	if options.startCommand != "" {
+		appCommands.Run(options.startCommand, nil)
+	}
 	return app
 }

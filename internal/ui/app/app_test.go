@@ -580,3 +580,15 @@ func TestCreateApplication__CopiedTextIsSentToTheTerminal(t *testing.T) {
 		t.Errorf("system clipboard = %q", got)
 	}
 }
+
+func TestCreateApplication__StartCommandShowsThePage(t *testing.T) {
+	var tuiApp, screen = startApp(t, WithStartCommand("cloudwatchlogs streams"))
+
+	uitest.AwaitScreenText(t, tuiApp, screen, "Log Stream Details")
+}
+
+func TestCreateApplication__StartCommandShowsWhyItFailed(t *testing.T) {
+	var tuiApp, screen = startApp(t, WithStartCommand("nope"))
+
+	uitest.AwaitScreenText(t, tuiApp, screen, "not a command or service: nope")
+}

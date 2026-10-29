@@ -17,7 +17,10 @@ Lambda, CloudWatch (Logs, Logs Insights, Alarms, Metrics), DynamoDB, IAM (Roles,
 make build        # outputs ./bin/aws-tui
 ./bin/aws-tui
 ./bin/aws-tui -version
+./bin/aws-tui -profile dev -region eu-west-1 -open "logs streams"
 ```
+
+`-profile` and `-region` start with that profile and region, and `-open` runs a command of the command line, such as `logs streams`, once the app has started.
 
 Other targets: `make build-all` (linux, darwin, windows), `make test`, `make clean`.
 
