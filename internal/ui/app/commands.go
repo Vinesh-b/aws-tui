@@ -52,9 +52,33 @@ func pageCommand(name string) string {
 	return strings.ToLower(strings.ReplaceAll(name, " ", ""))
 }
 
+// startCommand is the command that goes to the service, on the page if there is
+// one
+func startCommand(item *ServiceItem, page string) string {
+	var command = serviceCommands(item)[0]
+	if page == "" {
+		return command
+	}
+	return command + " " + pageCommand(page)
+}
+
+// duplicateArgs are the arguments that start the app with the profile and
+// region, on the page the command goes to. Whatever is empty is left out, so
+// the new instance finds it the way a new start does.
+func duplicateArgs(profile string, region string, start string) []string {
+	var args []string
+	for _, flag := range [][2]string{{"-profile", profile}, {"-region", region}, {"-open", start}} {
+		if flag[1] != "" {
+			args = append(args, flag[0], flag[1])
+		}
+	}
+	return args
+}
+
 // commands runs what is typed in the command line: :q quits, :w [file] saves
-// the table that has the focus, and the name of a service goes to it, as does
-// the name followed by one of its pages, such as :logs streams
+// the table that has the focus, :dup opens the app again in a new terminal, and
+// the name of a service goes to it, as does the name followed by one of its
+// pages, such as :logs streams
 type commands struct {
 	items  []*ServiceItem
 	appCtx *core.AppContext
@@ -63,16 +87,20 @@ type commands struct {
 	// app
 	show func(item *ServiceItem, page string)
 	quit func()
+	// duplicate opens the app in a new terminal where this one is
+	duplicate func() error
 }
 
 var (
 	quitCommands  = []string{"q", "quit"}
 	writeCommands = []string{"w", "write"}
+	// duplicateCommands open the app in a new terminal, like duplicating a tab
+	duplicateCommands = []string{"dup", "duplicate"}
 )
 
 // names are every command, in the order they are completed
 func (inst *commands) names() []string {
-	var names = slices.Concat(quitCommands, writeCommands)
+	var names = slices.Concat(quitCommands, writeCommands, duplicateCommands)
 	for _, item := range inst.items {
 		names = append(names, serviceCommands(item)...)
 	}
@@ -143,6 +171,12 @@ func (inst *commands) Run(text string, focused tview.Primitive) {
 		if err != nil {
 			inst.line.ShowError(err.Error())
 		}
+	case slices.Contains(duplicateCommands, command):
+		if err := inst.duplicate(); err != nil {
+			inst.line.ShowError(err.Error())
+			return
+		}
+		inst.line.ShowMessage("Opened a new window")
 	default:
 		var item, err = inst.findService(command)
 		if err != nil {

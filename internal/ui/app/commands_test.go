@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -45,6 +46,9 @@ type commandsTest struct {
 	line     *fakeLine
 	shown    []string
 	quits    int
+	// duplicates counts the windows opened, and duplicateErr is what failed
+	duplicates   int
+	duplicateErr error
 }
 
 func newCommandsTest(appCtx *core.AppContext) *commandsTest {
@@ -67,6 +71,10 @@ func newCommandsTest(appCtx *core.AppContext) *commandsTest {
 			test.shown = append(test.shown, strings.TrimSpace(serviceName(item)+" "+page))
 		},
 		quit: func() { test.quits++ },
+		duplicate: func() error {
+			test.duplicates++
+			return test.duplicateErr
+		},
 	}
 	return test
 }
@@ -226,5 +234,76 @@ func TestCommands__WWithoutATableIsAnError(t *testing.T) {
 
 	if _, errors := test.line.shown(); !slices.Equal(errors, []string{"the selected pane is not a table"}) {
 		t.Errorf("errors = %v", errors)
+	}
+}
+
+func TestCommands__DuplicateOpensANewWindow(t *testing.T) {
+	for _, command := range []string{"dup", "duplicate", "DUP"} {
+		t.Run(command, func(t *testing.T) {
+			var test = newCommandsTest(uitest.NewAppContext())
+
+			test.commands.Run(command, nil)
+
+			var messages, errors = test.line.shown()
+			if test.duplicates != 1 || !slices.Equal(messages, []string{"Opened a new window"}) || len(errors) != 0 {
+				t.Errorf("duplicates = %d, messages = %v, errors = %v", test.duplicates, messages, errors)
+			}
+		})
+	}
+}
+
+func TestCommands__DuplicateShowsWhyNoWindowOpened(t *testing.T) {
+	var test = newCommandsTest(uitest.NewAppContext())
+	test.duplicateErr = fmt.Errorf("no terminal found")
+
+	test.commands.Run("dup", nil)
+
+	var messages, errors = test.line.shown()
+	if !slices.Equal(errors, []string{"no terminal found"}) || len(messages) != 0 {
+		t.Errorf("messages = %v, errors = %v", messages, errors)
+	}
+}
+
+func TestCommands__CompleteDuplicate(t *testing.T) {
+	var test = newCommandsTest(uitest.NewAppContext())
+
+	if got, want := test.commands.Complete("du"), []string{"dup", "duplicate"}; !slices.Equal(got, want) {
+		t.Errorf("du completes to %v, want %v", got, want)
+	}
+}
+
+func TestStartCommand__GoesBackToTheServiceAndPage(t *testing.T) {
+	var test = newCommandsTest(uitest.NewAppContext())
+
+	for _, start := range []string{"lambda", "cloudwatchlogs streams", "help"} {
+		test.shown = nil
+		test.commands.Run(start, nil)
+		if len(test.shown) != 1 {
+			t.Fatalf("%q shown %v", start, test.shown)
+		}
+	}
+
+	var logs = test.commands.items[1]
+	if got := startCommand(logs, "Streams"); got != "cloudwatchlogs streams" {
+		t.Errorf("startCommand = %q", got)
+	}
+	if got := startCommand(logs, ""); got != "cloudwatchlogs" {
+		t.Errorf("startCommand without a page = %q", got)
+	}
+}
+
+func TestDuplicateArgs__LeaveOutWhatIsEmpty(t *testing.T) {
+	var tests = []struct {
+		profile, region, start string
+		want                   []string
+	}{
+		{"dev", "eu-west-1", "logs streams", []string{"-profile", "dev", "-region", "eu-west-1", "-open", "logs streams"}},
+		{"", "eu-west-1", "", []string{"-region", "eu-west-1"}},
+		{"", "", "", nil},
+	}
+	for _, test := range tests {
+		if got := duplicateArgs(test.profile, test.region, test.start); !slices.Equal(got, test.want) {
+			t.Errorf("duplicateArgs(%q, %q, %q) = %v, want %v", test.profile, test.region, test.start, got, test.want)
+		}
 	}
 }

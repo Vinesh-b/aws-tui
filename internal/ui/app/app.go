@@ -24,8 +24,10 @@ import (
 	"aws-tui/internal/ui/ssm"
 	"aws-tui/internal/ui/vpc"
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
@@ -312,6 +314,7 @@ type appOptions struct {
 	copyToSystem       func(text string) error
 	profile            string
 	startCommand       string
+	openTerminal       func(argv []string) error
 }
 
 // Option changes how the application is created.
@@ -338,6 +341,7 @@ func WithSystemClipboard(copy func(text string) error) Option {
 }
 
 // WithProfile names the profile the config was loaded with, which the app shows
+// and passes on when it is duplicated
 func WithProfile(profile string) Option {
 	return func(options *appOptions) { options.profile = profile }
 }
@@ -346,6 +350,12 @@ func WithProfile(profile string) Option {
 // typed in the command line once the app is created
 func WithStartCommand(command string) Option {
 	return func(options *appOptions) { options.startCommand = command }
+}
+
+// WithTerminalOpener lets :duplicate run a program, the executable and its
+// arguments, in a new terminal window. Without it :duplicate is an error.
+func WithTerminalOpener(open func(argv []string) error) Option {
+	return func(options *appOptions) { options.openTerminal = open }
 }
 
 // settingsStore keeps the settings the user chooses, and saves them in the
@@ -572,6 +582,12 @@ func CreateApplication(
 			serviceListHidden = true
 		},
 		quit: app.Stop,
+		duplicate: func() error {
+			if options.openTerminal == nil {
+				return errors.New("opening a new window is not available")
+			}
+			return duplicateApp(appContext, nav, options.openTerminal)
+		},
 	}
 	commandLine.SetRunFunc(appCommands.Run)
 
@@ -696,4 +712,22 @@ func CreateApplication(
 		appCommands.Run(options.startCommand, nil)
 	}
 	return app
+}
+
+// duplicateApp opens the app again in a new window, with the profile and region
+// in use, on the page in front
+func duplicateApp(appContext *core.AppContext, nav *navigator, open func(argv []string) error) error {
+	var executable, err = os.Executable()
+	if err != nil {
+		return fmt.Errorf("can't find the app to start: %w", err)
+	}
+
+	var clients = appContext.GetApiClients()
+	var start string
+	if name, _ := nav.pages.GetFrontPage(); name != "" {
+		if item, ok := nav.find(name); ok {
+			start = startCommand(item, locationOf(item).Page)
+		}
+	}
+	return open(append([]string{executable}, duplicateArgs(clients.Profile, clients.Config.Region, start)...))
 }

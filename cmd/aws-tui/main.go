@@ -3,6 +3,7 @@ package main
 import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/settings"
+	"aws-tui/internal/terminal"
 	"aws-tui/internal/ui/app"
 	"context"
 	"flag"
@@ -36,7 +37,8 @@ func VersionString() string {
 }
 
 // loadConfig loads the config of the profile, the one that is picked from the
-// environment when there is none, with the region if there is one
+// environment when there is none, with the region if there is one. That is what
+// another instance needs to be started like this one.
 func loadConfig(ctx context.Context, profile string, region string) (aws.Config, error) {
 	var cfg aws.Config
 	var err error
@@ -85,6 +87,7 @@ func main() {
 	var appOptions = []app.Option{app.WithSessionPollAtStart(),
 		app.WithProfile(profile),
 		app.WithStartCommand(open),
+		app.WithTerminalOpener(terminal.Open),
 	}
 	if settingsPath, err := settings.DefaultPath(); err != nil {
 		log.Printf("settings will not be saved: %v", err)

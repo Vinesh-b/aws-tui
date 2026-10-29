@@ -2,11 +2,13 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -591,4 +593,81 @@ func TestCreateApplication__StartCommandShowsWhyItFailed(t *testing.T) {
 	var tuiApp, screen = startApp(t, WithStartCommand("nope"))
 
 	uitest.AwaitScreenText(t, tuiApp, screen, "not a command or service: nope")
+}
+
+// openedTerminals keeps the programs the app opened in new windows, which it
+// does from the UI goroutine
+type openedTerminals struct {
+	mu    sync.Mutex
+	calls [][]string
+	err   error
+}
+
+func (o *openedTerminals) open(argv []string) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.calls = append(o.calls, slices.Clone(argv))
+	return o.err
+}
+
+func (o *openedTerminals) opened() [][]string {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return slices.Clone(o.calls)
+}
+
+func TestCreateApplication__DuplicateOpensTheSamePageWithTheProfileAndRegion(t *testing.T) {
+	var terminals = &openedTerminals{}
+	var tuiApp, screen = startApp(t, WithProfile("dev"), WithTerminalOpener(terminals.open))
+	typeRunes(tuiApp, "7")
+	uitest.AwaitScreenText(t, tuiApp, screen, "Log Group Details")
+	typeRunes(tuiApp, core.APP_KEY_BINDINGS.PageForwardSequence)
+	uitest.AwaitScreenText(t, tuiApp, screen, "Log Stream Details")
+
+	typeRunes(tuiApp, ":dup")
+	pressEnter(tuiApp)
+
+	uitest.AwaitScreenText(t, tuiApp, screen, "Opened a new window")
+	var opened = terminals.opened()
+	if len(opened) != 1 {
+		t.Fatalf("opened %v, want one window", opened)
+	}
+	if got, want := opened[0][1:], []string{
+		"-profile", "dev", "-region", "us-east-1", "-open", "cloudwatchlogs streams",
+	}; !slices.Equal(got, want) {
+		t.Errorf("arguments = %v, want %v", got, want)
+	}
+}
+
+func TestCreateApplication__DuplicateOnTheHomePageOpensTheHomePage(t *testing.T) {
+	var terminals = &openedTerminals{}
+	var tuiApp, screen = startApp(t, WithTerminalOpener(terminals.open))
+
+	typeRunes(tuiApp, ":dup")
+	pressEnter(tuiApp)
+
+	uitest.AwaitScreenText(t, tuiApp, screen, "Opened a new window")
+	var opened = terminals.opened()
+	if len(opened) != 1 || !slices.Equal(opened[0][1:], []string{"-region", "us-east-1"}) {
+		t.Errorf("opened %v, want the region only", opened)
+	}
+}
+
+func TestCreateApplication__DuplicateShowsWhyNoWindowOpened(t *testing.T) {
+	var terminals = &openedTerminals{err: errors.New("no terminal found")}
+	var tuiApp, screen = startApp(t, WithTerminalOpener(terminals.open))
+
+	typeRunes(tuiApp, ":dup")
+	pressEnter(tuiApp)
+
+	uitest.AwaitScreenText(t, tuiApp, screen, "no terminal found")
+}
+
+func TestCreateApplication__DuplicateWithoutATerminalOpenerShowsAnError(t *testing.T) {
+	var tuiApp, screen = startApp(t)
+
+	typeRunes(tuiApp, ":dup")
+	pressEnter(tuiApp)
+
+	uitest.AwaitScreenText(t, tuiApp, screen, "opening a new window is not available")
 }

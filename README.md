@@ -109,9 +109,12 @@ In forms, `Down` and `Up` move to the next and previous field (`formFocusNext`, 
 |---|---|
 | `:q`, `:quit` | Quit |
 | `:w [file]`, `:write [file]` | Save the selected table to a csv file, at the path given or else in the download directory, named after the table |
+| `:dup`, `:duplicate` | Open the app again in a new terminal window, like duplicating a tab of a browser: with the same profile and region, on the page of the service in front |
 | `:<service>` | Go to the service |
 
 A service is named by its name in lower case without spaces, such as `:lambda` or `:cloudwatchlogs`, or by a short name: `:logs`, `:alarms`, `:metrics`, `:ddb`, `:sfn`, `:s3`, `:ssm`, `:secrets`, `:cfn` or `:profile`. The start of a name is enough when only one service has it, and `:help` and `:settings` open those pages.
+
+`:dup` opens the window in the terminal the app runs in when it knows it (tmux, kitty, WezTerm, Alacritty, Konsole, GNOME Terminal and foot, and Terminal or iTerm on macOS), else in the terminal in `$TERMINAL`, or else in the first of those installed, `x-terminal-emulator` or `xterm`. What is selected in the page is not carried over.
 
 Commands are completed as they are typed: Tab puts the selected completion in, and Enter runs it. What a command did, or why it failed, stays in the line until the next key.
 
