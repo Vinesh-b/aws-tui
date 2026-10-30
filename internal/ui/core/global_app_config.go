@@ -88,6 +88,7 @@ type KeyBindings struct {
 	TableScan          rune
 	TableQuery         rune
 	Mark               rune
+	Follow             rune
 	RemoveItem         rune
 	TextCopy           rune
 	ToggleRawView      rune
@@ -148,6 +149,7 @@ var APP_KEY_BINDINGS = KeyBindings{
 	TableScan:          's',
 	TableQuery:         'q',
 	Mark:               'm',
+	Follow:             'f',
 	RemoveItem:         'x',
 	TextCopy:           'y',
 	ToggleRawView:      'J',

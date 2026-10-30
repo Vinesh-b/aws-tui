@@ -3,6 +3,7 @@ package awsapi
 import (
 	"context"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -31,6 +32,14 @@ type CloudWatchLogsApi interface {
 		logGroupName string,
 		logStreamName string,
 		reset bool,
+	) ([]types.OutputLogEvent, error)
+	// FollowLogEvents gives the events that came after those ListLogEvents
+	// gave last, for a stream that is being followed. It is empty until
+	// ListLogEvents has given its first page.
+	FollowLogEvents(
+		ctx context.Context,
+		logGroupName string,
+		logStreamName string,
 	) ([]types.OutputLogEvent, error)
 	ListFilteredLogEvents(
 		ctx context.Context,
@@ -68,6 +77,10 @@ type cloudWatchLogsApi struct {
 	logStreamsPaginator        *cloudwatchlogs.DescribeLogStreamsPaginator
 	logGroupsPaginator         *cloudwatchlogs.DescribeLogGroupsPaginator
 	filteredLogEventsPaginator *cloudwatchlogs.FilterLogEventsPaginator
+	// logEventsMtx keeps the paging of the events and the following of them
+	// from running together, as both move logEventsToken on
+	logEventsMtx   sync.Mutex
+	logEventsToken *string
 }
 
 func NewCloudWatchLogsApi(
@@ -169,7 +182,11 @@ func (inst *cloudWatchLogsApi) ListLogEvents(
 
 	var client = GetAwsApiClients().cloudwatchlogs
 
+	inst.logEventsMtx.Lock()
+	defer inst.logEventsMtx.Unlock()
+
 	if reset || inst.logEventsPaginator == nil {
+		inst.logEventsToken = nil
 		inst.logEventsPaginator = cloudwatchlogs.NewGetLogEventsPaginator(
 			client,
 			&cloudwatchlogs.GetLogEventsInput{
@@ -190,6 +207,49 @@ func (inst *cloudWatchLogsApi) ListLogEvents(
 		return empty, inst.logErr(err)
 	}
 
+	inst.logEventsToken = output.NextForwardToken
+	return output.Events, nil
+}
+
+func (inst *cloudWatchLogsApi) FollowLogEvents(
+	ctx context.Context,
+	logGroupName string,
+	logStreamName string,
+) ([]types.OutputLogEvent, error) {
+	var empty = []types.OutputLogEvent{}
+
+	if err := requireArg("log group", logGroupName); err != nil {
+		return empty, err
+	}
+
+	if err := requireArg("log stream", logStreamName); err != nil {
+		return empty, err
+	}
+
+	inst.logEventsMtx.Lock()
+	defer inst.logEventsMtx.Unlock()
+
+	if inst.logEventsToken == nil {
+		return empty, nil
+	}
+
+	// The paginator stops once the end of the stream is reached, but the
+	// token of the end can be asked again for what came after it
+	var output, err = GetAwsApiClients().cloudwatchlogs.GetLogEvents(
+		ctx, &cloudwatchlogs.GetLogEventsInput{
+			LogGroupName:  aws.String(logGroupName),
+			LogStreamName: aws.String(logStreamName),
+			Limit:         aws.Int32(500),
+			StartFromHead: aws.Bool(true),
+			NextToken:     inst.logEventsToken,
+		})
+	if err != nil {
+		return empty, inst.logErr(err)
+	}
+
+	if output.NextForwardToken != nil {
+		inst.logEventsToken = output.NextForwardToken
+	}
 	return output.Events, nil
 }
 

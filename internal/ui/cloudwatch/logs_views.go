@@ -163,6 +163,27 @@ const (
 	logsPageInsights
 )
 
+// logsRootView stops the following of a log stream when the events are no
+// longer shown, or the view is replaced
+type logsRootView struct {
+	*core.ServiceRootView
+	logEventsTable *LogEventsTable
+}
+
+func (inst *logsRootView) SetServicePageChangedFunc(handler func(name string)) {
+	inst.ServiceRootView.SetServicePageChangedFunc(func(name string) {
+		if name != inst.ServicePages()[logsPageEvents] {
+			inst.logEventsTable.StopFollow()
+		}
+		handler(name)
+	})
+}
+
+func (inst *logsRootView) Close() {
+	inst.logEventsTable.StopFollow()
+	inst.ServiceRootView.Close()
+}
+
 // NewLogsHomeView has the pages to go from the log groups down to their events,
 // and to query the log groups that are marked on the way with Insights
 func NewLogsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchLogsApi) core.ServicePage {
@@ -262,5 +283,5 @@ func NewLogsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchLogsApi) core
 	logStreamsView.InitInputCapture()
 	logGroupsView.InitInputCapture()
 
-	return serviceRootView
+	return &logsRootView{ServiceRootView: serviceRootView, logEventsTable: logEventsView.LogEventsTable}
 }
