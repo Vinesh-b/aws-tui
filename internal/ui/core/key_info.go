@@ -54,6 +54,7 @@ var keyBindingInfos = []KeyBindingInfo{
 	{"mark", "Tables", "Mark a log group to query with Insights"},
 	{"follow", "Tables", "Follow a log stream as new events arrive"},
 	{"timeRange", "Tables", "Show the next time range of the events of a log stream"},
+	{"unmask", "Tables", "Show or mask the data a data protection policy masks in the events of a log stream"},
 	{"filter", "Tables", "Filter the events of a log stream with a filter pattern"},
 	{"sort", "Tables", "Sort by the selected column, then the other way, then as loaded"},
 	{"removeItem", "Tables", "Unmark a log group, or delete a saved query or DynamoDB item"},

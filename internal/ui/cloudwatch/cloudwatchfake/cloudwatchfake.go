@@ -8,6 +8,7 @@ package cloudwatchfake
 import (
 	"context"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -29,6 +30,7 @@ type Api struct {
 	followed    [][]types.OutputLogEvent
 	followErr   error
 	calls       []string
+	unmask      bool
 }
 
 type Option func(*Api)
@@ -87,6 +89,13 @@ func (f *Api) Calls() []string {
 // CallsWithPrefix returns the calls whose text starts with prefix, e.g. "follow ".
 func (f *Api) CallsWithPrefix(prefix string) []string {
 	return slices.DeleteFunc(f.Calls(), func(call string) bool { return !strings.HasPrefix(call, prefix) })
+}
+
+func (f *Api) SetUnmaskLogEvents(unmask bool) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	f.unmask = unmask
+	f.calls = append(f.calls, "unmask "+strconv.FormatBool(unmask))
 }
 
 func (f *Api) HasMoreLogEvents() bool {

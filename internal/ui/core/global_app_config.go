@@ -88,6 +88,7 @@ type KeyBindings struct {
 	Mark               rune
 	Follow             rune
 	TimeRange          rune
+	Unmask             rune
 	Filter             rune
 	Sort               rune
 	RemoveItem         rune
@@ -150,6 +151,7 @@ var APP_KEY_BINDINGS = KeyBindings{
 	Mark:               'm',
 	Follow:             'f',
 	TimeRange:          't',
+	Unmask:             'U',
 	Filter:             'F',
 	Sort:               'o',
 	RemoveItem:         'x',

@@ -26,6 +26,8 @@ const logFollowPageSize = 500
 
 const logFollowingTitle = "following"
 
+const logUnmaskedTitle = "unmasked"
+
 const logFilterOverlayId = "FILTER"
 
 // logFilterView is the input for the filter pattern, which shows the pattern
@@ -63,6 +65,9 @@ type LogEventsTable struct {
 	// empty. Like the range it stays when another stream is opened.
 	filterPattern string
 	filterView    *logFilterView
+	// unmasked is whether the data a data protection policy masks is shown.
+	// Like the range it stays when another stream is opened.
+	unmasked bool
 	// loads counts the reloads, so the events of one that was replaced by
 	// another before they came are not shown
 	loads int
@@ -112,7 +117,8 @@ func NewLogEventsTable(
 	view.HelpView.View.
 		AddRune(core.APP_KEY_BINDINGS.Filter, "Show only the events that match a filter pattern").
 		AddRune(core.APP_KEY_BINDINGS.Follow, "Follow the log stream as new events arrive").
-		AddRune(core.APP_KEY_BINDINGS.TimeRange, "Show the events of the next time range")
+		AddRune(core.APP_KEY_BINDINGS.TimeRange, "Show the events of the next time range").
+		AddRune(core.APP_KEY_BINDINGS.Unmask, "Show or mask the data a data protection policy masks")
 	view.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
@@ -123,6 +129,9 @@ func NewLogEventsTable(
 			return nil
 		case core.APP_KEY_BINDINGS.TimeRange:
 			view.NextTimeRange()
+			return nil
+		case core.APP_KEY_BINDINGS.Unmask:
+			view.ToggleUnmask()
 			return nil
 		}
 		return event
@@ -225,6 +234,9 @@ func (inst *LogEventsTable) showTitleExtra() {
 	if len(inst.filterPattern) > 0 {
 		parts = append(parts, "filter: "+inst.filterPattern)
 	}
+	if inst.unmasked {
+		parts = append(parts, logUnmaskedTitle)
+	}
 	if inst.IsFollowing() {
 		parts = append(parts, logFollowingTitle)
 	}
@@ -241,6 +253,20 @@ func (inst *LogEventsTable) SetFilterPattern(pattern string) {
 	}
 
 	inst.filterPattern = pattern
+	inst.RefreshLogEvents(true)
+	inst.showTitleExtra()
+}
+
+// ToggleUnmask shows the data a data protection policy masks, or masks it
+// again, by loading the events again. Showing it needs the logs:Unmask
+// permission, which the server refuses the events without.
+func (inst *LogEventsTable) ToggleUnmask() {
+	if len(inst.selectedLogGroup) == 0 || len(inst.selectedLogStream) == 0 {
+		return
+	}
+
+	inst.unmasked = !inst.unmasked
+	inst.serviceCtx.Api.SetUnmaskLogEvents(inst.unmasked)
 	inst.RefreshLogEvents(true)
 	inst.showTitleExtra()
 }

@@ -27,6 +27,10 @@ type CloudWatchLogsApi interface {
 		searchPrefix string,
 		reset bool,
 	) ([]types.LogStream, error)
+	// SetUnmaskLogEvents makes the listings of the events, and following
+	// them, ask for the data a data protection policy masks to be shown. It
+	// needs the logs:Unmask permission, and holds until it is changed.
+	SetUnmaskLogEvents(unmask bool)
 	// ListLogEvents pages the events of a stream from the oldest, or from
 	// startTime if that is not zero.
 	// HasMoreLogStreams is true if ListLogStreams has more pages to give
@@ -96,6 +100,9 @@ type cloudWatchLogsApi struct {
 	logEventsToken *string
 	// eventsFiltered is true if the events were last listed with a filter
 	eventsFiltered bool
+	// unmaskEvents is whether the events are asked for with the data a data
+	// protection policy masks left in. It is read when a listing starts.
+	unmaskEvents bool
 }
 
 func NewCloudWatchLogsApi(
@@ -179,6 +186,12 @@ func (inst *cloudWatchLogsApi) ListLogStreams(
 	return output.LogStreams, nil
 }
 
+func (inst *cloudWatchLogsApi) SetUnmaskLogEvents(unmask bool) {
+	inst.logEventsMtx.Lock()
+	defer inst.logEventsMtx.Unlock()
+	inst.unmaskEvents = unmask
+}
+
 func (inst *cloudWatchLogsApi) HasMoreLogStreams() bool {
 	return inst.logStreamsPaginator != nil && inst.logStreamsPaginator.HasMorePages()
 }
@@ -231,6 +244,7 @@ func (inst *cloudWatchLogsApi) ListLogEvents(
 				LogGroupName:  aws.String(logGroupName),
 				StartFromHead: aws.Bool(true),
 				StartTime:     startTimePtr,
+				Unmask:        inst.unmaskEvents,
 			},
 		)
 	}
@@ -279,6 +293,7 @@ func (inst *cloudWatchLogsApi) FollowLogEvents(
 			Limit:         aws.Int32(500),
 			StartFromHead: aws.Bool(true),
 			NextToken:     inst.logEventsToken,
+			Unmask:        inst.unmaskEvents,
 		})
 	if err != nil {
 		return empty, inst.logErr(err)
@@ -314,6 +329,7 @@ func (inst *cloudWatchLogsApi) ListFilteredLogEvents(
 		var input = &cloudwatchlogs.FilterLogEventsInput{
 			Limit:        aws.Int32(500),
 			LogGroupName: aws.String(logGroupName),
+			Unmask:       inst.unmaskEvents,
 		}
 		if len(logStreamName) > 0 {
 			input.LogStreamNames = []string{logStreamName}
