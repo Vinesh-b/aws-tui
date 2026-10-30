@@ -296,6 +296,8 @@ type fakeLogsApi struct {
 	awsapi.CloudWatchLogsApi
 }
 
+func (f *fakeLogsApi) HasMoreLogStreams() bool { return false }
+
 func (f *fakeLogsApi) ListLogStreams(
 	ctx context.Context, logGroupName string, searchPrefix string, reset bool,
 ) ([]cwlTypes.LogStream, error) {

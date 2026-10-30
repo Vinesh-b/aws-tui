@@ -80,6 +80,9 @@ func SetTableHeading(table *tview.Table, theme *AppTheme, heading string, column
 	)
 }
 
+// moreRowsMarker is shown in the title of a table that has more rows to load
+const moreRowsMarker = "⇣ more"
+
 type SelectableTable[T any] struct {
 	*SearchableView
 	table                *tview.Table
@@ -101,6 +104,9 @@ type SelectableTable[T any] struct {
 	// moreFrom the row the cursor was on, which stays selected
 	loadingMore bool
 	moreFrom    int
+	// hasMore is true if the table has more rows it can load, which its title
+	// shows
+	hasMore bool
 }
 
 func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppContext) *SelectableTable[T] {
@@ -168,6 +174,10 @@ func (inst *SelectableTable[T]) RefreshTitle(rowcount int) {
 		tableTitle = fmt.Sprintf("%s ❬%d❭ ❬%s❭", inst.title, rowcount, inst.titleExtra)
 	}
 
+	if inst.hasMore {
+		tableTitle += " ❬" + moreRowsMarker + "❭"
+	}
+
 	if searchText := inst.GetSearchText(); len(searchText) > 0 {
 		tableTitle = fmt.Sprintf(
 			"%s ❬%s: %d/%d❭",
@@ -183,6 +193,7 @@ func (inst *SelectableTable[T]) RefreshTitle(rowcount int) {
 
 func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privateDataCol int) error {
 	inst.rowCount = len(data)
+	inst.hasMore = false
 	inst.table.Clear()
 
 	inst.RefreshTitle(0)
@@ -648,6 +659,14 @@ func (inst *SelectableTable[T]) Select(row int, column int) *SelectableTable[T] 
 
 func (inst *SelectableTable[T]) GetCell(row int, column int) *tview.TableCell {
 	return inst.table.GetCell(row, column)
+}
+
+// SetHasMore says whether the table has more rows to load, which is shown in
+// its title. SetData says there are none, as the rows it sets are all there are
+// until the table is told otherwise.
+func (inst *SelectableTable[T]) SetHasMore(hasMore bool) {
+	inst.hasMore = hasMore
+	inst.RefreshTitle(0)
 }
 
 func (inst *SelectableTable[T]) SetTitleExtra(extra string) {

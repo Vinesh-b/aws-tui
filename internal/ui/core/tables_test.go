@@ -1423,3 +1423,25 @@ func TestSelectableTable__TablesThatLoadEverythingDoNotLoadMore(t *testing.T) {
 		t.Errorf("row = %d, want 2", row)
 	}
 }
+
+func TestTableSetHasMore__ShowsTheMarkerInTheTitleUntilTheDataIsSetAgain(t *testing.T) {
+	var appCtx = NewAppContext(context.Background(), tview.NewApplication(), nil, nil, &AppTheme{})
+	var table = NewSelectableTable[any]("test", TableRow{"col0"}, appCtx)
+	table.SetData([]TableRow{{"0"}, {"1"}, {"2"}}, nil, 0)
+
+	table.SetHasMore(true)
+	if title := table.GetTitle(); title != "test ❬3❭ ❬⇣ more❭" {
+		t.Errorf("title = %q, want the marker", title)
+	}
+
+	table.SetTitleExtra("extra")
+	table.RefreshTitle(0)
+	if title := table.GetTitle(); title != "test ❬3❭ ❬extra❭ ❬⇣ more❭" {
+		t.Errorf("title = %q, want the marker after the extra", title)
+	}
+
+	table.SetData([]TableRow{{"0"}}, nil, 0)
+	if title := table.GetTitle(); title != "test ❬1❭ ❬extra❭" {
+		t.Errorf("title = %q, want no marker once the data is set again", title)
+	}
+}

@@ -170,6 +170,7 @@ func (inst *LogEventsTable) RefreshLogEvents(reset bool) {
 	var startTime = inst.rangeStart()
 	var filterPattern = inst.filterPattern
 	var events []types.OutputLogEvent
+	var hasMore bool
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
@@ -195,11 +196,14 @@ func (inst *LogEventsTable) RefreshLogEvents(reset bool) {
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}
+		hasMore = inst.serviceCtx.Api.HasMoreLogEvents()
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
 		if load == inst.loads {
 			inst.populateLogEventsTable(events, reset)
+			// Following brings the events in as they come, so there is no more to load
+			inst.SetHasMore(hasMore && !inst.IsFollowing())
 		}
 	})
 }
@@ -286,6 +290,7 @@ func (inst *LogEventsTable) ToggleFollow() {
 
 	var ctx, cancel = context.WithCancel(inst.serviceCtx.Ctx)
 	inst.followCancel = cancel
+	inst.SetHasMore(false)
 	inst.showTitleExtra()
 	go inst.follow(ctx, inst.selectedLogGroup, inst.selectedLogStream)
 }

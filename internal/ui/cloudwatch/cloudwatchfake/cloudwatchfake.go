@@ -21,11 +21,14 @@ import (
 type Api struct {
 	awsapi.CloudWatchLogsApi
 
-	mtx       sync.Mutex
-	events    []types.OutputLogEvent
-	followed  [][]types.OutputLogEvent
-	followErr error
-	calls     []string
+	mtx         sync.Mutex
+	events      []types.OutputLogEvent
+	streams     []types.LogStream
+	moreEvents  bool
+	moreStreams bool
+	followed    [][]types.OutputLogEvent
+	followErr   error
+	calls       []string
 }
 
 type Option func(*Api)
@@ -34,6 +37,15 @@ type Option func(*Api)
 func WithLogEvents(events ...types.OutputLogEvent) Option {
 	return func(f *Api) { f.events = events }
 }
+
+// WithLogStreams sets the streams ListLogStreams gives
+func WithLogStreams(streams ...types.LogStream) Option {
+	return func(f *Api) { f.streams = streams }
+}
+
+// WithMoreLogEvents and WithMoreLogStreams make the api say it has more pages
+func WithMoreLogEvents(more bool) Option  { return func(f *Api) { f.moreEvents = more } }
+func WithMoreLogStreams(more bool) Option { return func(f *Api) { f.moreStreams = more } }
 
 func New(options ...Option) *Api {
 	var f = &Api{}
@@ -49,6 +61,13 @@ func (f *Api) QueueFollowedEvents(events ...types.OutputLogEvent) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 	f.followed = append(f.followed, events)
+}
+
+// SetMoreLogEvents changes whether the api says it has more events
+func (f *Api) SetMoreLogEvents(more bool) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	f.moreEvents = more
 }
 
 // SetFollowErr makes every following call of FollowLogEvents fail
@@ -68,6 +87,27 @@ func (f *Api) Calls() []string {
 // CallsWithPrefix returns the calls whose text starts with prefix, e.g. "follow ".
 func (f *Api) CallsWithPrefix(prefix string) []string {
 	return slices.DeleteFunc(f.Calls(), func(call string) bool { return !strings.HasPrefix(call, prefix) })
+}
+
+func (f *Api) HasMoreLogEvents() bool {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return f.moreEvents
+}
+
+func (f *Api) HasMoreLogStreams() bool {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return f.moreStreams
+}
+
+func (f *Api) ListLogStreams(
+	ctx context.Context, logGroupName string, searchPrefix string, reset bool,
+) ([]types.LogStream, error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	f.calls = append(f.calls, "streams "+logGroupName)
+	return slices.Clone(f.streams), nil
 }
 
 func (f *Api) ListLogEvents(

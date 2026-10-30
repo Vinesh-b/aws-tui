@@ -84,6 +84,7 @@ func (inst *LogStreamsTable) populateLogStreamsTable(extend bool) {
 }
 
 func (inst *LogStreamsTable) RefreshStreams(force bool) {
+	var hasMore bool
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
@@ -97,10 +98,12 @@ func (inst *LogStreamsTable) RefreshStreams(force bool) {
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}
+		hasMore = inst.serviceCtx.Api.HasMoreLogStreams()
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateLogStreamsTable(!force)
+		inst.SetHasMore(hasMore)
 	})
 }
 

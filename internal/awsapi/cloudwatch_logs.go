@@ -29,6 +29,12 @@ type CloudWatchLogsApi interface {
 	) ([]types.LogStream, error)
 	// ListLogEvents pages the events of a stream from the oldest, or from
 	// startTime if that is not zero.
+	// HasMoreLogStreams is true if ListLogStreams has more pages to give
+	HasMoreLogStreams() bool
+	// HasMoreLogEvents is true if the last listing of the events, with or
+	// without a filter, has more pages to give. It is true until a page
+	// is asked for after the last events, which comes back empty.
+	HasMoreLogEvents() bool
 	ListLogEvents(
 		ctx context.Context,
 		logGroupName string,
@@ -88,6 +94,8 @@ type cloudWatchLogsApi struct {
 	// from running together, as both move logEventsToken on
 	logEventsMtx   sync.Mutex
 	logEventsToken *string
+	// eventsFiltered is true if the events were last listed with a filter
+	eventsFiltered bool
 }
 
 func NewCloudWatchLogsApi(
@@ -171,6 +179,20 @@ func (inst *cloudWatchLogsApi) ListLogStreams(
 	return output.LogStreams, nil
 }
 
+func (inst *cloudWatchLogsApi) HasMoreLogStreams() bool {
+	return inst.logStreamsPaginator != nil && inst.logStreamsPaginator.HasMorePages()
+}
+
+func (inst *cloudWatchLogsApi) HasMoreLogEvents() bool {
+	inst.logEventsMtx.Lock()
+	defer inst.logEventsMtx.Unlock()
+
+	if inst.eventsFiltered {
+		return inst.filteredLogEventsPaginator != nil && inst.filteredLogEventsPaginator.HasMorePages()
+	}
+	return inst.logEventsPaginator != nil && inst.logEventsPaginator.HasMorePages()
+}
+
 func (inst *cloudWatchLogsApi) ListLogEvents(
 	ctx context.Context,
 	logGroupName string,
@@ -192,6 +214,7 @@ func (inst *cloudWatchLogsApi) ListLogEvents(
 
 	inst.logEventsMtx.Lock()
 	defer inst.logEventsMtx.Unlock()
+	inst.eventsFiltered = false
 
 	if reset || inst.logEventsPaginator == nil {
 		var startTimePtr *int64 = nil
@@ -285,6 +308,7 @@ func (inst *cloudWatchLogsApi) ListFilteredLogEvents(
 
 	inst.logEventsMtx.Lock()
 	defer inst.logEventsMtx.Unlock()
+	inst.eventsFiltered = true
 
 	if reset || inst.filteredLogEventsPaginator == nil {
 		var input = &cloudwatchlogs.FilterLogEventsInput{

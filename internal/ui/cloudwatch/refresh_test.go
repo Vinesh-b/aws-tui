@@ -85,6 +85,10 @@ func (f *fakeCloudWatchLogsApi) ListLogGroups(ctx context.Context, reset bool) (
 	return f.groups, f.err
 }
 
+func (f *fakeCloudWatchLogsApi) HasMoreLogStreams() bool { return false }
+
+func (f *fakeCloudWatchLogsApi) HasMoreLogEvents() bool { return false }
+
 func (f *fakeCloudWatchLogsApi) ListLogStreams(
 	ctx context.Context, logGroupName string, searchPrefix string, reset bool,
 ) ([]types.LogStream, error) {
