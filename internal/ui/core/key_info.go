@@ -53,6 +53,7 @@ var keyBindingInfos = []KeyBindingInfo{
 	{"tableScan", "Tables", "Scan the DynamoDB table"},
 	{"mark", "Tables", "Mark a log group to query with Insights"},
 	{"follow", "Tables", "Follow a log stream as new events arrive"},
+	{"timeRange", "Tables", "Show the next time range of the events of a log stream"},
 	{"removeItem", "Tables", "Unmark a log group, or delete a saved query or DynamoDB item"},
 	{"removeItemSequence", "Tables", "Unmark a log group, or delete a saved query or DynamoDB item"},
 

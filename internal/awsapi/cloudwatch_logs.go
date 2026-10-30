@@ -27,10 +27,13 @@ type CloudWatchLogsApi interface {
 		searchPrefix string,
 		reset bool,
 	) ([]types.LogStream, error)
+	// ListLogEvents pages the events of a stream from the oldest, or from
+	// startTime if that is not zero.
 	ListLogEvents(
 		ctx context.Context,
 		logGroupName string,
 		logStreamName string,
+		startTime time.Time,
 		reset bool,
 	) ([]types.OutputLogEvent, error)
 	// FollowLogEvents gives the events that came after those ListLogEvents
@@ -168,6 +171,7 @@ func (inst *cloudWatchLogsApi) ListLogEvents(
 	ctx context.Context,
 	logGroupName string,
 	logStreamName string,
+	startTime time.Time,
 	reset bool,
 ) ([]types.OutputLogEvent, error) {
 	var empty = []types.OutputLogEvent{}
@@ -186,6 +190,11 @@ func (inst *cloudWatchLogsApi) ListLogEvents(
 	defer inst.logEventsMtx.Unlock()
 
 	if reset || inst.logEventsPaginator == nil {
+		var startTimePtr *int64 = nil
+		if !startTime.IsZero() {
+			startTimePtr = aws.Int64(startTime.UnixMilli())
+		}
+
 		inst.logEventsToken = nil
 		inst.logEventsPaginator = cloudwatchlogs.NewGetLogEventsPaginator(
 			client,
@@ -194,6 +203,7 @@ func (inst *cloudWatchLogsApi) ListLogEvents(
 				Limit:         aws.Int32(500),
 				LogGroupName:  aws.String(logGroupName),
 				StartFromHead: aws.Bool(true),
+				StartTime:     startTimePtr,
 			},
 		)
 	}

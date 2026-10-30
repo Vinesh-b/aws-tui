@@ -104,6 +104,7 @@ func helpText() string {
 			{core.FormatRune(keys.TableQuery), "Query the table, such as DynamoDB or the marked log groups"},
 			{core.FormatRune(keys.TableScan), "Scan the DynamoDB table"},
 			{core.FormatRune(keys.Follow), "Follow the log stream as new events arrive, or stop following it"},
+			{core.FormatRune(keys.TimeRange), "Show the events of the next time range, from all time to the last 7 days"},
 			{core.FormatRune(keys.Mark), "Mark the log group to query with Insights"},
 			{either(core.FormatRune(keys.RemoveItem), keys.RemoveItemSequence), "Unmark the log group, or delete the saved query or DynamoDB item"},
 		}},

@@ -17,9 +17,8 @@ func newLogEvent(message string, seconds int) types.OutputLogEvent {
 
 func TestLogEventsTable__ShowsHeadingsAndOneRowPerEvent(t *testing.T) {
 	var table = NewLogEventsTable(uitest.NewServiceContext[awsapi.CloudWatchLogsApi]())
-	table.data = []types.OutputLogEvent{newLogEvent("START", 0), newLogEvent("END", 1)}
 
-	table.populateLogEventsTable(true)
+	table.populateLogEventsTable([]types.OutputLogEvent{newLogEvent("START", 0), newLogEvent("END", 1)}, true)
 
 	uitest.AssertTableRows(t, table, []core.TableRow{
 		{"Timestamp", "Message"},
@@ -30,8 +29,7 @@ func TestLogEventsTable__ShowsHeadingsAndOneRowPerEvent(t *testing.T) {
 
 func TestLogEventsTable__FullLogMessageForRow(t *testing.T) {
 	var table = NewLogEventsTable(uitest.NewServiceContext[awsapi.CloudWatchLogsApi]())
-	table.data = []types.OutputLogEvent{newLogEvent("START", 0), newLogEvent("END", 1)}
-	table.populateLogEventsTable(true)
+	table.populateLogEventsTable([]types.OutputLogEvent{newLogEvent("START", 0), newLogEvent("END", 1)}, true)
 
 	var tests = []struct {
 		row  int

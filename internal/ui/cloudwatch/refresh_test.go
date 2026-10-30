@@ -92,7 +92,7 @@ func (f *fakeCloudWatchLogsApi) ListLogStreams(
 }
 
 func (f *fakeCloudWatchLogsApi) ListLogEvents(
-	ctx context.Context, logGroupName string, logStreamName string, reset bool,
+	ctx context.Context, logGroupName string, logStreamName string, startTime time.Time, reset bool,
 ) ([]types.OutputLogEvent, error) {
 	return f.events, f.err
 }

@@ -26,7 +26,7 @@ type keyBinding struct {
 var keyBindingConflictGroups = [][]string{
 	{
 		"help", "reset", "find", "textCopy",
-		"moveUp", "moveDown", "moveTop", "moveBottom", "mark", "follow", "removeItem",
+		"moveUp", "moveDown", "moveTop", "moveBottom", "mark", "follow", "timeRange", "removeItem",
 		"commandLine",
 	},
 	{
@@ -76,6 +76,7 @@ func keyBindingFields(bindings *KeyBindings) map[string]keyBinding {
 		"tableQuery":         {rune: &bindings.TableQuery},
 		"mark":               {rune: &bindings.Mark},
 		"follow":             {rune: &bindings.Follow},
+		"timeRange":          {rune: &bindings.TimeRange},
 		"removeItem":         {rune: &bindings.RemoveItem},
 		"textCopy":           {rune: &bindings.TextCopy},
 		"toggleRawView":      {rune: &bindings.ToggleRawView},

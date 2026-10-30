@@ -2,6 +2,7 @@ package cloudwatch
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"aws-tui/internal/awsapi"
@@ -25,9 +26,15 @@ const logFollowPageSize = 500
 
 const logFollowingTitle = "following"
 
+// logEventRanges are the time ranges to show the events of, ending now, which
+// the range key goes through. The first has no span, and shows all the events.
+var logEventRanges = append(
+	[]insightsRange{{"All time", 0}},
+	insightsRanges[:customInsightsRange]...,
+)
+
 type LogEventsTable struct {
 	*core.SelectableTable[string]
-	data              []types.OutputLogEvent
 	selectedLogGroup  string
 	selectedLogStream string
 	serviceCtx        *core.ServiceContext[awsapi.CloudWatchLogsApi]
@@ -35,6 +42,13 @@ type LogEventsTable struct {
 	// followed. It is only used on the UI goroutine.
 	followCancel   context.CancelFunc
 	followInterval time.Duration
+	// rangeIdx is the range of logEventRanges the events are shown for, which
+	// stays when another stream is opened
+	rangeIdx int
+	now      func() time.Time
+	// loads counts the reloads, so the events of one that was replaced by
+	// another before they came are not shown
+	loads int
 }
 
 func NewLogEventsTable(
@@ -50,15 +64,15 @@ func NewLogEventsTable(
 			},
 			serviceContext.AppContext,
 		),
-		data:              nil,
 		selectedLogGroup:  "",
 		selectedLogStream: "",
 		serviceCtx:        serviceContext,
 		followInterval:    defaultLogFollowInterval,
+		now:               time.Now,
 	}
 
 	view.HighlightSearch = true
-	view.populateLogEventsTable(false)
+	view.populateLogEventsTable(nil, false)
 	view.SetLoadMoreFunc(func() {
 		// Following brings the next events in, so nothing else pages them
 		if view.IsFollowing() {
@@ -67,7 +81,9 @@ func NewLogEventsTable(
 		}
 		view.RefreshLogEvents(false)
 	})
-	view.HelpView.View.AddRune(core.APP_KEY_BINDINGS.Follow, "Follow the log stream as new events arrive")
+	view.HelpView.View.
+		AddRune(core.APP_KEY_BINDINGS.Follow, "Follow the log stream as new events arrive").
+		AddRune(core.APP_KEY_BINDINGS.TimeRange, "Show the events of the next time range")
 	view.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
@@ -75,6 +91,9 @@ func NewLogEventsTable(
 			return nil
 		case core.APP_KEY_BINDINGS.Follow:
 			view.ToggleFollow()
+			return nil
+		case core.APP_KEY_BINDINGS.TimeRange:
+			view.NextTimeRange()
 			return nil
 		}
 		return event
@@ -97,11 +116,8 @@ func logEventRows(events []types.OutputLogEvent) ([]core.TableRow, []string) {
 	return tableData, privateData
 }
 
-func (inst *LogEventsTable) populateLogEventsTable(reset bool) {
-	var tableData, privateData = logEventRows(inst.data)
-
-	// The table now owns the text, don't keep the raw events alive as well
-	inst.data = nil
+func (inst *LogEventsTable) populateLogEventsTable(events []types.OutputLogEvent, reset bool) {
+	var tableData, privateData = logEventRows(events)
 
 	if !reset {
 		inst.ExtendData(tableData, privateData)
@@ -118,16 +134,21 @@ func (inst *LogEventsTable) RefreshLogEvents(reset bool) {
 	// would come after the wrong ones
 	if reset {
 		inst.StopFollow()
+		inst.loads++
 	}
 
+	var load = inst.loads
+	var startTime = inst.rangeStart()
+	var events []types.OutputLogEvent
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		var err error = nil
-		inst.data, err = inst.serviceCtx.Api.ListLogEvents(
+		events, err = inst.serviceCtx.Api.ListLogEvents(
 			inst.serviceCtx.Ctx,
 			inst.selectedLogGroup,
 			inst.selectedLogStream,
+			startTime,
 			reset,
 		)
 		if err != nil {
@@ -136,7 +157,9 @@ func (inst *LogEventsTable) RefreshLogEvents(reset bool) {
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateLogEventsTable(reset)
+		if load == inst.loads {
+			inst.populateLogEventsTable(events, reset)
+		}
 	})
 }
 
@@ -151,12 +174,37 @@ func (inst *LogEventsTable) SetSelectedLogStream(logStream string) {
 }
 
 func (inst *LogEventsTable) showTitleExtra() {
-	var extra = inst.selectedLogStream
-	if inst.IsFollowing() {
-		extra += " " + logFollowingTitle
+	var parts = []string{inst.selectedLogStream}
+	if inst.rangeIdx > 0 {
+		parts = append(parts, logEventRanges[inst.rangeIdx].label)
 	}
-	inst.SetTitleExtra(extra)
+	if inst.IsFollowing() {
+		parts = append(parts, logFollowingTitle)
+	}
+	inst.SetTitleExtra(strings.Join(parts, " · "))
 	inst.RefreshTitle(0)
+}
+
+// rangeStart is when the range being shown starts, which is the zero time if
+// it is all time
+func (inst *LogEventsTable) rangeStart() time.Time {
+	var span = logEventRanges[inst.rangeIdx].span
+	if span == 0 {
+		return time.Time{}
+	}
+	return inst.now().Add(-span)
+}
+
+// NextTimeRange loads the events of the next time range, going back to all
+// time after the last. The range is counted back from now.
+func (inst *LogEventsTable) NextTimeRange() {
+	if len(inst.selectedLogGroup) == 0 || len(inst.selectedLogStream) == 0 {
+		return
+	}
+
+	inst.rangeIdx = (inst.rangeIdx + 1) % len(logEventRanges)
+	inst.RefreshLogEvents(true)
+	inst.showTitleExtra()
 }
 
 func (inst *LogEventsTable) IsFollowing() bool {

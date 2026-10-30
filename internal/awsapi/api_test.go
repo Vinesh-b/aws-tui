@@ -214,7 +214,7 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			return err
 		}, "log group not set"},
 		{"log events without stream", func() error {
-			var _, err = cwl.ListLogEvents(context.Background(), "group", "", true)
+			var _, err = cwl.ListLogEvents(context.Background(), "group", "", time.Time{}, true)
 			return err
 		}, "log stream not set"},
 		{"stop insights query", func() error {

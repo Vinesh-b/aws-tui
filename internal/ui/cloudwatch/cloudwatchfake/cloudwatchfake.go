@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"aws-tui/internal/awsapi"
 
@@ -69,11 +70,15 @@ func (f *Api) CallsWithPrefix(prefix string) []string {
 }
 
 func (f *Api) ListLogEvents(
-	ctx context.Context, logGroupName string, logStreamName string, reset bool,
+	ctx context.Context, logGroupName string, logStreamName string, startTime time.Time, reset bool,
 ) ([]types.OutputLogEvent, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
-	f.calls = append(f.calls, "list "+logGroupName+" "+logStreamName)
+	var call = "list " + logGroupName + " " + logStreamName
+	if !startTime.IsZero() {
+		call += " from " + startTime.UTC().Format(time.RFC3339)
+	}
+	f.calls = append(f.calls, call)
 	return slices.Clone(f.events), nil
 }
 

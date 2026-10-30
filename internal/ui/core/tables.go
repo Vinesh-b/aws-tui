@@ -571,7 +571,7 @@ func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventK
 		// ToDo: Why does it dead-lock without this with rapid key inputs?
 		if inst.table.GetRowCount() <= 1 {
 			switch event.Rune() {
-			case APP_KEY_BINDINGS.Reset:
+			case APP_KEY_BINDINGS.Reset, APP_KEY_BINDINGS.TimeRange:
 				return capture(event)
 			}
 			return nil

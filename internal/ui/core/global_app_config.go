@@ -89,6 +89,7 @@ type KeyBindings struct {
 	TableQuery         rune
 	Mark               rune
 	Follow             rune
+	TimeRange          rune
 	RemoveItem         rune
 	TextCopy           rune
 	ToggleRawView      rune
@@ -150,6 +151,7 @@ var APP_KEY_BINDINGS = KeyBindings{
 	TableQuery:         'q',
 	Mark:               'm',
 	Follow:             'f',
+	TimeRange:          't',
 	RemoveItem:         'x',
 	TextCopy:           'y',
 	ToggleRawView:      'J',
