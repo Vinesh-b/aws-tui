@@ -276,10 +276,16 @@ func (inst *TabViewHorizontal) AddAndSwitchToTab(
 }
 
 func (inst *TabViewHorizontal) SwitchToTab(name string) *TabViewHorizontal {
+	// the view that has the focus is hidden by the switch, and the keys would
+	// still go to it
+	var hadFocus = inst.Flex.HasFocus()
 	inst.pages.SwitchToPage(name)
 	for i, tabName := range inst.orderedTabs {
 		if tabName == name {
 			inst.currentTabIdx = i
+			if hadFocus {
+				inst.currentPage().FocusFrom(0)
+			}
 			if inst.onTabChangeFunc != nil {
 				inst.onTabChangeFunc(name, i)
 			}
