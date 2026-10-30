@@ -90,7 +90,10 @@ type SelectableTable[T any] struct {
 	titleExtra           string
 	headings             TableRow
 	rowCount             int
-	privateData          []T
+	rows                 []tableRow[T]
+	nextSeq              int
+	sortCol              int
+	sortDir              sortDirection
 	privateColumn        int
 	rowColourFunc        func(row TableRow, private T) (tcell.Color, bool)
 	searchPositions      []CellPosition
@@ -121,8 +124,8 @@ func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppConte
 		titleExtra:           "",
 		headings:             headings,
 		rowCount:             0,
-		privateData:          nil,
 		privateColumn:        -1,
+		sortCol:              -1,
 		searchPositions:      []CellPosition{},
 		currentSearchIdx:     0,
 		HelpView:             NewFloatingHelpView(appCtx),
@@ -142,7 +145,8 @@ func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppConte
 		AddRune(APP_KEY_BINDINGS.MovePageBottomRune, "Go to last item").
 		AddKey(tcell.KeyPgUp, "Go up a page").
 		AddKey(tcell.KeyPgDn, "Go down a page").
-		AddRune(APP_KEY_BINDINGS.Find, "Search table")
+		AddRune(APP_KEY_BINDINGS.Find, "Search table").
+		AddRune(APP_KEY_BINDINGS.Sort, "Sort by the selected column, then descending, then as loaded")
 
 	view.
 		AddRuneToggleOverlay("HELP", view.HelpView, APP_KEY_BINDINGS.Help, true)
@@ -178,6 +182,10 @@ func (inst *SelectableTable[T]) RefreshTitle(rowcount int) {
 		tableTitle += " ❬" + moreRowsMarker + "❭"
 	}
 
+	if inst.sortDir != sortNone {
+		tableTitle += fmt.Sprintf(" ❬sorted: %s %s❭", inst.headings[inst.sortCol], inst.sortDir.arrow())
+	}
+
 	if searchText := inst.GetSearchText(); len(searchText) > 0 {
 		tableTitle = fmt.Sprintf(
 			"%s ❬%s: %d/%d❭",
@@ -192,7 +200,9 @@ func (inst *SelectableTable[T]) RefreshTitle(rowcount int) {
 }
 
 func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privateDataCol int) error {
-	inst.rowCount = len(data)
+	inst.rows = nil
+	inst.nextSeq = 0
+	inst.rowCount = 0
 	inst.hasMore = false
 	inst.table.Clear()
 
@@ -202,9 +212,7 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 		tcell.Style{}.Background(inst.appCtx.Theme.MoreContrastBackgroundColor),
 	)
 
-	for col, heading := range inst.headings {
-		SetTableHeading(inst.table, inst.appCtx.Theme, heading, col)
-	}
+	inst.drawHeadings()
 
 	if len(data) == 0 {
 		inst.MoreLoaded()
@@ -218,46 +226,89 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 		)
 	}
 
-	for rowIdx, rowData := range data {
-		for colIdx, cellText := range rowData {
-			var cell = NewTableCell[T](cellText, nil)
-			inst.table.SetCell(rowIdx+1, colIdx, cell)
+	if len(privateData) > 0 {
+		if len(privateData) != len(data) {
+			return errors.NewCoreTableError(
+				errors.InvalidDataDimensions,
+				"Table data and private data row counts do not match",
+			)
 		}
-	}
-	inst.colourRows(1, data, privateData)
 
-	if len(privateData) == 0 {
-		inst.table.Select(inst.rowAfterLoad(), 0)
-		return nil
-	}
+		if privateDataCol < 0 || privateDataCol >= len(inst.headings) {
+			return errors.NewCoreTableError(
+				errors.InvalidDataDimensions,
+				"Private data column index out of bounds",
+			)
+		}
 
-	if len(privateData) != inst.rowCount {
-		return errors.NewCoreTableError(
-			errors.InvalidDataDimensions,
-			"Table data and private data row counts do not match",
-		)
+		inst.privateColumn = privateDataCol
 	}
 
-	if privateDataCol < 0 || privateDataCol >= len(inst.headings) {
-		return errors.NewCoreTableError(
-			errors.InvalidDataDimensions,
-			"Private data column index out of bounds",
-		)
-	}
-
-	inst.privateData = privateData
-	inst.privateColumn = privateDataCol
-
-	for rowIdx := 0; rowIdx < inst.rowCount; rowIdx++ {
-		var cellData = inst.table.GetCell(rowIdx+1, inst.privateColumn).
-			GetReference().(*CellData[T])
-		cellData.ref = &privateData[rowIdx]
-	}
+	inst.appendRows(data, privateData)
+	inst.rowCount = len(data)
+	inst.RefreshTitle(0)
+	inst.sortRows()
 
 	// Select last, as the selection changed handlers read the private data
 	inst.table.Select(inst.rowAfterLoad(), 0)
 
 	return nil
+}
+
+// appendRows adds the rows to the model and their cells to the end of the table.
+// The data and private data are known to match.
+func (inst *SelectableTable[T]) appendRows(data []TableRow, privateData []T) {
+	var first = len(inst.rows)
+	for i, rowData := range data {
+		var row = tableRow[T]{text: rowData, seq: inst.nextSeq}
+		inst.nextSeq++
+		if i < len(privateData) {
+			row.private = &privateData[i]
+		}
+		inst.rows = append(inst.rows, row)
+	}
+	for i := first; i < len(inst.rows); i++ {
+		inst.drawRow(i)
+	}
+}
+
+// drawRow puts the cells of the row in the model at the place it has in the
+// table, which is after the heading. The private data is held by the cell of
+// the private column.
+func (inst *SelectableTable[T]) drawRow(idx int) {
+	var row = inst.rows[idx]
+	var colour, coloured = inst.rowColourFunc, false
+	var rowColour tcell.Color
+	if colour != nil {
+		var private T
+		if row.private != nil {
+			private = *row.private
+		}
+		rowColour, coloured = colour(row.text, private)
+	}
+
+	for col, text := range row.text {
+		var ref *T
+		if col == inst.privateColumn {
+			ref = row.private
+		}
+		var cell = NewTableCell[T](text, ref)
+		if coloured {
+			cell.SetTextColor(rowColour)
+		}
+		inst.table.SetCell(idx+1, col, cell)
+	}
+}
+
+// drawHeadings puts the headings in the first row, with an arrow on the column
+// the table is sorted by.
+func (inst *SelectableTable[T]) drawHeadings() {
+	for col, heading := range inst.headings {
+		if inst.sortDir != sortNone && col == inst.sortCol {
+			heading += " " + inst.sortDir.arrow()
+		}
+		SetTableHeading(inst.table, inst.appCtx.Theme, heading, col)
+	}
 }
 
 // SetRowColourFunc sets a function that picks the text colour of a row when it
@@ -274,45 +325,23 @@ func (inst *SelectableTable[T]) SetRowColourFunc(
 // rowColourAt gives the colour the row colour func picks for a row that is in
 // the table, which includes the heading as row 0.
 func (inst *SelectableTable[T]) rowColourAt(row int) (tcell.Color, bool) {
-	if inst.rowColourFunc == nil || row < 1 {
+	if inst.rowColourFunc == nil || row < 1 || row > len(inst.rows) {
 		return 0, false
 	}
 
-	var text = make(TableRow, len(inst.headings))
-	for col := range text {
-		text[col] = inst.GetCellText(row, col)
-	}
-
+	var model = inst.rows[row-1]
 	var private T
-	if inst.privateColumn >= 0 {
-		private = inst.GetPrivateData(row, inst.privateColumn)
+	if model.private != nil {
+		private = *model.private
 	}
 
-	return inst.rowColourFunc(text, private)
+	return inst.rowColourFunc(model.text, private)
 }
 
-// colourRows colours the rows of data that were added starting at firstRow.
-func (inst *SelectableTable[T]) colourRows(firstRow int, data []TableRow, privateData []T) {
-	if inst.rowColourFunc == nil {
-		return
-	}
-
-	for i, rowData := range data {
-		var private T
-		if i < len(privateData) {
-			private = privateData[i]
-		}
-
-		var colour, ok = inst.rowColourFunc(rowData, private)
-		if !ok {
-			continue
-		}
-		for col := range rowData {
-			inst.table.GetCell(firstRow+i, col).SetTextColor(colour)
-		}
-	}
-}
-
+// ExtendData adds rows to the end of the table. The cursor stays on the row it
+// was on, which is the last one when the rows were asked for by moving past it.
+// When the table is sorted the new rows go to their place in the order, and the
+// cursor stays on the same row, not on the same position.
 func (inst *SelectableTable[T]) ExtendData(data []TableRow, privateData []T) error {
 	if len(data) > 0 && len(inst.headings) != len(data[0]) {
 		log.Println("Table data and headings dimensions do not match")
@@ -322,51 +351,41 @@ func (inst *SelectableTable[T]) ExtendData(data []TableRow, privateData []T) err
 		)
 	}
 
-	inst.rowCount += len(data)
+	if len(privateData) > 0 {
+		if inst.privateColumn < 0 {
+			return errors.NewCoreTableError(
+				errors.InvalidDataDimensions,
+				"Table data and private data not initialised in SetData call",
+			)
+		}
+
+		if len(privateData) != len(data) {
+			return errors.NewCoreTableError(
+				errors.InvalidDataDimensions,
+				"Table data and private data row counts do not match",
+			)
+		}
+	}
+
 	// The cursor stays on the last row it was on, which is moreFrom
 	inst.MoreLoaded()
 
+	var keep = len(inst.rows) // the row before the new ones, as a table row
+	var keepSeq = -1
+	if keep >= 1 {
+		keepSeq = inst.rows[keep-1].seq
+	}
+
+	inst.rowCount += len(data)
 	inst.RefreshTitle(0)
 
-	var table = inst.table
-	var rows = table.GetRowCount()
-
-	for rowIdx, rowData := range data {
-		for colIdx, cellText := range rowData {
-			var cell = NewTableCell[T](cellText, nil)
-			table.SetCell(rowIdx+rows, colIdx, cell)
-		}
-	}
-	inst.colourRows(rows, data, privateData)
-
-	if len(privateData) == 0 {
-		inst.table.Select(rows-1, 0)
-		return nil
+	inst.appendRows(data, privateData)
+	if inst.sortRows() {
+		inst.reapplySearch()
+		keep = inst.rowOfSeq(keepSeq, keep)
 	}
 
-	if inst.privateColumn < 0 {
-		return errors.NewCoreTableError(
-			errors.InvalidDataDimensions,
-			"Table data and private data not initialised in SetData call",
-		)
-	}
-
-	if len(privateData) != len(data) {
-		return errors.NewCoreTableError(
-			errors.InvalidDataDimensions,
-			"Table data and private data row counts do not match",
-		)
-	}
-
-	inst.privateData = append(inst.privateData, privateData...)
-
-	for rowIdx := range data {
-		var cellData = inst.table.GetCell(rowIdx+rows, inst.privateColumn).
-			GetReference().(*CellData[T])
-		cellData.ref = &privateData[rowIdx]
-	}
-
-	inst.table.Select(rows-1, 0)
+	inst.table.Select(keep, 0)
 	return nil
 }
 
@@ -594,6 +613,7 @@ func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventK
 
 		switch event.Key() {
 		case APP_KEY_BINDINGS.ClearTable:
+			inst.sortDir = sortNone
 			inst.SetData(nil, nil, 0)
 			inst.privateColumn = -1
 			return nil
@@ -604,6 +624,12 @@ func (inst *SelectableTable[T]) SetInputCapture(capture func(event *tcell.EventK
 			var row, col = inst.table.GetSelection()
 			inst.appCtx.CopyText(inst.GetCellText(row, col))
 			return nil
+		case APP_KEY_BINDINGS.Sort:
+			if event.Key() == tcell.KeyRune {
+				var _, col = inst.table.GetSelection()
+				inst.CycleSort(col)
+				return nil
+			}
 		}
 
 		if inst.HighlightSearch {

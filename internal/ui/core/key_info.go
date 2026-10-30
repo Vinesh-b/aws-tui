@@ -55,6 +55,7 @@ var keyBindingInfos = []KeyBindingInfo{
 	{"follow", "Tables", "Follow a log stream as new events arrive"},
 	{"timeRange", "Tables", "Show the next time range of the events of a log stream"},
 	{"filter", "Tables", "Filter the events of a log stream with a filter pattern"},
+	{"sort", "Tables", "Sort by the selected column, then the other way, then as loaded"},
 	{"removeItem", "Tables", "Unmark a log group, or delete a saved query or DynamoDB item"},
 	{"removeItemSequence", "Tables", "Unmark a log group, or delete a saved query or DynamoDB item"},
 

@@ -106,6 +106,7 @@ func helpText() string {
 			{core.FormatRune(keys.Follow), "Follow the log stream as new events arrive, or stop following it"},
 			{core.FormatRune(keys.TimeRange), "Show the events of the next time range, from all time to the last 7 days"},
 			{core.FormatRune(keys.Filter), "Show only the events of the log stream that match a filter pattern, which is searched for on the server"},
+			{core.FormatRune(keys.Sort), "Sort by the selected column, then the other way, then as loaded"},
 			{core.FormatRune(keys.Mark), "Mark the log group to query with Insights"},
 			{either(core.FormatRune(keys.RemoveItem), keys.RemoveItemSequence), "Unmark the log group, or delete the saved query or DynamoDB item"},
 		}},

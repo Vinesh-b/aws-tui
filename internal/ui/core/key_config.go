@@ -78,6 +78,7 @@ func keyBindingFields(bindings *KeyBindings) map[string]keyBinding {
 		"follow":             {rune: &bindings.Follow},
 		"timeRange":          {rune: &bindings.TimeRange},
 		"filter":             {rune: &bindings.Filter},
+		"sort":               {rune: &bindings.Sort},
 		"removeItem":         {rune: &bindings.RemoveItem},
 		"textCopy":           {rune: &bindings.TextCopy},
 		"toggleRawView":      {rune: &bindings.ToggleRawView},

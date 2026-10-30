@@ -1445,3 +1445,145 @@ func TestTableSetHasMore__ShowsTheMarkerInTheTitleUntilTheDataIsSetAgain(t *test
 		t.Errorf("title = %q, want no marker once the data is set again", title)
 	}
 }
+
+func sortedTable(t *testing.T) *SelectableTable[string] {
+	t.Helper()
+	var table = NewSelectableTable[string]("Items", TableRow{"Name", "Size"}, newTestAppContext())
+	table.SetData(
+		[]TableRow{{"banana", "10"}, {"Apple", "9"}, {"cherry", ""}, {"apple", "100"}},
+		[]string{"pb", "pa", "pc", "pa2"}, 0,
+	)
+	return table
+}
+
+func columnTexts(table *SelectableTable[string], col int) []string {
+	var texts []string
+	for row := 1; row < table.table.GetRowCount(); row++ {
+		texts = append(texts, table.GetCellText(row, col))
+	}
+	return texts
+}
+
+func TestSelectableTable__SortKeyCyclesAscendingDescendingAsLoaded(t *testing.T) {
+	var table = sortedTable(t)
+
+	pressTableKey(table, tcell.KeyRune, APP_KEY_BINDINGS.Sort)
+	if got := strings.Join(columnTexts(table, 0), ","); got != "Apple,apple,banana,cherry" {
+		t.Errorf("ascending = %s", got)
+	}
+	if got := table.table.GetCell(0, 0).Text; got != "Name ▲" {
+		t.Errorf("heading = %q", got)
+	}
+	if title := table.GetTitle(); title != "Items ❬4❭ ❬sorted: Name ▲❭" {
+		t.Errorf("title = %q", title)
+	}
+
+	pressTableKey(table, tcell.KeyRune, APP_KEY_BINDINGS.Sort)
+	if got := strings.Join(columnTexts(table, 0), ","); got != "cherry,banana,Apple,apple" {
+		t.Errorf("descending = %s", got)
+	}
+
+	pressTableKey(table, tcell.KeyRune, APP_KEY_BINDINGS.Sort)
+	if got := strings.Join(columnTexts(table, 0), ","); got != "banana,Apple,cherry,apple" {
+		t.Errorf("as loaded = %s", got)
+	}
+	if got := table.table.GetCell(0, 0).Text; got != "Name" {
+		t.Errorf("heading = %q", got)
+	}
+	if title := table.GetTitle(); title != "Items ❬4❭" {
+		t.Errorf("title = %q", title)
+	}
+}
+
+func TestSelectableTable__SortsNumbersAsNumbersWithEmptyLast(t *testing.T) {
+	var table = sortedTable(t)
+	table.Select(1, 1)
+
+	pressTableKey(table, tcell.KeyRune, APP_KEY_BINDINGS.Sort)
+	if got := strings.Join(columnTexts(table, 1), ","); got != "9,10,100," {
+		t.Errorf("ascending = %s", got)
+	}
+	pressTableKey(table, tcell.KeyRune, APP_KEY_BINDINGS.Sort)
+	if got := strings.Join(columnTexts(table, 1), ","); got != "100,10,9," {
+		t.Errorf("descending = %s", got)
+	}
+}
+
+func TestSelectableTable__SortKeepsPrivateDataWithItsRowAndTheCursorOnItsRow(t *testing.T) {
+	var table = sortedTable(t)
+	table.Select(1, 0) // banana
+
+	pressTableKey(table, tcell.KeyRune, APP_KEY_BINDINGS.Sort)
+
+	var row = selectedRow(table)
+	if got := table.GetCellText(row, 0); got != "banana" {
+		t.Errorf("selected = %s, want banana", got)
+	}
+	if got := table.GetPrivateData(row, 0); got != "pb" {
+		t.Errorf("private data = %q, want pb", got)
+	}
+}
+
+func TestSelectableTable__SortingAnotherColumnStartsAscending(t *testing.T) {
+	var table = sortedTable(t)
+	pressTableKey(table, tcell.KeyRune, APP_KEY_BINDINGS.Sort)
+	pressTableKey(table, tcell.KeyRune, APP_KEY_BINDINGS.Sort)
+	table.Select(1, 1)
+
+	pressTableKey(table, tcell.KeyRune, APP_KEY_BINDINGS.Sort)
+
+	if got := strings.Join(columnTexts(table, 1), ","); got != "9,10,100," {
+		t.Errorf("size = %s", got)
+	}
+	if got := table.table.GetCell(0, 0).Text; got != "Name" {
+		t.Errorf("old heading = %q, want no arrow", got)
+	}
+}
+
+func TestSelectableTable__ExtendDataKeepsTheSortAndTheCursorOnItsRow(t *testing.T) {
+	var table = sortedTable(t)
+	pressTableKey(table, tcell.KeyRune, APP_KEY_BINDINGS.Sort)
+	table.Select(4, 0) // cherry, the last row
+
+	table.ExtendData([]TableRow{{"aardvark", "1"}, {"zebra", "2"}}, []string{"pz1", "pz2"})
+
+	if got := strings.Join(columnTexts(table, 0), ","); got != "aardvark,Apple,apple,banana,cherry,zebra" {
+		t.Errorf("rows = %s", got)
+	}
+	if got := table.GetCellText(selectedRow(table), 0); got != "cherry" {
+		t.Errorf("selected = %s, want cherry", got)
+	}
+	if got := table.GetPrivateData(1, 0); got != "pz1" {
+		t.Errorf("private data = %q, want pz1", got)
+	}
+}
+
+func TestSelectableTable__SetDataKeepsTheSortAndClearTableEndsIt(t *testing.T) {
+	var table = sortedTable(t)
+	pressTableKey(table, tcell.KeyRune, APP_KEY_BINDINGS.Sort)
+
+	table.SetData([]TableRow{{"b", "1"}, {"a", "2"}}, nil, 0)
+	if got := strings.Join(columnTexts(table, 0), ","); got != "a,b" {
+		t.Errorf("rows = %s, want them sorted", got)
+	}
+
+	pressTableKey(table, tcell.KeyCtrlX, 0)
+	table.SetData([]TableRow{{"b", "1"}, {"a", "2"}}, nil, 0)
+	if got := strings.Join(columnTexts(table, 0), ","); got != "b,a" {
+		t.Errorf("rows = %s, want them as loaded", got)
+	}
+}
+
+func TestSelectableTable__SortKeepsRowColours(t *testing.T) {
+	var table = sortedTable(t)
+	table.SetRowColourFunc(func(row TableRow, private string) (tcell.Color, bool) {
+		return tcell.ColorRed, row[0] == "cherry"
+	})
+	table.SetData([]TableRow{{"cherry", "2"}, {"b", "1"}}, nil, 0)
+
+	pressTableKey(table, tcell.KeyRune, APP_KEY_BINDINGS.Sort)
+
+	if got := cellForeground(table, 2, 0); got != tcell.ColorRed {
+		t.Errorf("colour = %v, want red to have followed cherry", got)
+	}
+}
