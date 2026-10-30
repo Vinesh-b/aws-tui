@@ -1757,3 +1757,26 @@ func TestSelectableTable__PinnedRowsAreKeptWhenRowsAreAdded(t *testing.T) {
 		t.Errorf("rows = %s", got)
 	}
 }
+
+func TestTableHeadings__AreNotSelectedAndStopSorting(t *testing.T) {
+	var appCtx = NewAppContext(context.Background(), tview.NewApplication(), nil, nil, &AppTheme{})
+	var table = NewSelectableTable[string]("test", TableRow{"col0", "col1"}, appCtx)
+	table.SetHeadingFunc(func(_ TableRow, private string) bool { return private == "" })
+
+	var data = []TableRow{{"Group", ""}, {"b", "1"}, {"a", "2"}}
+	if err := table.SetData(data, []string{"", "b", "a"}, 0); err != nil {
+		t.Fatalf("Failed to set data: %v", err)
+	}
+
+	if row, _ := table.GetTable().GetSelection(); row != 2 {
+		t.Errorf("selected row = %d, want the first row after the heading", row)
+	}
+	if table.GetTable().GetCell(1, 0).NotSelectable != true {
+		t.Error("the heading can be selected")
+	}
+
+	table.CycleSort(0)
+	if got := table.GetCellText(1, 0); got != "Group" {
+		t.Errorf("first row after sorting = %q, want the heading to stay first", got)
+	}
+}

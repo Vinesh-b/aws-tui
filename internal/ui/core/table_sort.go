@@ -43,7 +43,7 @@ func (dir sortDirection) arrow() string {
 // then goes back to the order the rows were added in. Sorting by another column
 // starts again with ascending. The cursor stays on the row it was on.
 func (inst *SelectableTable[T]) CycleSort(col int) {
-	if col < 0 || col >= len(inst.headings) {
+	if col < 0 || col >= len(inst.headings) || inst.headingFunc != nil {
 		return
 	}
 

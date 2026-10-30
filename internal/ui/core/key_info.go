@@ -1,77 +1,115 @@
 package core
 
 import (
+	"slices"
 	"strings"
 )
 
 // KeyBindingInfo is a key binding as the Settings page lists it: its name in
 // the settings file, the group of keys it is in and what it does
 type KeyBindingInfo struct {
-	Name        string
-	Group       string
+	Name  string
+	Group string
+	// Service is the service whose pages use the key, or "" for a key every
+	// service uses
+	Service     string
 	Description string
+}
+
+// Section is the group the Settings page lists the key under: "General" with
+// the group of the key, or the service
+func (info KeyBindingInfo) Section() string {
+	if info.Service != "" {
+		return info.Service
+	}
+	return "General: " + info.Group
+}
+
+// forService marks the bindings as the keys of one service. A key only a
+// service uses is added to a list of its own below, and the Settings page then
+// lists it under that service.
+func forService(service string, infos ...KeyBindingInfo) []KeyBindingInfo {
+	for i := range infos {
+		infos[i].Service = service
+	}
+	return infos
 }
 
 // keyBindingInfos are the key bindings in the order the Settings page lists
 // them, in the groups of the README
-var keyBindingInfos = []KeyBindingInfo{
-	{"toggleServicesMenu", "Moving around", "Show or hide the services menu"},
-	{"toggleServicePages", "Moving around", "Show or hide the pages of the service"},
-	{"pageBackSequence", "Moving around", "Go to the page on the left"},
-	{"pageForwardSequence", "Moving around", "Go to the page on the right"},
-	{"historyModKey", "Moving around", "The modifier of the history keys"},
-	{"historyBack", "Moving around", "Go back through the pages shown, with the history modifier"},
-	{"historyForward", "Moving around", "Go forward through the pages shown, with the history modifier"},
-	{"viewFocusUp", "Moving around", "Move to the pane above"},
-	{"viewFocusDown", "Moving around", "Move to the pane below"},
-	{"viewFocusLeft", "Moving around", "Move to the pane on the left"},
-	{"viewFocusRight", "Moving around", "Move to the pane on the right"},
-	{"viewResizeModKey", "Moving around", "The modifier that moves the split between panes, with the move keys"},
-	{"viewResizeReset", "Moving around", "Put the splits back, with the split modifier"},
-	{"escape", "Moving around", "Hide a floating view, or leave visual mode"},
-	{"help", "Moving around", "Show the keys of the selected pane"},
-	{"commandLine", "Moving around", "Open the command line"},
+var keyBindingInfos = slices.Concat(generalKeyBindingInfos,
+	forService("CloudWatch", serviceKeyBindingInfosCloudWatch...),
+	forService("DynamoDB", serviceKeyBindingInfosDynamoDB...),
+	forService("S3", serviceKeyBindingInfosS3...),
+)
 
-	{"moveUp", "Moving the cursor", "Move up"},
-	{"moveDown", "Moving the cursor", "Move down"},
-	{"moveLeft", "Moving the cursor", "Move left"},
-	{"moveRight", "Moving the cursor", "Move right"},
-	{"moveTopSequence", "Moving the cursor", "Go to the top"},
-	{"moveTop", "Moving the cursor", "Go to the top, through the sequence while it is set"},
-	{"moveBottom", "Moving the cursor", "Go to the bottom"},
-	{"moveLineStart", "Moving the cursor", "Go to the start of the line"},
-	{"moveLineEnd", "Moving the cursor", "Go to the end of the line"},
+var generalKeyBindingInfos = []KeyBindingInfo{
+	{Name: "toggleServicesMenu", Group: "Moving around", Description: "Show or hide the services menu"},
+	{Name: "toggleServicePages", Group: "Moving around", Description: "Show or hide the pages of the service"},
+	{Name: "pageBackSequence", Group: "Moving around", Description: "Go to the page on the left"},
+	{Name: "pageForwardSequence", Group: "Moving around", Description: "Go to the page on the right"},
+	{Name: "historyModKey", Group: "Moving around", Description: "The modifier of the history keys"},
+	{Name: "historyBack", Group: "Moving around", Description: "Go back through the pages shown, with the history modifier"},
+	{Name: "historyForward", Group: "Moving around", Description: "Go forward through the pages shown, with the history modifier"},
+	{Name: "viewFocusUp", Group: "Moving around", Description: "Move to the pane above"},
+	{Name: "viewFocusDown", Group: "Moving around", Description: "Move to the pane below"},
+	{Name: "viewFocusLeft", Group: "Moving around", Description: "Move to the pane on the left"},
+	{Name: "viewFocusRight", Group: "Moving around", Description: "Move to the pane on the right"},
+	{Name: "viewResizeModKey", Group: "Moving around", Description: "The modifier that moves the split between panes, with the move keys"},
+	{Name: "viewResizeReset", Group: "Moving around", Description: "Put the splits back, with the split modifier"},
+	{Name: "escape", Group: "Moving around", Description: "Hide a floating view, or leave visual mode"},
+	{Name: "help", Group: "Moving around", Description: "Show the keys of the selected pane"},
+	{Name: "commandLine", Group: "Moving around", Description: "Open the command line"},
 
-	{"done", "Tables", "Open the selected item"},
-	{"reset", "Tables", "Load the table again"},
-	{"clearTable", "Tables", "Clear the table"},
-	{"find", "Tables", "Search"},
-	{"nextSearch", "Tables", "Go to the next match"},
-	{"prevSearch", "Tables", "Go to the previous match"},
-	{"textCopy", "Tables", "Copy the cell, the value or the selected text"},
-	{"tableQuery", "Tables", "Query the table, or the marked log groups with Insights"},
-	{"tableScan", "Tables", "Scan the DynamoDB table"},
-	{"mark", "Tables", "Mark a log group to query with Insights"},
-	{"follow", "Tables", "Follow a log stream as new events arrive"},
-	{"timeRange", "Tables", "Show the next time range of the events of a log stream"},
-	{"unmask", "Tables", "Show or mask the data a data protection policy masks in the events of a log stream"},
-	{"download", "Tables", "Download the selected S3 object to the current directory"},
-	{"filter", "Tables", "Filter the events of a log stream with a filter pattern"},
-	{"sort", "Tables", "Sort by the selected column, then the other way, then as loaded"},
-	{"removeItem", "Tables", "Unmark a log group, or delete a saved query or DynamoDB item"},
-	{"removeItemSequence", "Tables", "Unmark a log group, or delete a saved query or DynamoDB item"},
+	{Name: "moveUp", Group: "Moving the cursor", Description: "Move up"},
+	{Name: "moveDown", Group: "Moving the cursor", Description: "Move down"},
+	{Name: "moveLeft", Group: "Moving the cursor", Description: "Move left"},
+	{Name: "moveRight", Group: "Moving the cursor", Description: "Move right"},
+	{Name: "moveTopSequence", Group: "Moving the cursor", Description: "Go to the top"},
+	{Name: "moveTop", Group: "Moving the cursor", Description: "Go to the top, through the sequence while it is set"},
+	{Name: "moveBottom", Group: "Moving the cursor", Description: "Go to the bottom"},
+	{Name: "moveLineStart", Group: "Moving the cursor", Description: "Go to the start of the line"},
+	{Name: "moveLineEnd", Group: "Moving the cursor", Description: "Go to the end of the line"},
 
-	{"toggleRawView", "Details", "Switch between the details and the API response as JSON"},
-	{"openLinkSequence", "Details", "Open the resource the value links to"},
+	{Name: "done", Group: "Tables", Description: "Open the selected item"},
+	{Name: "reset", Group: "Tables", Description: "Load the table again"},
+	{Name: "clearTable", Group: "Tables", Description: "Clear the table"},
+	{Name: "find", Group: "Tables", Description: "Search"},
+	{Name: "nextSearch", Group: "Tables", Description: "Go to the next match"},
+	{Name: "prevSearch", Group: "Tables", Description: "Go to the previous match"},
+	{Name: "textCopy", Group: "Tables", Description: "Copy the cell, the value or the selected text"},
+	{Name: "tableQuery", Group: "Tables", Description: "Query the table, or the marked log groups with Insights"},
+	{Name: "sort", Group: "Tables", Description: "Sort by the selected column, then the other way, then as loaded"},
+	{Name: "removeItem", Group: "Tables", Description: "Unmark a log group, or delete a saved query or DynamoDB item"},
+	{Name: "removeItemSequence", Group: "Tables", Description: "Unmark a log group, or delete a saved query or DynamoDB item"},
 
-	{"textViewWordRight", "Text views", "Move a word forward"},
-	{"textViewWordLeft", "Text views", "Move a word back"},
-	{"textViewPageUp", "Text views", "Move a page up"},
-	{"textViewPageDown", "Text views", "Move a page down"},
-	{"textViewVisualMode", "Text views", "Select text in visual mode"},
-	{"textViewInsertMode", "Text views", "Insert mode, which changes nothing as text views are read-only"},
-	{"textViewUndo", "Text views", "Undo"},
-	{"textViewRedo", "Text views", "Redo"},
+	{Name: "toggleRawView", Group: "Details", Description: "Switch between the details and the API response as JSON"},
+	{Name: "openLinkSequence", Group: "Details", Description: "Open the resource the value links to"},
+
+	{Name: "textViewWordRight", Group: "Text views", Description: "Move a word forward"},
+	{Name: "textViewWordLeft", Group: "Text views", Description: "Move a word back"},
+	{Name: "textViewPageUp", Group: "Text views", Description: "Move a page up"},
+	{Name: "textViewPageDown", Group: "Text views", Description: "Move a page down"},
+	{Name: "textViewVisualMode", Group: "Text views", Description: "Select text in visual mode"},
+	{Name: "textViewInsertMode", Group: "Text views", Description: "Insert mode, which changes nothing as text views are read-only"},
+	{Name: "textViewUndo", Group: "Text views", Description: "Undo"},
+	{Name: "textViewRedo", Group: "Text views", Description: "Redo"},
+}
+
+var serviceKeyBindingInfosCloudWatch = []KeyBindingInfo{
+	{Name: "mark", Group: "Tables", Description: "Mark a log group to query with Insights"},
+	{Name: "follow", Group: "Tables", Description: "Follow a log stream as new events arrive"},
+	{Name: "timeRange", Group: "Tables", Description: "Show the next time range of the events of a log stream"},
+	{Name: "unmask", Group: "Tables", Description: "Show or mask the data a data protection policy masks in the events of a log stream"},
+	{Name: "filter", Group: "Tables", Description: "Filter the events of a log stream with a filter pattern"},
+}
+
+var serviceKeyBindingInfosDynamoDB = []KeyBindingInfo{
+	{Name: "tableScan", Group: "Tables", Description: "Scan the DynamoDB table"},
+}
+
+var serviceKeyBindingInfosS3 = []KeyBindingInfo{
+	{Name: "download", Group: "Tables", Description: "Download the selected S3 object to the current directory"},
 }
 
 // KeyBindingInfos are the key bindings, in the order to list them

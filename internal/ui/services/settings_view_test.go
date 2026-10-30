@@ -4,6 +4,7 @@ import (
 	"errors"
 	"maps"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -173,7 +174,7 @@ func (test *keySettingsTest) rowOf(name string) core.TableRow {
 	uitest.OnUI(test.t, test.appCtx.App, func() {
 		for row := 1; row < test.view.table.GetTable().GetRowCount(); row++ {
 			if test.view.table.GetPrivateData(row, settingsNameCol) == name {
-				for col := range 5 {
+				for col := range 4 {
 					found = append(found, test.view.table.GetCellText(row, col))
 				}
 			}
@@ -185,13 +186,40 @@ func (test *keySettingsTest) rowOf(name string) core.TableRow {
 func TestKeySettings__ListsEveryKeyWithItsDefault(t *testing.T) {
 	var test = newKeySettingsTest(t)
 
-	if got := test.rowOf("reset"); strings.Join(got, "|") != "Tables|reset|r|r|Load the table again" {
+	if got := test.rowOf("reset"); strings.Join(got, "|") != "reset|r|r|Load the table again" {
 		t.Errorf("reset row = %v", got)
 	}
 	var rows int
 	uitest.OnUI(t, test.appCtx.App, func() { rows = test.view.table.GetTable().GetRowCount() })
-	if rows != len(core.KeyBindingInfos())+1 {
-		t.Errorf("rows = %d, want a row for each of the %d keys", rows-1, len(core.KeyBindingInfos()))
+	var sections = map[string]bool{}
+	for _, info := range core.KeyBindingInfos() {
+		sections[info.Section()] = true
+	}
+	if want := len(core.KeyBindingInfos()) + len(sections) + 1; rows != want {
+		t.Errorf("rows = %d, want a row for each of the %d keys and %d headings", rows-1, len(core.KeyBindingInfos()), len(sections))
+	}
+}
+
+func TestKeySettings__ListsEachSectionUnderAHeading(t *testing.T) {
+	var test = newKeySettingsTest(t)
+
+	var headings []string
+	var firstSelected string
+	uitest.OnUI(t, test.appCtx.App, func() {
+		for row := 1; row < test.view.table.GetTable().GetRowCount(); row++ {
+			if test.view.table.GetPrivateData(row, settingsNameCol) == "" {
+				headings = append(headings, test.view.table.GetCellText(row, 0))
+			}
+		}
+		var row, _ = test.view.table.GetTable().GetSelection()
+		firstSelected = test.view.table.GetPrivateData(row, settingsNameCol)
+	})
+
+	if len(headings) < 3 || headings[0] != "General: Moving around" || !slices.Contains(headings, "CloudWatch") {
+		t.Errorf("headings = %v, want General: Moving around first and CloudWatch among them", headings)
+	}
+	if firstSelected == "" {
+		t.Error("a heading is selected")
 	}
 }
 
@@ -204,7 +232,7 @@ func TestKeySettings__ChangingAKeyUsesItSavesItAndBuildsThePagesAgain(t *testing
 	if got := test.store.keys(); !maps.Equal(got, map[string]string{"reset": "R"}) {
 		t.Errorf("saved keys = %v, want reset on R", got)
 	}
-	if got := test.rowOf("reset"); got[2] != "R" || got[3] != "r" {
+	if got := test.rowOf("reset"); got[1] != "R" || got[2] != "r" {
 		t.Errorf("reset row = %v, want key R and default r", got)
 	}
 	uitest.OnUI(t, test.appCtx.App, func() {
@@ -247,7 +275,7 @@ func TestKeySettings__ASequenceCanBeTurnedOff(t *testing.T) {
 	test.changeKey("openLinkSequence", "")
 
 	uitest.Eventually(t, test.appCtx.App, func() bool { return core.APP_KEY_BINDINGS.OpenLinkSequence == "" }, "gx is off")
-	if got := test.rowOf("openLinkSequence"); got[2] != "off" {
+	if got := test.rowOf("openLinkSequence"); got[1] != "off" {
 		t.Errorf("row = %v, want the key shown as off", got)
 	}
 	if got := test.store.keys(); !maps.Equal(got, map[string]string{"openLinkSequence": ""}) {
@@ -270,7 +298,7 @@ func TestKeySettings__AKeyThatCantBeSavedIsStillUsedAndReported(t *testing.T) {
 func TestFilesSettings__ChangingTheDownloadDirectorySavesIt(t *testing.T) {
 	var store = &fakeSettingsStore{saved: settings.Settings{Files: settings.Files{DownloadDir: "~/old"}}}
 	var test = newSettingsTableTest(t, store, newFilesSettings)
-	if got := test.rowOf("downloadDir"); got[2] != "~/old" || got[3] != "the working directory" {
+	if got := test.rowOf("downloadDir"); got[1] != "~/old" || got[2] != "the working directory" {
 		t.Errorf("row = %v, want the saved directory and the working directory by default", got)
 	}
 	var dir = filepath.Join(t.TempDir(), "csv")

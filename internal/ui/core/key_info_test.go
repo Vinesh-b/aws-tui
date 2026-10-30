@@ -107,3 +107,24 @@ func TestApplyKeyBindingOverrides__StartsFromTheDefaults(t *testing.T) {
 		t.Errorf("errors = %v, want the unknown binding reported as in the settings file", errs)
 	}
 }
+
+func TestKeyBindingInfos__ListGeneralKeysBeforeTheKeysOfEachService(t *testing.T) {
+	var seenService = false
+	for _, info := range KeyBindingInfos() {
+		if info.Service != "" {
+			seenService = true
+		} else if seenService {
+			t.Errorf("general key %s is listed after the keys of a service", info.Name)
+		}
+	}
+
+	var services = map[string]string{"tableScan": "DynamoDB", "download": "S3", "follow": "CloudWatch"}
+	for _, info := range KeyBindingInfos() {
+		if want, ok := services[info.Name]; ok && info.Section() != want {
+			t.Errorf("%s is in %q, want %q", info.Name, info.Section(), want)
+		}
+	}
+	if got := KeyBindingInfos()[0].Section(); got != "General: Moving around" {
+		t.Errorf("first section = %q", got)
+	}
+}

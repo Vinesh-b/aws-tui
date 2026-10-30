@@ -98,7 +98,7 @@ type settingRow struct {
 
 const (
 	settingsEditPage = "EDIT_SETTING"
-	settingsNameCol  = 1
+	settingsNameCol  = 0
 )
 
 // settingsTable lists settings and changes them: Enter asks for a new value,
@@ -116,7 +116,7 @@ func newSettingsTable(appCtx *core.AppContext, title string, rows []settingRow) 
 	var view = &settingsTable{
 		ServicePageView: core.NewServicePageView(appCtx),
 		table: core.NewSelectableTable[string](
-			title, core.TableRow{"Group", "Setting", "Value", "Default", "Does"}, appCtx,
+			title, core.TableRow{"Setting", "Value", "Default", "Does"}, appCtx,
 		),
 		input:  core.NewInputField(appCtx.Theme),
 		rows:   rows,
@@ -128,6 +128,8 @@ func newSettingsTable(appCtx *core.AppContext, title string, rows []settingRow) 
 		var row, ok = view.row(name)
 		return appCtx.Theme.TertiaryTextColour, ok && row.value() != row.defaultValue
 	})
+	// A heading has no setting name
+	view.table.SetHeadingFunc(func(_ core.TableRow, name string) bool { return name == "" })
 	view.table.SetSelectionChangedFunc(func(row, column int) {})
 	view.table.SetSelectedFunc(func(row, column int) {
 		if row > 0 {
@@ -195,16 +197,34 @@ func (row settingRow) shown(value string) string {
 	return value
 }
 
+// hasGroups is true when the settings are in more than one group, which are
+// then shown with a heading each
+func (inst *settingsTable) hasGroups() bool {
+	for _, row := range inst.rows {
+		if row.group != inst.rows[0].group {
+			return true
+		}
+	}
+	return false
+}
+
 // populate lists the settings as they are, keeping the row selected
 func (inst *settingsTable) populate() {
 	var selected, _ = inst.table.GetTable().GetSelection()
 	var rows []core.TableRow
 	var names []string
 	var changed = 0
+	var grouped = inst.hasGroups()
+	var group string
 	for _, row := range inst.rows {
+		if grouped && row.group != group {
+			group = row.group
+			rows = append(rows, core.TableRow{group, "", "", ""})
+			names = append(names, "")
+		}
 		var value = row.value()
 		rows = append(rows, core.TableRow{
-			row.group, row.name, row.shown(value), row.shown(row.defaultValue), row.description,
+			row.name, row.shown(value), row.shown(row.defaultValue), row.description,
 		})
 		names = append(names, row.name)
 		if value != row.defaultValue {
@@ -218,7 +238,7 @@ func (inst *settingsTable) populate() {
 	}
 	inst.table.SetTitleExtra(extra)
 	inst.table.SetData(rows, names, settingsNameCol)
-	inst.table.GetCell(0, 4).SetExpansion(1)
+	inst.table.GetCell(0, 3).SetExpansion(1)
 	if selected > 1 {
 		inst.table.Select(selected, 0)
 	}
@@ -276,7 +296,7 @@ func newKeySettings(appCtx *core.AppContext, store SettingsStore) *settingsTable
 	for _, info := range core.KeyBindingInfos() {
 		var name = info.Name
 		rows = append(rows, settingRow{
-			group:        info.Group,
+			group:        info.Section(),
 			name:         name,
 			description:  info.Description,
 			hint:         core.KeyBindingHint(name),

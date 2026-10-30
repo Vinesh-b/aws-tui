@@ -96,6 +96,7 @@ type SelectableTable[T any] struct {
 	filterCols           []int
 	pinnedFunc           func(row TableRow, private T) bool
 	pinnedCount          int
+	headingFunc          func(row TableRow, private T) bool
 	nextSeq              int
 	expansions           map[int]int
 	sortCol              int
@@ -265,9 +266,27 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 	}
 
 	// Select last, as the selection changed handlers read the private data
-	inst.table.Select(inst.rowAfterLoad(), 0)
+	inst.table.Select(inst.skipHeadings(inst.rowAfterLoad()), 0)
 
 	return nil
+}
+
+// skipHeadings gives the first row from the table row on that isn't a heading,
+// or the row itself if every row after it is
+func (inst *SelectableTable[T]) skipHeadings(row int) int {
+	if inst.headingFunc == nil {
+		return row
+	}
+	for idx := max(row-1, 0); idx < len(inst.rows); idx++ {
+		var private T
+		if inst.rows[idx].private != nil {
+			private = *inst.rows[idx].private
+		}
+		if !inst.headingFunc(inst.rows[idx].text, private) {
+			return idx + 1
+		}
+	}
+	return row
 }
 
 // addRows adds the rows to the model, and gives back the ones added. The data
@@ -301,6 +320,15 @@ func (inst *SelectableTable[T]) drawRow(idx int) {
 		rowColour, coloured = colour(row.text, private)
 	}
 
+	var isHeading = false
+	if inst.headingFunc != nil {
+		var private T
+		if row.private != nil {
+			private = *row.private
+		}
+		isHeading = inst.headingFunc(row.text, private)
+	}
+
 	for col, text := range row.text {
 		var ref *T
 		if col == inst.privateColumn {
@@ -309,6 +337,11 @@ func (inst *SelectableTable[T]) drawRow(idx int) {
 		var cell = NewTableCell[T](text, ref)
 		if coloured {
 			cell.SetTextColor(rowColour)
+		}
+		if isHeading {
+			cell.SetTextColor(inst.appCtx.Theme.SecondaryTextColour).
+				SetAttributes(tcell.AttrBold).
+				SetSelectable(false)
 		}
 		inst.table.SetCell(idx+1, col, cell)
 	}
@@ -350,6 +383,14 @@ func (inst *SelectableTable[T]) SetRowColourFunc(
 	colourFunc func(row TableRow, private T) (tcell.Color, bool),
 ) *SelectableTable[T] {
 	inst.rowColourFunc = colourFunc
+	return inst
+}
+
+// SetHeadingFunc sets which rows are sub-headings, which start a group of the
+// rows after them. A heading is bold and can't be selected. As sorting would
+// move the headings away from their groups, a table with headings isn't sorted.
+func (inst *SelectableTable[T]) SetHeadingFunc(heading func(row TableRow, private T) bool) *SelectableTable[T] {
+	inst.headingFunc = heading
 	return inst
 }
 

@@ -570,13 +570,13 @@ func TestCreateApplication__CopiedTextIsSentToTheTerminal(t *testing.T) {
 	typeRunes(tuiApp, "gtgt")
 	uitest.AwaitScreenText(t, tuiApp, screen, "toggleServicesMenu")
 
-	// The first cell of the keys is the group of the first key
+	// The first cell of the keys is the name of the first key, as the heading above it can't be selected
 	typeRunes(tuiApp, string(core.APP_KEY_BINDINGS.TextCopy))
 
 	uitest.Eventually(t, tuiApp, func() bool {
-		return string(screen.GetClipboardData()) == "Moving around"
+		return string(screen.GetClipboardData()) == "toggleServicesMenu"
 	}, "the terminal is sent the copied cell")
-	if got := <-systemCopies; got != "Moving around" {
+	if got := <-systemCopies; got != "toggleServicesMenu" {
 		t.Errorf("system clipboard = %q", got)
 	}
 }
