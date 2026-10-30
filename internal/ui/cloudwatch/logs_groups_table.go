@@ -42,7 +42,7 @@ func NewLogGroupsTable(
 				"Name",
 			},
 			serviceContext.AppContext,
-		),
+		).SetColumnExpansion(logGroupNameCol, 1),
 		data:             nil,
 		selectedLogGroup: "",
 		marks:            NewLogGroupMarks(),
@@ -101,7 +101,6 @@ func (inst *LogGroupsTable) populateLogGroupsTable(data []types.LogGroup) {
 
 	inst.refreshMarksTitle()
 	inst.SetData(tableData, privateData, logGroupNameCol)
-	inst.GetCell(0, logGroupNameCol).SetExpansion(1)
 	inst.ScrollToBeginning()
 }
 

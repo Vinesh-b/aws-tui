@@ -80,7 +80,7 @@ func NewLogEventsTable(
 				"Message",
 			},
 			serviceContext.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 		selectedLogGroup:  "",
 		selectedLogStream: "",
 		serviceCtx:        serviceContext,
@@ -154,7 +154,6 @@ func (inst *LogEventsTable) populateLogEventsTable(events []types.OutputLogEvent
 	}
 
 	inst.SetData(tableData, privateData, logMsgCol)
-	inst.GetCell(0, 0).SetExpansion(1)
 	inst.Select(1, 0)
 }
 

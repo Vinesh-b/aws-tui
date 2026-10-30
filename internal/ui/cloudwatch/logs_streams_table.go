@@ -33,7 +33,7 @@ func NewLogStreamsTable(
 				"LastEventTimestamp",
 			},
 			serviceContext.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 		selectedLogStream:  "",
 		selectedLogGroup:   "",
 		searchStreamPrefix: "",
@@ -79,7 +79,6 @@ func (inst *LogStreamsTable) populateLogStreamsTable(extend bool) {
 	}
 
 	inst.SetData(tableData, nil, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 	inst.ScrollToBeginning()
 }
 

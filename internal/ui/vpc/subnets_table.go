@@ -40,7 +40,7 @@ func NewVpcSubnetsTable(
 				"Type",
 			},
 			serviceCtx.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 		data:              nil,
 		selectedVpcSubnet: types.Subnet{},
 		serviceCtx:        serviceCtx,
@@ -96,7 +96,6 @@ func (inst *VpcSubnetsTable) populateVpcSubnetsTable(data []types.Subnet) {
 	}
 
 	inst.SetData(tableData, privateData, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 	inst.GetTable().SetFixed(1, 0)
 }
 

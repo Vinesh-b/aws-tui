@@ -39,7 +39,7 @@ func NewIamListTable[T any](
 	load func(ctx context.Context) ([]T, error),
 ) *IamListTable[T] {
 	var view = &IamListTable[T]{
-		SelectableTable: core.NewSelectableTable[T](title, headings, serviceCtx.AppContext),
+		SelectableTable: core.NewSelectableTable[T](title, headings, serviceCtx.AppContext).SetColumnExpansion(0, 1),
 		kind:            kind,
 		keyOf:           keyOf,
 		nameOf:          nameOf,
@@ -74,7 +74,6 @@ func (inst *IamListTable[T]) populateTable(data []T) {
 	}
 
 	inst.SetData(tableData, data, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 	inst.Select(1, 0)
 }
 

@@ -69,7 +69,7 @@ func NewSfnExecutionsTable(
 			"Duration",
 		},
 		appCtx,
-	)
+	).SetColumnExpansion(0, 1)
 
 	var searchView = NewFloatingSfnExecutionsQueryInputView(appCtx)
 	selectableTable.AddRuneToggleOverlay("QUERY", searchView, core.APP_KEY_BINDINGS.TableQuery, false)
@@ -162,7 +162,6 @@ func (inst *SfnExecutionsTable) populateTable(force bool) {
 
 	inst.SetTitleExtra(aws.ToString(inst.selectedFunction.Name))
 	inst.SetData(tableData, inst.data, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 
 	colourExecutionStatuses(inst.GetTable())
 }

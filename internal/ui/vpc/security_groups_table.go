@@ -37,7 +37,7 @@ func NewVpcSecurityGroupsTable(
 				"Owner Id",
 			},
 			serviceCtx.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 		data:                  nil,
 		selectedSecurityGroup: types.SecurityGroup{},
 		serviceCtx:            serviceCtx,
@@ -87,7 +87,6 @@ func (inst *VpcSecurityGroupsTable) populateVpcSecurityGroupsTable(data []types.
 	}
 
 	inst.SetData(tableData, privateData, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 	inst.GetTable().SetFixed(1, 0)
 }
 

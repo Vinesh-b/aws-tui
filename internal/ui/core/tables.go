@@ -92,6 +92,7 @@ type SelectableTable[T any] struct {
 	rowCount             int
 	rows                 []tableRow[T]
 	nextSeq              int
+	expansions           map[int]int
 	sortCol              int
 	sortDir              sortDirection
 	privateColumn        int
@@ -308,7 +309,24 @@ func (inst *SelectableTable[T]) drawHeadings() {
 			heading += " " + inst.sortDir.arrow()
 		}
 		SetTableHeading(inst.table, inst.appCtx.Theme, heading, col)
+		if expansion, ok := inst.expansions[col]; ok {
+			inst.table.GetCell(0, col).SetExpansion(expansion)
+		}
 	}
+}
+
+// SetColumnExpansion makes the column take a share of the width left over by the
+// others, as tview does for a cell's expansion. It is kept when the headings are
+// drawn again, such as when the table is loaded or sorted.
+func (inst *SelectableTable[T]) SetColumnExpansion(col int, expansion int) *SelectableTable[T] {
+	if inst.expansions == nil {
+		inst.expansions = map[int]int{}
+	}
+	inst.expansions[col] = expansion
+	if cell := inst.table.GetCell(0, col); cell != nil {
+		cell.SetExpansion(expansion)
+	}
+	return inst
 }
 
 // SetRowColourFunc sets a function that picks the text colour of a row when it

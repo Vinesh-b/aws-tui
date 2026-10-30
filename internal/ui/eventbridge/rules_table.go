@@ -35,7 +35,7 @@ func NewRulesTable(
 				"Schedule",
 			},
 			serviceCtx.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 		data:            nil,
 		ruleDetails:     map[string]RuleDetail{},
 		selectedRule:    types.Rule{},
@@ -60,7 +60,6 @@ func (inst *RulesTable) populateRulesTable(data []types.Rule) {
 	}
 
 	inst.SetData(tableData, data, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 	inst.lastSelectedRow = 0
 	inst.Select(1, 0)
 }

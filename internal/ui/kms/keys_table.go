@@ -67,7 +67,7 @@ func NewKmsKeysTable(
 				"Key ID",
 			},
 			serviceContext.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 		data:       nil,
 		allKeys:    nil,
 		serviceCtx: serviceContext,
@@ -99,7 +99,6 @@ func (inst *KmsKeysTable) populateKeysTable() {
 	}
 
 	inst.SetData(tableData, inst.data, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 	inst.Select(1, 0)
 }
 

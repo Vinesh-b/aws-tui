@@ -33,7 +33,7 @@ func NewEventBusListTable(
 				"LastModified",
 			},
 			serviceCtx.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 		data:             nil,
 		selectedEventBus: types.EventBus{},
 		serviceCtx:       serviceCtx,
@@ -72,7 +72,6 @@ func (inst *EventBusListTable) populateEventBusTable(data []types.EventBus) {
 	}
 
 	inst.SetData(tableData, privateData, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 	inst.Select(1, 0)
 }
 

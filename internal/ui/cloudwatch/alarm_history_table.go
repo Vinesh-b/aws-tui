@@ -31,7 +31,7 @@ func NewAlarmHistoryTable(
 				"History",
 			},
 			serviceContext.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 		data:          nil,
 		selectedAlarm: "",
 		serviceCtx:    serviceContext,
@@ -62,7 +62,6 @@ func (inst *AlarmHistoryTable) populateAlarmHistoryTable(reset bool) {
 	}
 
 	inst.SetData(tableData, nil, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 	inst.ScrollToBeginning()
 }
 

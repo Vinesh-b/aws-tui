@@ -36,7 +36,7 @@ func NewVpcListTable(
 				"Instance Tenancy",
 			},
 			serviceCtx.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 		data:        nil,
 		selectedVpc: types.Vpc{},
 		serviceCtx:  serviceCtx,
@@ -89,7 +89,6 @@ func (inst *VpcListTable) populateVpcTable(data []types.Vpc) {
 	}
 
 	inst.SetData(tableData, privateData, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 	inst.GetTable().SetFixed(1, 0)
 	inst.Select(1, 0)
 }

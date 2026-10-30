@@ -34,7 +34,7 @@ func NewQueueListTable(
 				"Type",
 			},
 			serviceCtx.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 		data:          nil,
 		selectedQueue: "",
 		serviceCtx:    serviceCtx,
@@ -81,7 +81,6 @@ func (inst *QueueListTable) populateQueueTable(data []string) {
 	}
 
 	inst.SetData(tableData, data, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 	inst.Select(1, 0)
 }
 

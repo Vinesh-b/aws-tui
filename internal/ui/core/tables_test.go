@@ -1587,3 +1587,21 @@ func TestSelectableTable__SortKeepsRowColours(t *testing.T) {
 		t.Errorf("colour = %v, want red to have followed cherry", got)
 	}
 }
+
+func TestSelectableTable__ColumnExpansionSurvivesSortingAndLoading(t *testing.T) {
+	var table = sortedTable(t)
+	table.SetColumnExpansion(0, 1)
+
+	pressTableKey(table, tcell.KeyRune, APP_KEY_BINDINGS.Sort)
+	if got := table.GetCell(0, 0).Expansion; got != 1 {
+		t.Errorf("expansion after sort = %d, want 1", got)
+	}
+	if got := table.GetCell(0, 1).Expansion; got != 0 {
+		t.Errorf("expansion of the other column = %d, want 0", got)
+	}
+
+	table.SetData([]TableRow{{"a", "1"}}, nil, 0)
+	if got := table.GetCell(0, 0).Expansion; got != 1 {
+		t.Errorf("expansion after load = %d, want 1", got)
+	}
+}

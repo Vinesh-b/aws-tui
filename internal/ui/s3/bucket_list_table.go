@@ -33,7 +33,7 @@ func NewBucketListTable(
 				"CreationDate",
 			},
 			serviceViewCtx.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 		data:       nil,
 		serviceCtx: serviceViewCtx,
 	}
@@ -56,7 +56,6 @@ func (inst *BucketListTable) populateS3BucketsTable() {
 	}
 
 	inst.SetData(tableData, nil, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 	inst.Select(1, 0)
 }
 

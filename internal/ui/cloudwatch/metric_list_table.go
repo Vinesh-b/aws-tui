@@ -33,7 +33,7 @@ func NewMetricsTable(
 				"Namespace",
 			},
 			serviceViewCtx.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 		selectedMetric: types.Metric{},
 		currentSearch:  "",
 		data:           nil,
@@ -84,7 +84,6 @@ func (inst *MetricListTable) populateMetricsTable(data []types.Metric) {
 	}
 
 	inst.SetData(tableData, data, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 	inst.Select(1, 0)
 }
 

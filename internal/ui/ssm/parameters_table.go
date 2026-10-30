@@ -38,7 +38,7 @@ func NewSSMParametersListTable(
 				"LastModified",
 			},
 			serviceViewCtx.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 		data:              nil,
 		selectedParameter: types.Parameter{},
 		serviceCtx:        serviceViewCtx,
@@ -102,7 +102,6 @@ func (inst *SSMParametersListTable) populateParametersTable(data []types.Paramet
 	}
 
 	inst.SetData(tableData, privateData, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 }
 
 func (inst *SSMParametersListTable) FilterByName(name string) {

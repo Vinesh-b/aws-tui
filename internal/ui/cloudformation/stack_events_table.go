@@ -33,7 +33,7 @@ func NewStackEventsTable(
 				"Reason",
 			},
 			serviceContext.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 		data:              nil,
 		selectedStack:     types.StackEvent{},
 		selectedStackName: "",
@@ -65,7 +65,6 @@ func (inst *StackEventsTable) populateStackEventsTable(reset bool) {
 	}
 
 	inst.SetData(tableData, inst.data, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 	inst.Select(1, 0)
 }
 

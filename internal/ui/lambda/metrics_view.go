@@ -42,7 +42,7 @@ func NewLambdaMetricsTable(appCtx *core.AppContext) *LambdaMetricsTable {
 				"Description",
 			},
 			appCtx,
-		),
+		).SetColumnExpansion(0, 1),
 	}
 
 	view.SetTitleExtra("NO LAMBDA SELECTED")
@@ -59,7 +59,6 @@ func (inst *LambdaMetricsTable) populateMetricsTable() {
 	}
 
 	inst.SetData(tableData, lambdaMetrics, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 	inst.Select(1, 0)
 }
 

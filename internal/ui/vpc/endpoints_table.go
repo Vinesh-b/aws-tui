@@ -38,7 +38,7 @@ func NewVpcEndpointsTable(
 				"Created Timestamp",
 			},
 			serviceCtx.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 		data:                nil,
 		selectedVpcEndpoint: types.VpcEndpoint{},
 		serviceCtx:          serviceCtx,
@@ -88,7 +88,6 @@ func (inst *VpcEndpointsTable) populateVpcEndpointsTable(data []types.VpcEndpoin
 	}
 
 	inst.SetData(tableData, privateData, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 	inst.GetTable().SetFixed(1, 0)
 }
 

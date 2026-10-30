@@ -47,7 +47,7 @@ func NewSubscriptionsTable(
 			"Subscriptions",
 			core.TableRow{"Protocol", "Endpoint", "Status", "Subscription Arn"},
 			serviceCtx.AppContext,
-		),
+		).SetColumnExpansion(1, 1),
 		SubscribeView:   NewFloatingSubscribeView(serviceCtx.AppContext),
 		UnsubscribeView: core.NewFloatingConfirmView(serviceCtx.AppContext, "Unsubscribe", "Unsubscribe"),
 		serviceCtx:      serviceCtx,
@@ -103,7 +103,6 @@ func (inst *SubscriptionsTable) populateSubscriptionsTable(subscriptions []types
 	}
 
 	inst.SetData(tableData, nil, -1)
-	inst.GetCell(0, 1).SetExpansion(1)
 }
 
 // RefreshSubscriptions loads the subscriptions of the topic. Without a topic

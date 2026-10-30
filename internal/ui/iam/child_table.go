@@ -25,7 +25,7 @@ func NewIamChildTable[T any](
 	load func(ctx context.Context, key string) ([]T, error),
 ) *IamChildTable[T] {
 	var table = &IamChildTable[T]{
-		SelectableTable: core.NewSelectableTable[T](title, headings, serviceCtx.AppContext),
+		SelectableTable: core.NewSelectableTable[T](title, headings, serviceCtx.AppContext).SetColumnExpansion(0, 1),
 		rowOf:           rowOf,
 		load:            load,
 		serviceCtx:      serviceCtx,
@@ -44,7 +44,6 @@ func (inst *IamChildTable[T]) populateTable(items []T) {
 
 	inst.SetTitleExtra(inst.key)
 	inst.SetData(tableData, items, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 	inst.Select(1, 0)
 }
 

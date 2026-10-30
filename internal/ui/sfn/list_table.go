@@ -38,7 +38,7 @@ func NewSfnListTable(
 				"Creation Date",
 			},
 			serviceViewCtx.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 
 		data:       nil,
 		serviceCtx: serviceViewCtx,
@@ -69,7 +69,6 @@ func (inst *SfnListTable) populateTable(data []types.StateMachineListItem) {
 	}
 
 	inst.SetData(tableData, data, sfnFunctionNameCol)
-	inst.GetCell(0, 0).SetExpansion(1)
 	inst.Select(1, 0)
 }
 

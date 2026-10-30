@@ -30,7 +30,7 @@ func NewSelectedGroupsTable(
 				"Name",
 			},
 			serviceViewCtx.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 		marks:         marks,
 		selectedGroup: "",
 		serviceCtx:    serviceViewCtx,
@@ -68,7 +68,6 @@ func (inst *SelectedGroupsTable) populateSelectedGroupsTable() {
 
 	inst.selectedGroup = ""
 	inst.SetData(tableData, privateData, logNameCol)
-	inst.GetCell(0, 0).SetExpansion(1)
 
 	if len(privateData) > 0 {
 		inst.selectedGroup = privateData[0]

@@ -35,7 +35,7 @@ func NewSecretsListTable(
 				"LastChanged",
 			},
 			serviceViewCtx.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 		serviceCtx: serviceViewCtx,
 	}
 
@@ -94,7 +94,6 @@ func (inst *SecretsListTable) populateTable(data []types.SecretListEntry) {
 	}
 
 	inst.SetData(tableData, privateData, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 }
 
 func (inst *SecretsListTable) FilterByName(name string) {

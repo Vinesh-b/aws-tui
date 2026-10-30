@@ -33,7 +33,7 @@ func NewLambdasListTable(
 				"LastModified",
 			},
 			serviceCtx.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 		data:           nil,
 		selectedLambda: types.FunctionConfiguration{},
 		serviceCtx:     serviceCtx,
@@ -71,7 +71,6 @@ func (inst *LambdaListTable) populateLambdasTable(data []types.FunctionConfigura
 	}
 
 	inst.SetData(tableData, privateData, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 	inst.Select(1, 0)
 }
 

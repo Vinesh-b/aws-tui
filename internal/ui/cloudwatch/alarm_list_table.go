@@ -34,7 +34,7 @@ func NewAlarmListTable(
 				"State",
 			},
 			serviceContext.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 		data:          nil,
 		selectedAlarm: types.MetricAlarm{},
 		serviceCtx:    serviceContext,
@@ -82,7 +82,6 @@ func (inst *AlarmListTable) populateAlarmsTable(data []types.MetricAlarm) {
 	}
 
 	inst.SetData(tableData, data, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 	inst.ScrollToBeginning()
 }
 

@@ -43,7 +43,7 @@ func NewTopicListTable(
 				"Type",
 			},
 			serviceCtx.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 		CreateView:     NewFloatingCreateTopicView(serviceCtx.AppContext),
 		DeleteView:     core.NewFloatingConfirmView(serviceCtx.AppContext, "Delete Topic", "Delete"),
 		data:           nil,
@@ -115,7 +115,6 @@ func (inst *TopicListTable) populateTopicTable(data []string) {
 	}
 
 	inst.SetData(tableData, data, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 }
 
 func (inst *TopicListTable) FilterByName(name string) {

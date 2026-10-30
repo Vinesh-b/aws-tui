@@ -27,7 +27,7 @@ func NewDynamoDBTablesTable(
 				"Name",
 			},
 			serviceContext.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 		data:       nil,
 		allTables:  nil,
 		serviceCtx: serviceContext,
@@ -54,7 +54,6 @@ func (inst *DynamoDBTablesTable) populateTablesTable() {
 	}
 
 	inst.SetData(tableData, nil, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 	inst.Select(1, 0)
 }
 

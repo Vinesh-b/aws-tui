@@ -34,7 +34,7 @@ func NewLambdaItemsView[T any](
 	detailsOf func(T) []core.TableRow,
 	load func(ctx context.Context, lambdaArn string) ([]T, error),
 ) *LambdaItemsView[T] {
-	var listTable = core.NewSelectableTable[T](title, headings, serviceCtx.AppContext)
+	var listTable = core.NewSelectableTable[T](title, headings, serviceCtx.AppContext).SetColumnExpansion(0, 1)
 	var detailsTable = core.NewDetailsTable(detailsTitle, serviceCtx.AppContext)
 
 	const listTableSize = 5000
@@ -76,7 +76,6 @@ func (inst *LambdaItemsView[T]) populateListTable(items []T) {
 	}
 
 	inst.ListTable.SetData(tableData, items, 0)
-	inst.ListTable.GetCell(0, 0).SetExpansion(1)
 	inst.ListTable.Select(1, 0)
 	inst.showSelectedItem()
 }

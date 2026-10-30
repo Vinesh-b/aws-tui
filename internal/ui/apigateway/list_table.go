@@ -36,7 +36,7 @@ func NewApiGatewayApisTable(
 				"Description",
 			},
 			serviceContext.AppContext,
-		),
+		).SetColumnExpansion(0, 1),
 		serviceCtx: serviceContext,
 	}
 
@@ -83,7 +83,6 @@ func (inst *ApiGatewayApisTable) populateApisTable() {
 	}
 
 	inst.SetData(tableData, inst.data, 0)
-	inst.GetCell(0, 0).SetExpansion(1)
 	inst.GetTable().SetFixed(1, 0)
 	inst.Select(1, 0)
 }
