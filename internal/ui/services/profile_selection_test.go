@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"aws-tui/internal/awsapi"
@@ -30,13 +31,32 @@ func useAwsConfig(t *testing.T, config string) {
 	t.Setenv("AWS_PROFILE", "")
 }
 
+// lockedBuilder collects what the session monitor logs from its poll goroutine
+// while the test reads it
+type lockedBuilder struct {
+	mu      sync.Mutex
+	builder strings.Builder
+}
+
+func (inst *lockedBuilder) Write(p []byte) (int, error) {
+	inst.mu.Lock()
+	defer inst.mu.Unlock()
+	return inst.builder.Write(p)
+}
+
+func (inst *lockedBuilder) String() string {
+	inst.mu.Lock()
+	defer inst.mu.Unlock()
+	return inst.builder.String()
+}
+
 func TestProfileSelection__SelectingProfileSwitchesApiClients(t *testing.T) {
 	useAwsConfig(t, "[profile alpha]\nregion = eu-west-1\naws_access_key_id = ALPHAKEY\naws_secret_access_key = s\n\n[profile beta]\nregion = ap-south-1\naws_access_key_id = BETAKEY\naws_secret_access_key = s\n")
 	t.Setenv("AWS_DEFAULT_REGION", "us-east-1")
 	t.Setenv("AWS_ACCESS_KEY_ID", "ENVKEY")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "ENVSECRET")
 	var appCtx = uitest.NewAppContext()
-	var logs strings.Builder
+	var logs lockedBuilder
 	appCtx.Logger = log.New(&logs, "", 0)
 	t.Cleanup(func() { t.Log(logs.String()) })
 	var page = NewProfileSelectionView(appCtx)
