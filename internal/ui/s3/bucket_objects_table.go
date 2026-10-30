@@ -55,6 +55,7 @@ func NewBucketObjectsTable(
 		serviceCtx:           serviceViewCtx,
 	}
 
+	view.HelpView.View.AddRune(core.APP_KEY_BINDINGS.Download, "Download the selected object to the current directory")
 	view.populateS3ObjectsTable(nil, nil)
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
 	view.SetSelectionChangedFunc(func(row, column int) {})

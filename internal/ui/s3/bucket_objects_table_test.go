@@ -15,6 +15,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/rivo/tview"
 )
 
 var objectHeadings = core.TableRow{"Key", "Size", "LastModified"}
@@ -260,5 +261,23 @@ func TestBucketObjectsTable__DownloadReportsFailures(t *testing.T) {
 
 	if got := uitest.AwaitError(t, errs); got != "denied" {
 		t.Errorf("error = %q, want denied", got)
+	}
+}
+
+func TestBucketObjectsTable__HelpListsTheDownloadKey(t *testing.T) {
+	var table = newObjectsTable()
+
+	var help, ok = table.HelpView.View.GetItem(0).(*tview.Table)
+	if !ok {
+		t.Fatal("help view has no table")
+	}
+	var found = false
+	for row := 1; row < help.GetRowCount(); row++ {
+		if help.GetCell(row, 0).Text == core.FormatRune(core.APP_KEY_BINDINGS.Download) {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("help has no entry for %q", core.FormatRune(core.APP_KEY_BINDINGS.Download))
 	}
 }
