@@ -58,7 +58,7 @@ func TestStackListTable__RefreshReportsApiError(t *testing.T) {
 	}
 }
 
-func TestStackListTable__FilterByNameShowsMatchingStacks(t *testing.T) {
+func TestStackListTable__SearchShowsMatchingStacks(t *testing.T) {
 	var api = &fakeCloudFormationApi{stacks: []types.StackSummary{
 		newStack("orders", types.StackStatusCreateComplete),
 		newStack("billing", types.StackStatusCreateComplete),
@@ -69,7 +69,7 @@ func TestStackListTable__FilterByNameShowsMatchingStacks(t *testing.T) {
 	table.RefreshStacks(true)
 	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetTable().GetRowCount() == 3 })
 
-	table.FilterByName("bill")
+	uitest.OnUI(t, serviceCtx.App, func() { table.SetSearchText("bill") })
 
 	uitest.AwaitRows(t, serviceCtx.App, table, []core.TableRow{
 		stackListHeadings,

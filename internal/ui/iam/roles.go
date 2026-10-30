@@ -29,7 +29,7 @@ func roleName(role types.Role) string {
 
 func NewRoleListTable(serviceCtx *core.ServiceContext[awsapi.IamApi]) *IamListTable[types.Role] {
 	return NewIamListTable(serviceCtx, "Roles", core.TableRow{"Name", "Path"}, "Role",
-		roleName, roleName,
+		roleName,
 		func(role types.Role) core.TableRow {
 			return core.TableRow{roleName(role), aws.ToString(role.Path)}
 		},

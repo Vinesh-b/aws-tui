@@ -59,7 +59,7 @@ func TestQueueListTable__RefreshReportsApiError(t *testing.T) {
 	}
 }
 
-func TestQueueListTable__FilterByNameShowsMatchingQueues(t *testing.T) {
+func TestQueueListTable__SearchShowsMatchingQueues(t *testing.T) {
 	var api = &fakeSqsApi{queues: []string{queueUrl("orders"), queueUrl("billing")}}
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SqsApi](api)
 	var table = NewQueueListTable(serviceCtx)
@@ -67,7 +67,7 @@ func TestQueueListTable__FilterByNameShowsMatchingQueues(t *testing.T) {
 	table.RefreshQueues(true)
 	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetTable().GetRowCount() == 3 })
 
-	table.FilterByName("bill")
+	uitest.OnUI(t, serviceCtx.App, func() { table.SetSearchText("bill") })
 
 	uitest.AwaitRows(t, serviceCtx.App, table, []core.TableRow{
 		queueHeadings,

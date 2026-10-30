@@ -148,3 +148,17 @@ func TestLogGroupsTable__LogGroupDetailIsEmptyWhenNothingSelected(t *testing.T) 
 		t.Errorf("detail = %+v, want empty", detail)
 	}
 }
+
+func TestLogGroupsTable__MarkersStayWithTheirGroupsWhenSorted(t *testing.T) {
+	var table = newPopulatedLogGroupsTable("/aws/lambda/orders", "/aws/lambda/billing")
+	table.Select(1, logGroupNameCol)
+	table.Marks().Toggle("/aws/lambda/orders")
+
+	uitest.PressTableRune(table, core.APP_KEY_BINDINGS.Sort)
+
+	uitest.AssertTableRows(t, table, []core.TableRow{
+		{"", "Name ▲"},
+		{"", "/aws/lambda/billing"},
+		{logGroupMarker, "/aws/lambda/orders"},
+	})
+}

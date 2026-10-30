@@ -41,7 +41,7 @@ func TestParametersTable__RefreshReportsApiError(t *testing.T) {
 	}
 }
 
-func TestParametersTable__FilterByNameShowsMatchingParameters(t *testing.T) {
+func TestParametersTable__SearchShowsMatchingParameters(t *testing.T) {
 	var api = ssmfake.New(ssmfake.WithParameters([]types.Parameter{
 		newParameter("/app/db/host", 1), newParameter("/app/cache/url", 1),
 	}))
@@ -51,7 +51,7 @@ func TestParametersTable__FilterByNameShowsMatchingParameters(t *testing.T) {
 	table.RefreshParameters("/", true)
 	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetTable().GetRowCount() == 3 })
 
-	table.FilterByName("cache")
+	uitest.OnUI(t, serviceCtx.App, func() { table.SetSearchText("cache") })
 
 	uitest.AwaitRows(t, serviceCtx.App, table, []core.TableRow{
 		parameterHeadings,

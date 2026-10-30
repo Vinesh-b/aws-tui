@@ -122,3 +122,54 @@ func TestBucketObjectsTable__SettingBucketResetsDirAndSelection(t *testing.T) {
 		t.Errorf("dir = %q, prefix = %q, want both empty", table.selectedDir, table.GetSelectedPrefix())
 	}
 }
+
+func TestBucketObjectsTable__SearchKeepsTheParentEntryAndFiltersTheRest(t *testing.T) {
+	var table = newObjectsTable()
+	table.populateS3ObjectsTable(
+		[]types.Object{newObject("readme.txt", 1536)},
+		[]types.CommonPrefix{newDir("images/"), newDir("docs/")},
+	)
+
+	table.SetSearchText("doc")
+
+	uitest.AssertTableRows(t, table, []core.TableRow{
+		objectHeadings,
+		{"../", "-", "-"},
+		{"docs/", "-", "-"},
+	})
+	if got := aws.ToString(table.GetPrivateData(1, 0).Key); got != "" {
+		t.Errorf("parent entry key = %q, want the parent dir", got)
+	}
+}
+
+func TestBucketObjectsTable__SortKeepsTheParentEntryFirst(t *testing.T) {
+	var table = newObjectsTable()
+	table.populateS3ObjectsTable(
+		[]types.Object{newObject("b.txt", 1), newObject("a.txt", 1)}, nil,
+	)
+
+	uitest.PressTableRune(table, core.APP_KEY_BINDINGS.Sort)
+
+	uitest.AssertTableRows(t, table, []core.TableRow{
+		{"Key ▲", "Size", "LastModified"},
+		{"../", "-", "-"},
+		{"a.txt", "0.0 KB", "2024-01-02 03:04:05"},
+		{"b.txt", "0.0 KB", "2024-01-02 03:04:05"},
+	})
+}
+
+func TestBucketObjectsTable__SettingBucketClearsTheSearch(t *testing.T) {
+	var table = newObjectsTable()
+	table.populateS3ObjectsTable([]types.Object{newObject("a.txt", 1), newObject("b.txt", 1)}, nil)
+	table.SetSearchText("a.txt")
+
+	table.SetSelectedBucket("other")
+	table.populateS3ObjectsTable([]types.Object{newObject("c.txt", 1)}, nil)
+
+	if got := table.GetTable().GetRowCount(); got != 3 {
+		t.Errorf("rows = %d, want the parent entry and c.txt", got)
+	}
+	if text := table.GetSearchText(); text != "" {
+		t.Errorf("search = %q, want it cleared", text)
+	}
+}

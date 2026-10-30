@@ -3,7 +3,6 @@ package ec2
 import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
-	"aws-tui/internal/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -30,7 +29,6 @@ func instanceState(instance types.Instance) string {
 type Ec2InstancesTable struct {
 	*core.SelectableTable[types.Instance]
 	data             []types.Instance
-	allInstances     []types.Instance
 	selectedInstance types.Instance
 	serviceCtx       *core.ServiceContext[awsapi.Ec2Api]
 }
@@ -52,7 +50,7 @@ func NewEc2InstancesTable(
 				"Public IP",
 			},
 			serviceContext.AppContext,
-		).SetColumnExpansion(0, 1),
+		).SetColumnExpansion(0, 1).SetFilterColumns(0, 1),
 		serviceCtx: serviceContext,
 	}
 
@@ -60,12 +58,6 @@ func NewEc2InstancesTable(
 	table.SetSelectionChangedFunc(func(row, column int) {})
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
 	table.SetSelectedFunc(func(row, column int) {})
-	table.SetSearchDoneFunc(func(key tcell.Key) {
-		switch key {
-		case core.APP_KEY_BINDINGS.Done:
-			table.RefreshInstances(false)
-		}
-	})
 
 	return table
 }
@@ -98,36 +90,20 @@ func (inst *Ec2InstancesTable) populateInstancesTable() {
 	inst.Select(1, 0)
 }
 
-// RefreshInstances loads the instances, or only searches the instances that are
-// here when there is search text and force is not set.
+// RefreshInstances loads the instances
 func (inst *Ec2InstancesTable) RefreshInstances(force bool) {
-	var search = inst.GetSearchText()
-	var allInstances = inst.allInstances
 	var data []types.Instance
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
-	// The instances are only handled on the UI goroutine, so a refresh that is
-	// still loading can't change what another one searches
 	dataLoader.AsyncLoadData(func() {
-		if len(search) == 0 || force || allInstances == nil {
-			var err error
-			allInstances, err = inst.serviceCtx.Api.ListInstances(inst.serviceCtx.Ctx, force)
-			if err != nil {
-				inst.ErrorMessageCallback("%s", err.Error())
-			}
-		}
-
-		if len(search) > 0 {
-			data = utils.FuzzySearch(search, allInstances, func(i types.Instance) string {
-				return instanceName(i) + " " + aws.ToString(i.InstanceId)
-			})
-		} else {
-			data = allInstances
+		var err error
+		data, err = inst.serviceCtx.Api.ListInstances(inst.serviceCtx.Ctx, force)
+		if err != nil {
+			inst.ErrorMessageCallback("%s", err.Error())
 		}
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.allInstances = allInstances
 		inst.data = data
 		inst.populateInstancesTable()
 	})

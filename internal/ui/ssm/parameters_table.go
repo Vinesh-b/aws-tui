@@ -6,7 +6,6 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
-	"aws-tui/internal/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
@@ -17,7 +16,6 @@ import (
 type SSMParametersListTable struct {
 	*core.SelectableTable[types.Parameter]
 	data              []types.Parameter
-	filtered          []types.Parameter
 	selectedParameter types.Parameter
 	DeleteView        *core.FloatingConfirmView
 	toDelete          string
@@ -38,7 +36,7 @@ func NewSSMParametersListTable(
 				"LastModified",
 			},
 			serviceViewCtx.AppContext,
-		).SetColumnExpansion(0, 1),
+		).SetColumnExpansion(0, 1).SetFilterColumns(0),
 		data:              nil,
 		selectedParameter: types.Parameter{},
 		serviceCtx:        serviceViewCtx,
@@ -68,18 +66,6 @@ func NewSSMParametersListTable(
 	view.SetSelectedFunc(func(row, column int) {})
 	view.SetSelectionChangedFunc(func(row, column int) {})
 
-	view.SetSearchDoneFunc(func(key tcell.Key) {
-		switch key {
-		case core.APP_KEY_BINDINGS.Done:
-			var searchText = view.GetSearchText()
-			view.FilterByName(searchText)
-		}
-	})
-
-	view.SetSearchChangedFunc(func(text string) {
-		view.FilterByName(text)
-	})
-
 	return view
 }
 
@@ -102,24 +88,6 @@ func (inst *SSMParametersListTable) populateParametersTable(data []types.Paramet
 	}
 
 	inst.SetData(tableData, privateData, 0)
-}
-
-func (inst *SSMParametersListTable) FilterByName(name string) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
-
-	dataLoader.AsyncLoadData(func() {
-		inst.filtered = utils.FuzzySearch(
-			name,
-			inst.data,
-			func(f types.Parameter) string {
-				return aws.ToString(f.Name)
-			},
-		)
-	})
-
-	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateParametersTable(inst.filtered)
-	})
 }
 
 func (inst *SSMParametersListTable) RefreshParameters(path string, reset bool) {

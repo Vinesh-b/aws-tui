@@ -6,7 +6,6 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
-	"aws-tui/internal/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sfn/types"
@@ -20,7 +19,6 @@ type SfnListTable struct {
 	*core.SelectableTable[types.StateMachineListItem]
 	selectedFunction types.StateMachineListItem
 	data             []types.StateMachineListItem
-	filtered         []types.StateMachineListItem
 	logger           *log.Logger
 	serviceCtx       *core.ServiceContext[awsapi.StateMachineApi]
 }
@@ -38,7 +36,7 @@ func NewSfnListTable(
 				"Creation Date",
 			},
 			serviceViewCtx.AppContext,
-		).SetColumnExpansion(0, 1),
+		).SetColumnExpansion(0, 1).SetFilterColumns(0),
 
 		data:       nil,
 		serviceCtx: serviceViewCtx,
@@ -47,14 +45,6 @@ func NewSfnListTable(
 	table.populateTable(table.data)
 	table.SetSelectionChangedFunc(func(row, column int) {})
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
-	table.SetSearchDoneFunc(func(key tcell.Key) {
-		switch key {
-		case core.APP_KEY_BINDINGS.Done:
-			var search = table.GetSearchText()
-			table.FilterByName(search)
-		}
-	})
-
 	return table
 }
 
@@ -70,23 +60,6 @@ func (inst *SfnListTable) populateTable(data []types.StateMachineListItem) {
 
 	inst.SetData(tableData, data, sfnFunctionNameCol)
 	inst.Select(1, 0)
-}
-
-func (inst *SfnListTable) FilterByName(name string) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
-
-	dataLoader.AsyncLoadData(func() {
-		inst.filtered = utils.FuzzySearch(name,
-			inst.data,
-			func(v types.StateMachineListItem) string {
-				return aws.ToString(v.Name)
-			},
-		)
-	})
-
-	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateTable(inst.filtered)
-	})
 }
 
 func (inst *SfnListTable) RefreshStateMachines(reset bool) {

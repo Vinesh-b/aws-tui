@@ -77,7 +77,7 @@ func TestEventBusListTable__RefreshReportsApiError(t *testing.T) {
 	}
 }
 
-func TestEventBusListTable__FilterByNameShowsMatchingBuses(t *testing.T) {
+func TestEventBusListTable__SearchShowsMatchingBuses(t *testing.T) {
 	var api = &fakeEventBridgeApi{buses: []types.EventBus{newEventBus("orders"), newEventBus("billing")}}
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.EventBridgeApi](api)
 	var table = NewEventBusListTable(serviceCtx)
@@ -85,7 +85,7 @@ func TestEventBusListTable__FilterByNameShowsMatchingBuses(t *testing.T) {
 	table.RefreshEventBuss(true)
 	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetTable().GetRowCount() == 3 })
 
-	table.FilterByName("bill")
+	uitest.OnUI(t, serviceCtx.App, func() { table.SetSearchText("bill") })
 
 	uitest.AwaitRows(t, serviceCtx.App, table, []core.TableRow{
 		eventBusHeadings,

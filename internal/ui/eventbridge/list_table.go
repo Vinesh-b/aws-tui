@@ -3,7 +3,6 @@ package eventbridge
 import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
-	"aws-tui/internal/utils"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -15,7 +14,6 @@ import (
 type EventBusListTable struct {
 	*core.SelectableTable[types.EventBus]
 	data             []types.EventBus
-	filtered         []types.EventBus
 	selectedEventBus types.EventBus
 	serviceCtx       *core.ServiceContext[awsapi.EventBridgeApi]
 }
@@ -33,7 +31,7 @@ func NewEventBusListTable(
 				"LastModified",
 			},
 			serviceCtx.AppContext,
-		).SetColumnExpansion(0, 1),
+		).SetColumnExpansion(0, 1).SetFilterColumns(0),
 		data:             nil,
 		selectedEventBus: types.EventBus{},
 		serviceCtx:       serviceCtx,
@@ -43,18 +41,6 @@ func NewEventBusListTable(
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
 	view.SetSelectedFunc(func(row, column int) {})
 	view.SetSelectionChangedFunc(func(row, column int) {})
-
-	view.SetSearchDoneFunc(func(key tcell.Key) {
-		switch key {
-		case core.APP_KEY_BINDINGS.Done:
-			var searchText = view.GetSearchText()
-			view.FilterByName(searchText)
-		}
-	})
-
-	view.SetSearchChangedFunc(func(text string) {
-		view.FilterByName(text)
-	})
 
 	return view
 }
@@ -73,24 +59,6 @@ func (inst *EventBusListTable) populateEventBusTable(data []types.EventBus) {
 
 	inst.SetData(tableData, privateData, 0)
 	inst.Select(1, 0)
-}
-
-func (inst *EventBusListTable) FilterByName(name string) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
-
-	dataLoader.AsyncLoadData(func() {
-		inst.filtered = utils.FuzzySearch(
-			name,
-			inst.data,
-			func(f types.EventBus) string {
-				return aws.ToString(f.Name)
-			},
-		)
-	})
-
-	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateEventBusTable(inst.filtered)
-	})
 }
 
 func (inst *EventBusListTable) RefreshEventBuss(reset bool) {

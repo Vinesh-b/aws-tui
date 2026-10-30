@@ -105,13 +105,13 @@ func TestListTable__RefreshReportsApiError(t *testing.T) {
 	}
 }
 
-func TestListTable__FilterByNameShowsMatchingFunctions(t *testing.T) {
+func TestListTable__SearchFiltersToTheMatchingFunctions(t *testing.T) {
 	var api = &fakeLambdaApi{functions: []types.FunctionConfiguration{newFunction("orders"), newFunction("billing")}}
 	var table = newRunningListTable(t, api)
 	table.RefreshLambdas(true)
 	uitest.Eventually(t, table.serviceCtx.App, func() bool { return table.GetTable().GetRowCount() == 3 })
 
-	table.FilterByName("bill")
+	uitest.OnUI(t, table.serviceCtx.App, func() { table.SetSearchText("bill") })
 
 	uitest.Eventually(t, table.serviceCtx.App, func() bool {
 		return table.GetTable().GetRowCount() == 2 && table.GetCellText(1, 0) == "billing"

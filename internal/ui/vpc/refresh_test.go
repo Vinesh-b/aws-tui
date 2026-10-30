@@ -72,7 +72,7 @@ func TestVpcListTable__RefreshReportsApiError(t *testing.T) {
 	}
 }
 
-func TestVpcListTable__FilterByNameMatchesNameTagOrFallsBackToId(t *testing.T) {
+func TestVpcListTable__SearchMatchesNameTagOrFallsBackToId(t *testing.T) {
 	var api = &fakeEc2Api{vpcs: []types.Vpc{newVpc("vpc-1", nameTag("main")), newVpc("vpc-2", nil)}}
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.Ec2Api](api)
 	var table = NewVpcListTable(serviceCtx)
@@ -80,7 +80,7 @@ func TestVpcListTable__FilterByNameMatchesNameTagOrFallsBackToId(t *testing.T) {
 	table.RefreshVpcs(true)
 	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetTable().GetRowCount() == 3 })
 
-	table.FilterByName("vpc-2")
+	uitest.OnUI(t, serviceCtx.App, func() { table.SetSearchText("vpc-2") })
 
 	uitest.AwaitRows(t, serviceCtx.App, table, []core.TableRow{
 		vpcHeadings,

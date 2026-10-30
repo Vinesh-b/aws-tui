@@ -5,7 +5,6 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
-	"aws-tui/internal/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
@@ -16,7 +15,6 @@ import (
 type LambdaListTable struct {
 	*core.SelectableTable[types.FunctionConfiguration]
 	data           []types.FunctionConfiguration
-	filtered       []types.FunctionConfiguration
 	selectedLambda types.FunctionConfiguration
 	serviceCtx     *core.ServiceContext[awsapi.LambdaApi]
 }
@@ -33,7 +31,7 @@ func NewLambdasListTable(
 				"LastModified",
 			},
 			serviceCtx.AppContext,
-		).SetColumnExpansion(0, 1),
+		).SetColumnExpansion(0, 1).SetFilterColumns(0),
 		data:           nil,
 		selectedLambda: types.FunctionConfiguration{},
 		serviceCtx:     serviceCtx,
@@ -43,18 +41,6 @@ func NewLambdasListTable(
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
 	view.SetSelectedFunc(func(row, column int) {})
 	view.SetSelectionChangedFunc(func(row, column int) {})
-
-	view.SetSearchDoneFunc(func(key tcell.Key) {
-		switch key {
-		case core.APP_KEY_BINDINGS.Done:
-			var searchText = view.GetSearchText()
-			view.FilterByName(searchText)
-		}
-	})
-
-	view.SetSearchChangedFunc(func(text string) {
-		view.FilterByName(text)
-	})
 
 	return view
 }
@@ -72,24 +58,6 @@ func (inst *LambdaListTable) populateLambdasTable(data []types.FunctionConfigura
 
 	inst.SetData(tableData, privateData, 0)
 	inst.Select(1, 0)
-}
-
-func (inst *LambdaListTable) FilterByName(name string) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
-
-	dataLoader.AsyncLoadData(func() {
-		inst.filtered = utils.FuzzySearch(
-			name,
-			inst.data,
-			func(f types.FunctionConfiguration) string {
-				return aws.ToString(f.FunctionName)
-			},
-		)
-	})
-
-	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateLambdasTable(inst.filtered)
-	})
 }
 
 func (inst *LambdaListTable) RefreshLambdas(reset bool) {
@@ -116,16 +84,21 @@ func (inst *LambdaListTable) OpenLambda(name string, opened func()) {
 // selectLambda shows all the lambdas, without a search, to select the one with
 // the name.
 func (inst *LambdaListTable) selectLambda(name string) bool {
-	var idx = slices.IndexFunc(inst.data, func(f types.FunctionConfiguration) bool {
+	if !slices.ContainsFunc(inst.data, func(f types.FunctionConfiguration) bool {
 		return aws.ToString(f.FunctionName) == name
-	})
-	if idx < 0 {
+	}) {
 		return false
 	}
 
+	inst.ClearFilter()
 	inst.populateLambdasTable(inst.data)
-	inst.Select(idx+1, 0)
-	return true
+	for row := 1; row < inst.GetTable().GetRowCount(); row++ {
+		if aws.ToString(inst.GetPrivateData(row, 0).FunctionName) == name {
+			inst.Select(row, 0)
+			return true
+		}
+	}
+	return false
 }
 
 func (inst *LambdaListTable) refreshLambdas(reset bool, loaded func()) {

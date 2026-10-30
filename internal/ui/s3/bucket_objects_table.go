@@ -8,7 +8,6 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
-	"aws-tui/internal/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -23,9 +22,7 @@ type BucketObjectsTable struct {
 	selectedBucket       string
 	selectedDir          string
 	data                 []types.Object
-	filtered             []types.Object
 	dirs                 []types.CommonPrefix
-	filteredDirs         []types.CommonPrefix
 	serviceCtx           *core.ServiceContext[awsapi.S3BucketsApi]
 }
 
@@ -41,15 +38,13 @@ func NewBucketObjectsTable(
 				"LastModified",
 			},
 			serviceViewCtx.AppContext,
-		),
+		).SetFilterColumns(0).SetPinnedFunc(isParentDirRow),
 		ErrorMessageCallback: func(text string, a ...any) {},
 		selectedObject:       types.Object{},
 		selectedBucket:       "",
 		selectedDir:          "",
 		data:                 nil,
-		filtered:             nil,
 		dirs:                 nil,
-		filteredDirs:         nil,
 		serviceCtx:           serviceViewCtx,
 	}
 
@@ -58,19 +53,16 @@ func NewBucketObjectsTable(
 	view.SetSelectionChangedFunc(func(row, column int) {})
 	view.SetSelectedFunc(func(row, column int) {})
 
-	view.SetSearchDoneFunc(func(key tcell.Key) {
-		switch key {
-		case core.APP_KEY_BINDINGS.Done:
-			var searchText = view.GetSearchText()
-			view.FilterByName(searchText)
-		}
-	})
-
-	view.SetSearchChangedFunc(func(text string) {
-		view.FilterByName(text)
-	})
-
 	return view
+}
+
+// parentDirRow is the text of the row that goes up a directory
+const parentDirRow = "../"
+
+// isParentDirRow is true for the row that goes up a directory, which is kept at
+// the top whatever the filter and the sort are
+func isParentDirRow(row core.TableRow, _ types.Object) bool {
+	return row[0] == parentDirRow
 }
 
 func (inst *BucketObjectsTable) populateS3ObjectsTable(
@@ -83,7 +75,7 @@ func (inst *BucketObjectsTable) populateS3ObjectsTable(
 	}
 
 	var tableData = []core.TableRow{
-		{"../", "-", "-"},
+		{parentDirRow, "-", "-"},
 	}
 	var privateData = []types.Object{
 		{Key: aws.String(parentDir)},
@@ -108,31 +100,6 @@ func (inst *BucketObjectsTable) populateS3ObjectsTable(
 	inst.SetTitleExtra(cleanedPrefix)
 	inst.SetData(tableData, privateData, 0)
 	inst.GetTable().ScrollToBeginning()
-}
-
-func (inst *BucketObjectsTable) FilterByName(name string) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
-
-	dataLoader.AsyncLoadData(func() {
-		inst.filtered = utils.FuzzySearch(
-			name,
-			inst.data,
-			func(f types.Object) string {
-				return filepath.Base(aws.ToString(f.Key))
-			},
-		)
-		inst.filteredDirs = utils.FuzzySearch(
-			name,
-			inst.dirs,
-			func(f types.CommonPrefix) string {
-				return filepath.Base(aws.ToString(f.Prefix))
-			},
-		)
-	})
-
-	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateS3ObjectsTable(inst.filtered, inst.filteredDirs)
-	})
 }
 
 func (inst *BucketObjectsTable) RefreshObjects(force bool) {
@@ -185,6 +152,7 @@ func (inst *BucketObjectsTable) SetSelectedFunc(handler func(row, column int)) {
 		if isDir {
 			// Load and show files in currently selected directory.
 			inst.selectedDir = prefix
+			inst.ClearFilter()
 			inst.RefreshObjects(true)
 		} else {
 			//inst.serviceCtx.Api.DownloadFile(inst.serviceCtx.Ctx, inst.selectedBucket, prefix, filepath.Base(prefix))
@@ -217,6 +185,7 @@ func (inst *BucketObjectsTable) SetSelectedBucket(name string) {
 	inst.selectedBucket = name
 	inst.selectedDir = ""
 	inst.selectedObject = types.Object{}
+	inst.ClearFilter()
 }
 
 // GetSelectedBucket is the bucket the listed objects belong to. It does not

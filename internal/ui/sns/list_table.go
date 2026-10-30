@@ -6,7 +6,6 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
-	"aws-tui/internal/utils"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -23,7 +22,6 @@ type TopicListTable struct {
 	DeleteView    *core.FloatingConfirmView
 	CreateView    *FloatingCreateTopicView
 	data          []string
-	filtered      []string
 	selectedTopic string
 	// toDelete is the topic the delete view was shown for
 	toDelete       string
@@ -43,7 +41,7 @@ func NewTopicListTable(
 				"Type",
 			},
 			serviceCtx.AppContext,
-		).SetColumnExpansion(0, 1),
+		).SetColumnExpansion(0, 1).SetFilterColumns(0),
 		CreateView:     NewFloatingCreateTopicView(serviceCtx.AppContext),
 		DeleteView:     core.NewFloatingConfirmView(serviceCtx.AppContext, "Delete Topic", "Delete"),
 		data:           nil,
@@ -75,18 +73,6 @@ func NewTopicListTable(
 	view.SetSelectedFunc(func(row, column int) {})
 	view.SetSelectionChangedFunc(func(row, column int) {})
 
-	view.SetSearchDoneFunc(func(key tcell.Key) {
-		switch key {
-		case core.APP_KEY_BINDINGS.Done:
-			var searchText = view.GetSearchText()
-			view.FilterByName(searchText)
-		}
-	})
-
-	view.SetSearchChangedFunc(func(text string) {
-		view.FilterByName(text)
-	})
-
 	return view
 }
 
@@ -115,18 +101,6 @@ func (inst *TopicListTable) populateTopicTable(data []string) {
 	}
 
 	inst.SetData(tableData, data, 0)
-}
-
-func (inst *TopicListTable) FilterByName(name string) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
-
-	dataLoader.AsyncLoadData(func() {
-		inst.filtered = utils.FuzzySearch(name, inst.data, topicName)
-	})
-
-	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateTopicTable(inst.filtered)
-	})
 }
 
 func (inst *TopicListTable) RefreshTopics(reset bool) {

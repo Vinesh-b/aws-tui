@@ -6,7 +6,6 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
-	"aws-tui/internal/utils"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -17,12 +16,10 @@ import (
 type IamListTable[T any] struct {
 	*core.SelectableTable[T]
 	data     []T
-	filtered []T
 	selected T
 	// kind names the resource in messages, such as "Role"
 	kind       string
 	keyOf      func(T) string
-	nameOf     func(T) string
 	rowOf      func(T) core.TableRow
 	load       func(ctx context.Context) ([]T, error)
 	serviceCtx *core.ServiceContext[awsapi.IamApi]
@@ -34,15 +31,13 @@ func NewIamListTable[T any](
 	headings core.TableRow,
 	kind string,
 	keyOf func(T) string,
-	nameOf func(T) string,
 	rowOf func(T) core.TableRow,
 	load func(ctx context.Context) ([]T, error),
 ) *IamListTable[T] {
 	var view = &IamListTable[T]{
-		SelectableTable: core.NewSelectableTable[T](title, headings, serviceCtx.AppContext).SetColumnExpansion(0, 1),
+		SelectableTable: core.NewSelectableTable[T](title, headings, serviceCtx.AppContext).SetColumnExpansion(0, 1).SetFilterColumns(0),
 		kind:            kind,
 		keyOf:           keyOf,
-		nameOf:          nameOf,
 		rowOf:           rowOf,
 		load:            load,
 		serviceCtx:      serviceCtx,
@@ -52,17 +47,6 @@ func NewIamListTable[T any](
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
 	view.SetSelectedFunc(func(row, column int) {})
 	view.SetSelectionChangedFunc(func(row, column int) {})
-
-	view.SetSearchDoneFunc(func(key tcell.Key) {
-		switch key {
-		case core.APP_KEY_BINDINGS.Done:
-			view.FilterByName(view.GetSearchText())
-		}
-	})
-
-	view.SetSearchChangedFunc(func(text string) {
-		view.FilterByName(text)
-	})
 
 	return view
 }
@@ -75,18 +59,6 @@ func (inst *IamListTable[T]) populateTable(data []T) {
 
 	inst.SetData(tableData, data, 0)
 	inst.Select(1, 0)
-}
-
-func (inst *IamListTable[T]) FilterByName(name string) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
-
-	dataLoader.AsyncLoadData(func() {
-		inst.filtered = utils.FuzzySearch(name, inst.data, inst.nameOf)
-	})
-
-	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateTable(inst.filtered)
-	})
 }
 
 func (inst *IamListTable[T]) Refresh(reset bool) {

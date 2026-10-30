@@ -103,3 +103,22 @@ func TestDetailsTable__RoleLinksToIamRole(t *testing.T) {
 		t.Errorf("link = %q, want %q", link, roleArn)
 	}
 }
+
+func TestListTable__OpenLambdaHiddenByTheSearchClearsItToSelectIt(t *testing.T) {
+	var api = &fakeLambdaApi{functions: []types.FunctionConfiguration{newFunction("alpha"), newFunction("beta")}}
+	var table = newRunningListTable(t, api)
+	table.RefreshLambdas(true)
+	uitest.Eventually(t, table.serviceCtx.App, func() bool { return table.GetTable().GetRowCount() == 3 })
+	uitest.OnUI(t, table.serviceCtx.App, func() { table.SetSearchText("alp") })
+	var opened = false
+
+	uitest.OnUI(t, table.serviceCtx.App, func() {
+		table.OpenLambda("beta", func() { opened = true })
+		if got := aws.ToString(table.GetSelectedLambda().FunctionName); !opened || got != "beta" {
+			t.Errorf("opened = %v, selected = %q, want beta", opened, got)
+		}
+		if got := table.GetTable().GetRowCount(); got != 3 {
+			t.Errorf("rows = %d, want all of them", got)
+		}
+	})
+}

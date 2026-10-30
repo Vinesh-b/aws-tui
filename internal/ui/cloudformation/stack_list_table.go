@@ -5,7 +5,6 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
-	"aws-tui/internal/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
@@ -16,7 +15,6 @@ import (
 type StackListTable struct {
 	*core.SelectableTable[types.StackSummary]
 	data          []types.StackSummary
-	filtered      []types.StackSummary
 	selectedStack types.StackSummary
 	serviceCtx    *core.ServiceContext[awsapi.CloudFormationApi]
 }
@@ -34,7 +32,7 @@ func NewStackListTable(
 				"LastUpdated",
 			},
 			serviceContext.AppContext,
-		).SetColumnExpansion(0, 1),
+		).SetColumnExpansion(0, 1).SetFilterColumns(0),
 		data:       nil,
 		serviceCtx: serviceContext,
 	}
@@ -42,18 +40,6 @@ func NewStackListTable(
 	view.populateStacksTable(view.data)
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
 	view.SetSelectionChangedFunc(func(row, column int) {})
-
-	view.SetSearchDoneFunc(func(key tcell.Key) {
-		switch key {
-		case core.APP_KEY_BINDINGS.Done:
-			var searchText = view.GetSearchText()
-			view.FilterByName(searchText)
-		}
-	})
-
-	view.SetSearchChangedFunc(func(text string) {
-		view.FilterByName(text)
-	})
 
 	return view
 }
@@ -74,24 +60,6 @@ func (inst *StackListTable) populateStacksTable(data []types.StackSummary) {
 
 	inst.SetData(tableData, data, 0)
 	inst.Select(1, 0)
-}
-
-func (inst *StackListTable) FilterByName(name string) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
-
-	dataLoader.AsyncLoadData(func() {
-		inst.filtered = utils.FuzzySearch(
-			name,
-			inst.data,
-			func(v types.StackSummary) string {
-				return aws.ToString(v.StackName)
-			},
-		)
-	})
-
-	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateStacksTable(inst.filtered)
-	})
 }
 
 func (inst *StackListTable) RefreshStacks(reset bool) {

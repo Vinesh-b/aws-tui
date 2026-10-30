@@ -6,7 +6,6 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
-	"aws-tui/internal/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
@@ -23,7 +22,6 @@ const (
 type LogGroupsTable struct {
 	*core.SelectableTable[string]
 	data             []types.LogGroup
-	filtered         []types.LogGroup
 	selectedLogGroup string
 	marks            *LogGroupMarks
 	queryFunc        func()
@@ -42,7 +40,7 @@ func NewLogGroupsTable(
 				"Name",
 			},
 			serviceContext.AppContext,
-		).SetColumnExpansion(logGroupNameCol, 1),
+		).SetColumnExpansion(logGroupNameCol, 1).SetFilterColumns(logGroupNameCol),
 		data:             nil,
 		selectedLogGroup: "",
 		marks:            NewLogGroupMarks(),
@@ -69,18 +67,6 @@ func NewLogGroupsTable(
 			return nil
 		}
 		return event
-	})
-
-	view.SetSearchDoneFunc(func(key tcell.Key) {
-		switch key {
-		case core.APP_KEY_BINDINGS.Done:
-			var search = view.GetSearchText()
-			view.FilterByName(search)
-		}
-	})
-
-	view.SetSearchChangedFunc(func(text string) {
-		view.FilterByName(text)
 	})
 
 	return view
@@ -121,27 +107,12 @@ func (inst *LogGroupsTable) refreshMarksTitle() {
 
 // showMarks puts the markers of the rows in place, keeping the selected row
 func (inst *LogGroupsTable) showMarks() {
-	var table = inst.GetTable()
-	for row := 1; row < table.GetRowCount(); row++ {
+	for row := 1; row < inst.GetTable().GetRowCount(); row++ {
 		var marker = inst.markerOf(inst.GetPrivateData(row, logGroupNameCol))
-		table.SetCell(row, logGroupMarkCol, core.NewTableCell[string](marker, nil))
+		inst.SetCellText(row, logGroupMarkCol, marker)
 	}
 	inst.refreshMarksTitle()
 	inst.RefreshTitle(0)
-}
-
-func (inst *LogGroupsTable) FilterByName(name string) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
-
-	dataLoader.AsyncLoadData(func() {
-		inst.filtered = utils.FuzzySearch(name, inst.data, func(v types.LogGroup) string {
-			return aws.ToString(v.LogGroupName)
-		})
-	})
-
-	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateLogGroupsTable(inst.filtered)
-	})
 }
 
 func (inst *LogGroupsTable) RefreshLogGroups(reset bool) {

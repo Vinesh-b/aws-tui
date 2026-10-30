@@ -84,13 +84,6 @@ func NewS3bucketsDetailsView(
 }
 
 func (inst *S3BucketsDetailsView) InitInputCapture() {
-	inst.bucketsTable.SetSearchDoneFunc(func(key tcell.Key) {
-		switch key {
-		case core.APP_KEY_BINDINGS.Done:
-			inst.bucketsTable.RefreshBuckets(false)
-		}
-	})
-
 	inst.bucketsTable.SetSelectedFunc(func(row, column int) {
 		if row < 1 {
 			return

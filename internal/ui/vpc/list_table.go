@@ -3,7 +3,6 @@ package vpc
 import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
-	"aws-tui/internal/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -14,7 +13,6 @@ import (
 type VpcListTable struct {
 	*core.SelectableTable[types.Vpc]
 	data        []types.Vpc
-	filtered    []types.Vpc
 	selectedVpc types.Vpc
 	serviceCtx  *core.ServiceContext[awsapi.Ec2Api]
 }
@@ -36,7 +34,7 @@ func NewVpcListTable(
 				"Instance Tenancy",
 			},
 			serviceCtx.AppContext,
-		).SetColumnExpansion(0, 1),
+		).SetColumnExpansion(0, 1).SetFilterColumns(0, 1),
 		data:        nil,
 		selectedVpc: types.Vpc{},
 		serviceCtx:  serviceCtx,
@@ -46,18 +44,6 @@ func NewVpcListTable(
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
 	view.SetSelectedFunc(func(row, column int) {})
 	view.SetSelectionChangedFunc(func(row, column int) {})
-
-	view.SetSearchDoneFunc(func(key tcell.Key) {
-		switch key {
-		case core.APP_KEY_BINDINGS.Done:
-			var searchText = view.GetSearchText()
-			view.FilterByName(searchText)
-		}
-	})
-
-	view.SetSearchChangedFunc(func(text string) {
-		view.FilterByName(text)
-	})
 
 	return view
 }
@@ -91,29 +77,6 @@ func (inst *VpcListTable) populateVpcTable(data []types.Vpc) {
 	inst.SetData(tableData, privateData, 0)
 	inst.GetTable().SetFixed(1, 0)
 	inst.Select(1, 0)
-}
-
-func (inst *VpcListTable) FilterByName(name string) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
-
-	dataLoader.AsyncLoadData(func() {
-		inst.filtered = utils.FuzzySearch(
-			name,
-			inst.data,
-			func(vpc types.Vpc) string {
-				for _, t := range vpc.Tags {
-					if aws.ToString(t.Key) == "Name" {
-						return aws.ToString(t.Value)
-					}
-				}
-				return aws.ToString(vpc.VpcId)
-			},
-		)
-	})
-
-	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateVpcTable(inst.filtered)
-	})
 }
 
 func (inst *VpcListTable) RefreshVpcs(reset bool) {

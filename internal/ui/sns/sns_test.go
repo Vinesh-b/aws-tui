@@ -76,7 +76,7 @@ func TestTopicListTable__RefreshReportsApiError(t *testing.T) {
 	}
 }
 
-func TestTopicListTable__FilterByNameShowsMatchingTopics(t *testing.T) {
+func TestTopicListTable__SearchShowsMatchingTopics(t *testing.T) {
 	var api = snsfake.New(snsfake.WithTopics([]string{topicArn("orders"), topicArn("billing")}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SnsApi](api)
 	var table = NewTopicListTable(serviceCtx)
@@ -84,7 +84,7 @@ func TestTopicListTable__FilterByNameShowsMatchingTopics(t *testing.T) {
 	table.RefreshTopics(true)
 	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetTable().GetRowCount() == 3 })
 
-	table.FilterByName("bill")
+	uitest.OnUI(t, serviceCtx.App, func() { table.SetSearchText("bill") })
 
 	uitest.AwaitRows(t, serviceCtx.App, table, []core.TableRow{topicHeadings, {"billing", "Standard"}})
 }

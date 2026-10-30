@@ -3,7 +3,6 @@ package cloudwatch
 import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
-	"aws-tui/internal/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
@@ -18,7 +17,6 @@ type AlarmListTable struct {
 	*core.SelectableTable[types.MetricAlarm]
 	selectedAlarm types.MetricAlarm
 	data          []types.MetricAlarm
-	filtered      []types.MetricAlarm
 	serviceCtx    *core.ServiceContext[awsapi.CloudWatchAlarmsApi]
 }
 
@@ -34,7 +32,7 @@ func NewAlarmListTable(
 				"State",
 			},
 			serviceContext.AppContext,
-		).SetColumnExpansion(0, 1),
+		).SetColumnExpansion(0, 1).SetFilterColumns(0),
 		data:          nil,
 		selectedAlarm: types.MetricAlarm{},
 		serviceCtx:    serviceContext,
@@ -57,18 +55,6 @@ func NewAlarmListTable(
 		return event
 	})
 
-	view.SetSearchDoneFunc(func(key tcell.Key) {
-		switch key {
-		case core.APP_KEY_BINDINGS.Done:
-			var search = view.GetSearchText()
-			view.FilterbyName(search)
-		}
-	})
-
-	view.SetSearchChangedFunc(func(text string) {
-		view.FilterbyName(text)
-	})
-
 	return view
 }
 
@@ -83,24 +69,6 @@ func (inst *AlarmListTable) populateAlarmsTable(data []types.MetricAlarm) {
 
 	inst.SetData(tableData, data, 0)
 	inst.ScrollToBeginning()
-}
-
-func (inst *AlarmListTable) FilterbyName(name string) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
-
-	dataLoader.AsyncLoadData(func() {
-		inst.filtered = utils.FuzzySearch(
-			name,
-			inst.data,
-			func(a types.MetricAlarm) string {
-				return aws.ToString(a.AlarmName)
-			},
-		)
-	})
-
-	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateAlarmsTable(inst.filtered)
-	})
 }
 
 func (inst *AlarmListTable) RefreshAlarms(reset bool) {

@@ -5,7 +5,6 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
-	"aws-tui/internal/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
@@ -16,7 +15,6 @@ import (
 type SecretsListTable struct {
 	*core.SelectableTable[types.SecretListEntry]
 	data           []types.SecretListEntry
-	filtered       []types.SecretListEntry
 	selectedSecret types.SecretListEntry
 	DeleteView     *core.FloatingConfirmView
 	toDelete       secretRef
@@ -35,7 +33,7 @@ func NewSecretsListTable(
 				"LastChanged",
 			},
 			serviceViewCtx.AppContext,
-		).SetColumnExpansion(0, 1),
+		).SetColumnExpansion(0, 1).SetFilterColumns(0),
 		serviceCtx: serviceViewCtx,
 	}
 
@@ -63,16 +61,6 @@ func NewSecretsListTable(
 	view.SetSelectedFunc(func(row, column int) {})
 	view.SetSelectionChangedFunc(func(row, column int) {})
 
-	view.SetSearchDoneFunc(func(key tcell.Key) {
-		switch key {
-		case core.APP_KEY_BINDINGS.Done:
-			view.FilterByName(view.GetSearchText())
-		}
-	})
-	view.SetSearchChangedFunc(func(text string) {
-		view.FilterByName(text)
-	})
-
 	return view
 }
 
@@ -94,24 +82,6 @@ func (inst *SecretsListTable) populateTable(data []types.SecretListEntry) {
 	}
 
 	inst.SetData(tableData, privateData, 0)
-}
-
-func (inst *SecretsListTable) FilterByName(name string) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
-
-	dataLoader.AsyncLoadData(func() {
-		inst.filtered = utils.FuzzySearch(
-			name,
-			inst.data,
-			func(f types.SecretListEntry) string {
-				return aws.ToString(f.Name)
-			},
-		)
-	})
-
-	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateTable(inst.filtered)
-	})
 }
 
 func (inst *SecretsListTable) RefreshSecrets(reset bool) {

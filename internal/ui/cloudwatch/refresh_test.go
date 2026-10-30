@@ -127,7 +127,7 @@ func TestAlarmListTable__RefreshReportsApiError(t *testing.T) {
 	}
 }
 
-func TestAlarmListTable__FilterByNameShowsMatchingAlarms(t *testing.T) {
+func TestAlarmListTable__SearchShowsMatchingAlarms(t *testing.T) {
 	var api = &fakeCloudWatchAlarmsApi{alarms: []cwTypes.MetricAlarm{
 		newAlarm("cpu-high", cwTypes.StateValueAlarm), newAlarm("disk-ok", cwTypes.StateValueOk),
 	}}
@@ -137,7 +137,7 @@ func TestAlarmListTable__FilterByNameShowsMatchingAlarms(t *testing.T) {
 	table.RefreshAlarms(true)
 	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetTable().GetRowCount() == 3 })
 
-	table.FilterbyName("disk")
+	uitest.OnUI(t, serviceCtx.App, func() { table.SetSearchText("disk") })
 
 	uitest.AwaitRows(t, serviceCtx.App, table, []core.TableRow{{"Name", "State"}, {"disk-ok", "OK"}})
 }
@@ -173,7 +173,7 @@ func TestMetricListTable__RefreshLoadsMetricsFromApi(t *testing.T) {
 	})
 }
 
-func TestMetricListTable__FilterByNameShowsMatchingMetrics(t *testing.T) {
+func TestMetricListTable__SearchShowsMatchingMetrics(t *testing.T) {
 	var api = &fakeCloudWatchMetricsApi{metrics: []cwTypes.Metric{
 		newMetric("AWS/EC2", "CPUUtilization"), newMetric("AWS/S3", "BucketSizeBytes"),
 	}}
@@ -183,7 +183,7 @@ func TestMetricListTable__FilterByNameShowsMatchingMetrics(t *testing.T) {
 	table.RefreshMetrics(true)
 	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetTable().GetRowCount() == 3 })
 
-	table.FilterByName("bucket")
+	uitest.OnUI(t, serviceCtx.App, func() { table.SetSearchText("bucket") })
 
 	uitest.AwaitRows(t, serviceCtx.App, table, []core.TableRow{
 		{"Name", "Namespace"},
@@ -191,7 +191,7 @@ func TestMetricListTable__FilterByNameShowsMatchingMetrics(t *testing.T) {
 	})
 }
 
-func TestMetricListTable__FilterByNameMatchesDimensionValues(t *testing.T) {
+func TestMetricListTable__SearchMatchesDimensionValues(t *testing.T) {
 	var api = &fakeCloudWatchMetricsApi{metrics: []cwTypes.Metric{
 		newMetric("AWS/Lambda", "Invocations", cwTypes.Dimension{Name: aws.String("FunctionName"), Value: aws.String("orders")}),
 		newMetric("AWS/Lambda", "Invocations", cwTypes.Dimension{Name: aws.String("FunctionName"), Value: aws.String("billing")}),
@@ -202,7 +202,7 @@ func TestMetricListTable__FilterByNameMatchesDimensionValues(t *testing.T) {
 	table.RefreshMetrics(true)
 	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetTable().GetRowCount() == 3 })
 
-	table.FilterByName("billing")
+	uitest.OnUI(t, serviceCtx.App, func() { table.SetSearchText("billing") })
 
 	uitest.AwaitRows(t, serviceCtx.App, table, []core.TableRow{
 		{"Name", "Namespace"},
@@ -236,7 +236,7 @@ func TestLogGroupsTable__RefreshReportsApiError(t *testing.T) {
 	}
 }
 
-func TestLogGroupsTable__FilterByNameShowsMatchingGroups(t *testing.T) {
+func TestLogGroupsTable__SearchFiltersToTheMatchingGroups(t *testing.T) {
 	var api = &fakeCloudWatchLogsApi{groups: []types.LogGroup{newLogGroup("/aws/lambda/orders"), newLogGroup("/aws/ecs/web")}}
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudWatchLogsApi](api)
 	var table = NewLogGroupsTable(serviceCtx)
@@ -244,7 +244,7 @@ func TestLogGroupsTable__FilterByNameShowsMatchingGroups(t *testing.T) {
 	table.RefreshLogGroups(true)
 	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetTable().GetRowCount() == 3 })
 
-	table.FilterByName("ecs")
+	uitest.OnUI(t, serviceCtx.App, func() { table.SetSearchText("ecs") })
 
 	uitest.AwaitRows(t, serviceCtx.App, table, []core.TableRow{{"", "Name"}, {"", "/aws/ecs/web"}})
 }

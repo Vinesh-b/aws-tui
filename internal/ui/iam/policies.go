@@ -31,7 +31,7 @@ func managedBy(policyArn string) string {
 
 func NewPolicyListTable(serviceCtx *core.ServiceContext[awsapi.IamApi]) *IamListTable[types.Policy] {
 	return NewIamListTable(serviceCtx, "Policies", core.TableRow{"Name", "Managed By", "Attachments"}, "Policy",
-		policyArn, policyName,
+		policyArn,
 		func(policy types.Policy) core.TableRow {
 			return core.TableRow{
 				policyName(policy),

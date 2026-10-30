@@ -44,12 +44,12 @@ func TestRoleListTable__RefreshReportsApiError(t *testing.T) {
 	}
 }
 
-func TestRoleListTable__FilterByNameShowsMatchingRoles(t *testing.T) {
+func TestRoleListTable__SearchShowsMatchingRoles(t *testing.T) {
 	var table = newRunningRoleList(t, &fakeIamApi{roles: []types.Role{newRole("orders"), newRole("billing")}})
 	table.Refresh(true)
 	uitest.Eventually(t, table.serviceCtx.App, func() bool { return table.GetTable().GetRowCount() == 3 })
 
-	table.FilterByName("bill")
+	uitest.OnUI(t, table.serviceCtx.App, func() { table.SetSearchText("bill") })
 
 	uitest.AwaitRows(t, table.serviceCtx.App, table, []core.TableRow{{"Name", "Path"}, {"billing", "/service-role/"}})
 }

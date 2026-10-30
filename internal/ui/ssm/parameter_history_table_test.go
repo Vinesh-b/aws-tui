@@ -56,3 +56,14 @@ func TestParameterHistoryTable__SelectingRowTracksSelectedHistory(t *testing.T) 
 		t.Errorf("selected history value = %q, want %q", got, "old")
 	}
 }
+
+func TestParameterHistoryTable__SearchFiltersOnTheValue(t *testing.T) {
+	var table = newPopulatedHistoryTable(newHistory(3, "redis://cache"), newHistory(2, "postgres://db"), newHistory(1, "redis://old"))
+
+	table.SetSearchText("postgres")
+
+	uitest.AssertTableRows(t, table, []core.TableRow{
+		historyHeadings,
+		{"2", "SecureString", "postgres://db", "2024-01-02 03:04:05", "arn:aws:iam::123456789012:user/alice"},
+	})
+}

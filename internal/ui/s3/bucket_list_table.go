@@ -5,7 +5,6 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
-	"aws-tui/internal/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -17,7 +16,6 @@ type BucketListTable struct {
 	*core.SelectableTable[any]
 	selectedBucket string
 	data           []types.Bucket
-	allBuckets     []types.Bucket
 	serviceCtx     *core.ServiceContext[awsapi.S3BucketsApi]
 }
 
@@ -33,7 +31,7 @@ func NewBucketListTable(
 				"CreationDate",
 			},
 			serviceViewCtx.AppContext,
-		).SetColumnExpansion(0, 1),
+		).SetColumnExpansion(0, 1).SetFilterColumns(0),
 		data:       nil,
 		serviceCtx: serviceViewCtx,
 	}
@@ -60,21 +58,16 @@ func (inst *BucketListTable) populateS3BucketsTable() {
 }
 
 func (inst *BucketListTable) RefreshBuckets(force bool) {
-	var search = inst.GetSearchText()
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
-		if force || len(inst.allBuckets) == 0 {
+		if force || len(inst.data) == 0 {
 			var err error = nil
-			inst.allBuckets, err = inst.serviceCtx.Api.ListBuckets(inst.serviceCtx.Ctx, force)
+			inst.data, err = inst.serviceCtx.Api.ListBuckets(inst.serviceCtx.Ctx, force)
 			if err != nil {
 				inst.ErrorMessageCallback("%s", err.Error())
 			}
 		}
-
-		inst.data = utils.FuzzySearch(search, inst.allBuckets, func(b types.Bucket) string {
-			return aws.ToString(b.Name)
-		})
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {

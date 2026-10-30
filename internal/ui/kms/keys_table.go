@@ -6,7 +6,6 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
-	"aws-tui/internal/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kms/types"
@@ -50,7 +49,6 @@ func joinAliases(keys []types.KeyListEntry, aliases []types.AliasListEntry) []km
 type KmsKeysTable struct {
 	*core.SelectableTable[kmsKey]
 	data        []kmsKey
-	allKeys     []kmsKey
 	selectedKey kmsKey
 	serviceCtx  *core.ServiceContext[awsapi.KmsApi]
 }
@@ -67,9 +65,8 @@ func NewKmsKeysTable(
 				"Key ID",
 			},
 			serviceContext.AppContext,
-		).SetColumnExpansion(0, 1),
+		).SetColumnExpansion(0, 1).SetFilterColumns(0, 1),
 		data:       nil,
-		allKeys:    nil,
 		serviceCtx: serviceContext,
 	}
 
@@ -77,12 +74,6 @@ func NewKmsKeysTable(
 	table.SetSelectionChangedFunc(func(row, column int) {})
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
 	table.SetSelectedFunc(func(row, column int) {})
-	table.SetSearchDoneFunc(func(key tcell.Key) {
-		switch key {
-		case core.APP_KEY_BINDINGS.Done:
-			table.RefreshKeys(false)
-		}
-	})
 
 	return table
 }
@@ -102,44 +93,28 @@ func (inst *KmsKeysTable) populateKeysTable() {
 	inst.Select(1, 0)
 }
 
-// RefreshKeys loads the keys and their aliases, or only searches the keys that
-// are here when there is search text and force is not set.
+// RefreshKeys loads the keys and their aliases
 func (inst *KmsKeysTable) RefreshKeys(force bool) {
 	inst.refreshKeys(force, func() {})
 }
 
 func (inst *KmsKeysTable) refreshKeys(force bool, loaded func()) {
-	var search = inst.GetSearchText()
-	var allKeys = inst.allKeys
-	var data []kmsKey
+	var keys []kmsKey
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
-	// The keys are only handled on the UI goroutine, so a refresh that is
-	// still loading can't change what another one searches
 	dataLoader.AsyncLoadData(func() {
-		if len(search) == 0 || force || allKeys == nil {
-			var keys, keysErr = inst.serviceCtx.Api.ListKeys(inst.serviceCtx.Ctx, force)
-			var aliases, aliasesErr = inst.serviceCtx.Api.ListAliases(inst.serviceCtx.Ctx, force)
-			allKeys = joinAliases(keys, aliases)
-			for _, err := range []error{keysErr, aliasesErr} {
-				if err != nil {
-					inst.ErrorMessageCallback("%s", err.Error())
-				}
+		var listed, keysErr = inst.serviceCtx.Api.ListKeys(inst.serviceCtx.Ctx, force)
+		var aliases, aliasesErr = inst.serviceCtx.Api.ListAliases(inst.serviceCtx.Ctx, force)
+		keys = joinAliases(listed, aliases)
+		for _, err := range []error{keysErr, aliasesErr} {
+			if err != nil {
+				inst.ErrorMessageCallback("%s", err.Error())
 			}
-		}
-
-		if len(search) > 0 {
-			data = utils.FuzzySearch(search, allKeys, func(k kmsKey) string {
-				return k.aliasText() + " " + k.keyId
-			})
-		} else {
-			data = allKeys
 		}
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.allKeys = allKeys
-		inst.data = data
+		inst.data = keys
 		inst.populateKeysTable()
 		loaded()
 	})
@@ -162,17 +137,22 @@ func (inst *KmsKeysTable) Open(resource string) {
 // selectResource shows all the keys, without a search, to select the one the
 // resource is for.
 func (inst *KmsKeysTable) selectResource(resource string) bool {
-	var idx = slices.IndexFunc(inst.allKeys, func(k kmsKey) bool {
+	var matches = func(k kmsKey) bool {
 		return "key/"+k.keyId == resource || slices.Contains(k.aliases, resource)
-	})
-	if idx < 0 {
+	}
+	if !slices.ContainsFunc(inst.data, matches) {
 		return false
 	}
 
-	inst.data = inst.allKeys
+	inst.ClearFilter()
 	inst.populateKeysTable()
-	inst.Select(idx+1, 0)
-	return true
+	for row := 1; row < inst.GetTable().GetRowCount(); row++ {
+		if matches(inst.GetPrivateData(row, 0)) {
+			inst.Select(row, 0)
+			return true
+		}
+	}
+	return false
 }
 
 func (inst *KmsKeysTable) SetSelectionChangedFunc(handler func(row int, column int)) {

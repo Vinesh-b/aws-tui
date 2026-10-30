@@ -16,7 +16,7 @@ func userName(user types.User) string {
 
 func NewUserListTable(serviceCtx *core.ServiceContext[awsapi.IamApi]) *IamListTable[types.User] {
 	return NewIamListTable(serviceCtx, "Users", core.TableRow{"Name", "Path"}, "User",
-		userName, userName,
+		userName,
 		func(user types.User) core.TableRow {
 			return core.TableRow{userName(user), aws.ToString(user.Path)}
 		},

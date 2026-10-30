@@ -5,7 +5,6 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
-	"aws-tui/internal/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
@@ -18,7 +17,6 @@ type MetricListTable struct {
 	selectedMetric types.Metric
 	currentSearch  string
 	data           []types.Metric
-	filtered       []types.Metric
 	serviceCtx     *core.ServiceContext[awsapi.CloudWatchMetricsApi]
 }
 
@@ -33,7 +31,7 @@ func NewMetricsTable(
 				"Namespace",
 			},
 			serviceViewCtx.AppContext,
-		).SetColumnExpansion(0, 1),
+		).SetColumnExpansion(0, 1).SetFilterColumns(0),
 		selectedMetric: types.Metric{},
 		currentSearch:  "",
 		data:           nil,
@@ -43,18 +41,6 @@ func NewMetricsTable(
 	view.populateMetricsTable(view.data)
 	view.SetSelectionChangedFunc(func(row, column int) {})
 	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
-
-	view.SetSearchDoneFunc(func(key tcell.Key) {
-		switch key {
-		case core.APP_KEY_BINDINGS.Done:
-			var search = view.GetSearchText()
-			view.FilterByName(search)
-		}
-	})
-
-	view.SetSearchChangedFunc(func(text string) {
-		view.FilterByName(text)
-	})
 
 	return view
 }
@@ -85,22 +71,6 @@ func (inst *MetricListTable) populateMetricsTable(data []types.Metric) {
 
 	inst.SetData(tableData, data, 0)
 	inst.Select(1, 0)
-}
-
-func (inst *MetricListTable) FilterByName(name string) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
-
-	dataLoader.AsyncLoadData(func() {
-		inst.filtered = utils.FuzzySearch(
-			name,
-			inst.data,
-			metricDisplayName,
-		)
-	})
-
-	dataLoader.AsyncUpdateView(inst.Box, func() {
-		inst.populateMetricsTable(inst.filtered)
-	})
 }
 
 func (inst *MetricListTable) RefreshMetrics(reset bool) {

@@ -78,7 +78,7 @@ func TestListTable__RefreshReportsApiError(t *testing.T) {
 	}
 }
 
-func TestListTable__FilterByNameShowsMatchingStateMachines(t *testing.T) {
+func TestListTable__SearchShowsMatchingStateMachines(t *testing.T) {
 	var api = &fakeStateMachineApi{machines: []types.StateMachineListItem{
 		newStateMachine("orders", types.StateMachineTypeStandard),
 		newStateMachine("billing", types.StateMachineTypeExpress),
@@ -89,7 +89,7 @@ func TestListTable__FilterByNameShowsMatchingStateMachines(t *testing.T) {
 	table.RefreshStateMachines(true)
 	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetTable().GetRowCount() == 3 })
 
-	table.FilterByName("bill")
+	uitest.OnUI(t, serviceCtx.App, func() { table.SetSearchText("bill") })
 
 	uitest.AwaitRows(t, serviceCtx.App, table, []core.TableRow{
 		stateMachineHeadings,
