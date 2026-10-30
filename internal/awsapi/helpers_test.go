@@ -1,12 +1,12 @@
 package awsapi
 
 import (
-	"bytes"
 	"errors"
-	"log"
 	"slices"
 	"strings"
 	"testing"
+
+	"aws-tui/internal/safetest"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 )
@@ -23,10 +23,10 @@ func TestRequireArg(t *testing.T) {
 }
 
 func TestLogErr(t *testing.T) {
-	var buf bytes.Buffer
-	var api = baseApi{logger: log.New(&buf, "", 0)}
+	var buf safetest.LogCapture
+	var api = baseApi{logger: buf.Logger()}
 
-	if err := api.logErr(nil); err != nil || buf.Len() != 0 {
+	if err := api.logErr(nil); err != nil || buf.String() != "" {
 		t.Fatalf("nil error should not be logged, err=%v log=%q", err, buf.String())
 	}
 

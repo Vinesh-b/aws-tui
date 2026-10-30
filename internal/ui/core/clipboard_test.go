@@ -1,11 +1,11 @@
 package core
 
 import (
-	"bytes"
 	"errors"
-	"log"
 	"strings"
 	"testing"
+
+	"aws-tui/internal/safetest"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -13,7 +13,7 @@ import (
 
 // newClipboardTest is an app context drawn on a simulated terminal, which
 // copies to a list in place of the clipboard of the system
-func newClipboardTest(t *testing.T) (*AppContext, tcell.SimulationScreen, *[]string) {
+func newClipboardTest(t *testing.T) (*AppContext, tcell.SimulationScreen, *safetest.Recorder[string]) {
 	t.Helper()
 	var appCtx = newTestAppContext()
 	var screen = tcell.NewSimulationScreen("UTF-8")
@@ -22,9 +22,9 @@ func newClipboardTest(t *testing.T) (*AppContext, tcell.SimulationScreen, *[]str
 	}
 	t.Cleanup(screen.Fini)
 	appCtx.SetTerminal(screen)
-	var copied = &[]string{}
+	var copied = &safetest.Recorder[string]{}
 	appCtx.SetSystemClipboard(func(text string) error {
-		*copied = append(*copied, text)
+		copied.Record(text)
 		return nil
 	})
 	return appCtx, screen, copied
@@ -38,30 +38,30 @@ func TestCopyText__GoesToTheTerminalAndTheSystem(t *testing.T) {
 	if got := string(screen.GetClipboardData()); got != "arn:aws:lambda:us-east-1:123456789012:function:orders" {
 		t.Errorf("terminal clipboard = %q", got)
 	}
-	if len(*copied) != 1 || (*copied)[0] != string(screen.GetClipboardData()) {
-		t.Errorf("system clipboard = %v", *copied)
+	if got := copied.Calls(); len(got) != 1 || got[0] != string(screen.GetClipboardData()) {
+		t.Errorf("system clipboard = %v", got)
 	}
 }
 
 func TestCopyText__WithoutATerminalGoesToTheSystem(t *testing.T) {
 	var appCtx = newTestAppContext()
-	var copied []string
+	var copied safetest.Recorder[string]
 	appCtx.SetSystemClipboard(func(text string) error {
-		copied = append(copied, text)
+		copied.Record(text)
 		return nil
 	})
 
 	appCtx.CopyText("orders")
 
-	if len(copied) != 1 || copied[0] != "orders" {
-		t.Errorf("system clipboard = %v", copied)
+	if got := copied.Calls(); len(got) != 1 || got[0] != "orders" {
+		t.Errorf("system clipboard = %v", got)
 	}
 }
 
 func TestCopyText__TheSystemFailingIsLoggedOnceAndTheTerminalStillGetsTheText(t *testing.T) {
 	var appCtx, screen, _ = newClipboardTest(t)
-	var logged bytes.Buffer
-	appCtx.Logger = log.New(&logged, "", 0)
+	var logged safetest.LogCapture
+	appCtx.Logger = logged.Logger()
 	appCtx.SetSystemClipboard(func(string) error { return errors.New("no xclip") })
 
 	appCtx.CopyText("one")
