@@ -22,7 +22,7 @@ type SubscribeView struct {
 	message          *tview.TextView
 	subscribeButton  *core.Button
 	closeButton      *core.Button
-	tabNavigator     *core.ViewNavigation2D
+	navigator        *core.ViewNavigation2D
 }
 
 func NewSubscribeView(appCtx *core.AppContext) *SubscribeView {
@@ -57,7 +57,7 @@ func NewSubscribeView(appCtx *core.AppContext) *SubscribeView {
 			1, 0, true,
 		)
 
-	view.tabNavigator = core.NewViewNavigation2D(layout,
+	view.navigator = core.NewViewNavigation2D(layout,
 		[][]core.View{
 			{view.protocolDropDown},
 			{view.endpointInput},
@@ -105,7 +105,7 @@ func (inst *SubscribeView) OnShow() {
 }
 
 func (inst *SubscribeView) GetLastFocusedView() tview.Primitive {
-	return inst.tabNavigator.GetLastFocusedView()
+	return inst.navigator.GetLastFocusedView()
 }
 
 type FloatingSubscribeView struct {
@@ -131,9 +131,9 @@ func (inst *FloatingSubscribeView) GetLastFocusedView() tview.Primitive {
 }
 
 func (inst *FloatingSubscribeView) NavigateWithin(key tcell.Key) bool {
-	return inst.Input.tabNavigator.NavigateWithin(key)
+	return inst.Input.navigator.NavigateWithin(key)
 }
 
 func (inst *FloatingSubscribeView) FocusFrom(key tcell.Key) {
-	inst.Input.tabNavigator.FocusFrom(key)
+	inst.Input.navigator.FocusFrom(key)
 }

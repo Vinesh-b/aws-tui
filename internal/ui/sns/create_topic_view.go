@@ -60,7 +60,7 @@ type CreateTopicView struct {
 	message       *tview.TextView
 	createButton  *core.Button
 	closeButton   *core.Button
-	tabNavigator  *core.ViewNavigation2D
+	navigator     *core.ViewNavigation2D
 }
 
 func NewCreateTopicView(appCtx *core.AppContext) *CreateTopicView {
@@ -93,7 +93,7 @@ func NewCreateTopicView(appCtx *core.AppContext) *CreateTopicView {
 			1, 0, true,
 		)
 
-	view.tabNavigator = core.NewViewNavigation2D(layout,
+	view.navigator = core.NewViewNavigation2D(layout,
 		[][]core.View{
 			{view.nameInput},
 			{view.typeDropDown},
@@ -145,11 +145,11 @@ func (inst *CreateTopicView) OnShow() {
 	inst.typeDropDown.SetCurrentOption(0)
 	inst.dedupDropDown.SetCurrentOption(0)
 	inst.message.SetText("")
-	inst.tabNavigator.SetFocusedRow(0)
+	inst.navigator.SetFocusedRow(0)
 }
 
 func (inst *CreateTopicView) GetLastFocusedView() tview.Primitive {
-	return inst.tabNavigator.GetLastFocusedView()
+	return inst.navigator.GetLastFocusedView()
 }
 
 type FloatingCreateTopicView struct {
@@ -175,9 +175,9 @@ func (inst *FloatingCreateTopicView) GetLastFocusedView() tview.Primitive {
 }
 
 func (inst *FloatingCreateTopicView) NavigateWithin(key tcell.Key) bool {
-	return inst.Input.tabNavigator.NavigateWithin(key)
+	return inst.Input.navigator.NavigateWithin(key)
 }
 
 func (inst *FloatingCreateTopicView) FocusFrom(key tcell.Key) {
-	inst.Input.tabNavigator.FocusFrom(key)
+	inst.Input.navigator.FocusFrom(key)
 }

@@ -3,6 +3,7 @@ package dynamodb
 import (
 	"testing"
 
+	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/uitest"
 )
 
@@ -84,5 +85,28 @@ func TestScanInputView__ProjectsListedAttributes(t *testing.T) {
 	}
 	if names := expr.Names(); names["#1"] != "id" || names["#2"] != "name" {
 		t.Errorf("names = %v, want #1=id and #2=name", names)
+	}
+}
+
+func TestScanInputView__NavigatesIntoAndOutOfTheFilters(t *testing.T) {
+	var view = NewDynamoDBScanInputView(uitest.NewAppContext())
+	var first, second = view.filterInputViews[0], view.filterInputViews[1]
+	var app = view.appCtx.App
+
+	app.SetFocus(view.projectedAttributesInput)
+	view.navigator.NavigateWithin(core.APP_KEY_BINDINGS.ViewFocusDown)
+	if app.GetFocus() != first.AttributeNameInput {
+		t.Fatalf("Expected focus on the attribute of the first filter")
+	}
+
+	view.navigator.NavigateWithin(core.APP_KEY_BINDINGS.ViewFocusRight)
+	view.navigator.NavigateWithin(core.APP_KEY_BINDINGS.ViewFocusRight)
+	if app.GetFocus() != first.Condition {
+		t.Fatalf("Expected focus on the condition of the first filter")
+	}
+
+	view.navigator.NavigateWithin(core.APP_KEY_BINDINGS.ViewFocusDown)
+	if app.GetFocus() != second.AttributeNameInput {
+		t.Fatalf("Expected focus on the attribute of the second filter")
 	}
 }

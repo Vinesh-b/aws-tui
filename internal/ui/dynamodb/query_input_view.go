@@ -160,7 +160,7 @@ type DynamoDBQueryInputView struct {
 	selectedIndex       int
 	tableName           string
 	indexes             []queryIndex
-	tabNavigator        *core.ViewNavigation1D
+	navigator           *core.ViewNavigation2D
 }
 
 func NewDynamoDBQueryInputView(appContext *core.AppContext) *DynamoDBQueryInputView {
@@ -198,17 +198,13 @@ func NewDynamoDBQueryInputView(appContext *core.AppContext) *DynamoDBQueryInputV
 			1, 0, true,
 		)
 
-	var tabNavigator = core.NewViewNavigation1D(wrapper,
-		[]core.View{
-			indexDropDown,
-			pkInput,
-			skComparitorInput,
-			skInput,
-			filterInputView.AttributeNameInput,
-			filterInputView.AttributeTypeInput,
-			filterInputView.Condition,
-			doneButton,
-			cancelButton,
+	var navigator = core.NewViewNavigation2D(wrapper,
+		[][]core.View{
+			{indexDropDown},
+			{pkInput},
+			{skComparitorInput, skInput},
+			{filterInputView},
+			{doneButton, cancelButton},
 		},
 		appContext.App,
 	)
@@ -224,7 +220,7 @@ func NewDynamoDBQueryInputView(appContext *core.AppContext) *DynamoDBQueryInputV
 		skInput:           skInput,
 		skComparatorInput: skComparitorInput,
 		filterView:        filterInputView,
-		tabNavigator:      tabNavigator,
+		navigator:         navigator,
 	}
 
 	view.SetKeySchema(nil)
@@ -386,7 +382,7 @@ func NewFloatingDDBQueryInputView(appContext *core.AppContext) *FloatingDDBQuery
 }
 
 func (inst *FloatingDDBQueryInputView) GetLastFocusedView() tview.Primitive {
-	return inst.Input.tabNavigator.GetLastFocusedView()
+	return inst.Input.navigator.GetLastFocusedView()
 }
 
 type FilterInput struct {
@@ -405,9 +401,9 @@ type FilterInputView struct {
 	Value1             *core.InputField
 	Value2             *core.InputField
 
-	filterInput  FilterInput
-	tabNavigator *core.ViewNavigation1D
-	appCtx       *core.AppContext
+	filterInput FilterInput
+	navigator   *core.ViewNavigation2D
+	appCtx      *core.AppContext
 }
 
 func NewFilterInputView(appContext *core.AppContext) *FilterInputView {
@@ -437,11 +433,9 @@ func NewFilterInputView(appContext *core.AppContext) *FilterInputView {
 		AddItem(line1View, 1, 0, true).
 		AddItem(line2View, 1, 0, true)
 
-	var tabNavigator = core.NewViewNavigation1D(wrapper,
-		[]core.View{
-			attrNameInput,
-			attrTypeInput,
-			conditionInput,
+	var navigator = core.NewViewNavigation2D(wrapper,
+		[][]core.View{
+			{attrNameInput, attrTypeInput, conditionInput},
 		},
 		appContext.App,
 	)
@@ -449,36 +443,23 @@ func NewFilterInputView(appContext *core.AppContext) *FilterInputView {
 	conditionInput.SetDoneFunc(func(key tcell.Key) {
 		var condValue = conditionInput.GetText()
 		line2View.Clear()
-		tabNavigator.UpdateOrderedViews([]core.View{
-			attrNameInput,
-			attrTypeInput,
-			conditionInput,
-		}, 2)
+		var firstRow = []core.View{attrNameInput, attrTypeInput, conditionInput}
 
 		switch condValue {
 		case "exist", "notexist":
+			navigator.UpdateOrderedViews([][]core.View{firstRow}, 0)
 			line2View.AddItem(spacerView, 0, 1, false)
 		case "between":
 			line2View.
 				AddItem(value1Input, 0, 1, false).
 				AddItem(spacerView, 1, 0, false).
 				AddItem(value2Input, 0, 1, false)
-			tabNavigator.UpdateOrderedViews([]core.View{
-				attrNameInput,
-				attrTypeInput,
-				conditionInput,
-				value1Input,
-				value2Input,
-			}, 2)
+			navigator.UpdateOrderedViews([][]core.View{firstRow, {value1Input, value2Input}}, 0)
 		default:
-			tabNavigator.UpdateOrderedViews([]core.View{
-				attrNameInput,
-				attrTypeInput,
-				conditionInput,
-				value1Input,
-			}, 2)
+			navigator.UpdateOrderedViews([][]core.View{firstRow, {value1Input}}, 0)
 			line2View.AddItem(value1Input, 0, 1, false)
 		}
+		navigator.SetFocusedRow(0)
 	})
 
 	return &FilterInputView{
@@ -489,9 +470,17 @@ func NewFilterInputView(appContext *core.AppContext) *FilterInputView {
 		Value1:             value1Input,
 		Value2:             value2Input,
 
-		appCtx:       appContext,
-		tabNavigator: tabNavigator,
+		appCtx:    appContext,
+		navigator: navigator,
 	}
+}
+
+func (inst *FilterInputView) NavigateWithin(key tcell.Key) bool {
+	return inst.navigator.NavigateWithin(key)
+}
+
+func (inst *FilterInputView) FocusFrom(key tcell.Key) {
+	inst.navigator.FocusFrom(key)
 }
 
 func (inst *FilterInputView) isConditionAllowed(attrType DynamoDBDataType, condition DynamoDBCondition) bool {
@@ -641,7 +630,7 @@ type DynamoDBScanInputView struct {
 	tableName                string
 	indexes                  []string
 	selectedIndex            string
-	tabNavigator             *core.ViewNavigation1D
+	navigator                *core.ViewNavigation2D
 }
 
 func NewDynamoDBScanInputView(appContext *core.AppContext) *DynamoDBScanInputView {
@@ -677,23 +666,14 @@ func NewDynamoDBScanInputView(appContext *core.AppContext) *DynamoDBScanInputVie
 		1, 0, true,
 	)
 
-	var fiv0 = filterInputViews[0].tabNavigator.GetOrderedViews()
-	var fiv1 = filterInputViews[1].tabNavigator.GetOrderedViews()
-	var fiv2 = filterInputViews[2].tabNavigator.GetOrderedViews()
-
-	var orderdViews = []core.View{projAttrInput}
-	orderdViews = append(orderdViews, fiv0...)
-	orderdViews = append(orderdViews, fiv1...)
-	orderdViews = append(orderdViews, fiv2...)
-	orderdViews = append(orderdViews,
-		[]core.View{
-			doneButton,
-			cancelButton,
-		}...,
-	)
-
-	var tabNavigator = core.NewViewNavigation1D(wrapper,
-		orderdViews,
+	var navigator = core.NewViewNavigation2D(wrapper,
+		[][]core.View{
+			{projAttrInput},
+			{filterInputViews[0]},
+			{filterInputViews[1]},
+			{filterInputViews[2]},
+			{doneButton, cancelButton},
+		},
 		appContext.App,
 	)
 
@@ -709,7 +689,7 @@ func NewDynamoDBScanInputView(appContext *core.AppContext) *DynamoDBScanInputVie
 		tableName:                "",
 		indexes:                  nil,
 		selectedIndex:            "",
-		tabNavigator:             tabNavigator,
+		navigator:                navigator,
 	}
 }
 
@@ -779,21 +759,21 @@ func NewFloatingDDBScanInputView(appContext *core.AppContext) *FloatingDDBScanIn
 }
 
 func (inst *FloatingDDBScanInputView) GetLastFocusedView() tview.Primitive {
-	return inst.Input.tabNavigator.GetLastFocusedView()
+	return inst.Input.navigator.GetLastFocusedView()
 }
 
 func (inst *FloatingDDBQueryInputView) NavigateWithin(key tcell.Key) bool {
-	return inst.Input.tabNavigator.NavigateWithin(key)
+	return inst.Input.navigator.NavigateWithin(key)
 }
 
 func (inst *FloatingDDBQueryInputView) FocusFrom(key tcell.Key) {
-	inst.Input.tabNavigator.FocusFrom(key)
+	inst.Input.navigator.FocusFrom(key)
 }
 
 func (inst *FloatingDDBScanInputView) NavigateWithin(key tcell.Key) bool {
-	return inst.Input.tabNavigator.NavigateWithin(key)
+	return inst.Input.navigator.NavigateWithin(key)
 }
 
 func (inst *FloatingDDBScanInputView) FocusFrom(key tcell.Key) {
-	inst.Input.tabNavigator.FocusFrom(key)
+	inst.Input.navigator.FocusFrom(key)
 }
