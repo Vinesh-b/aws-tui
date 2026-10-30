@@ -26,6 +26,19 @@ const logFollowPageSize = 500
 
 const logFollowingTitle = "following"
 
+const logFilterOverlayId = "FILTER"
+
+// logFilterView is the input for the filter pattern, which shows the pattern
+// in use each time it is shown
+type logFilterView struct {
+	*core.FloatingSearchView
+	pattern func() string
+}
+
+func (inst *logFilterView) OnShow() {
+	inst.InputField.SetText(inst.pattern())
+}
+
 // logEventRanges are the time ranges to show the events of, ending now, which
 // the range key goes through. The first has no span, and shows all the events.
 var logEventRanges = append(
@@ -46,6 +59,10 @@ type LogEventsTable struct {
 	// stays when another stream is opened
 	rangeIdx int
 	now      func() time.Time
+	// filterPattern is what the events shown match, which is all if it is
+	// empty. Like the range it stays when another stream is opened.
+	filterPattern string
+	filterView    *logFilterView
 	// loads counts the reloads, so the events of one that was replaced by
 	// another before they came are not shown
 	loads int
@@ -81,7 +98,19 @@ func NewLogEventsTable(
 		}
 		view.RefreshLogEvents(false)
 	})
+	view.filterView = &logFilterView{
+		FloatingSearchView: core.NewFloatingSearchView("Filter", 0, 3),
+		pattern:            func() string { return view.filterPattern },
+	}
+	view.AddRuneToggleOverlay(logFilterOverlayId, view.filterView, core.APP_KEY_BINDINGS.Filter, false)
+	view.filterView.InputField.SetDoneFunc(func(key tcell.Key) {
+		if key == core.APP_KEY_BINDINGS.Done {
+			view.ToggleOverlay(logFilterOverlayId, true)
+			view.SetFilterPattern(view.filterView.InputField.GetText())
+		}
+	})
 	view.HelpView.View.
+		AddRune(core.APP_KEY_BINDINGS.Filter, "Show only the events that match a filter pattern").
 		AddRune(core.APP_KEY_BINDINGS.Follow, "Follow the log stream as new events arrive").
 		AddRune(core.APP_KEY_BINDINGS.TimeRange, "Show the events of the next time range")
 	view.SelectableTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -139,18 +168,30 @@ func (inst *LogEventsTable) RefreshLogEvents(reset bool) {
 
 	var load = inst.loads
 	var startTime = inst.rangeStart()
+	var filterPattern = inst.filterPattern
 	var events []types.OutputLogEvent
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
 
 	dataLoader.AsyncLoadData(func() {
 		var err error = nil
-		events, err = inst.serviceCtx.Api.ListLogEvents(
-			inst.serviceCtx.Ctx,
-			inst.selectedLogGroup,
-			inst.selectedLogStream,
-			startTime,
-			reset,
-		)
+		if len(filterPattern) > 0 {
+			events, err = inst.serviceCtx.Api.ListFilteredLogEvents(
+				inst.serviceCtx.Ctx,
+				inst.selectedLogGroup,
+				inst.selectedLogStream,
+				filterPattern,
+				startTime,
+				reset,
+			)
+		} else {
+			events, err = inst.serviceCtx.Api.ListLogEvents(
+				inst.serviceCtx.Ctx,
+				inst.selectedLogGroup,
+				inst.selectedLogStream,
+				startTime,
+				reset,
+			)
+		}
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}
@@ -178,11 +219,27 @@ func (inst *LogEventsTable) showTitleExtra() {
 	if inst.rangeIdx > 0 {
 		parts = append(parts, logEventRanges[inst.rangeIdx].label)
 	}
+	if len(inst.filterPattern) > 0 {
+		parts = append(parts, "filter: "+inst.filterPattern)
+	}
 	if inst.IsFollowing() {
 		parts = append(parts, logFollowingTitle)
 	}
 	inst.SetTitleExtra(strings.Join(parts, " · "))
 	inst.RefreshTitle(0)
+}
+
+// SetFilterPattern loads the events that match the filter pattern, or all of
+// them if it is empty. They are searched for on the server, so it finds those
+// that are not loaded yet.
+func (inst *LogEventsTable) SetFilterPattern(pattern string) {
+	if len(inst.selectedLogGroup) == 0 || len(inst.selectedLogStream) == 0 {
+		return
+	}
+
+	inst.filterPattern = pattern
+	inst.RefreshLogEvents(true)
+	inst.showTitleExtra()
 }
 
 // rangeStart is when the range being shown starts, which is the zero time if
@@ -219,6 +276,11 @@ func (inst *LogEventsTable) ToggleFollow() {
 		return
 	}
 	if len(inst.selectedLogGroup) == 0 || len(inst.selectedLogStream) == 0 {
+		return
+	}
+	// The events that come after are not filtered
+	if len(inst.filterPattern) > 0 {
+		inst.ErrorMessageCallback("Clear the filter to follow the log stream")
 		return
 	}
 

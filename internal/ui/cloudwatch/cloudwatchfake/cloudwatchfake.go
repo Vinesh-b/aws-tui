@@ -14,6 +14,7 @@ import (
 
 	"aws-tui/internal/awsapi"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 )
 
@@ -80,6 +81,29 @@ func (f *Api) ListLogEvents(
 	}
 	f.calls = append(f.calls, call)
 	return slices.Clone(f.events), nil
+}
+
+// ListFilteredLogEvents gives the events that were set with WithLogEvents and
+// contain the filter pattern, which is a plain text match in the fake.
+func (f *Api) ListFilteredLogEvents(
+	ctx context.Context, logGroupName string, logStreamName string, filterPattern string,
+	startTime time.Time, reset bool,
+) ([]types.OutputLogEvent, error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	var call = "filter " + logGroupName + " " + logStreamName + " " + filterPattern
+	if !startTime.IsZero() {
+		call += " from " + startTime.UTC().Format(time.RFC3339)
+	}
+	f.calls = append(f.calls, call)
+
+	var matching []types.OutputLogEvent
+	for _, event := range f.events {
+		if strings.Contains(aws.ToString(event.Message), filterPattern) {
+			matching = append(matching, event)
+		}
+	}
+	return matching, nil
 }
 
 func (f *Api) FollowLogEvents(

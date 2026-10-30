@@ -90,6 +90,7 @@ type KeyBindings struct {
 	Mark               rune
 	Follow             rune
 	TimeRange          rune
+	Filter             rune
 	RemoveItem         rune
 	TextCopy           rune
 	ToggleRawView      rune
@@ -152,6 +153,7 @@ var APP_KEY_BINDINGS = KeyBindings{
 	Mark:               'm',
 	Follow:             'f',
 	TimeRange:          't',
+	Filter:             'F',
 	RemoveItem:         'x',
 	TextCopy:           'y',
 	ToggleRawView:      'J',

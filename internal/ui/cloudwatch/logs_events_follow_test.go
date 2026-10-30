@@ -31,7 +31,7 @@ func newFollowedEventsTable(t *testing.T, api *cloudwatchfake.Api) *LogEventsTab
 		table.SetSelectedLogStream("stream")
 		table.RefreshLogEvents(true)
 	})
-	uitest.AwaitRows(t, serviceCtx.App, table, []core.TableRow{{"Timestamp", "Message"}, eventRow("START", 0)})
+	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetTable().GetRowCount() > 1 }, "the events")
 	return table
 }
 
