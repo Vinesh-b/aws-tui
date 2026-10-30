@@ -1,9 +1,12 @@
 package s3
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 
 	"aws-tui/internal/awsapi"
@@ -18,6 +21,8 @@ import (
 type BucketObjectsTable struct {
 	*core.SelectableTable[types.Object]
 	ErrorMessageCallback func(text string, a ...any)
+	InfoMessageCallback  func(text string, a ...any)
+	downloadDir          string
 	selectedObject       types.Object
 	selectedBucket       string
 	selectedDir          string
@@ -40,6 +45,8 @@ func NewBucketObjectsTable(
 			serviceViewCtx.AppContext,
 		).SetFilterColumns(0).SetPinnedFunc(isParentDirRow),
 		ErrorMessageCallback: func(text string, a ...any) {},
+		InfoMessageCallback:  func(text string, a ...any) {},
+		downloadDir:          ".",
 		selectedObject:       types.Object{},
 		selectedBucket:       "",
 		selectedDir:          "",
@@ -154,8 +161,6 @@ func (inst *BucketObjectsTable) SetSelectedFunc(handler func(row, column int)) {
 			inst.selectedDir = prefix
 			inst.ClearFilter()
 			inst.RefreshObjects(true)
-		} else {
-			//inst.serviceCtx.Api.DownloadFile(inst.serviceCtx.Ctx, inst.selectedBucket, prefix, filepath.Base(prefix))
 		}
 
 		handler(row, column)
@@ -175,6 +180,9 @@ func (inst *BucketObjectsTable) SetInputCapture(capture func(event *tcell.EventK
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshObjects(true)
+			return nil
+		case core.APP_KEY_BINDINGS.Download:
+			inst.DownloadSelected()
 			return nil
 		}
 		return capture(event)
@@ -196,4 +204,34 @@ func (inst *BucketObjectsTable) GetSelectedBucket() string {
 
 func (inst *BucketObjectsTable) GetSelectedPrefix() string {
 	return aws.ToString(inst.selectedObject.Key)
+}
+
+// DownloadSelected saves the selected object into the download directory under
+// its own name. It never replaces a file that is already there.
+func (inst *BucketObjectsTable) DownloadSelected() {
+	var key = inst.GetSelectedPrefix()
+	if key == "" || strings.HasSuffix(key, "/") {
+		inst.ErrorMessageCallback("Select an object to download")
+		return
+	}
+
+	var bucket = inst.selectedBucket
+	var target = filepath.Join(inst.downloadDir, filepath.Base(key))
+	if _, err := os.Stat(target); err == nil {
+		inst.ErrorMessageCallback("%s already exists", target)
+		return
+	} else if !errors.Is(err, os.ErrNotExist) {
+		inst.ErrorMessageCallback("%s", err.Error())
+		return
+	}
+
+	inst.InfoMessageCallback("Downloading %s to %s", key, target)
+	// a download can take longer than the timeout of the data loader
+	go func() {
+		if err := inst.serviceCtx.Api.DownloadFile(inst.serviceCtx.Ctx, bucket, key, target); err != nil {
+			inst.ErrorMessageCallback("%s", err.Error())
+			return
+		}
+		inst.InfoMessageCallback("Downloaded %s to %s", key, target)
+	}()
 }

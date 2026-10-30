@@ -1,11 +1,16 @@
 package s3
 
 import (
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"aws-tui/internal/ui/s3/s3fake"
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -171,5 +176,89 @@ func TestBucketObjectsTable__SettingBucketClearsTheSearch(t *testing.T) {
 	}
 	if text := table.GetSearchText(); text != "" {
 		t.Errorf("search = %q, want it cleared", text)
+	}
+}
+
+func newDownloadTable(
+	t *testing.T, api *s3fake.Api,
+) (table *BucketObjectsTable, dir string, infos <-chan string, errs <-chan string) {
+	t.Helper()
+	table = NewBucketObjectsTable(uitest.NewServiceContextWith[awsapi.S3BucketsApi](api))
+	dir = t.TempDir()
+	table.downloadDir = dir
+	table.SetSelectedBucket("bucket")
+	table.ErrorMessageCallback, errs = uitest.CaptureErrors()
+	table.InfoMessageCallback, infos = uitest.CaptureErrors()
+	return table, dir, infos, errs
+}
+
+func TestBucketObjectsTable__DownloadSavesTheObjectUnderItsBaseName(t *testing.T) {
+	var api = s3fake.New(s3fake.WithContent([]byte("hello")))
+	var table, dir, infos, _ = newDownloadTable(t, api)
+	table.selectedObject = newObject("docs/guide.md", 5)
+
+	uitest.PressTableRune(table, core.APP_KEY_BINDINGS.Download)
+
+	var starting = uitest.AwaitError(t, infos)
+	var done = uitest.AwaitError(t, infos)
+	var want = filepath.Join(dir, "guide.md")
+	if !strings.HasPrefix(starting, "Downloading") || !strings.HasPrefix(done, "Downloaded") {
+		t.Errorf("messages = %q, %q, want a start and a finish message", starting, done)
+	}
+	if got, err := os.ReadFile(want); err != nil || string(got) != "hello" {
+		t.Errorf("file = %q, %v, want hello", got, err)
+	}
+	var calls = api.Downloads()
+	if len(calls) != 1 || calls[0] != (s3fake.Download{Bucket: "bucket", Key: "docs/guide.md", FileName: want}) {
+		t.Errorf("downloads = %+v, want one of docs/guide.md", calls)
+	}
+}
+
+func TestBucketObjectsTable__DownloadRefusesDirectories(t *testing.T) {
+	var api = s3fake.New()
+	var table, _, _, errs = newDownloadTable(t, api)
+	table.selectedObject = types.Object{Key: aws.String("docs/")}
+
+	uitest.PressTableRune(table, core.APP_KEY_BINDINGS.Download)
+
+	if got := uitest.AwaitError(t, errs); got != "Select an object to download" {
+		t.Errorf("error = %q", got)
+	}
+	if n := len(api.Downloads()); n != 0 {
+		t.Errorf("downloads = %d, want none", n)
+	}
+}
+
+func TestBucketObjectsTable__DownloadDoesNotReplaceAFile(t *testing.T) {
+	var api = s3fake.New(s3fake.WithContent([]byte("new")))
+	var table, dir, _, errs = newDownloadTable(t, api)
+	var existing = filepath.Join(dir, "a.txt")
+	if err := os.WriteFile(existing, []byte("old"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	table.selectedObject = newObject("a.txt", 3)
+
+	uitest.PressTableRune(table, core.APP_KEY_BINDINGS.Download)
+
+	if got := uitest.AwaitError(t, errs); !strings.Contains(got, "already exists") {
+		t.Errorf("error = %q, want already exists", got)
+	}
+	if got, _ := os.ReadFile(existing); string(got) != "old" {
+		t.Errorf("file = %q, want it untouched", got)
+	}
+	if n := len(api.Downloads()); n != 0 {
+		t.Errorf("downloads = %d, want none", n)
+	}
+}
+
+func TestBucketObjectsTable__DownloadReportsFailures(t *testing.T) {
+	var api = s3fake.New(s3fake.WithDownloadErr(errors.New("denied")))
+	var table, _, _, errs = newDownloadTable(t, api)
+	table.selectedObject = newObject("a.txt", 3)
+
+	uitest.PressTableRune(table, core.APP_KEY_BINDINGS.Download)
+
+	if got := uitest.AwaitError(t, errs); got != "denied" {
+		t.Errorf("error = %q, want denied", got)
 	}
 }

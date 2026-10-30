@@ -7,6 +7,8 @@ package s3fake
 
 import (
 	"context"
+	"os"
+	"slices"
 	"sync"
 
 	"aws-tui/internal/awsapi"
@@ -29,7 +31,12 @@ type Api struct {
 	headCalls    int
 	headTarget   string
 	contentCalls int
+	downloads    []Download
+	downloadErr  error
 }
+
+// Download is one DownloadFile call.
+type Download struct{ Bucket, Key, FileName string }
 
 type Option func(*Api)
 
@@ -39,6 +46,7 @@ func WithDirs(dirs []types.CommonPrefix) Option { return func(f *Api) { f.dirs =
 func WithHead(head s3.HeadObjectOutput) Option  { return func(f *Api) { f.head = head } }
 func WithErr(err error) Option                  { return func(f *Api) { f.err = err } }
 func WithContent(content []byte) Option         { return func(f *Api) { f.content = content } }
+func WithDownloadErr(err error) Option          { return func(f *Api) { f.downloadErr = err } }
 func WithContentErr(err error) Option           { return func(f *Api) { f.contentErr = err } }
 
 func New(options ...Option) *Api {
@@ -107,4 +115,22 @@ func (f *Api) GetObjectContent(
 	defer f.mtx.Unlock()
 	f.contentCalls++
 	return f.content, f.contentErr
+}
+
+// DownloadFile records the call and writes the content to fileName.
+func (f *Api) DownloadFile(ctx context.Context, bucketName string, objectKey string, fileName string) error {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	f.downloads = append(f.downloads, Download{bucketName, objectKey, fileName})
+	if f.downloadErr != nil {
+		return f.downloadErr
+	}
+	return os.WriteFile(fileName, f.content, 0o600)
+}
+
+// Downloads are the DownloadFile calls so far.
+func (f *Api) Downloads() []Download {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return slices.Clone(f.downloads)
 }

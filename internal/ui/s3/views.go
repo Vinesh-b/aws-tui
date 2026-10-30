@@ -70,6 +70,9 @@ func NewS3bucketsDetailsView(
 
 	bucketListTable.ErrorMessageCallback = errorHandler
 	bucketObjectsTable.ErrorMessageCallback = errorHandler
+	bucketObjectsTable.InfoMessageCallback = func(text string, a ...any) {
+		serviceView.DisplayMessage(core.InfoPrompt, text, a...)
+	}
 	bucketObjectDetailsTable.ErrorMessageCallback = errorHandler
 	objectPreview.ErrorMessageCallback = errorHandler
 
