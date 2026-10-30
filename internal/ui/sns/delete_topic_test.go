@@ -164,8 +164,8 @@ func TestDeleteTopic__DeletingOneOfManyShowsTheNextTopic(t *testing.T) {
 	})
 }
 
-// focusNext moves focus to the next field of the open overlay
+// focusNext moves focus from Cancel to the confirm button of the open overlay
 func (f *deleteTopicFixture) focusNext(t *testing.T) {
 	t.Helper()
-	uitest.OnUI(t, f.app(), func() { f.table.NavigateWithin(core.APP_KEY_BINDINGS.ViewFocusDown) })
+	uitest.OnUI(t, f.app(), func() { f.table.NavigateWithin(core.APP_KEY_BINDINGS.ViewFocusRight) })
 }

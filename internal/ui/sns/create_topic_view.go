@@ -60,8 +60,7 @@ type CreateTopicView struct {
 	message       *tview.TextView
 	createButton  *core.Button
 	closeButton   *core.Button
-	tabNavigator  *core.ViewNavigation1D
-	orderedViews  []core.View
+	tabNavigator  *core.ViewNavigation2D
 }
 
 func NewCreateTopicView(appCtx *core.AppContext) *CreateTopicView {
@@ -94,10 +93,15 @@ func NewCreateTopicView(appCtx *core.AppContext) *CreateTopicView {
 			1, 0, true,
 		)
 
-	view.orderedViews = []core.View{
-		view.nameInput, view.typeDropDown, view.dedupDropDown, view.createButton, view.closeButton,
-	}
-	view.tabNavigator = core.NewViewNavigation1D(layout, view.orderedViews, appCtx.App)
+	view.tabNavigator = core.NewViewNavigation2D(layout,
+		[][]core.View{
+			{view.nameInput},
+			{view.typeDropDown},
+			{view.dedupDropDown},
+			{view.createButton, view.closeButton},
+		},
+		appCtx.App,
+	)
 
 	return view
 }
@@ -141,7 +145,7 @@ func (inst *CreateTopicView) OnShow() {
 	inst.typeDropDown.SetCurrentOption(0)
 	inst.dedupDropDown.SetCurrentOption(0)
 	inst.message.SetText("")
-	inst.tabNavigator.UpdateOrderedViews(inst.orderedViews, 0)
+	inst.tabNavigator.SetFocusedRow(0)
 }
 
 func (inst *CreateTopicView) GetLastFocusedView() tview.Primitive {

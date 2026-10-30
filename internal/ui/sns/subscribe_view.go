@@ -22,7 +22,7 @@ type SubscribeView struct {
 	message          *tview.TextView
 	subscribeButton  *core.Button
 	closeButton      *core.Button
-	tabNavigator     *core.ViewNavigation1D
+	tabNavigator     *core.ViewNavigation2D
 }
 
 func NewSubscribeView(appCtx *core.AppContext) *SubscribeView {
@@ -57,12 +57,11 @@ func NewSubscribeView(appCtx *core.AppContext) *SubscribeView {
 			1, 0, true,
 		)
 
-	view.tabNavigator = core.NewViewNavigation1D(layout,
-		[]core.View{
-			view.protocolDropDown,
-			view.endpointInput,
-			view.subscribeButton,
-			view.closeButton,
+	view.tabNavigator = core.NewViewNavigation2D(layout,
+		[][]core.View{
+			{view.protocolDropDown},
+			{view.endpointInput},
+			{view.subscribeButton, view.closeButton},
 		},
 		appCtx.App,
 	)

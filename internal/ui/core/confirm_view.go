@@ -12,8 +12,7 @@ type ConfirmView struct {
 	message       *tview.TextView
 	confirmButton *Button
 	cancelButton  *Button
-	navigator     *ViewNavigation1D
-	orderedViews  []View
+	navigator     *ViewNavigation2D
 	onShow        func()
 }
 
@@ -36,8 +35,9 @@ func NewConfirmView(appCtx *AppContext, confirmLabel string) *ConfirmView {
 			1, 0, true,
 		)
 
-	view.orderedViews = []View{view.cancelButton, view.confirmButton}
-	view.navigator = NewViewNavigation1D(layout, view.orderedViews, appCtx.App)
+	view.navigator = NewViewNavigation2D(
+		layout, [][]View{{view.cancelButton, view.confirmButton}}, appCtx.App,
+	)
 
 	return view
 }
@@ -67,7 +67,7 @@ func (inst *ConfirmView) SetOnShowFunc(handler func()) {
 }
 
 func (inst *ConfirmView) OnShow() {
-	inst.navigator.UpdateOrderedViews(inst.orderedViews, 0)
+	inst.navigator.SetFocusedRow(0)
 	inst.onShow()
 }
 

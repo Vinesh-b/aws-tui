@@ -32,7 +32,7 @@ func TestConfirmView__FocusStartsOnCancelEachTimeItIsShown(t *testing.T) {
 		t.Fatal("expected the cancel button to be focused first")
 	}
 
-	view.navigator.UpdateOrderedViews(view.orderedViews, 1)
+	view.navigator.NavigateWithin(APP_KEY_BINDINGS.ViewFocusRight)
 	if view.GetLastFocusedView() != view.confirmButton {
 		t.Fatal("expected the confirm button after moving focus")
 	}

@@ -23,7 +23,7 @@ type SfnExecutionsQueryInputView struct {
 	CancelButton *core.Button
 
 	appCtx            *core.AppContext
-	viewNavigation    *core.ViewNavigation1D
+	viewNavigation    *core.ViewNavigation2D
 	statusDropDown    *core.DropDown
 	executionArnInput *core.InputField
 	startDateInput    *core.DateTimeInputField
@@ -39,7 +39,7 @@ func NewSfnExecutionsQueryInputView(appContext *core.AppContext) *SfnExecutionsQ
 		CancelButton: core.NewButton("Cancel", appContext.Theme),
 
 		appCtx:            appContext,
-		viewNavigation:    core.NewViewNavigation1D(flex, nil, appContext.App),
+		viewNavigation:    core.NewViewNavigation2D(flex, nil, appContext.App),
 		statusDropDown:    core.NewDropDown(appContext.Theme),
 		executionArnInput: core.NewInputField(appContext.Theme),
 		startDateInput:    core.NewDateTimeInputField(appContext.Theme),
@@ -63,15 +63,15 @@ func NewSfnExecutionsQueryInputView(appContext *core.AppContext) *SfnExecutionsQ
 		)
 
 	view.viewNavigation.UpdateOrderedViews(
-		[]core.View{
-			view.statusDropDown,
-			view.executionArnInput,
-			view.startDateInput,
-			view.endDateInput,
-			view.DoneButton,
-			view.CancelButton,
+		[][]core.View{
+			{view.statusDropDown},
+			{view.executionArnInput},
+			{view.startDateInput},
+			{view.endDateInput},
+			{view.DoneButton, view.CancelButton},
 		}, 0,
 	)
+	view.viewNavigation.SetFocusedRow(0)
 
 	view.executionArnInput.
 		SetLabel("Execution Id ")
