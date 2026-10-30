@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -94,4 +95,12 @@ func (inst *FloatingConfirmView) OnShow() {
 
 func (inst *FloatingConfirmView) GetLastFocusedView() tview.Primitive {
 	return inst.Input.GetLastFocusedView()
+}
+
+func (inst *FloatingConfirmView) NavigateWithin(key tcell.Key) bool {
+	return inst.Input.navigator.NavigateWithin(key)
+}
+
+func (inst *FloatingConfirmView) FocusFrom(key tcell.Key) {
+	inst.Input.navigator.FocusFrom(key)
 }

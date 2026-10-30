@@ -83,8 +83,6 @@ type KeyBindings struct {
 	MovePageBottomRune rune
 	NextSearch         rune
 	PrevSearch         rune
-	FormFocusNext      tcell.Key
-	FormFocusPrev      tcell.Key
 	TableScan          rune
 	TableQuery         rune
 	Mark               rune
@@ -147,8 +145,6 @@ var APP_KEY_BINDINGS = KeyBindings{
 	MovePageBottomRune: 'G',
 	NextSearch:         'n',
 	PrevSearch:         'N',
-	FormFocusNext:      tcell.KeyDown,
-	FormFocusPrev:      tcell.KeyUp,
 	TableScan:          's',
 	TableQuery:         'q',
 	Mark:               'm',

@@ -521,6 +521,45 @@ func (inst *BaseView) AddKeyToggleOverlay(
 	return inst
 }
 
+// visibleOverlay is the overlay that is shown, which is nil if there is none.
+func (inst *BaseView) visibleOverlay() *OverlayInfo {
+	for _, overlay := range inst.overlays {
+		if !overlay.IsHidden {
+			return overlay
+		}
+	}
+	return nil
+}
+
+// NavigateWithin moves focus within the overlay that is shown, or the main
+// view when there is none, for those that have navigation of their own.
+func (inst *BaseView) NavigateWithin(key tcell.Key) bool {
+	var target tview.Primitive = inst.mainPageView
+	if overlay := inst.visibleOverlay(); overlay != nil {
+		target = overlay.View
+	}
+	if nested, ok := target.(NestedNavigation); ok {
+		return nested.NavigateWithin(key)
+	}
+	return false
+}
+
+func (inst *BaseView) FocusFrom(key tcell.Key) {
+	if overlay := inst.visibleOverlay(); overlay != nil {
+		if nested, ok := overlay.View.(NestedNavigation); ok {
+			nested.FocusFrom(key)
+		} else {
+			inst.appCtx.App.SetFocus(overlay.View.GetLastFocusedView())
+		}
+		return
+	}
+	if nested, ok := inst.mainPageView.(NestedNavigation); ok {
+		nested.FocusFrom(key)
+		return
+	}
+	inst.appCtx.App.SetFocus(inst)
+}
+
 func (inst *BaseView) IsAnOverlayVisible() bool {
 	for _, overlay := range inst.overlays {
 		if overlay.IsHidden == false {

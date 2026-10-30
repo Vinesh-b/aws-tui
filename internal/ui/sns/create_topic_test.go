@@ -83,7 +83,7 @@ func (f *createTopicFixture) open(t *testing.T) {
 func (f *createTopicFixture) create(t *testing.T) {
 	t.Helper()
 	for range 3 {
-		f.press(t, tcell.KeyDown, 0)
+		f.focusNext(t)
 	}
 	f.press(t, tcell.KeyEnter, 0)
 }
@@ -179,4 +179,10 @@ func TestCreateTopic__StartsCleanEachTimeItIsShown(t *testing.T) {
 	if got := f.status(t); got != "" {
 		t.Errorf("status = %q, want it cleared", got)
 	}
+}
+
+// focusNext moves focus to the next field of the open overlay
+func (f *createTopicFixture) focusNext(t *testing.T) {
+	t.Helper()
+	uitest.OnUI(t, f.app(), func() { f.table.NavigateWithin(core.APP_KEY_BINDINGS.ViewFocusDown) })
 }

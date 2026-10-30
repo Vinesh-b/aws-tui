@@ -58,7 +58,7 @@ func (f *deleteParameterFixture) openDelete(t *testing.T) {
 // confirmDelete moves focus from Cancel to Delete and presses it
 func (f *deleteParameterFixture) confirmDelete(t *testing.T) {
 	t.Helper()
-	f.press(t, tcell.KeyDown, 0)
+	f.focusNext(t)
 	f.press(t, tcell.KeyEnter, 0)
 }
 
@@ -139,4 +139,10 @@ func TestDeleteParameter__NothingSelectedReportsAnError(t *testing.T) {
 	if deleted := api.Deleted(); len(deleted) != 0 {
 		t.Errorf("Unexpected deletes %v", deleted)
 	}
+}
+
+// focusNext moves focus to the next field of the open overlay
+func (f *deleteParameterFixture) focusNext(t *testing.T) {
+	t.Helper()
+	uitest.OnUI(t, f.app(), func() { f.table.NavigateWithin(core.APP_KEY_BINDINGS.ViewFocusDown) })
 }

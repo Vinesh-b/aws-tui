@@ -70,8 +70,6 @@ func keyBindingFields(bindings *KeyBindings) map[string]keyBinding {
 		"moveBottom":         {rune: &bindings.MovePageBottomRune},
 		"nextSearch":         {rune: &bindings.NextSearch},
 		"prevSearch":         {rune: &bindings.PrevSearch},
-		"formFocusNext":      {key: &bindings.FormFocusNext},
-		"formFocusPrev":      {key: &bindings.FormFocusPrev},
 		"tableScan":          {rune: &bindings.TableScan},
 		"tableQuery":         {rune: &bindings.TableQuery},
 		"mark":               {rune: &bindings.Mark},

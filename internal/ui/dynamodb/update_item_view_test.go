@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"aws-tui/internal/awsapi"
+	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
@@ -356,4 +357,10 @@ func TestUpdateItemPageView__EmptySelectionLeavesTheEditorAloneWhenShown(t *test
 		t.Fatalf("Unexpected error %q", message)
 	default:
 	}
+}
+
+// focusNext moves focus to the next field of the open overlay
+func (f *updateItemFixture) focusNext(t *testing.T) {
+	t.Helper()
+	uitest.OnUI(t, f.app(), func() { f.table.NavigateWithin(core.APP_KEY_BINDINGS.ViewFocusDown) })
 }

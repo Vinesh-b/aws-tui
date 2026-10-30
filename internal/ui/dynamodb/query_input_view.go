@@ -781,3 +781,19 @@ func NewFloatingDDBScanInputView(appContext *core.AppContext) *FloatingDDBScanIn
 func (inst *FloatingDDBScanInputView) GetLastFocusedView() tview.Primitive {
 	return inst.Input.tabNavigator.GetLastFocusedView()
 }
+
+func (inst *FloatingDDBQueryInputView) NavigateWithin(key tcell.Key) bool {
+	return inst.Input.tabNavigator.NavigateWithin(key)
+}
+
+func (inst *FloatingDDBQueryInputView) FocusFrom(key tcell.Key) {
+	inst.Input.tabNavigator.FocusFrom(key)
+}
+
+func (inst *FloatingDDBScanInputView) NavigateWithin(key tcell.Key) bool {
+	return inst.Input.tabNavigator.NavigateWithin(key)
+}
+
+func (inst *FloatingDDBScanInputView) FocusFrom(key tcell.Key) {
+	inst.Input.tabNavigator.FocusFrom(key)
+}

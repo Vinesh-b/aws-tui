@@ -90,7 +90,7 @@ Tables that load their rows a page at a time, such as log events or S3 objects, 
 | `Esc` | Go back to normal mode | `escape` |
 | `i`, `u` / `Ctrl+R` | Insert mode, undo / redo; text views are read-only, so these change nothing yet | `textViewInsertMode`, `textViewUndo` / `textViewRedo` |
 
-In forms, `Down` and `Up` move to the next and previous field (`formFocusNext`, `formFocusPrev`). Text inputs keep their own keys: the arrows move the cursor, `Shift` + arrows select text, and `Ctrl+Q` copies it. These can't be changed.
+In forms, the view focus keys move between the fields. Text inputs keep their own keys: the arrows move the cursor, `Shift` + arrows select text, and `Ctrl+Q` copies it. These can't be changed.
 
 ### Sequences
 

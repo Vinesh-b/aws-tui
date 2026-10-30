@@ -11,8 +11,6 @@ type ViewNavigation1D struct {
 	orderedViews []View
 	viewIdx      int
 	numViews     int
-	keyForward   tcell.Key
-	keyBack      tcell.Key
 }
 
 func NewViewNavigation1D(
@@ -24,44 +22,61 @@ func NewViewNavigation1D(
 		app:          app,
 		viewIdx:      0,
 		numViews:     len(orderedViews),
-		keyForward:   APP_KEY_BINDINGS.FormFocusNext,
-		keyBack:      APP_KEY_BINDINGS.FormFocusPrev,
 	}
-
-	// Focus can be changed by a mouse selection bypassing the input capture handler
-	var currentFocus = func(views []View) int {
-		for idx, v := range views {
-			if v.HasFocus() {
-				return idx
-			}
-		}
-
-		return 0
-	}
-
-	view.rootView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case view.keyForward:
-			view.viewIdx = currentFocus(view.orderedViews)
-			view.viewIdx = (view.viewIdx + 1) % view.numViews
-			view.app.SetFocus(view.orderedViews[view.viewIdx])
-			return nil
-		case view.keyBack:
-			view.viewIdx = currentFocus(view.orderedViews)
-			view.viewIdx = (view.viewIdx - 1 + view.numViews) % view.numViews
-			view.app.SetFocus(view.orderedViews[view.viewIdx])
-			return nil
-		}
-
-		return event
-	})
 
 	return view
 }
 
-func (inst *ViewNavigation1D) SetNavigationKeys(keyForward tcell.Key, keyBack tcell.Key) {
-	inst.keyForward = keyForward
-	inst.keyBack = keyBack
+// Focus can be changed by a mouse selection bypassing the input capture handler
+func (inst *ViewNavigation1D) currentFocus() int {
+	for idx, v := range inst.orderedViews {
+		if v.HasFocus() {
+			return idx
+		}
+	}
+
+	return 0
+}
+
+// NavigateWithin moves focus to the next view for the down and right keys and
+// the previous for the up and left keys. Returns false at either end so the
+// parent navigation can move out of the views.
+func (inst *ViewNavigation1D) NavigateWithin(key tcell.Key) bool {
+	var next int
+	switch key {
+	case APP_KEY_BINDINGS.ViewFocusDown, APP_KEY_BINDINGS.ViewFocusRight:
+		next = 1
+	case APP_KEY_BINDINGS.ViewFocusUp, APP_KEY_BINDINGS.ViewFocusLeft:
+		next = -1
+	default:
+		return false
+	}
+
+	var idx = inst.currentFocus() + next
+	if idx < 0 || idx >= inst.numViews {
+		return false
+	}
+	inst.viewIdx = idx
+	inst.app.SetFocus(inst.orderedViews[idx])
+	return true
+}
+
+// FocusFrom focuses the first view when entered from above or the left, the
+// last when entered from below or the right, and otherwise the view that was
+// last focused.
+func (inst *ViewNavigation1D) FocusFrom(key tcell.Key) {
+	if inst.numViews == 0 {
+		inst.app.SetFocus(inst.rootView)
+		return
+	}
+
+	switch key {
+	case APP_KEY_BINDINGS.ViewFocusDown, APP_KEY_BINDINGS.ViewFocusRight:
+		inst.viewIdx = 0
+	case APP_KEY_BINDINGS.ViewFocusUp, APP_KEY_BINDINGS.ViewFocusLeft:
+		inst.viewIdx = inst.numViews - 1
+	}
+	inst.app.SetFocus(inst.orderedViews[inst.viewIdx])
 }
 
 func (inst *ViewNavigation1D) UpdateOrderedViews(orderedViews []View, intitalIxd int) {

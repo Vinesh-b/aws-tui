@@ -54,7 +54,7 @@ func (f *deleteTopicFixture) open(t *testing.T) {
 
 func (f *deleteTopicFixture) confirm(t *testing.T) {
 	t.Helper()
-	f.press(t, tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone))
+	f.focusNext(t)
 	f.press(t, tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone))
 }
 
@@ -162,4 +162,10 @@ func TestDeleteTopic__DeletingOneOfManyShowsTheNextTopic(t *testing.T) {
 		return f.page.PublishView.selectedTopicArn == topicArn("orders") &&
 			f.page.TopicDetailsTable.GetCellText(0, 1) == "orders"
 	})
+}
+
+// focusNext moves focus to the next field of the open overlay
+func (f *deleteTopicFixture) focusNext(t *testing.T) {
+	t.Helper()
+	uitest.OnUI(t, f.app(), func() { f.table.NavigateWithin(core.APP_KEY_BINDINGS.ViewFocusDown) })
 }

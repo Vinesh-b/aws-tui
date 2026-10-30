@@ -237,3 +237,36 @@ func TestServicePageView__FocusesTheLastRowFirstUnlessAnotherIsSet(t *testing.T)
 		t.Errorf("a row that doesn't exist changed the focused view")
 	}
 }
+
+func TestViewNavigation2D__NavigatesWithinAnOverlay(t *testing.T) {
+	var app = tview.NewApplication()
+	var appCtx = NewAppContext(context.Background(), app, nil, nil, &AppTheme{})
+	var main, other = tview.NewBox(), tview.NewBox()
+	var confirm = NewFloatingConfirmView(appCtx, "Delete", "Delete")
+	var base = NewBaseView(appCtx).SetMainView(main)
+	base.AddRuneToggleOverlay("CONFIRM", confirm, 'd', false)
+
+	var flex = tview.NewFlex().AddItem(base, 0, 1, true).AddItem(other, 0, 1, false)
+	var nav = NewViewNavigation2D(flex, [][]View{{base, other}}, app)
+	base.ToggleOverlay("CONFIRM", false)
+
+	var cancel, ok = confirm.Input.GetLastFocusedView().(*Button)
+	if !ok || app.GetFocus() != cancel {
+		t.Fatalf("Expected the overlay to start on the cancel button")
+	}
+
+	nav.rootView.InputHandler()(tcell.NewEventKey(APP_KEY_BINDINGS.ViewFocusRight, 0, tcell.ModNone), nil)
+	if app.GetFocus() != confirm.Input.confirmButton {
+		t.Fatalf("Expected focus to move to the confirm button within the overlay")
+	}
+
+	nav.rootView.InputHandler()(tcell.NewEventKey(APP_KEY_BINDINGS.ViewFocusRight, 0, tcell.ModNone), nil)
+	if app.GetFocus() != other {
+		t.Fatalf("Expected focus to leave the overlay at its edge")
+	}
+
+	nav.rootView.InputHandler()(tcell.NewEventKey(APP_KEY_BINDINGS.ViewFocusLeft, 0, tcell.ModNone), nil)
+	if app.GetFocus() != confirm.Input.confirmButton {
+		t.Fatalf("Expected focus to re-enter the overlay at the last view")
+	}
+}

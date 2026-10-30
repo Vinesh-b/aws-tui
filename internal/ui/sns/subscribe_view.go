@@ -2,6 +2,7 @@ package sns
 
 import (
 	"aws-tui/internal/ui/core"
+	"github.com/gdamore/tcell/v2"
 
 	"github.com/rivo/tview"
 )
@@ -128,4 +129,12 @@ func (inst *FloatingSubscribeView) OnShow() {
 
 func (inst *FloatingSubscribeView) GetLastFocusedView() tview.Primitive {
 	return inst.Input.GetLastFocusedView()
+}
+
+func (inst *FloatingSubscribeView) NavigateWithin(key tcell.Key) bool {
+	return inst.Input.tabNavigator.NavigateWithin(key)
+}
+
+func (inst *FloatingSubscribeView) FocusFrom(key tcell.Key) {
+	inst.Input.tabNavigator.FocusFrom(key)
 }

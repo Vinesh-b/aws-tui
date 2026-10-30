@@ -70,9 +70,6 @@ var keyBindingInfos = []KeyBindingInfo{
 	{"textViewInsertMode", "Text views", "Insert mode, which changes nothing as text views are read-only"},
 	{"textViewUndo", "Text views", "Undo"},
 	{"textViewRedo", "Text views", "Redo"},
-
-	{"formFocusNext", "Forms", "Move to the next field"},
-	{"formFocusPrev", "Forms", "Move to the previous field"},
 }
 
 // KeyBindingInfos are the key bindings, in the order to list them

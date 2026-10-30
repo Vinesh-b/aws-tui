@@ -21,7 +21,7 @@ func (f *updateItemFixture) openDelete(t *testing.T) {
 // confirmDelete moves focus from Cancel to Delete and presses it
 func (f *updateItemFixture) confirmDelete(t *testing.T) {
 	t.Helper()
-	f.press(t, tcell.KeyDown, 0)
+	f.focusNext(t)
 	f.press(t, tcell.KeyEnter, 0)
 }
 

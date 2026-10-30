@@ -50,7 +50,7 @@ func (f *unsubscribeFixture) open(t *testing.T) {
 
 func (f *unsubscribeFixture) confirm(t *testing.T) {
 	t.Helper()
-	f.press(t, tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone))
+	f.focusNext(t)
 	f.press(t, tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone))
 }
 
@@ -152,3 +152,9 @@ func TestUnsubscribeView__NothingSelectedReportsAnError(t *testing.T) {
 type errString string
 
 func (e errString) Error() string { return string(e) }
+
+// focusNext moves focus to the next field of the open overlay
+func (f *unsubscribeFixture) focusNext(t *testing.T) {
+	t.Helper()
+	uitest.OnUI(t, f.table.serviceCtx.App, func() { f.table.NavigateWithin(core.APP_KEY_BINDINGS.ViewFocusDown) })
+}

@@ -2,6 +2,7 @@ package sfn
 
 import (
 	"aws-tui/internal/ui/core"
+	"github.com/gdamore/tcell/v2"
 	"strings"
 	"time"
 
@@ -135,4 +136,12 @@ func NewFloatingSfnExecutionsQueryInputView(
 
 func (inst *FloatingSfnExecutionsQueryInputView) GetLastFocusedView() tview.Primitive {
 	return inst.Input.viewNavigation.GetLastFocusedView()
+}
+
+func (inst *FloatingSfnExecutionsQueryInputView) NavigateWithin(key tcell.Key) bool {
+	return inst.Input.viewNavigation.NavigateWithin(key)
+}
+
+func (inst *FloatingSfnExecutionsQueryInputView) FocusFrom(key tcell.Key) {
+	inst.Input.viewNavigation.FocusFrom(key)
 }

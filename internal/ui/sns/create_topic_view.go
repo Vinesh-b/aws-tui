@@ -2,6 +2,7 @@ package sns
 
 import (
 	"fmt"
+	"github.com/gdamore/tcell/v2"
 	"regexp"
 	"strings"
 
@@ -167,4 +168,12 @@ func (inst *FloatingCreateTopicView) OnShow() {
 
 func (inst *FloatingCreateTopicView) GetLastFocusedView() tview.Primitive {
 	return inst.Input.GetLastFocusedView()
+}
+
+func (inst *FloatingCreateTopicView) NavigateWithin(key tcell.Key) bool {
+	return inst.Input.tabNavigator.NavigateWithin(key)
+}
+
+func (inst *FloatingCreateTopicView) FocusFrom(key tcell.Key) {
+	inst.Input.tabNavigator.FocusFrom(key)
 }
