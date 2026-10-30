@@ -1605,3 +1605,155 @@ func TestSelectableTable__ColumnExpansionSurvivesSortingAndLoading(t *testing.T)
 		t.Errorf("expansion after load = %d, want 1", got)
 	}
 }
+
+func filterTable(t *testing.T) *SelectableTable[string] {
+	t.Helper()
+	var table = NewSelectableTable[string]("Items", TableRow{"Name", "Kind"}, newTestAppContext()).
+		SetFilterColumns(0, 1)
+	table.SetData(
+		[]TableRow{{"orders", "queue"}, {"billing", "topic"}, {"order-billing", "queue"}},
+		[]string{"p1", "p2", "p3"}, 0,
+	)
+	return table
+}
+
+func TestSelectableTable__SearchFiltersTheRowsBestMatchFirst(t *testing.T) {
+	var table = filterTable(t)
+
+	table.SetSearchText("ord")
+
+	if got := strings.Join(columnTexts(table, 0), ","); got != "orders,order-billing" {
+		t.Errorf("rows = %s", got)
+	}
+	if got := table.GetPrivateData(2, 0); got != "p3" {
+		t.Errorf("private data = %q, want p3 with its row", got)
+	}
+	if title := table.GetTitle(); title != "Items ❬2❭ ❬filter: ord of 3❭" {
+		t.Errorf("title = %q", title)
+	}
+}
+
+func TestSelectableTable__FilterMatchesTheJoinedColumnsAndIgnoresCase(t *testing.T) {
+	var table = filterTable(t)
+
+	table.SetSearchText("BILLING TOPIC")
+
+	if got := strings.Join(columnTexts(table, 0), ","); got != "billing" {
+		t.Errorf("rows = %s, want billing", got)
+	}
+}
+
+func TestSelectableTable__FilterStaysWhenTheRowsAreSetAndExtended(t *testing.T) {
+	var table = filterTable(t)
+	table.SetSearchText("bill")
+
+	table.SetData([]TableRow{{"billing-2", "x"}, {"other", "y"}}, []string{"a", "b"}, 0)
+	if got := strings.Join(columnTexts(table, 0), ","); got != "billing-2" {
+		t.Errorf("rows after set = %s", got)
+	}
+
+	table.ExtendData([]TableRow{{"my-billing", "z"}, {"nothing", "z"}}, []string{"c", "d"})
+	if got := strings.Join(columnTexts(table, 0), ","); got != "billing-2,my-billing" {
+		t.Errorf("rows after extend = %s", got)
+	}
+}
+
+func TestSelectableTable__ClearingTheFilterShowsAllRowsAsLoaded(t *testing.T) {
+	var table = filterTable(t)
+	table.SetSearchText("bill")
+
+	table.ClearFilter()
+
+	if got := strings.Join(columnTexts(table, 0), ","); got != "orders,billing,order-billing" {
+		t.Errorf("rows = %s", got)
+	}
+	if text := table.GetSearchText(); text != "" {
+		t.Errorf("search text = %q, want it cleared", text)
+	}
+}
+
+func TestSelectableTable__FilterAndSortWorkTogether(t *testing.T) {
+	var table = filterTable(t)
+	table.SetSearchText("order")
+	pressTableKey(table, tcell.KeyRune, APP_KEY_BINDINGS.Sort)
+
+	if got := strings.Join(columnTexts(table, 0), ","); got != "order-billing,orders" {
+		t.Errorf("rows = %s, want them sorted", got)
+	}
+
+	table.ClearFilter()
+	if got := strings.Join(columnTexts(table, 0), ","); got != "billing,order-billing,orders" {
+		t.Errorf("rows = %s, want all of them sorted", got)
+	}
+}
+
+func TestSelectableTable__CellTextSetOnARowSurvivesSortingAndFiltering(t *testing.T) {
+	var table = filterTable(t)
+
+	table.SetCellText(2, 1, "marked") // billing
+	pressTableKey(table, tcell.KeyRune, APP_KEY_BINDINGS.Sort)
+	if got := strings.Join(columnTexts(table, 1), ","); got != "marked,queue,queue" {
+		t.Errorf("kinds after sort = %s", got)
+	}
+	if got := table.GetPrivateData(1, 0); got != "p2" {
+		t.Errorf("private data = %q, want it kept with the row", got)
+	}
+
+	table.SetSearchText("marked")
+	if got := strings.Join(columnTexts(table, 0), ","); got != "billing" {
+		t.Errorf("rows matching the new text = %s", got)
+	}
+}
+
+func pinnedTable(t *testing.T) *SelectableTable[string] {
+	t.Helper()
+	var table = NewSelectableTable[string]("Items", TableRow{"Name"}, newTestAppContext()).
+		SetFilterColumns(0).
+		SetPinnedFunc(func(row TableRow, private string) bool { return row[0] == "../" })
+	table.SetData(
+		[]TableRow{{"../"}, {"dir-b/"}, {"file-a"}, {"dir-a/"}},
+		[]string{"up", "b", "a", "da"}, 0,
+	)
+	return table
+}
+
+func TestSelectableTable__PinnedRowsStayFirstWhateverTheFilterAndSort(t *testing.T) {
+	var table = pinnedTable(t)
+
+	table.SetSearchText("dir")
+	if got := strings.Join(columnTexts(table, 0), ","); got != "../,dir-b/,dir-a/" {
+		t.Errorf("filtered = %s", got)
+	}
+	if title := table.GetTitle(); title != "Items ❬3❭ ❬filter: dir of 3❭" {
+		t.Errorf("title = %q, want the pinned row left out of the total", title)
+	}
+
+	table.SetSearchText("nothing")
+	if got := strings.Join(columnTexts(table, 0), ","); got != "../" {
+		t.Errorf("no match = %s", got)
+	}
+
+	table.ClearFilter()
+	pressTableKey(table, tcell.KeyRune, APP_KEY_BINDINGS.Sort)
+	if got := strings.Join(columnTexts(table, 0), ","); got != "../,dir-a/,dir-b/,file-a" {
+		t.Errorf("sorted = %s", got)
+	}
+	pressTableKey(table, tcell.KeyRune, APP_KEY_BINDINGS.Sort)
+	if got := strings.Join(columnTexts(table, 0), ","); got != "../,file-a,dir-b/,dir-a/" {
+		t.Errorf("sorted descending = %s", got)
+	}
+	if got := table.GetPrivateData(1, 0); got != "up" {
+		t.Errorf("private data = %q, want it with the pinned row", got)
+	}
+}
+
+func TestSelectableTable__PinnedRowsAreKeptWhenRowsAreAdded(t *testing.T) {
+	var table = pinnedTable(t)
+	pressTableKey(table, tcell.KeyRune, APP_KEY_BINDINGS.Sort)
+
+	table.ExtendData([]TableRow{{"aaa"}}, []string{"x"})
+
+	if got := strings.Join(columnTexts(table, 0), ","); got != "../,aaa,dir-a/,dir-b/,file-a" {
+		t.Errorf("rows = %s", got)
+	}
+}

@@ -90,7 +90,12 @@ type SelectableTable[T any] struct {
 	titleExtra           string
 	headings             TableRow
 	rowCount             int
+	all                  []tableRow[T]
 	rows                 []tableRow[T]
+	filter               string
+	filterCols           []int
+	pinnedFunc           func(row TableRow, private T) bool
+	pinnedCount          int
 	nextSeq              int
 	expansions           map[int]int
 	sortCol              int
@@ -183,11 +188,15 @@ func (inst *SelectableTable[T]) RefreshTitle(rowcount int) {
 		tableTitle += " ❬" + moreRowsMarker + "❭"
 	}
 
+	if len(inst.filter) > 0 {
+		tableTitle += fmt.Sprintf(" ❬filter: %s of %d❭", inst.filter, len(inst.all)-inst.pinnedCount)
+	}
+
 	if inst.sortDir != sortNone {
 		tableTitle += fmt.Sprintf(" ❬sorted: %s %s❭", inst.headings[inst.sortCol], inst.sortDir.arrow())
 	}
 
-	if searchText := inst.GetSearchText(); len(searchText) > 0 {
+	if searchText := inst.GetSearchText(); len(searchText) > 0 && inst.filterCols == nil {
 		tableTitle = fmt.Sprintf(
 			"%s ❬%s: %d/%d❭",
 			tableTitle,
@@ -201,6 +210,7 @@ func (inst *SelectableTable[T]) RefreshTitle(rowcount int) {
 }
 
 func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privateDataCol int) error {
+	inst.all = nil
 	inst.rows = nil
 	inst.nextSeq = 0
 	inst.rowCount = 0
@@ -245,10 +255,14 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 		inst.privateColumn = privateDataCol
 	}
 
-	inst.appendRows(data, privateData)
-	inst.rowCount = len(data)
+	inst.addRows(data, privateData)
+	inst.arrange()
 	inst.RefreshTitle(0)
-	inst.sortRows()
+
+	if len(inst.rows) == 0 {
+		inst.MoreLoaded()
+		return nil
+	}
 
 	// Select last, as the selection changed handlers read the private data
 	inst.table.Select(inst.rowAfterLoad(), 0)
@@ -256,21 +270,20 @@ func (inst *SelectableTable[T]) SetData(data []TableRow, privateData []T, privat
 	return nil
 }
 
-// appendRows adds the rows to the model and their cells to the end of the table.
-// The data and private data are known to match.
-func (inst *SelectableTable[T]) appendRows(data []TableRow, privateData []T) {
-	var first = len(inst.rows)
+// addRows adds the rows to the model, and gives back the ones added. The data
+// and private data are known to match.
+func (inst *SelectableTable[T]) addRows(data []TableRow, privateData []T) []tableRow[T] {
+	var first = len(inst.all)
 	for i, rowData := range data {
 		var row = tableRow[T]{text: rowData, seq: inst.nextSeq}
 		inst.nextSeq++
 		if i < len(privateData) {
 			row.private = &privateData[i]
 		}
-		inst.rows = append(inst.rows, row)
+		row.filterText = inst.filterTextOf(row.text)
+		inst.all = append(inst.all, row)
 	}
-	for i := first; i < len(inst.rows); i++ {
-		inst.drawRow(i)
-	}
+	return inst.all[first:]
 }
 
 // drawRow puts the cells of the row in the model at the place it has in the
@@ -394,14 +407,21 @@ func (inst *SelectableTable[T]) ExtendData(data []TableRow, privateData []T) err
 		keepSeq = inst.rows[keep-1].seq
 	}
 
-	inst.rowCount += len(data)
-	inst.RefreshTitle(0)
-
-	inst.appendRows(data, privateData)
-	if inst.sortRows() {
+	var added = inst.addRows(data, privateData)
+	if len(inst.filter) == 0 && inst.sortDir == sortNone && inst.pinnedFunc == nil {
+		// The rows go at the end, so the rows shown stay as they are
+		for _, row := range added {
+			row.order = len(inst.rows)
+			inst.rows = append(inst.rows, row)
+			inst.drawRow(len(inst.rows) - 1)
+		}
+		inst.rowCount = len(inst.rows)
+	} else {
+		inst.arrange()
 		inst.reapplySearch()
-		keep = inst.rowOfSeq(keepSeq, keep)
+		keep = min(inst.rowOfSeq(keepSeq, keep), len(inst.rows))
 	}
+	inst.RefreshTitle(0)
 
 	inst.table.Select(keep, 0)
 	return nil
