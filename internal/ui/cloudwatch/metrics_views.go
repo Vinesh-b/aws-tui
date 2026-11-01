@@ -42,6 +42,7 @@ func NewMetricsDetailsView(
 		tabView, metricsTableSize,
 		metricListTable, metricsTableSize,
 		tview.FlexRow,
+		serviceViewCtx.AppContext,
 	)
 
 	var serviceView = core.NewServicePageView(serviceViewCtx.AppContext)

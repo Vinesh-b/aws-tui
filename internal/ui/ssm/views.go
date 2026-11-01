@@ -75,6 +75,7 @@ func NewParametersPageView(
 		detailsTabView, detailsSize,
 		tabView, itemsTableSize,
 		tview.FlexRow,
+		serviceCtx.AppContext,
 	)
 
 	var serviceView = core.NewServicePageView(serviceCtx.AppContext)

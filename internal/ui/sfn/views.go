@@ -64,6 +64,7 @@ func NewSfnDetailsPageView(
 		tabView, detailsViewSize,
 		sfnListTable, tableViewSize,
 		tview.FlexRow,
+		serviceViewCtx.AppContext,
 	)
 
 	var serviceView = core.NewServicePageView(serviceViewCtx.AppContext)
@@ -190,6 +191,7 @@ func NewSfnExecutionDetailsPage(
 		executionStates, statesViewSize,
 		executionStateEvents, eventsViewSize,
 		tview.FlexColumn,
+		serviceViewCtx.AppContext,
 	)
 
 	const stateEventsViewSize = 10
@@ -199,6 +201,7 @@ func NewSfnExecutionDetailsPage(
 		tabView, tabPaneViewSize,
 		resizableStatesView, stateEventsViewSize,
 		tview.FlexRow,
+		serviceViewCtx.AppContext,
 	)
 	var serviceView = core.NewServicePageView(serviceViewCtx.AppContext)
 	serviceView.MainPage.

@@ -36,6 +36,7 @@ func NewLogEventsPageView(
 		expandedLogsView, expandedLogsSize,
 		logEventsTable, logTableSize,
 		tview.FlexRow,
+		serviceViewCtx.AppContext,
 	)
 
 	var serviceView = core.NewServicePageView(serviceViewCtx.AppContext)

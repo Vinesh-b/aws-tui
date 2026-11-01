@@ -48,6 +48,7 @@ func NewApiGatewayApisPageView(
 		endpointsView, endpointsTreeSize,
 		methodDetailsTable, methodDetailsSize,
 		tview.FlexColumn,
+		serviceCtx.AppContext,
 	)
 	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
 		AddAndSwitchToTab(ApiGatewayTabNameDetails, detailsTable, 0, 1, true).
@@ -61,6 +62,7 @@ func NewApiGatewayApisPageView(
 		tabView, tabViewSize,
 		apisTable, apisTableSize,
 		tview.FlexRow,
+		serviceCtx.AppContext,
 	)
 	var serviceView = core.NewServicePageView(serviceCtx.AppContext)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
@@ -81,12 +83,6 @@ func NewApiGatewayApisPageView(
 	}
 	apisTable.ErrorMessageCallback = errorHandler
 	endpointsView.ErrorMessageCallback = errorHandler
-
-	tabView.GetTab(ApiGatewayTabNameEndpoints).InitViewNavigation(
-		[][]core.View{
-			{endpointsView, methodDetailsTable},
-		},
-	)
 
 	view.InitViewNavigation(
 		[][]core.View{

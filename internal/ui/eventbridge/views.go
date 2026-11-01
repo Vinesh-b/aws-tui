@@ -52,12 +52,6 @@ func NewEventBridgeDetailsPageView(
 		AddTab(EventBridgeTabNameRules, rulesTabView, 0, 1, true).
 		AddTab(EventBridgeTabNameSend, sendEventView, 0, 1, true)
 
-	tabView.GetTab(EventBridgeTabNameRules).InitViewNavigation(
-		[][]core.View{
-			{rulesTabView.RulesTable, rulesTabView.JsonView.TextView},
-		},
-	)
-
 	const detailsViewSize = 5000
 	const tableViewSize = 5000
 
@@ -65,6 +59,7 @@ func NewEventBridgeDetailsPageView(
 		tabView, detailsViewSize,
 		busListTable, tableViewSize,
 		tview.FlexRow,
+		serviceCtx.AppContext,
 	)
 	var serviceView = core.NewServicePageView(serviceCtx.AppContext)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)

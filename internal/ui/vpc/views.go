@@ -51,6 +51,7 @@ func NewVpcDetailsPageView(
 		tabView, detailsViewSize,
 		vpcListTable, tableViewSize,
 		tview.FlexRow,
+		serviceCtx.AppContext,
 	)
 	var serviceView = core.NewServicePageView(serviceCtx.AppContext)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)

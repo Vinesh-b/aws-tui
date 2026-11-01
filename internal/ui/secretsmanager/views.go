@@ -48,6 +48,7 @@ func NewSecretsPageView(
 		tabView, detailsSize,
 		secretsTable, secretsTableSize,
 		tview.FlexRow,
+		serviceCtx.AppContext,
 	)
 
 	var serviceView = core.NewServicePageView(serviceCtx.AppContext)

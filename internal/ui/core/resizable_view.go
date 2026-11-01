@@ -5,6 +5,9 @@ import (
 	"github.com/rivo/tview"
 )
 
+// ResizableView splits its space between two views, whose sizes the resize
+// keys change. The focus keys along the split move between the two views when
+// it is inside another view's navigation, such as a tab.
 type ResizableView struct {
 	*tview.Flex
 	view1           View
@@ -12,10 +15,14 @@ type ResizableView struct {
 	view2           View
 	view2Defaultlen int
 	direction       int
+	// focusedView is the pane focused last, which is focused again when the
+	// view is entered from a side that doesn't pick one
+	focusedView View
+	appCtx      *AppContext
 }
 
 func NewResizableView(
-	view1 View, view1Len int, view2 View, view2Len int, direction int,
+	view1 View, view1Len int, view2 View, view2Len int, direction int, appCtx *AppContext,
 ) *ResizableView {
 	var view = &ResizableView{
 		Flex:            tview.NewFlex(),
@@ -24,6 +31,8 @@ func NewResizableView(
 		view2:           view2,
 		view2Defaultlen: view2Len,
 		direction:       direction,
+		focusedView:     view1,
+		appCtx:          appCtx,
 	}
 	view.SetDirection(direction).
 		AddItem(view1, 0, view1Len, true).
@@ -79,4 +88,58 @@ func (inst *ResizableView) paneResizeHightHandler(event *tcell.EventKey) *tcell.
 	}
 
 	return event
+}
+
+// paneKeys are the focus keys that move to the first and the second pane,
+// which are those along the direction of the split
+func (inst *ResizableView) paneKeys() (tcell.Key, tcell.Key) {
+	if inst.direction == tview.FlexRow {
+		return APP_KEY_BINDINGS.ViewFocusUp, APP_KEY_BINDINGS.ViewFocusDown
+	}
+	return APP_KEY_BINDINGS.ViewFocusLeft, APP_KEY_BINDINGS.ViewFocusRight
+}
+
+func (inst *ResizableView) focusPane(pane View, key tcell.Key) {
+	inst.focusedView = pane
+	if nested, ok := pane.(NestedNavigation); ok {
+		nested.FocusFrom(key)
+		return
+	}
+	inst.appCtx.App.SetFocus(pane)
+}
+
+// NavigateWithin moves focus within the focused pane, or to the other pane
+// with the focus keys along the split. It is false at the edge of the split
+// and for the other keys, so the parent navigation moves focus instead.
+func (inst *ResizableView) NavigateWithin(key tcell.Key) bool {
+	var focused, other = inst.view1, inst.view2
+	if inst.view2.HasFocus() {
+		focused, other = inst.view2, inst.view1
+	}
+	inst.focusedView = focused
+
+	if nested, ok := focused.(NestedNavigation); ok && nested.NavigateWithin(key) {
+		return true
+	}
+
+	var toFirst, toSecond = inst.paneKeys()
+	if (focused == inst.view1 && key == toSecond) || (focused == inst.view2 && key == toFirst) {
+		inst.focusPane(other, key)
+		return true
+	}
+	return false
+}
+
+// FocusFrom focuses the pane nearest the side being entered from, or the pane
+// focused last when entered across the split or without a key.
+func (inst *ResizableView) FocusFrom(key tcell.Key) {
+	var toFirst, toSecond = inst.paneKeys()
+	switch key {
+	case toSecond:
+		inst.focusPane(inst.view1, key)
+	case toFirst:
+		inst.focusPane(inst.view2, key)
+	default:
+		inst.focusPane(inst.focusedView, key)
+	}
 }

@@ -23,6 +23,7 @@ func newIamPageView(
 		tabView, tabViewSize,
 		listTable, listTableSize,
 		tview.FlexRow,
+		appCtx,
 	)
 	var serviceView = core.NewServicePageView(appCtx)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)

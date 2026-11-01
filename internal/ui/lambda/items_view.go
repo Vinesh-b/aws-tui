@@ -45,6 +45,7 @@ func NewLambdaItemsView[T any](
 			listTable, listTableSize,
 			detailsTable, detailsTableSize,
 			tview.FlexColumn,
+			serviceCtx.AppContext,
 		),
 		ListTable:    listTable,
 		DetailsTable: detailsTable,

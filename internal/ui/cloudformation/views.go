@@ -27,6 +27,7 @@ func NewStacksDetailsPageView(
 		stackDetailsTable, stackDetailsSize,
 		stackListTable, stackTablesSize,
 		tview.FlexRow,
+		serviceContext.AppContext,
 	)
 
 	var serviceView = core.NewServicePageView(serviceContext.AppContext)
@@ -91,6 +92,7 @@ func NewStackEventsPageView(
 		expandedMsgView, expandedMsgSize,
 		stackEventsTable, stackEventsSize,
 		tview.FlexRow,
+		serviceContext.AppContext,
 	)
 
 	var serviceView = core.NewServicePageView(serviceContext.AppContext)

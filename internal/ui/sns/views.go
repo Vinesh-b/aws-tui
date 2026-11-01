@@ -46,6 +46,7 @@ func NewSnsDetailsPageView(
 		tabView, detailsViewSize,
 		topicListTable, tableViewSize,
 		tview.FlexRow,
+		serviceCtx.AppContext,
 	)
 	var serviceView = core.NewServicePageView(serviceCtx.AppContext)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)

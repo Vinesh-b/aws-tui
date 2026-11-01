@@ -46,12 +46,14 @@ func NewS3bucketsDetailsView(
 		bucketObjectsTable, 5500,
 		tabView, 4500,
 		tview.FlexColumn,
+		serviceViewCtx.AppContext,
 	)
 
 	var mainPage = core.NewResizableView(
 		details, objectsTableSize,
 		bucketListTable, bucketsTableSize,
 		tview.FlexRow,
+		serviceViewCtx.AppContext,
 	)
 
 	var serviceView = core.NewServicePageView(serviceViewCtx.AppContext)

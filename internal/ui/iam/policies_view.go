@@ -46,6 +46,7 @@ func NewPrincipalPoliciesView(
 			policiesTable, policiesTableSize,
 			documentView, documentSize,
 			tview.FlexColumn,
+			serviceCtx.AppContext,
 		),
 		PoliciesTable: policiesTable,
 		DocumentView:  documentView,

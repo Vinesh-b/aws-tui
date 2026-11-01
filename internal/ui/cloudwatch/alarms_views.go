@@ -40,6 +40,7 @@ func NewAlarmsDetailsPageView(
 		tabView, alarmTabViewSize,
 		alarmListTable, alarmsTableSize,
 		tview.FlexRow,
+		serviceContext.AppContext,
 	)
 
 	var mainPage = tview.NewFlex().SetDirection(tview.FlexRow).

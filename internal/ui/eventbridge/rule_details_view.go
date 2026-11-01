@@ -97,6 +97,7 @@ func NewRulesTabView(
 			rulesTable, rulesTableSize,
 			jsonView.TextView, ruleDetailSize,
 			tview.FlexColumn,
+			serviceCtx.AppContext,
 		),
 		RulesTable: rulesTable,
 		JsonView:   jsonView,

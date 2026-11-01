@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/uitest"
 
@@ -138,5 +139,47 @@ func TestTriggersView__MappingsAreShownWhenThePolicyFails(t *testing.T) {
 	uitest.AwaitRows(t, app, view.ListTable, []core.TableRow{
 		{"Source", "Type", "State", "Batch Size"},
 		{"orders-queue", "SQS", "Enabled", "10"},
+	})
+}
+
+func TestTriggersView__FocusKeysMoveBetweenTheListAndTheDetails(t *testing.T) {
+	var api = &fakeLambdaApi{mappings: map[string][]types.EventSourceMappingConfiguration{ordersArn: {newQueueMapping()}}}
+	var serviceCtx = uitest.NewServiceContextWith[awsapi.LambdaApi](api)
+	var view = NewLambdaTriggersView(serviceCtx)
+	var below = core.NewSelectableTable[string]("Lambdas", core.TableRow{"Name"}, serviceCtx.AppContext)
+
+	// The tab is laid out as on the lambda page, above the list of lambdas
+	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
+		AddAndSwitchToTab(LambdaTabTriggers, view, 0, 1, true)
+	var page = core.NewServicePageView(serviceCtx.AppContext)
+	page.MainPage.AddItem(tabView, 0, 1, true).AddItem(below, 0, 1, false)
+	page.InitViewNavigation([][]core.View{{tabView}, {below}})
+
+	var app = serviceCtx.App
+	uitest.ShowPage(t, app, page)
+	uitest.OnUI(t, app, func() {
+		view.Refresh(ordersArn)
+		app.SetFocus(view.ListTable)
+	})
+
+	uitest.PressKey(t, app, core.APP_KEY_BINDINGS.ViewFocusRight)
+	uitest.OnUI(t, app, func() {
+		if !view.DetailsTable.HasFocus() {
+			t.Error("right did not move focus to the trigger details")
+		}
+	})
+
+	uitest.PressKey(t, app, core.APP_KEY_BINDINGS.ViewFocusLeft)
+	uitest.OnUI(t, app, func() {
+		if !view.ListTable.HasFocus() {
+			t.Error("left did not move focus back to the triggers")
+		}
+	})
+
+	uitest.PressKey(t, app, core.APP_KEY_BINDINGS.ViewFocusDown)
+	uitest.OnUI(t, app, func() {
+		if !below.HasFocus() {
+			t.Error("down did not move focus out of the tab")
+		}
 	})
 }

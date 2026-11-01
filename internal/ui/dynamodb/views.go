@@ -41,6 +41,7 @@ func NewDynamoDBDetailsPageView(
 		tabView, tabViewSize,
 		tablesTable, tablesTableSize,
 		tview.FlexRow,
+		serviceCtx.AppContext,
 	)
 	var serviceView = core.NewServicePageView(serviceCtx.AppContext)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
@@ -112,6 +113,7 @@ func NewDynamoDBItemsPageView(
 		tabView, tabViewSize,
 		itemsTable, itemsTableSize,
 		tview.FlexRow,
+		serviceCtx.AppContext,
 	)
 	var serviceView = core.NewServicePageView(serviceCtx.AppContext)
 	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
