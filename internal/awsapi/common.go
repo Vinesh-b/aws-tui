@@ -18,6 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/scheduler"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
@@ -44,6 +45,7 @@ type AwsApiClients struct {
 	iam            *iam.Client
 	kms            *kms.Client
 	lambda         *lambda.Client
+	scheduler      *scheduler.Client
 	secretsmanager *secretsmanager.Client
 	sfn            *sfn.Client
 	sns            *sns.Client
@@ -70,6 +72,7 @@ func newAwsApiClients(cfg aws.Config, profile string) *AwsApiClients {
 		iam:            iam.NewFromConfig(cfg),
 		kms:            kms.NewFromConfig(cfg),
 		lambda:         lambda.NewFromConfig(cfg),
+		scheduler:      scheduler.NewFromConfig(cfg),
 		secretsmanager: secretsmanager.NewFromConfig(cfg),
 		sfn:            sfn.NewFromConfig(cfg),
 		sns:            sns.NewFromConfig(cfg),

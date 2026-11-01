@@ -113,7 +113,9 @@ func (inst *EventBridgeDetailsPageView) initInputCapture() {
 	})
 }
 
-func NewEventBridgeHomeView(appCtx *core.AppContext, api awsapi.EventBridgeApi) core.ServicePage {
+func NewEventBridgeHomeView(
+	appCtx *core.AppContext, api awsapi.EventBridgeApi, schedulerApi awsapi.SchedulerApi,
+) core.ServicePage {
 	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0x660033))
 	defer appCtx.Theme.ResetGlobalStyle()
 
@@ -126,12 +128,20 @@ func NewEventBridgeHomeView(appCtx *core.AppContext, api awsapi.EventBridgeApi) 
 			NewRulesTabView(NewRulesTable(serviceCtx), serviceCtx),
 			serviceCtx,
 		)
+
+		schedulerCtx  = core.NewServiceViewContext(appCtx, schedulerApi)
+		schedulesView = NewSchedulesPageView(
+			NewScheduleListTable(schedulerCtx),
+			NewScheduleDetailsTable(schedulerCtx),
+			schedulerCtx,
+		)
 	)
 
 	var serviceRootView = core.NewServiceRootView(string(core.EVENTBRIDGE), appCtx)
 
 	serviceRootView.
-		AddAndSwitchToPage("EventBuses", eventbridgeDetailsView, true)
+		AddAndSwitchToPage("EventBuses", eventbridgeDetailsView, true).
+		AddPage("Schedules", schedulesView, true, true)
 
 	serviceRootView.InitPageNavigation()
 

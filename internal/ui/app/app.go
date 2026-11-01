@@ -468,7 +468,9 @@ func CreateApplication(
 			return cloudwatch.NewLogsHomeView(appContext, awsapi.NewCloudWatchLogsApi(appContext.Logger))
 		}),
 		newServiceItem("󰘘 "+string(core.EVENTBRIDGE), "Event buses, rules, schedules...", rune('8'), func() core.ServicePage {
-			return eventbridge.NewEventBridgeHomeView(appContext, awsapi.NewEventBridgeApi(appContext.Logger))
+			return eventbridge.NewEventBridgeHomeView(
+				appContext, awsapi.NewEventBridgeApi(appContext.Logger), awsapi.NewSchedulerApi(appContext.Logger),
+			)
 		}),
 		newServiceItem(" "+string(core.CLOUDFORMATION), "Cloud formation stacks", rune('󰯉'), func() core.ServicePage {
 			return cloudformation.NewStacksHomeView(appContext, awsapi.NewCloudFormationApi(appContext.Logger))
