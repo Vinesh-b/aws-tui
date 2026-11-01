@@ -2,9 +2,12 @@ package lambda
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
@@ -115,27 +118,80 @@ func eventSourceRows(mapping eventSourceMapping) []core.TableRow {
 	return rows
 }
 
-// NewLambdaTriggersView lists the event sources that invoke the lambda beside
-// the details of the selected one.
-func NewLambdaTriggersView(serviceCtx *core.ServiceContext[awsapi.LambdaApi]) *LambdaItemsView[eventSourceMapping] {
+// lambdaTrigger is what invokes the lambda: an event source mapping, or a
+// policy statement that lets API Gateway invoke it
+type lambdaTrigger struct {
+	mapping    *eventSourceMapping
+	apiGateway *apiGatewayTrigger
+}
+
+// MarshalJSON gives the mapping or the policy statement, so the raw view shows
+// what the trigger was read from
+func (inst lambdaTrigger) MarshalJSON() ([]byte, error) {
+	if inst.apiGateway != nil {
+		return inst.apiGateway.Statement, nil
+	}
+	return json.Marshal(inst.mapping)
+}
+
+func (inst lambdaTrigger) row() core.TableRow {
+	if inst.apiGateway != nil {
+		return core.TableRow{inst.apiGateway.name(), "API Gateway", "", ""}
+	}
+	var sourceType, sourceName = eventSource(*inst.mapping)
+	return core.TableRow{
+		sourceName,
+		sourceType,
+		aws.ToString(inst.mapping.State),
+		core.FormatOptionalInt(inst.mapping.BatchSize),
+	}
+}
+
+func (inst lambdaTrigger) name() string {
+	return inst.row()[0]
+}
+
+func (inst lambdaTrigger) details() []core.TableRow {
+	if inst.apiGateway != nil {
+		return apiGatewayTriggerRows(*inst.apiGateway)
+	}
+	return eventSourceRows(*inst.mapping)
+}
+
+// loadTriggers lists the event source mappings and then the API Gateway
+// triggers of the policy. Both are loaded at once, and the triggers of one
+// are still given when the other fails.
+func loadTriggers(ctx context.Context, api awsapi.LambdaApi, lambdaArn string) ([]lambdaTrigger, error) {
+	var mappings []eventSourceMapping
+	var policy string
+	var mappingsErr, policyErr error
+
+	var wg sync.WaitGroup
+	wg.Go(func() { mappings, mappingsErr = api.ListEventSourceMappings(ctx, lambdaArn) })
+	wg.Go(func() { policy, policyErr = api.GetPolicy(ctx, lambdaArn) })
+	wg.Wait()
+
+	var triggers []lambdaTrigger
+	for i := range mappings {
+		triggers = append(triggers, lambdaTrigger{mapping: &mappings[i]})
+	}
+	for _, trigger := range apiGatewayTriggers(policy) {
+		triggers = append(triggers, lambdaTrigger{apiGateway: &trigger})
+	}
+
+	return triggers, errors.Join(mappingsErr, policyErr)
+}
+
+// NewLambdaTriggersView lists the event sources and API Gateway methods that
+// invoke the lambda beside the details of the selected one.
+func NewLambdaTriggersView(serviceCtx *core.ServiceContext[awsapi.LambdaApi]) *LambdaItemsView[lambdaTrigger] {
 	return NewLambdaItemsView(serviceCtx, "Triggers", "Trigger Details",
 		core.TableRow{"Source", "Type", "State", "Batch Size"},
-		func(mapping eventSourceMapping) core.TableRow {
-			var sourceType, sourceName = eventSource(mapping)
-			return core.TableRow{
-				sourceName,
-				sourceType,
-				aws.ToString(mapping.State),
-				core.FormatOptionalInt(mapping.BatchSize),
-			}
-		},
-		func(mapping eventSourceMapping) string {
-			var _, sourceName = eventSource(mapping)
-			return sourceName
-		},
-		eventSourceRows,
-		func(ctx context.Context, lambdaArn string) ([]eventSourceMapping, error) {
-			return serviceCtx.Api.ListEventSourceMappings(ctx, lambdaArn)
+		lambdaTrigger.row,
+		lambdaTrigger.name,
+		lambdaTrigger.details,
+		func(ctx context.Context, lambdaArn string) ([]lambdaTrigger, error) {
+			return loadTriggers(ctx, serviceCtx.Api, lambdaArn)
 		},
 	)
 }

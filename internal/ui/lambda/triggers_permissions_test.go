@@ -118,7 +118,7 @@ func TestEventSourceRows__StreamSourcesAreNotLinked(t *testing.T) {
 	}
 }
 
-func newRunningTriggersView(t *testing.T, api *fakeLambdaApi) *LambdaItemsView[eventSourceMapping] {
+func newRunningTriggersView(t *testing.T, api *fakeLambdaApi) *LambdaItemsView[lambdaTrigger] {
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.LambdaApi](api)
 	var view = NewLambdaTriggersView(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)

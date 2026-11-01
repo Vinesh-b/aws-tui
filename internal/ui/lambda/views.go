@@ -38,7 +38,7 @@ type LambdaDetailsPageView struct {
 	LogStreamsTable    *cloudwatch.LogStreamsTable
 	LambdaInvokeView   *LambdaInvokePageView
 	LambdaMetricsView  *LambdaMetricsPageView
-	TriggersView       *LambdaItemsView[eventSourceMapping]
+	TriggersView       *LambdaItemsView[lambdaTrigger]
 	PermissionsView    *LambdaPermissionsView
 	VersionsView       *LambdaItemsView[lambdaVersion]
 	LayersView         *LambdaItemsView[lambdaLayer]
