@@ -1,6 +1,7 @@
 package sfn
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -63,10 +64,10 @@ func (inst *SfnListTable) populateTable(data []types.StateMachineListItem) {
 }
 
 func (inst *SfnListTable) RefreshStateMachines(reset bool) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.serviceCtx.Api.ListStateMachines(inst.serviceCtx.Ctx, reset)
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
+		var data, err = inst.serviceCtx.Api.ListStateMachines(ctx, reset)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

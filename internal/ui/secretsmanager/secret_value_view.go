@@ -2,6 +2,7 @@ package secretsmanager
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -42,12 +43,12 @@ func (inst *SecretValueView) Clear() {
 // RefreshValue fetches the value of the secret and calls onLoaded once it is
 // shown
 func (inst *SecretValueView) RefreshValue(secretId string, onLoaded func()) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 	var value string
 	var failed bool
 
-	dataLoader.AsyncLoadData(func() {
-		var output, err = inst.serviceCtx.Api.GetSecretValue(inst.serviceCtx.Ctx, secretId)
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
+		var output, err = inst.serviceCtx.Api.GetSecretValue(ctx, secretId)
 		if err != nil {
 			failed = true
 			inst.ErrorMessageCallback("%s", err.Error())

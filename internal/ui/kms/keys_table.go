@@ -1,6 +1,7 @@
 package kms
 
 import (
+	"context"
 	"slices"
 	"strings"
 
@@ -100,11 +101,11 @@ func (inst *KmsKeysTable) RefreshKeys(force bool) {
 
 func (inst *KmsKeysTable) refreshKeys(force bool, loaded func()) {
 	var keys []kmsKey
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
-		var listed, keysErr = inst.serviceCtx.Api.ListKeys(inst.serviceCtx.Ctx, force)
-		var aliases, aliasesErr = inst.serviceCtx.Api.ListAliases(inst.serviceCtx.Ctx, force)
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
+		var listed, keysErr = inst.serviceCtx.Api.ListKeys(ctx, force)
+		var aliases, aliasesErr = inst.serviceCtx.Api.ListAliases(ctx, force)
 		keys = joinAliases(listed, aliases)
 		for _, err := range []error{keysErr, aliasesErr} {
 			if err != nil {

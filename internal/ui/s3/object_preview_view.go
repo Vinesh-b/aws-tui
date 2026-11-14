@@ -2,6 +2,7 @@ package s3
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"path"
@@ -146,17 +147,17 @@ func (inst *ObjectPreviewView) load() {
 	inst.loadedFor = target
 	inst.showMessage("Loading...")
 
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 30)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 30)
 	var content []byte
 	var blocker string
 	var loadFailed = false
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var api = inst.serviceCtx.Api
-		var head, err = api.HeadObject(inst.serviceCtx.Ctx, bucket, key, true)
+		var head, err = api.HeadObject(ctx, bucket, key, true)
 		if err == nil {
 			if blocker = previewBlocker(head, key); len(blocker) == 0 {
-				content, err = api.GetObjectContent(inst.serviceCtx.Ctx, bucket, key, maxPreviewBytes)
+				content, err = api.GetObjectContent(ctx, bucket, key, maxPreviewBytes)
 			}
 		}
 		if err != nil {

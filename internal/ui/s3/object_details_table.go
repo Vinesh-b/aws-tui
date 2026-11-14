@@ -1,6 +1,7 @@
 package s3
 
 import (
+	"context"
 	"maps"
 	"slices"
 
@@ -73,11 +74,11 @@ func (inst *S3ObjectDetailsTable) populateS3ObjectDetailsTable() {
 }
 
 func (inst *S3ObjectDetailsTable) RefreshDetails(bucketArn string, objectKey string) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 	var loadFailed = false
 
-	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.serviceCtx.Api.HeadObject(inst.serviceCtx.Ctx, bucketArn, objectKey, true)
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
+		var data, err = inst.serviceCtx.Api.HeadObject(ctx, bucketArn, objectKey, true)
 		if err != nil {
 			loadFailed = true
 			inst.ErrorMessageCallback("%s", err.Error())

@@ -3,6 +3,7 @@ package cloudwatch
 import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"context"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
@@ -50,9 +51,9 @@ func (inst *MetricDetailsTable) populateMetricDetailsTable() {
 
 func (inst *MetricDetailsTable) RefreshDetails(metric types.Metric, reset bool) {
 	inst.data = metric
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {})
+	dataLoader.AsyncLoadData(func(context.Context) {})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateMetricDetailsTable()

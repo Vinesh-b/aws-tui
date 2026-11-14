@@ -3,6 +3,7 @@ package dynamodb
 import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"context"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -49,11 +50,11 @@ func (inst *DynamoDBTablesTable) populateTablesTable() {
 }
 
 func (inst *DynamoDBTablesTable) RefreshTables(force bool) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error
-		inst.data, err = inst.serviceCtx.Api.ListTables(inst.serviceCtx.Ctx, force)
+		inst.data, err = inst.serviceCtx.Api.ListTables(ctx, force)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

@@ -1,6 +1,7 @@
 package cloudwatch
 
 import (
+	"context"
 	"fmt"
 	"slices"
 
@@ -116,10 +117,10 @@ func (inst *LogGroupsTable) showMarks() {
 }
 
 func (inst *LogGroupsTable) RefreshLogGroups(reset bool) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.serviceCtx.Api.ListLogGroups(inst.serviceCtx.Ctx, reset)
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
+		var data, err = inst.serviceCtx.Api.ListLogGroups(ctx, reset)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

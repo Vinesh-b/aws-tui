@@ -3,6 +3,7 @@ package cloudwatch
 import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"context"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
@@ -72,10 +73,10 @@ func (inst *AlarmListTable) populateAlarmsTable(data []types.MetricAlarm) {
 }
 
 func (inst *AlarmListTable) RefreshAlarms(reset bool) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.serviceCtx.Api.ListAlarms(inst.serviceCtx.Ctx, reset)
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
+		var data, err = inst.serviceCtx.Api.ListAlarms(ctx, reset)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

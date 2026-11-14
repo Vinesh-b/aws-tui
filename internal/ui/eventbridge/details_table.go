@@ -3,6 +3,7 @@ package eventbridge
 import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"context"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
@@ -54,10 +55,10 @@ func (inst *EventBusDetailsTable) RefreshDetails(busDetail types.EventBus) {
 	inst.populateEventBusDetailsTable()
 
 	var busArn = aws.ToString(busDetail.Arn)
-	inst.tags.Load(inst.serviceCtx.App, inst.Box, busArn,
+	inst.tags.Load(inst.serviceCtx.AppContext, inst.Box, busArn,
 		func() string { return aws.ToString(inst.data.Arn) },
-		func() ([]core.TableRow, error) {
-			var tags, err = inst.serviceCtx.Api.ListTags(inst.serviceCtx.Ctx, true, busArn)
+		func(ctx context.Context) ([]core.TableRow, error) {
+			var tags, err = inst.serviceCtx.Api.ListTags(ctx, true, busArn)
 			return core.TagRows(tags, func(t types.Tag) (string, string) {
 				return aws.ToString(t.Key), aws.ToString(t.Value)
 			}), err

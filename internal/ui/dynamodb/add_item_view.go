@@ -2,6 +2,7 @@ package dynamodb
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -176,10 +177,10 @@ func (inst *DynamoDBAddItemPageView) AddItem() {
 	}
 
 	var apiErr error
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
-		apiErr = inst.serviceCtx.Api.PutItem(inst.serviceCtx.Ctx, tableName, item)
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
+		apiErr = inst.serviceCtx.Api.PutItem(ctx, tableName, item)
 	})
 
 	dataLoader.AsyncUpdateView(inst.resultOutput.Box, func() {

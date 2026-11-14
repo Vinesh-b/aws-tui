@@ -4,6 +4,7 @@ import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/utils"
+	"context"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
@@ -133,10 +134,10 @@ func (inst *ParametersPageView) decryptValue(name string, version int64, paramTy
 
 	var value string
 	var apiErr error
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
-		value, apiErr = inst.serviceCtx.Api.GetParameterValue(inst.serviceCtx.Ctx, name, version)
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
+		value, apiErr = inst.serviceCtx.Api.GetParameterValue(ctx, name, version)
 	})
 
 	dataLoader.AsyncUpdateView(inst.ParameterValueView.TextView.Box, func() {

@@ -1,6 +1,7 @@
 package ssm
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -91,10 +92,10 @@ func (inst *SSMParametersListTable) populateParametersTable(data []types.Paramet
 }
 
 func (inst *SSMParametersListTable) RefreshParameters(path string, reset bool) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.serviceCtx.Api.GetParametersByPath(inst.serviceCtx.Ctx, path, reset)
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
+		var data, err = inst.serviceCtx.Api.GetParametersByPath(ctx, path, reset)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

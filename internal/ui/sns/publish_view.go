@@ -2,6 +2,7 @@ package sns
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -177,11 +178,11 @@ func (inst *PublishPageView) Publish() {
 
 	var output *sns.PublishOutput
 	var apiErr error
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		output, apiErr = inst.serviceCtx.Api.Publish(
-			inst.serviceCtx.Ctx, topicArn, message, subject, groupId, dedupId, attributes,
+			ctx, topicArn, message, subject, groupId, dedupId, attributes,
 		)
 	})
 

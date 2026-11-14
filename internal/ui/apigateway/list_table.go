@@ -1,6 +1,7 @@
 package apigateway
 
 import (
+	"context"
 	"strings"
 
 	"aws-tui/internal/awsapi"
@@ -82,11 +83,11 @@ func (inst *ApiGatewayApisTable) populateApisTable() {
 // RefreshApis loads the APIs
 func (inst *ApiGatewayApisTable) RefreshApis(force bool) {
 	var data []types.RestApi
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error
-		data, err = inst.serviceCtx.Api.ListRestApis(inst.serviceCtx.Ctx, force)
+		data, err = inst.serviceCtx.Api.ListRestApis(ctx, force)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

@@ -1,6 +1,7 @@
 package lambda
 
 import (
+	"context"
 	"slices"
 
 	"aws-tui/internal/awsapi"
@@ -102,10 +103,10 @@ func (inst *LambdaListTable) selectLambda(name string) bool {
 }
 
 func (inst *LambdaListTable) refreshLambdas(reset bool, loaded func()) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.serviceCtx.Api.ListLambdas(inst.serviceCtx.Ctx, reset)
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
+		var data, err = inst.serviceCtx.Api.ListLambdas(ctx, reset)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

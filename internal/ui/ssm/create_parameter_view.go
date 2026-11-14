@@ -1,6 +1,7 @@
 package ssm
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
@@ -154,10 +155,10 @@ func (inst *ParameterCreatePageView) CreateParameter() {
 
 	var paramType = inst.selectedType()
 	var apiErr error
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
-		apiErr = inst.serviceCtx.Api.CreateParameter(inst.serviceCtx.Ctx, name, value, paramType)
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
+		apiErr = inst.serviceCtx.Api.CreateParameter(ctx, name, value, paramType)
 	})
 
 	dataLoader.AsyncUpdateView(inst.resultOutput.Box, func() {

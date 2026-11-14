@@ -1,6 +1,7 @@
 package eventbridge
 
 import (
+	"context"
 	"fmt"
 
 	"aws-tui/internal/awsapi"
@@ -155,12 +156,12 @@ func (inst *ScheduleListTable) RefreshSchedules() {
 // refreshSchedulesSelecting reloads the schedules, and then selects the one
 // given if it is listed. Otherwise the first one is selected.
 func (inst *ScheduleListTable) refreshSchedulesSelecting(id scheduleId) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 	var schedules []types.ScheduleSummary
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error
-		schedules, err = inst.serviceCtx.Api.ListSchedules(inst.serviceCtx.Ctx)
+		schedules, err = inst.serviceCtx.Api.ListSchedules(ctx)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

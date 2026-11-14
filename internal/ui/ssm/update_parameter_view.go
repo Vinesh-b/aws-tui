@@ -2,6 +2,7 @@ package ssm
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -131,10 +132,10 @@ func (inst *ParameterUpdateValuePageView) LoadCurrentValue() {
 	var name = aws.ToString(parameter.Name)
 	var value string
 	var apiErr error
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
-		value, apiErr = inst.serviceCtx.Api.GetParameterValue(inst.serviceCtx.Ctx, name, parameter.Version)
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
+		value, apiErr = inst.serviceCtx.Api.GetParameterValue(ctx, name, parameter.Version)
 	})
 
 	dataLoader.AsyncUpdateView(inst.resultOutput.Box, func() {
@@ -176,11 +177,11 @@ func (inst *ParameterUpdateValuePageView) UpdateValue() {
 	}
 
 	var apiErr error
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		apiErr = inst.serviceCtx.Api.PutParameter(
-			inst.serviceCtx.Ctx, aws.ToString(parameter.Name), value, parameter.Type,
+			ctx, aws.ToString(parameter.Name), value, parameter.Type,
 		)
 	})
 

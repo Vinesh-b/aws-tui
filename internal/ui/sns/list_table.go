@@ -1,6 +1,7 @@
 package sns
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -104,12 +105,12 @@ func (inst *TopicListTable) populateTopicTable(data []string) {
 }
 
 func (inst *TopicListTable) RefreshTopics(reset bool) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 	var topics []string
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error
-		topics, err = inst.serviceCtx.Api.ListTopics(inst.serviceCtx.Ctx, reset)
+		topics, err = inst.serviceCtx.Api.ListTopics(ctx, reset)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

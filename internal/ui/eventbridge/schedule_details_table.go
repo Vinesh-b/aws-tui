@@ -2,6 +2,7 @@ package eventbridge
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -102,12 +103,12 @@ func (inst *ScheduleDetailsTable) populateScheduleDetailsTable() {
 func (inst *ScheduleDetailsTable) RefreshDetails(id scheduleId) {
 	inst.requested = id
 
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 	var schedule scheduler.GetScheduleOutput
 	var loadErr error
 
-	dataLoader.AsyncLoadData(func() {
-		schedule, loadErr = inst.serviceCtx.Api.GetSchedule(inst.serviceCtx.Ctx, id.Group, id.Name)
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
+		schedule, loadErr = inst.serviceCtx.Api.GetSchedule(ctx, id.Group, id.Name)
 		if loadErr != nil {
 			inst.ErrorMessageCallback("%s", loadErr.Error())
 		}

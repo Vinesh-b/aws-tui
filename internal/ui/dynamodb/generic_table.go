@@ -230,7 +230,7 @@ func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expre
 	if inst.searchCancel != nil {
 		inst.searchCancel()
 	}
-	var ctx, cancel = context.WithCancel(inst.serviceCtx.Ctx)
+	var searchCtx, cancel = context.WithCancel(inst.serviceCtx.Ctx)
 	var previousDone = inst.searchDone
 	var done = make(chan struct{})
 	inst.searchCancel = cancel
@@ -243,22 +243,27 @@ func (inst *DynamoDBGenericTable) ExecuteSearch(operation DDBTableOp, expr expre
 	var description = inst.tableDescription
 	var data []map[string]any
 
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(loadCtx context.Context) {
 		defer close(done)
+
+		// Ends at the timeout of the load and when a newer search takes over
+		var ctx, stop = context.WithCancel(loadCtx)
+		defer stop()
+		defer context.AfterFunc(searchCtx, stop)()
 
 		// The api keeps the pages of the last search, so searches can't overlap
 		if previousDone != nil {
 			<-previousDone
 		}
 
-		if len(tableName) <= 0 || ctx.Err() != nil {
+		if len(tableName) <= 0 || searchCtx.Err() != nil || ctx.Err() != nil {
 			return
 		}
 
 		var reportErr = func(err error) {
-			if err != nil && ctx.Err() == nil {
+			if err != nil && searchCtx.Err() == nil {
 				inst.ErrorMessageCallback("%s", err.Error())
 			}
 		}

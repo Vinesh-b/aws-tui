@@ -1,6 +1,7 @@
 package secretsmanager
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -124,10 +125,10 @@ func (inst *SecretUpdateValuePageView) LoadCurrentValue() {
 
 	var value string
 	var apiErr error
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
-		var output, err = inst.serviceCtx.Api.GetSecretValue(inst.serviceCtx.Ctx, aws.ToString(secret.ARN))
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
+		var output, err = inst.serviceCtx.Api.GetSecretValue(ctx, aws.ToString(secret.ARN))
 		if err != nil {
 			apiErr = err
 			return
@@ -173,10 +174,10 @@ func (inst *SecretUpdateValuePageView) UpdateValue() {
 	}
 
 	var apiErr error
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
-		apiErr = inst.serviceCtx.Api.PutSecretValue(inst.serviceCtx.Ctx, aws.ToString(secret.ARN), value)
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
+		apiErr = inst.serviceCtx.Api.PutSecretValue(ctx, aws.ToString(secret.ARN), value)
 	})
 
 	dataLoader.AsyncUpdateView(inst.resultOutput.Box, func() {

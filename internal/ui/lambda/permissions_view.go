@@ -4,6 +4,7 @@ import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/utils"
+	"context"
 )
 
 const permissionsTitle = "Resource-based Policy"
@@ -56,13 +57,13 @@ func (inst *LambdaPermissionsView) Refresh(lambdaArn string) {
 		return
 	}
 
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 	var policy string
 	var loadFailed = false
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error
-		policy, err = inst.serviceCtx.Api.GetPolicy(inst.serviceCtx.Ctx, lambdaArn)
+		policy, err = inst.serviceCtx.Api.GetPolicy(ctx, lambdaArn)
 		if err != nil {
 			loadFailed = true
 			inst.ErrorMessageCallback("%s", err.Error())

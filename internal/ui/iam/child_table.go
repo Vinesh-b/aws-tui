@@ -55,12 +55,12 @@ func (inst *IamChildTable[T]) Refresh(key string) {
 		return
 	}
 
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 	var items []T
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error
-		items, err = inst.load(inst.serviceCtx.Ctx, key)
+		items, err = inst.load(ctx, key)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

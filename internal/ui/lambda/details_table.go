@@ -1,6 +1,7 @@
 package lambda
 
 import (
+	"context"
 	"time"
 
 	"aws-tui/internal/awsapi"
@@ -111,10 +112,10 @@ func (inst *LambdaDetailsTable) RefreshDetails(config types.FunctionConfiguratio
 	inst.populateLambdaDetailsTable()
 
 	var lambdaArn = aws.ToString(config.FunctionArn)
-	inst.tags.Load(inst.serviceCtx.App, inst.Box, lambdaArn,
+	inst.tags.Load(inst.serviceCtx.AppContext, inst.Box, lambdaArn,
 		func() string { return aws.ToString(inst.data.FunctionArn) },
-		func() ([]core.TableRow, error) {
-			var tags, err = inst.serviceCtx.Api.ListTags(inst.serviceCtx.Ctx, lambdaArn)
+		func(ctx context.Context) ([]core.TableRow, error) {
+			var tags, err = inst.serviceCtx.Api.ListTags(ctx, lambdaArn)
 			return core.SortedRows(tags), err
 		},
 		inst.ErrorMessageCallback,

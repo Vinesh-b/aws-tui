@@ -1,6 +1,7 @@
 package secretsmanager
 
 import (
+	"context"
 	"fmt"
 
 	"aws-tui/internal/awsapi"
@@ -52,9 +53,9 @@ func (inst *SecretDetailsTable) populateDetailsTable() {
 
 func (inst *SecretDetailsTable) RefreshDetails(secret types.SecretListEntry) {
 	inst.data = secret
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {})
+	dataLoader.AsyncLoadData(func(context.Context) {})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateDetailsTable()

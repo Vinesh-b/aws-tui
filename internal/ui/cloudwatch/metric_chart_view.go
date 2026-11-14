@@ -1,6 +1,7 @@
 package cloudwatch
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -170,14 +171,14 @@ func (inst *MetricChartView) load() {
 
 	var metric = inst.metric
 	var end = inst.now()
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 30)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 30)
 	var result types.MetricDataResult
 	var loadFailed = false
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error
 		result, err = inst.serviceCtx.Api.GetMetricData(
-			inst.serviceCtx.Ctx, metric, stat, window.periodSeconds, end.Add(-window.duration), end,
+			ctx, metric, stat, window.periodSeconds, end.Add(-window.duration), end,
 		)
 		if err != nil {
 			loadFailed = true

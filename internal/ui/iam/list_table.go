@@ -66,12 +66,12 @@ func (inst *IamListTable[T]) Refresh(reset bool) {
 }
 
 func (inst *IamListTable[T]) refresh(loaded func()) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 	var items []T
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error
-		items, err = inst.load(inst.serviceCtx.Ctx)
+		items, err = inst.load(ctx)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

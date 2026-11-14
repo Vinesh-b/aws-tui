@@ -1,6 +1,7 @@
 package eventbridge
 
 import (
+	"context"
 	"sync"
 
 	"aws-tui/internal/awsapi"
@@ -64,7 +65,7 @@ func (inst *RulesTable) populateRulesTable(data []types.Rule) {
 	inst.Select(1, 0)
 }
 
-func (inst *RulesTable) loadRuleDetails(busArn string, rules []types.Rule) map[string]RuleDetail {
+func (inst *RulesTable) loadRuleDetails(ctx context.Context, busArn string, rules []types.Rule) map[string]RuleDetail {
 	var details = make(map[string]RuleDetail, len(rules))
 	var mutex sync.Mutex
 	var waitGroup sync.WaitGroup
@@ -79,7 +80,7 @@ func (inst *RulesTable) loadRuleDetails(busArn string, rules []types.Rule) map[s
 			defer func() { <-semaphore }()
 
 			var targets, err = inst.serviceCtx.Api.ListTargetsByRule(
-				inst.serviceCtx.Ctx, true, busArn, aws.ToString(rule.Name),
+				ctx, true, busArn, aws.ToString(rule.Name),
 			)
 
 			mutex.Lock()
@@ -101,23 +102,23 @@ func (inst *RulesTable) loadRuleDetails(busArn string, rules []types.Rule) map[s
 
 func (inst *RulesTable) RefreshRules(busArn string) {
 	inst.busArn = busArn
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 30)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 30)
 	var rules []types.Rule
 	var details map[string]RuleDetail
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		if len(busArn) == 0 {
 			return
 		}
 
 		var err error
-		rules, err = inst.serviceCtx.Api.ListRules(inst.serviceCtx.Ctx, true, busArn)
+		rules, err = inst.serviceCtx.Api.ListRules(ctx, true, busArn)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 			return
 		}
 
-		details = inst.loadRuleDetails(busArn, rules)
+		details = inst.loadRuleDetails(ctx, busArn, rules)
 	})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {

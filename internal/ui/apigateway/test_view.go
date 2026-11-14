@@ -1,6 +1,7 @@
 package apigateway
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -176,11 +177,11 @@ func (inst *ApiGatewayTestPageView) Invoke() {
 
 	var output *apigateway.TestInvokeMethodOutput
 	var apiErr error
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 30)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 30)
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		output, apiErr = inst.serviceCtx.Api.TestInvokeMethod(
-			inst.serviceCtx.Ctx, restApiId, resourceId, httpMethod, path, body, headers,
+			ctx, restApiId, resourceId, httpMethod, path, body, headers,
 		)
 	})
 

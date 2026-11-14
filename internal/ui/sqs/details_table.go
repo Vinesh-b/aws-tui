@@ -1,6 +1,7 @@
 package sqs
 
 import (
+	"context"
 	"encoding/json"
 
 	"aws-tui/internal/awsapi"
@@ -105,22 +106,22 @@ func (inst *QueueDetailsTable) populateQueueDetailsTable() {
 
 func (inst *QueueDetailsTable) RefreshDetails(queueUrl string) {
 	inst.requested = queueUrl
-	inst.tags.Load(inst.serviceCtx.App, inst.Box, queueUrl,
+	inst.tags.Load(inst.serviceCtx.AppContext, inst.Box, queueUrl,
 		func() string { return inst.requested },
-		func() ([]core.TableRow, error) {
-			var tags, err = inst.serviceCtx.Api.ListQueueTags(inst.serviceCtx.Ctx, queueUrl)
+		func(ctx context.Context) ([]core.TableRow, error) {
+			var tags, err = inst.serviceCtx.Api.ListQueueTags(ctx, queueUrl)
 			return core.SortedRows(tags), err
 		},
 		inst.ErrorMessageCallback,
 		inst.populateQueueDetailsTable,
 	)
 
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 	var attributes map[string]string
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error
-		attributes, err = inst.serviceCtx.Api.GetQueueAttributes(inst.serviceCtx.Ctx, queueUrl)
+		attributes, err = inst.serviceCtx.Api.GetQueueAttributes(ctx, queueUrl)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

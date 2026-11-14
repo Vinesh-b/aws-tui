@@ -1,6 +1,7 @@
 package sfn
 
 import (
+	"context"
 	"encoding/json"
 	"sort"
 	"strings"
@@ -222,13 +223,12 @@ func (inst *SfnExecutionsTable) RefreshExpressExecutions(logGroup string, reset 
 		EndTime:   query.endTime,
 	}
 
-	var insightsQueryRunner = cloudwatch.NewInsightsQueryRunner(inst.appCtx.Ctx, inst.appCtx.App, inst.cwlApi)
-	insightsQueryRunner.ErrorMessageCallback = inst.ErrorMessageCallback
-
 	var resultsChan = make(chan [][]cwlTypes.ResultField)
 
-	var dataLoader = core.NewUiDataLoader(inst.appCtx.App, 30)
-	dataLoader.AsyncLoadData(func() {
+	var dataLoader = core.NewUiDataLoader(inst.appCtx, 30)
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
+		var insightsQueryRunner = cloudwatch.NewInsightsQueryRunner(ctx, inst.appCtx.App, inst.cwlApi)
+		insightsQueryRunner.ErrorMessageCallback = inst.ErrorMessageCallback
 		insightsQueryRunner.ExecuteInsightsQuery(insightsQuery, []string{logGroup}, resultsChan)
 		var insightsResults = <-resultsChan
 		if len(insightsResults) == 0 {
@@ -313,18 +313,18 @@ func (inst *SfnExecutionsTable) RefreshExpressExecutions(logGroup string, reset 
 }
 
 func (inst *SfnExecutionsTable) RefreshExecutions(reset bool) {
-	var dataLoader = core.NewUiDataLoader(inst.appCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.appCtx, 10)
 	var query, err = inst.queryView.Input.GenerateQuery()
 	if err != nil {
 		inst.ErrorMessageCallback("%s", err.Error())
 		return
 	}
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var selectedFunctionArn = aws.ToString(inst.selectedFunction.StateMachineArn)
 		if len(selectedFunctionArn) > 0 {
 			var data, err = inst.api.ListExecutions(
-				inst.appCtx.Ctx,
+				ctx,
 				selectedFunctionArn,
 				query.startTime,
 				query.endTime,

@@ -3,6 +3,7 @@ package vpc
 import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"context"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -86,12 +87,12 @@ func (inst *VpcSubnetsTable) populateVpcSubnetsTable(data []types.Subnet) {
 }
 
 func (inst *VpcSubnetsTable) RefreshVpcSubnets(reset bool, vpc types.Vpc) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 	inst.selectedVpc = vpc
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var data, err = inst.serviceCtx.Api.DescribeVpcSubnets(
-			inst.serviceCtx.Ctx,
+			ctx,
 			reset, aws.ToString(inst.selectedVpc.VpcId),
 		)
 		if err != nil {

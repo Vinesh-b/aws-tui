@@ -3,6 +3,7 @@ package sfn
 import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"context"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
@@ -69,11 +70,11 @@ func (inst *SfnExecutionSummaryTable) populateTable() {
 
 func (inst *SfnExecutionSummaryTable) RefreshExecutionDetails(executionArn string, force bool) {
 	inst.selectedExecutionArn = executionArn
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error = nil
-		inst.data, err = inst.serviceCtx.Api.DescribeExecution(inst.serviceCtx.Ctx, executionArn)
+		inst.data, err = inst.serviceCtx.Api.DescribeExecution(ctx, executionArn)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

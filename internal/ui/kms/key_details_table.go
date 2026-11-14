@@ -1,6 +1,7 @@
 package kms
 
 import (
+	"context"
 	"fmt"
 
 	"aws-tui/internal/awsapi"
@@ -78,13 +79,13 @@ func (inst *KmsKeyDetailsTable) populateDetailsTable() {
 }
 
 func (inst *KmsKeyDetailsTable) RefreshDetails() {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 	var keyId = inst.selectedKey.keyId
 	var metadata *types.KeyMetadata
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error = nil
-		metadata, err = inst.serviceCtx.Api.DescribeKey(inst.serviceCtx.Ctx, keyId)
+		metadata, err = inst.serviceCtx.Api.DescribeKey(ctx, keyId)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}
@@ -105,15 +106,15 @@ func (inst *KmsKeyDetailsTable) RefreshDetails() {
 // known before then
 func (inst *KmsKeyDetailsTable) loadTags(keyId string) {
 	var keyArn = inst.GetSelectedKeyArn()
-	inst.tags.Load(inst.serviceCtx.App, inst.Box, keyArn,
+	inst.tags.Load(inst.serviceCtx.AppContext, inst.Box, keyArn,
 		func() string {
 			if inst.selectedKey.keyId != keyId {
 				return ""
 			}
 			return inst.GetSelectedKeyArn()
 		},
-		func() ([]core.TableRow, error) {
-			var tags, err = inst.serviceCtx.Api.ListTags(inst.serviceCtx.Ctx, true, keyId)
+		func(ctx context.Context) ([]core.TableRow, error) {
+			var tags, err = inst.serviceCtx.Api.ListTags(ctx, true, keyId)
 			return core.TagRows(tags, func(t types.Tag) (string, string) {
 				return aws.ToString(t.TagKey), aws.ToString(t.TagValue)
 			}), err

@@ -1,6 +1,7 @@
 package lambda
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 
@@ -226,9 +227,9 @@ func (inst *LambdaInvokePageView) SetSelectedLambda(name string) {
 func (inst *LambdaInvokePageView) Invoke() {
 	var logResults = []byte{}
 	var responseOutput = []byte{}
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error
 		var payload = make(map[string]any)
 		err = json.Unmarshal([]byte(inst.payloadInput.GetText()), &payload)
@@ -238,7 +239,7 @@ func (inst *LambdaInvokePageView) Invoke() {
 		}
 
 		var data *lambda.InvokeOutput = nil
-		data, err = inst.serviceCtx.Api.InvokeLambda(inst.serviceCtx.Ctx, inst.selectedLambda, payload)
+		data, err = inst.serviceCtx.Api.InvokeLambda(ctx, inst.selectedLambda, payload)
 		if err != nil {
 			inst.responseOutput.ErrorMessageCallback("%s", err.Error())
 			return

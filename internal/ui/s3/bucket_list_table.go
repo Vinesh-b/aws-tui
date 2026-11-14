@@ -1,6 +1,7 @@
 package s3
 
 import (
+	"context"
 	"time"
 
 	"aws-tui/internal/awsapi"
@@ -58,12 +59,12 @@ func (inst *BucketListTable) populateS3BucketsTable() {
 }
 
 func (inst *BucketListTable) RefreshBuckets(force bool) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		if force || len(inst.data) == 0 {
 			var err error = nil
-			inst.data, err = inst.serviceCtx.Api.ListBuckets(inst.serviceCtx.Ctx, force)
+			inst.data, err = inst.serviceCtx.Api.ListBuckets(ctx, force)
 			if err != nil {
 				inst.ErrorMessageCallback("%s", err.Error())
 			}

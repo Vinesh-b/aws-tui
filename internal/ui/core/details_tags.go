@@ -1,10 +1,9 @@
 package core
 
 import (
+	"context"
 	"maps"
 	"slices"
-
-	"github.com/rivo/tview"
 )
 
 // SortedRows are the keys and values of the map sorted by key
@@ -69,11 +68,11 @@ func (inst *DetailsTags) Clear() {
 // current still gives the key, as the selection may have moved on while they
 // loaded. Failing to load them is reported with onError.
 func (inst *DetailsTags) Load(
-	app *tview.Application,
+	appCtx *AppContext,
 	view View,
 	key string,
 	current func() string,
-	fetch func() ([]TableRow, error),
+	fetch func(ctx context.Context) ([]TableRow, error),
 	onError func(text string, a ...any),
 	redraw func(),
 ) {
@@ -81,13 +80,13 @@ func (inst *DetailsTags) Load(
 		return
 	}
 
-	var dataLoader = NewUiDataLoader(app, 10)
+	var dataLoader = NewUiDataLoader(appCtx, 10)
 	var rows []TableRow
 	var loadFailed = false
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error
-		rows, err = fetch()
+		rows, err = fetch(ctx)
 		if err != nil {
 			loadFailed = true
 			onError("%s", err.Error())

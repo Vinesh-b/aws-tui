@@ -1,6 +1,7 @@
 package cloudwatch
 
 import (
+	"context"
 	"strings"
 
 	"aws-tui/internal/awsapi"
@@ -74,10 +75,10 @@ func (inst *MetricListTable) populateMetricsTable(data []types.Metric) {
 }
 
 func (inst *MetricListTable) RefreshMetrics(reset bool) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.serviceCtx.Api.ListMetrics(inst.serviceCtx.Ctx, nil, "", "", reset)
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
+		var data, err = inst.serviceCtx.Api.ListMetrics(ctx, nil, "", "", reset)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

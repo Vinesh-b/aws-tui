@@ -1,6 +1,7 @@
 package s3
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -111,16 +112,16 @@ func (inst *BucketObjectsTable) populateS3ObjectsTable(
 }
 
 func (inst *BucketObjectsTable) RefreshObjects(force bool) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 	var bucket, dir = inst.selectedBucket, inst.selectedDir
 	var objects []types.Object
 	var commonPrefixes []types.CommonPrefix
 	var loadFailed = false
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error
 		objects, commonPrefixes, err = inst.serviceCtx.Api.ListObjects(
-			inst.serviceCtx.Ctx, bucket, dir, force,
+			ctx, bucket, dir, force,
 		)
 
 		if err != nil {

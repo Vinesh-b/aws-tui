@@ -1,6 +1,7 @@
 package sqs
 
 import (
+	"context"
 	"path"
 	"slices"
 	"strings"
@@ -102,12 +103,12 @@ func (inst *QueueListTable) selectQueue(name string) bool {
 }
 
 func (inst *QueueListTable) refreshQueues(reset bool, loaded func()) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 	var queues []string
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error
-		queues, err = inst.serviceCtx.Api.ListQueues(inst.serviceCtx.Ctx, reset)
+		queues, err = inst.serviceCtx.Api.ListQueues(ctx, reset)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

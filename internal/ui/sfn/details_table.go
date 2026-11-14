@@ -100,8 +100,8 @@ func (inst *SfnDetailsTable) populateTable() {
 func (inst *SfnDetailsTable) ClearDetails() {
 	inst.data = nil
 	inst.logGroups = nil
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
-	dataLoader.AsyncLoadData(func() {})
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
+	dataLoader.AsyncLoadData(func(context.Context) {})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateTable()
@@ -122,11 +122,11 @@ ChanFlushLoop:
 	}
 
 	inst.selectedStateMachineArn = aws.ToString(stateMachine.StateMachineArn)
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error
-		inst.data, err = inst.serviceCtx.Api.DescribeStateMachine(inst.serviceCtx.Ctx, inst.selectedStateMachineArn)
+		inst.data, err = inst.serviceCtx.Api.DescribeStateMachine(ctx, inst.selectedStateMachineArn)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 			return

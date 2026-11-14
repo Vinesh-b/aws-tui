@@ -1,6 +1,7 @@
 package cloudwatch
 
 import (
+	"context"
 	"fmt"
 
 	"aws-tui/internal/awsapi"
@@ -57,9 +58,9 @@ func (inst *LogGroupDetailsTable) populateDetailsTable() {
 
 func (inst *LogGroupDetailsTable) RefreshDetails(logGroup types.LogGroup) {
 	inst.data = logGroup
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {})
+	dataLoader.AsyncLoadData(func(context.Context) {})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateDetailsTable()

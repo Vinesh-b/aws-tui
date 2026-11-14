@@ -3,6 +3,7 @@ package sns
 import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"context"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sns/types"
@@ -76,10 +77,10 @@ func (inst *TopicDetailsTable) populateTopicDetailsTable() {
 
 func (inst *TopicDetailsTable) RefreshDetails(topicArn string) {
 	inst.requested = topicArn
-	inst.tags.Load(inst.serviceCtx.App, inst.Box, topicArn,
+	inst.tags.Load(inst.serviceCtx.AppContext, inst.Box, topicArn,
 		func() string { return inst.requested },
-		func() ([]core.TableRow, error) {
-			var tags, err = inst.serviceCtx.Api.ListTopicTags(inst.serviceCtx.Ctx, topicArn)
+		func(ctx context.Context) ([]core.TableRow, error) {
+			var tags, err = inst.serviceCtx.Api.ListTopicTags(ctx, topicArn)
 			return core.TagRows(tags, func(t types.Tag) (string, string) {
 				return aws.ToString(t.Key), aws.ToString(t.Value)
 			}), err
@@ -88,12 +89,12 @@ func (inst *TopicDetailsTable) RefreshDetails(topicArn string) {
 		inst.populateTopicDetailsTable,
 	)
 
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 	var attributes map[string]string
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error
-		attributes, err = inst.serviceCtx.Api.GetTopicAttributes(inst.serviceCtx.Ctx, topicArn)
+		attributes, err = inst.serviceCtx.Api.GetTopicAttributes(ctx, topicArn)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

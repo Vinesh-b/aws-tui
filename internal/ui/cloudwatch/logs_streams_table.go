@@ -3,6 +3,7 @@ package cloudwatch
 import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"context"
 	"slices"
 	"time"
 
@@ -84,12 +85,12 @@ func (inst *LogStreamsTable) populateLogStreamsTable(extend bool) {
 
 func (inst *LogStreamsTable) RefreshStreams(force bool) {
 	var hasMore bool
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error = nil
 		inst.data, err = inst.serviceCtx.Api.ListLogStreams(
-			inst.serviceCtx.Ctx,
+			ctx,
 			inst.selectedLogGroup,
 			inst.searchStreamPrefix,
 			force,

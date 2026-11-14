@@ -50,12 +50,12 @@ func (inst *DocumentView) Show(key string, name string, load func(ctx context.Co
 	inst.SetTitle(inst.documentTitle())
 	inst.SetText("", false)
 
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 	var document string
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error
-		document, err = load(inst.serviceCtx.Ctx)
+		document, err = load(ctx)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

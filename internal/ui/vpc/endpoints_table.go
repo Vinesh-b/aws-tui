@@ -3,6 +3,7 @@ package vpc
 import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"context"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -78,12 +79,12 @@ func (inst *VpcEndpointsTable) populateVpcEndpointsTable(data []types.VpcEndpoin
 }
 
 func (inst *VpcEndpointsTable) RefreshVpcEndpoints(reset bool, vpc types.Vpc) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 	inst.selectedVpc = vpc
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var data, err = inst.serviceCtx.Api.DescribeVpcEndpoints(
-			inst.serviceCtx.Ctx,
+			ctx,
 			reset, aws.ToString(inst.selectedVpc.VpcId),
 		)
 		if err != nil {

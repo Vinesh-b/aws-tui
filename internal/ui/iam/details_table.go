@@ -77,10 +77,10 @@ func (inst *IamDetailsTable[T]) populateDetailsTable() {
 
 func (inst *IamDetailsTable[T]) RefreshDetails(key string) {
 	inst.requested = key
-	inst.tags.Load(inst.serviceCtx.App, inst.Box, key,
+	inst.tags.Load(inst.serviceCtx.AppContext, inst.Box, key,
 		func() string { return inst.requested },
-		func() ([]core.TableRow, error) {
-			var tags, err = inst.loadTags(inst.serviceCtx.Ctx, key)
+		func(ctx context.Context) ([]core.TableRow, error) {
+			var tags, err = inst.loadTags(ctx, key)
 			return core.TagRows(tags, func(t types.Tag) (string, string) {
 				return aws.ToString(t.Key), aws.ToString(t.Value)
 			}), err
@@ -88,12 +88,12 @@ func (inst *IamDetailsTable[T]) RefreshDetails(key string) {
 		inst.ErrorMessageCallback,
 		inst.populateDetailsTable,
 	)
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 	var data *T
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error
-		data, err = inst.load(inst.serviceCtx.Ctx, key)
+		data, err = inst.load(ctx, key)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

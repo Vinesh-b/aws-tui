@@ -1,6 +1,7 @@
 package cloudformation
 
 import (
+	"context"
 	"time"
 
 	"aws-tui/internal/awsapi"
@@ -63,10 +64,10 @@ func (inst *StackListTable) populateStacksTable(data []types.StackSummary) {
 }
 
 func (inst *StackListTable) RefreshStacks(reset bool) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.serviceCtx.Api.ListStacks(inst.serviceCtx.Ctx, reset)
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
+		var data, err = inst.serviceCtx.Api.ListStacks(ctx, reset)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

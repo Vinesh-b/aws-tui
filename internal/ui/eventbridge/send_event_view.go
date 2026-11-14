@@ -2,6 +2,7 @@ package eventbridge
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -171,11 +172,11 @@ func (inst *SendEventPageView) SendEvent() {
 
 	var eventId string
 	var apiErr error
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		eventId, apiErr = inst.serviceCtx.Api.PutEvent(
-			inst.serviceCtx.Ctx, busArn, source, detailType, string(detailJson), resources,
+			ctx, busArn, source, detailType, string(detailJson), resources,
 		)
 	})
 

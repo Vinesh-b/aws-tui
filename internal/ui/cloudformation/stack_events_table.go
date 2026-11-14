@@ -3,6 +3,7 @@ package cloudformation
 import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"context"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
@@ -69,12 +70,12 @@ func (inst *StackEventsTable) populateStackEventsTable(reset bool) {
 }
 
 func (inst *StackEventsTable) RefreshEvents(reset bool) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		if len(inst.selectedStackName) > 0 {
 			var err error = nil
-			inst.data, err = inst.serviceCtx.Api.DescribeStackEvents(inst.serviceCtx.Ctx, inst.selectedStackName, reset)
+			inst.data, err = inst.serviceCtx.Api.DescribeStackEvents(ctx, inst.selectedStackName, reset)
 			if err != nil {
 				inst.ErrorMessageCallback("%s", err.Error())
 			}

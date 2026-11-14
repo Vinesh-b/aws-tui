@@ -115,12 +115,12 @@ func (inst *LambdaItemsView[T]) Refresh(lambdaArn string) {
 		return
 	}
 
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 	var items []T
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error
-		items, err = inst.load(inst.serviceCtx.Ctx, lambdaArn)
+		items, err = inst.load(ctx, lambdaArn)
 		if err != nil {
 			inst.ListTable.ErrorMessageCallback("%s", err.Error())
 		}

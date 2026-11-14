@@ -1,6 +1,7 @@
 package sfn
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -245,11 +246,11 @@ func (inst *SfnExecutionStatesTable) reloadFromHistory() {
 
 func (inst *SfnExecutionStatesTable) RefreshExecutionStates(executionArn string, force bool) {
 	inst.selectedExecutionArn = executionArn
-	var dataLoader = core.NewUiDataLoader(inst.appCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.appCtx, 10)
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error = nil
-		inst.ExecutionHistory, err = inst.api.GetExecutionHistory(inst.appCtx.Ctx, executionArn)
+		inst.ExecutionHistory, err = inst.api.GetExecutionHistory(ctx, executionArn)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}
@@ -271,13 +272,12 @@ func (inst *SfnExecutionStatesTable) RefreshExpressExecutionStates(executionItem
 		EndTime:   aws.ToTime(executionItem.StopDate),
 	}
 
-	var insightsQueryRunner = cloudwatch.NewInsightsQueryRunner(inst.appCtx.Ctx, inst.appCtx.App, inst.cwlApi)
-	insightsQueryRunner.ErrorMessageCallback = inst.ErrorMessageCallback
-
 	var resultsChan = make(chan [][]cwlTypes.ResultField)
 
-	var dataLoader = core.NewUiDataLoader(inst.appCtx.App, 10)
-	dataLoader.AsyncLoadData(func() {
+	var dataLoader = core.NewUiDataLoader(inst.appCtx, 10)
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
+		var insightsQueryRunner = cloudwatch.NewInsightsQueryRunner(ctx, inst.appCtx.App, inst.cwlApi)
+		insightsQueryRunner.ErrorMessageCallback = inst.ErrorMessageCallback
 		insightsQueryRunner.ExecuteInsightsQuery(insightsQuery, []string{aws.ToString(executionItem.logGroup)}, resultsChan)
 		var insightsResults = <-resultsChan
 		if len(insightsResults) == 0 {

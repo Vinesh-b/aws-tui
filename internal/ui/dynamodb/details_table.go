@@ -1,6 +1,7 @@
 package dynamodb
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -143,13 +144,13 @@ func (inst *DynamoDBDetailsTable) populateDetailsTable() {
 }
 
 func (inst *DynamoDBDetailsTable) RefreshDetails() {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 	var tableName = inst.selectedTable
 	var description *types.TableDescription
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error = nil
-		description, err = inst.serviceCtx.Api.DescribeTable(inst.serviceCtx.Ctx, tableName)
+		description, err = inst.serviceCtx.Api.DescribeTable(ctx, tableName)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}
@@ -166,15 +167,15 @@ func (inst *DynamoDBDetailsTable) RefreshDetails() {
 // not known before then
 func (inst *DynamoDBDetailsTable) loadTags(tableName string) {
 	var tableArn = inst.GetSelectedTableArn()
-	inst.tags.Load(inst.serviceCtx.App, inst.Box, tableArn,
+	inst.tags.Load(inst.serviceCtx.AppContext, inst.Box, tableArn,
 		func() string {
 			if inst.selectedTable != tableName {
 				return ""
 			}
 			return inst.GetSelectedTableArn()
 		},
-		func() ([]core.TableRow, error) {
-			var tags, err = inst.serviceCtx.Api.ListTags(inst.serviceCtx.Ctx, true, tableArn)
+		func(ctx context.Context) ([]core.TableRow, error) {
+			var tags, err = inst.serviceCtx.Api.ListTags(ctx, true, tableArn)
 			return core.TagRows(tags, func(t types.Tag) (string, string) {
 				return aws.ToString(t.Key), aws.ToString(t.Value)
 			}), err

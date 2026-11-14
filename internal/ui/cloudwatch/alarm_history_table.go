@@ -1,6 +1,7 @@
 package cloudwatch
 
 import (
+	"context"
 	"time"
 
 	"aws-tui/internal/awsapi"
@@ -66,11 +67,11 @@ func (inst *AlarmHistoryTable) populateAlarmHistoryTable(reset bool) {
 }
 
 func (inst *AlarmHistoryTable) RefreshHistory(force bool) {
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error = nil
-		inst.data, err = inst.serviceCtx.Api.ListAlarmHistory(inst.serviceCtx.Ctx, inst.selectedAlarm, force)
+		inst.data, err = inst.serviceCtx.Api.ListAlarmHistory(ctx, inst.selectedAlarm, force)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

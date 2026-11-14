@@ -1,6 +1,7 @@
 package apigateway
 
 import (
+	"context"
 	"slices"
 	"strings"
 
@@ -83,11 +84,11 @@ func (inst *ApiGatewayEndpointsTreeView) SetApi(api types.RestApi) {
 	var name = aws.ToString(api.Name)
 	var resources []types.Resource
 	inst.selectedId = id
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error
-		resources, err = inst.serviceCtx.Api.ListResources(inst.serviceCtx.Ctx, false, id)
+		resources, err = inst.serviceCtx.Api.ListResources(ctx, false, id)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

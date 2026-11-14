@@ -1,6 +1,7 @@
 package ssm
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -77,10 +78,10 @@ func (inst *SSMParameterHistoryTable) populateTable(data []types.ParameterHistor
 
 func (inst *SSMParameterHistoryTable) RefreshHistory(reset bool) {
 	var paramName = aws.ToString(inst.selectedParameter.Name)
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
-		var data, err = inst.serviceCtx.Api.GetParameterHistory(inst.serviceCtx.Ctx, paramName, reset)
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
+		var data, err = inst.serviceCtx.Api.GetParameterHistory(ctx, paramName, reset)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

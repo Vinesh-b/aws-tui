@@ -2,6 +2,7 @@ package kms
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 
 	"aws-tui/internal/awsapi"
@@ -52,11 +53,11 @@ func (inst *KmsKeyPolicyPageView) LoadPolicy(keyId string) {
 	inst.PolicyView.SetText("", false)
 
 	var policy string
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error = nil
-		policy, err = inst.serviceCtx.Api.GetKeyPolicy(inst.serviceCtx.Ctx, keyId)
+		policy, err = inst.serviceCtx.Api.GetKeyPolicy(ctx, keyId)
 		if err != nil {
 			inst.PolicyView.ErrorMessageCallback("%s", err.Error())
 		}

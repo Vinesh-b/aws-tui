@@ -1,6 +1,7 @@
 package sns
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -109,16 +110,16 @@ func (inst *SubscriptionsTable) populateSubscriptionsTable(subscriptions []types
 // the table is cleared.
 func (inst *SubscriptionsTable) RefreshSubscriptions(topicArn string) {
 	inst.topicArn = topicArn
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 	var subscriptions []types.Subscription
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		if topicArn == "" {
 			return
 		}
 
 		var err error
-		subscriptions, err = inst.serviceCtx.Api.ListTopicSubscriptions(inst.serviceCtx.Ctx, topicArn)
+		subscriptions, err = inst.serviceCtx.Api.ListTopicSubscriptions(ctx, topicArn)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

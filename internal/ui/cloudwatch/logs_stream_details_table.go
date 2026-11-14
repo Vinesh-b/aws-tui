@@ -3,6 +3,7 @@ package cloudwatch
 import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"context"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
@@ -47,9 +48,9 @@ func (inst *LogStreamDetailsTable) populateDetailsTable() {
 
 func (inst *LogStreamDetailsTable) RefreshDetails(logStream types.LogStream) {
 	inst.data = logStream
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {})
+	dataLoader.AsyncLoadData(func(context.Context) {})
 
 	dataLoader.AsyncUpdateView(inst.Box, func() {
 		inst.populateDetailsTable()

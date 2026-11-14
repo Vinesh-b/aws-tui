@@ -2,6 +2,7 @@ package sfn
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -139,11 +140,11 @@ func (inst *SfnStartExecutionPageView) StartExecution() {
 
 	var output *sfn.StartExecutionOutput
 	var apiErr error
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		output, apiErr = inst.serviceCtx.Api.StartExecution(
-			inst.serviceCtx.Ctx, arn, "", string(inputJson),
+			ctx, arn, "", string(inputJson),
 		)
 	})
 

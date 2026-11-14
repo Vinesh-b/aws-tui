@@ -179,13 +179,13 @@ func (inst *LogEventsTable) RefreshLogEvents(reset bool) {
 	var filterPattern = inst.filterPattern
 	var events []types.OutputLogEvent
 	var hasMore bool
-	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
-	dataLoader.AsyncLoadData(func() {
+	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error = nil
 		if len(filterPattern) > 0 {
 			events, err = inst.serviceCtx.Api.ListFilteredLogEvents(
-				inst.serviceCtx.Ctx,
+				ctx,
 				inst.selectedLogGroup,
 				inst.selectedLogStream,
 				filterPattern,
@@ -194,7 +194,7 @@ func (inst *LogEventsTable) RefreshLogEvents(reset bool) {
 			)
 		} else {
 			events, err = inst.serviceCtx.Api.ListLogEvents(
-				inst.serviceCtx.Ctx,
+				ctx,
 				inst.selectedLogGroup,
 				inst.selectedLogStream,
 				startTime,
