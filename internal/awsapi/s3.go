@@ -2,6 +2,7 @@ package awsapi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -138,24 +139,43 @@ func (inst *s3BucketsApi) openObject(
 	return result.Body, nil
 }
 
-// DownloadFile streams an object to a local file without holding it in memory.
-func (inst *s3BucketsApi) DownloadFile(ctx context.Context, bucketName string, objectKey string, fileName string) error {
-	if err := requireArg("file name", fileName); err != nil {
+// downloadFilePerm keeps what is downloaded to the user, as an object can hold
+// anything
+const downloadFilePerm = 0o600
+
+// DownloadFile streams an object to a new local file without holding it in
+// memory. It never replaces a file or writes through a link that is already
+// there, and a file that could not be written in full is removed.
+func (inst *s3BucketsApi) DownloadFile(
+	ctx context.Context, bucketName string, objectKey string, fileName string,
+) (err error) {
+	if err = requireArg("file name", fileName); err != nil {
 		return err
 	}
 
-	var body, err = inst.openObject(ctx, bucketName, objectKey)
-	if err != nil {
+	var body io.ReadCloser
+	if body, err = inst.openObject(ctx, bucketName, objectKey); err != nil {
 		return err
 	}
 	defer body.Close()
 
-	file, err := os.Create(fileName)
+	var file *os.File
+	file, err = os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_EXCL, downloadFilePerm)
 	if err != nil {
 		inst.logger.Printf("Failed to create file: %v, Error: %v\n", fileName, err)
+		if errors.Is(err, os.ErrExist) {
+			return fmt.Errorf("%s already exists", fileName)
+		}
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); err == nil {
+			err = closeErr
+		}
+		if err != nil {
+			os.Remove(fileName)
+		}
+	}()
 
 	if _, err = io.Copy(file, body); err != nil {
 		inst.logger.Printf("Failed to write object body: %v, Error: %v\n", objectKey, err)

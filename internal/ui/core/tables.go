@@ -616,6 +616,14 @@ func resolveSavePath(input string) (string, error) {
 	return abs, nil
 }
 
+// A table can hold values that were decrypted to show them, such as secure
+// parameters, so the file it is saved to and the directories made for it are
+// kept to the user. Directories that are already there are left as they are.
+const (
+	csvDirPerm  = 0o700
+	csvFilePerm = 0o600
+)
+
 // writeCsvFile writes the rows to a new file, creating its parent directories,
 // and returns the absolute path that was written.
 func writeCsvFile(filename string, rows [][]string) (savedPath string, err error) {
@@ -623,12 +631,12 @@ func writeCsvFile(filename string, rows [][]string) (savedPath string, err error
 	if err != nil {
 		return "", err
 	}
-	if err = os.MkdirAll(filepath.Dir(savedPath), 0o755); err != nil {
+	if err = os.MkdirAll(filepath.Dir(savedPath), csvDirPerm); err != nil {
 		return "", err
 	}
 
 	var file *os.File
-	file, err = os.OpenFile(savedPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	file, err = os.OpenFile(savedPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, csvFilePerm)
 	if err != nil {
 		if os.IsExist(err) {
 			return "", fmt.Errorf("%s already exists", savedPath)

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -857,6 +858,37 @@ func TestDumpTableToCsv__WriteError(t *testing.T) {
 
 	if err := table.DumpTableToCsv("/dev/full"); err == nil {
 		t.Fatalf("Expected error when the write fails")
+	}
+}
+
+// A table can hold values that were decrypted to show them, so what is saved
+// from it is only readable by the user.
+func TestDumpTableToCsv__FileAndNewDirectoriesArePrivateToTheUser(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("file modes are not used on windows")
+	}
+	var table = newTestSelectableTable(t)
+
+	var created = path.Join(t.TempDir(), "exports")
+	var filename = path.Join(created, "table.csv")
+	if err := table.DumpTableToCsv(filename); err != nil {
+		t.Fatalf("Failed to dump table: %v", err)
+	}
+
+	var fileInfo, err = os.Stat(filename)
+	if err != nil {
+		t.Fatalf("Expected csv file to be created: %v", err)
+	}
+	if fileInfo.Mode().Perm() != 0o600 {
+		t.Errorf("file mode = %v, want 0600", fileInfo.Mode().Perm())
+	}
+
+	var dirInfo, dirErr = os.Stat(created)
+	if dirErr != nil {
+		t.Fatalf("Expected the directory to be created: %v", dirErr)
+	}
+	if dirInfo.Mode().Perm() != 0o700 {
+		t.Errorf("directory mode = %v, want 0700", dirInfo.Mode().Perm())
 	}
 }
 

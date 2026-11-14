@@ -3,11 +3,13 @@ package awsapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -95,6 +97,112 @@ func TestS3DownloadFile(t *testing.T) {
 	var got, err = os.ReadFile(target)
 	if err != nil || string(got) != "file contents" {
 		t.Fatalf("unexpected file contents %q, err=%v", got, err)
+	}
+}
+
+// An object can hold anything, so what is downloaded is only readable by the user.
+func TestS3DownloadFileIsPrivateToTheUser(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("file modes are not used on windows")
+	}
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "application/octet-stream", "file contents")
+	})
+
+	var target = filepath.Join(t.TempDir(), "out.txt")
+	if err := NewS3BucketsApi(testLogger()).DownloadFile(context.Background(), "bucket", "key", target); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var info, err = os.Stat(target)
+	if err != nil {
+		t.Fatalf("expected the file to be created: %v", err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Errorf("mode = %v, want 0600", info.Mode().Perm())
+	}
+}
+
+func TestS3DownloadFileDoesNotReplaceAFile(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "application/octet-stream", "file contents")
+	})
+
+	var target = filepath.Join(t.TempDir(), "out.txt")
+	if err := os.WriteFile(target, []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	var err = NewS3BucketsApi(testLogger()).DownloadFile(context.Background(), "bucket", "key", target)
+
+	if err == nil || !strings.Contains(err.Error(), "already exists") {
+		t.Errorf("error = %v, want one that says the file already exists", err)
+	}
+	if content, _ := os.ReadFile(target); string(content) != "keep" {
+		t.Errorf("file holds %q, want it left as it was", content)
+	}
+}
+
+// The file a link points to is not written through the link
+func TestS3DownloadFileDoesNotWriteThroughALink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("making a link needs a privilege on windows")
+	}
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "application/octet-stream", "file contents")
+	})
+
+	var dir = t.TempDir()
+	var linked = filepath.Join(dir, "linked.txt")
+	var target = filepath.Join(dir, "out.txt")
+	if err := os.Symlink(linked, target); err != nil {
+		t.Fatal(err)
+	}
+
+	var err = NewS3BucketsApi(testLogger()).DownloadFile(context.Background(), "bucket", "key", target)
+
+	if err == nil {
+		t.Error("expected an error for a file name that is a link")
+	}
+	if _, statErr := os.Stat(linked); !errors.Is(statErr, os.ErrNotExist) {
+		t.Errorf("the file the link points to was written, stat error = %v", statErr)
+	}
+}
+
+// failingBody gives some of an object and then fails, as a dropped connection does
+type failingBody struct {
+	sent bool
+}
+
+func (b *failingBody) Read(buffer []byte) (int, error) {
+	if !b.sent {
+		b.sent = true
+		return copy(buffer, "partial"), nil
+	}
+	return 0, errors.New("connection reset")
+}
+
+func (b *failingBody) Close() error { return nil }
+
+// Half an object is not left behind, as it would look like the whole object
+// and stop the download from being tried again.
+func TestS3DownloadFileRemovesTheFileWhenTheDownloadFails(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return &http.Response{
+			StatusCode: 200,
+			Header:     http.Header{"Content-Type": []string{"application/octet-stream"}},
+			Body:       &failingBody{},
+		}
+	})
+
+	var target = filepath.Join(t.TempDir(), "out.txt")
+	var err = NewS3BucketsApi(testLogger()).DownloadFile(context.Background(), "bucket", "key", target)
+
+	if err == nil {
+		t.Fatal("expected an error for a download that failed part way")
+	}
+	if _, statErr := os.Stat(target); !errors.Is(statErr, os.ErrNotExist) {
+		t.Errorf("the partial file was left behind, stat error = %v", statErr)
 	}
 }
 
