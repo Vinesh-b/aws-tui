@@ -65,7 +65,6 @@ type CloudFormationStackEventsPageView struct {
 	*core.ServicePageView
 	stackEventsTable *StackEventsTable
 	selectedStack    string
-	searchPositions  []int
 	serviceCtx       *core.ServiceContext[awsapi.CloudFormationApi]
 }
 

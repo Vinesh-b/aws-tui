@@ -37,7 +37,6 @@ type LambdaApi interface {
 
 type lambdaApi struct {
 	baseApi
-	allLambdas []types.FunctionConfiguration
 }
 
 func NewLambdaApi(

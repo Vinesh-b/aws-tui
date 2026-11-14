@@ -29,7 +29,6 @@ type StateMachineApi interface {
 
 type stateMachineApi struct {
 	baseApi
-	nextExecutionsToken     *string
 	listExecutionsPaginator *sfn.ListExecutionsPaginator
 }
 
@@ -93,7 +92,7 @@ func (inst *stateMachineApi) ListExecutions(
 
 	var client = inst.clients.sfn
 
-	if inst.listExecutionsPaginator == nil || reset == true {
+	if inst.listExecutionsPaginator == nil || reset {
 		inst.listExecutionsPaginator = sfn.NewListExecutionsPaginator(
 			client, &sfn.ListExecutionsInput{
 				StateMachineArn: aws.String(stateMachineArn),

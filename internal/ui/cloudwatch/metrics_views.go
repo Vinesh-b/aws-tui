@@ -28,7 +28,6 @@ func NewMetricsDetailsView(
 	serviceViewCtx *core.ServiceContext[awsapi.CloudWatchMetricsApi],
 ) *MetricDetailsView {
 	const metricsTableSize = 3500
-	const detailsTableSize = 3500
 
 	var tabView = core.NewTabViewHorizontal(serviceViewCtx.AppContext).
 		AddAndSwitchToTab(MetricTabNameDetails, metricDetailsTable, 0, 1, true).

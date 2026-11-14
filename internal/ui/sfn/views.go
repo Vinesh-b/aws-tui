@@ -131,7 +131,6 @@ type SfnExecutionDetailsPageView struct {
 	selectedExecution string
 	summaryTable      *SfnExecutionSummaryTable
 	detailsTable      *SfnExecutionStatesTable
-	searchInput       *tview.InputField
 	stateFlowView     *SfnStatesTreeView
 	serviceCtx        *core.ServiceContext[awsapi.StateMachineApi]
 }

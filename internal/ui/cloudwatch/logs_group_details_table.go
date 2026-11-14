@@ -40,8 +40,7 @@ func (inst *LogGroupDetailsTable) retention() string {
 }
 
 func (inst *LogGroupDetailsTable) populateDetailsTable() {
-	var tableData []core.TableRow
-	tableData = []core.TableRow{
+	var tableData = []core.TableRow{
 		{"Name", aws.ToString(inst.data.LogGroupName)},
 		{"ARN", aws.ToString(inst.data.LogGroupArn)},
 		{"KMS Key", aws.ToString(inst.data.KmsKeyId)},

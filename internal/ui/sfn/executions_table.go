@@ -48,7 +48,6 @@ type SfnExecutionsTable struct {
 	queryView         *FloatingSfnExecutionsQueryInputView
 	selectedFunction  types.StateMachineListItem
 	data              []ExecutionItem
-	filtered          []ExecutionItem
 	selectedExecution ExecutionItem
 	appCtx            *core.AppContext
 	api               awsapi.StateMachineApi

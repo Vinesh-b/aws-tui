@@ -17,7 +17,6 @@ type SfnExecutionStateEventsTable struct {
 	selectedEvent    EventDetails
 	appCtx           *core.AppContext
 	api              awsapi.StateMachineApi
-	cwlApi           awsapi.CloudWatchLogsApi
 }
 
 type StateDetails struct {

@@ -30,8 +30,7 @@ func NewLogStreamDetailsTable(
 }
 
 func (inst *LogStreamDetailsTable) populateDetailsTable() {
-	var tableData []core.TableRow
-	tableData = []core.TableRow{
+	var tableData = []core.TableRow{
 		{"Name", aws.ToString(inst.data.LogStreamName)},
 		{"ARN", aws.ToString(inst.data.Arn)},
 		{"First Event", core.FormatUnixMilli(inst.data.FirstEventTimestamp)},

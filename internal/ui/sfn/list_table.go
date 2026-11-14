@@ -2,7 +2,6 @@ package sfn
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"aws-tui/internal/awsapi"
@@ -20,7 +19,6 @@ type SfnListTable struct {
 	*core.SelectableTable[types.StateMachineListItem]
 	selectedFunction types.StateMachineListItem
 	data             []types.StateMachineListItem
-	logger           *log.Logger
 	serviceCtx       *core.ServiceContext[awsapi.StateMachineApi]
 }
 

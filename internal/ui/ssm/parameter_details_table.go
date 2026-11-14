@@ -32,8 +32,7 @@ func NewParameterDetailsTable(
 }
 
 func (inst *ParameterDetailsTable) populateDetailsTable() {
-	var tableData []core.TableRow
-	tableData = []core.TableRow{
+	var tableData = []core.TableRow{
 		{"Name", aws.ToString(inst.data.Name)},
 		{"ARN", aws.ToString(inst.data.ARN)},
 		{"Type", string(inst.data.Type)},

@@ -524,7 +524,7 @@ func (inst *BaseView) AddRuneToggleOverlay(
 	overlay.InputCaptureFunc = func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case APP_KEY_BINDINGS.Escape:
-			if overlay.IsHidden == false {
+			if !overlay.IsHidden {
 				inst.hideOverlay(overlay)
 				return nil
 			}
@@ -532,7 +532,7 @@ func (inst *BaseView) AddRuneToggleOverlay(
 
 		switch event.Rune() {
 		case overlay.KeyRune:
-			if overlay.IsHidden && inst.IsAnOverlayVisible() == false {
+			if overlay.IsHidden && !inst.IsAnOverlayVisible() {
 				inst.showOverlay(overlay)
 				return nil
 			} else if overlay.Toggle && !overlay.IsHidden {
@@ -565,12 +565,12 @@ func (inst *BaseView) AddKeyToggleOverlay(
 	overlay.InputCaptureFunc = func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case APP_KEY_BINDINGS.Escape:
-			if overlay.IsHidden == false {
+			if !overlay.IsHidden {
 				inst.hideOverlay(overlay)
 				return nil
 			}
 		case overlay.Keybinding:
-			if overlay.IsHidden && inst.IsAnOverlayVisible() == false {
+			if overlay.IsHidden && !inst.IsAnOverlayVisible() {
 				inst.showOverlay(overlay)
 				return nil
 			} else if overlay.Toggle && !overlay.IsHidden {
@@ -627,7 +627,7 @@ func (inst *BaseView) FocusFrom(key tcell.Key) {
 
 func (inst *BaseView) IsAnOverlayVisible() bool {
 	for _, overlay := range inst.overlays {
-		if overlay.IsHidden == false {
+		if !overlay.IsHidden {
 			return true
 		}
 	}

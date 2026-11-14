@@ -45,7 +45,6 @@ type DynamoDBGenericTable struct {
 	searchIndexName      string
 	serviceCtx           *core.ServiceContext[awsapi.DynamoDBApi]
 	attributeIdxMap      map[string]int
-	queryExpr            expression.Expression
 	pkName               string
 	skName               string
 	lastTableOp          DDBTableOp

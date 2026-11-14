@@ -102,7 +102,7 @@ func (inst *DynamoDBDetailsTable) populateDetailsTable() {
 
 		tableData = []core.TableRow{
 			{"Name", aws.ToString(inst.data.TableName)},
-			{"Status", fmt.Sprintf("%s", inst.data.TableStatus)},
+			{"Status", string(inst.data.TableStatus)},
 			{"Created", core.FormatTime(inst.data.CreationDateTime)},
 			{"Item Count", fmt.Sprintf("%d", aws.ToInt64(inst.data.ItemCount))},
 			{"Billing Mode", billingMode},

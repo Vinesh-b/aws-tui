@@ -39,7 +39,6 @@ type ServicePageView struct {
 	viewNavigation *ViewNavigation2D
 	errorView      *MessagePromptView
 	infoView       *MessagePromptView
-	lastFocusView  tview.Primitive
 	appCtx         *AppContext
 }
 

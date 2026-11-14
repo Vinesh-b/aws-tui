@@ -32,8 +32,7 @@ func NewSecretDetailsTable(
 }
 
 func (inst *SecretDetailsTable) populateDetailsTable() {
-	var tableData []core.TableRow
-	tableData = []core.TableRow{
+	var tableData = []core.TableRow{
 		{"Name", aws.ToString(inst.data.Name)},
 		{"ARN", aws.ToString(inst.data.ARN)},
 		{"Description", aws.ToString(inst.data.Description)},

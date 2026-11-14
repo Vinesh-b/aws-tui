@@ -13,9 +13,8 @@ import (
 
 type StackDetailsTable struct {
 	*core.DetailsTable
-	data          types.StackSummary
-	selectedStack types.StackSummary
-	serviceCtx    *core.ServiceContext[awsapi.CloudFormationApi]
+	data       types.StackSummary
+	serviceCtx *core.ServiceContext[awsapi.CloudFormationApi]
 }
 
 func NewStackDetailsTable(
@@ -42,8 +41,7 @@ func NewStackDetailsTable(
 }
 
 func (inst *StackDetailsTable) populateStackDetailsTable() {
-	var tableData []core.TableRow
-	tableData = []core.TableRow{
+	var tableData = []core.TableRow{
 		{"Name", aws.ToString(inst.data.StackName)},
 		{"Stack ID", aws.ToString(inst.data.StackId)},
 		{"Description", aws.ToString(inst.data.TemplateDescription)},

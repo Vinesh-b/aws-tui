@@ -50,7 +50,6 @@ func (inst *SearchableView) SetSearchDoneFunc(handler func(key tcell.Key)) {
 		case APP_KEY_BINDINGS.Done:
 			inst.ToggleOverlay(SEARCH_OVERLAY_NAME, true)
 		}
-		return
 	}
 
 	inst.searchDoneHandler = handler

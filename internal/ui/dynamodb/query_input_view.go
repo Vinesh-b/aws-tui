@@ -150,17 +150,16 @@ type DynamoDBQueryInputView struct {
 	QueryDoneButton   *core.Button
 	QueryCancelButton *core.Button
 
-	appCtx              *core.AppContext
-	filterView          *FilterInputView
-	indexDropDown       *core.DropDown
-	pkInput             *core.InputField
-	skInput             *core.InputField
-	skComparatorInput   *core.InputField
-	projectedAttributes []string
-	selectedIndex       int
-	tableName           string
-	indexes             []queryIndex
-	navigator           *core.ViewNavigation2D
+	appCtx            *core.AppContext
+	filterView        *FilterInputView
+	indexDropDown     *core.DropDown
+	pkInput           *core.InputField
+	skInput           *core.InputField
+	skComparatorInput *core.InputField
+	selectedIndex     int
+	tableName         string
+	indexes           []queryIndex
+	navigator         *core.ViewNavigation2D
 }
 
 func NewDynamoDBQueryInputView(appContext *core.AppContext) *DynamoDBQueryInputView {
@@ -401,9 +400,8 @@ type FilterInputView struct {
 	Value1             *core.InputField
 	Value2             *core.InputField
 
-	filterInput FilterInput
-	navigator   *core.ViewNavigation2D
-	appCtx      *core.AppContext
+	navigator *core.ViewNavigation2D
+	appCtx    *core.AppContext
 }
 
 func NewFilterInputView(appContext *core.AppContext) *FilterInputView {
