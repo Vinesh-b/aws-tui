@@ -55,16 +55,17 @@ type dynamoDBApi struct {
 }
 
 func NewDynamoDBApi(
+	clients *AwsApiClients,
 	logger *log.Logger,
 ) DynamoDBApi {
 
 	return &dynamoDBApi{
-		baseApi: baseApi{logger: logger},
+		baseApi: baseApi{clients: clients, logger: logger},
 	}
 }
 
 func (inst *dynamoDBApi) ListTables(ctx context.Context, force bool) ([]string, error) {
-	var client = GetAwsApiClients().dynamodb
+	var client = inst.clients.dynamodb
 	if len(inst.allTables) > 0 && !force {
 		return inst.allTables, nil
 	}
@@ -96,7 +97,7 @@ func (inst *dynamoDBApi) DescribeTable(ctx context.Context, tableName string) (*
 		return nil, err
 	}
 
-	var client = GetAwsApiClients().dynamodb
+	var client = inst.clients.dynamodb
 	var output, err = client.DescribeTable(ctx,
 		&dynamodb.DescribeTableInput{TableName: &tableName},
 	)
@@ -124,7 +125,7 @@ func (inst *dynamoDBApi) ScanTable(
 	if len(indexName) > 0 {
 		index = aws.String(indexName)
 	}
-	var client = GetAwsApiClients().dynamodb
+	var client = inst.clients.dynamodb
 
 	if force || inst.scanPaginator == nil {
 		inst.scanPaginator = dynamodb.NewScanPaginator(client, &dynamodb.ScanInput{
@@ -171,7 +172,7 @@ func (inst *dynamoDBApi) QueryTable(
 		if len(indexName) > 0 {
 			index = aws.String(indexName)
 		}
-		var client = GetAwsApiClients().dynamodb
+		var client = inst.clients.dynamodb
 		inst.queryPaginator = dynamodb.NewQueryPaginator(client, &dynamodb.QueryInput{
 			TableName:                 aws.String(tableName),
 			Limit:                     aws.Int32(100),
@@ -206,7 +207,7 @@ func (inst *dynamoDBApi) QueryTable(
 
 func (inst *dynamoDBApi) ListTags(ctx context.Context, force bool, resourceArn string) ([]types.Tag, error) {
 	var result, err = collectTokenPages(func(token *string) ([]types.Tag, *string, error) {
-		var output, err = GetAwsApiClients().dynamodb.ListTagsOfResource(ctx,
+		var output, err = inst.clients.dynamodb.ListTagsOfResource(ctx,
 			&dynamodb.ListTagsOfResourceInput{
 				ResourceArn: aws.String(resourceArn),
 				NextToken:   token,
@@ -234,7 +235,7 @@ func (inst *dynamoDBApi) PutItem(ctx context.Context, tableName string, item map
 		return inst.logErr(err)
 	}
 
-	_, err = GetAwsApiClients().dynamodb.PutItem(ctx, &dynamodb.PutItemInput{
+	_, err = inst.clients.dynamodb.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: aws.String(tableName),
 		Item:      attributes,
 	})
@@ -278,7 +279,7 @@ func (inst *dynamoDBApi) UpdateItem(
 		return inst.logErr(err)
 	}
 
-	_, err = GetAwsApiClients().dynamodb.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+	_, err = inst.clients.dynamodb.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 		TableName:                 aws.String(tableName),
 		Key:                       keyAttributes,
 		UpdateExpression:          built.Update(),
@@ -331,7 +332,7 @@ func (inst *dynamoDBApi) DeleteItem(ctx context.Context, tableName string, key m
 		return inst.logErr(err)
 	}
 
-	_, err = GetAwsApiClients().dynamodb.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+	_, err = inst.clients.dynamodb.DeleteItem(ctx, &dynamodb.DeleteItemInput{
 		TableName:                aws.String(tableName),
 		Key:                      keyAttributes,
 		ConditionExpression:      built.Condition(),

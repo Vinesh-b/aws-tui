@@ -1,12 +1,7 @@
 package awsapi
 
 import (
-	"context"
-	"log"
-	"sync"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/apigateway"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
@@ -25,11 +20,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
-	"github.com/aws/smithy-go/logging"
 )
 
-var apiSingletonMtx = &sync.Mutex{}
-
+// AwsApiClients are the SDK clients of one config, which is one profile and
+// region. They are given to the service apis when those are built, so nothing
+// is shared between apis that were built for different configs.
 type AwsApiClients struct {
 	Config  aws.Config
 	Sts     *sts.Client
@@ -54,9 +49,9 @@ type AwsApiClients struct {
 	s3             *s3.Client
 }
 
-var apiClientsSingleton *AwsApiClients
-
-func newAwsApiClients(cfg aws.Config, profile string) *AwsApiClients {
+// NewAwsApiClients builds the clients of the config. The profile is the name it
+// was loaded for, which is empty for the one picked from the environment.
+func NewAwsApiClients(cfg aws.Config, profile string) *AwsApiClients {
 	return &AwsApiClients{
 		Config:  cfg,
 		Sts:     sts.NewFromConfig(cfg),
@@ -80,30 +75,4 @@ func newAwsApiClients(cfg aws.Config, profile string) *AwsApiClients {
 		ssm:            ssm.NewFromConfig(cfg),
 		s3:             s3.NewFromConfig(cfg),
 	}
-}
-
-func ResetAwsApiClients(cfg aws.Config, profile string) {
-	apiSingletonMtx.Lock()
-	defer apiSingletonMtx.Unlock()
-
-	apiClientsSingleton = newAwsApiClients(cfg, profile)
-}
-
-func GetAwsApiClients() *AwsApiClients {
-	apiSingletonMtx.Lock()
-	defer apiSingletonMtx.Unlock()
-
-	if apiClientsSingleton == nil {
-		// Anything the SDK writes to the terminal would corrupt the TUI
-		var cfg, err = config.LoadDefaultConfig(context.Background(),
-			config.WithLogger(logging.Nop{}),
-		)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		apiClientsSingleton = newAwsApiClients(cfg, "")
-	}
-
-	return apiClientsSingleton
 }

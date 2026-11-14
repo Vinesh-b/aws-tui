@@ -10,7 +10,10 @@ import (
 
 // baseApi holds what every service api shares. Embed it in new service apis.
 type baseApi struct {
-	logger *log.Logger
+	// clients are the SDK clients the api was built with. An api keeps them,
+	// so a new api is built to use other clients, such as for another profile.
+	clients *AwsApiClients
+	logger  *log.Logger
 }
 
 func (b baseApi) logErr(err error) error {

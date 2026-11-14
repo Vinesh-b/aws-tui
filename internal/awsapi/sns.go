@@ -43,16 +43,17 @@ type snsApi struct {
 }
 
 func NewSnsApi(
+	clients *AwsApiClients,
 	logger *log.Logger,
 ) SnsApi {
 	return &snsApi{
-		baseApi: baseApi{logger: logger},
+		baseApi: baseApi{clients: clients, logger: logger},
 	}
 }
 
 func (inst *snsApi) ListTopics(ctx context.Context, force bool) ([]string, error) {
 	var paginator = sns.NewListTopicsPaginator(
-		GetAwsApiClients().sns,
+		inst.clients.sns,
 		&sns.ListTopicsInput{},
 	)
 
@@ -79,7 +80,7 @@ func (inst *snsApi) GetTopicAttributes(ctx context.Context, topicArn string) (ma
 		return nil, err
 	}
 
-	var output, err = GetAwsApiClients().sns.GetTopicAttributes(ctx,
+	var output, err = inst.clients.sns.GetTopicAttributes(ctx,
 		&sns.GetTopicAttributesInput{TopicArn: &topicArn},
 	)
 	if err != nil {
@@ -94,7 +95,7 @@ func (inst *snsApi) ListTopicTags(ctx context.Context, topicArn string) ([]types
 		return nil, err
 	}
 
-	var output, err = GetAwsApiClients().sns.ListTagsForResource(ctx,
+	var output, err = inst.clients.sns.ListTagsForResource(ctx,
 		&sns.ListTagsForResourceInput{ResourceArn: &topicArn},
 	)
 	if err != nil {
@@ -132,7 +133,7 @@ func (inst *snsApi) Publish(
 		input.MessageAttributes = attributes
 	}
 
-	var output, err = GetAwsApiClients().sns.Publish(ctx, input)
+	var output, err = inst.clients.sns.Publish(ctx, input)
 	if err != nil {
 		return nil, inst.logErr(err)
 	}
@@ -146,7 +147,7 @@ func (inst *snsApi) ListTopicSubscriptions(ctx context.Context, topicArn string)
 	}
 
 	var paginator = sns.NewListSubscriptionsByTopicPaginator(
-		GetAwsApiClients().sns,
+		inst.clients.sns,
 		&sns.ListSubscriptionsByTopicInput{TopicArn: &topicArn},
 	)
 
@@ -172,7 +173,7 @@ func (inst *snsApi) Subscribe(ctx context.Context, topicArn string, protocol str
 		return "", err
 	}
 
-	var output, err = GetAwsApiClients().sns.Subscribe(ctx, &sns.SubscribeInput{
+	var output, err = inst.clients.sns.Subscribe(ctx, &sns.SubscribeInput{
 		TopicArn:              &topicArn,
 		Protocol:              &protocol,
 		Endpoint:              &endpoint,
@@ -193,7 +194,7 @@ func (inst *snsApi) Unsubscribe(ctx context.Context, subscriptionArn string) err
 		return fmt.Errorf("a subscription that is pending confirmation can't be deleted")
 	}
 
-	var _, err = GetAwsApiClients().sns.Unsubscribe(ctx, &sns.UnsubscribeInput{
+	var _, err = inst.clients.sns.Unsubscribe(ctx, &sns.UnsubscribeInput{
 		SubscriptionArn: &subscriptionArn,
 	})
 	return inst.logErr(err)
@@ -204,7 +205,7 @@ func (inst *snsApi) DeleteTopic(ctx context.Context, topicArn string) error {
 		return err
 	}
 
-	var _, err = GetAwsApiClients().sns.DeleteTopic(ctx, &sns.DeleteTopicInput{
+	var _, err = inst.clients.sns.DeleteTopic(ctx, &sns.DeleteTopicInput{
 		TopicArn: &topicArn,
 	})
 	return inst.logErr(err)
@@ -230,7 +231,7 @@ func (inst *snsApi) CreateTopic(
 		input.Attributes = attributes
 	}
 
-	var output, err = GetAwsApiClients().sns.CreateTopic(ctx, input)
+	var output, err = inst.clients.sns.CreateTopic(ctx, input)
 	if err != nil {
 		return "", inst.logErr(err)
 	}

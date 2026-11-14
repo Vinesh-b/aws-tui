@@ -41,16 +41,17 @@ type lambdaApi struct {
 }
 
 func NewLambdaApi(
+	clients *AwsApiClients,
 	logger *log.Logger,
 ) LambdaApi {
 	return &lambdaApi{
-		baseApi: baseApi{logger: logger},
+		baseApi: baseApi{clients: clients, logger: logger},
 	}
 }
 
 func (inst *lambdaApi) ListLambdas(ctx context.Context, force bool) ([]types.FunctionConfiguration, error) {
 	var paginator = lambda.NewListFunctionsPaginator(
-		GetAwsApiClients().lambda, &lambda.ListFunctionsInput{},
+		inst.clients.lambda, &lambda.ListFunctionsInput{},
 	)
 
 	var result, err = collectPaginator(paginator.HasMorePages, func() ([]types.FunctionConfiguration, error) {
@@ -85,7 +86,7 @@ func (inst *lambdaApi) InvokeLambda(
 		return nil, inst.logErr(err)
 	}
 
-	var client = GetAwsApiClients().lambda
+	var client = inst.clients.lambda
 	output, err = client.Invoke(ctx,
 		&lambda.InvokeInput{
 			FunctionName:   aws.String(name),
@@ -107,7 +108,7 @@ func (inst *lambdaApi) GetPolicy(ctx context.Context, lambdaArn string) (string,
 		return "", err
 	}
 
-	var client = GetAwsApiClients().lambda
+	var client = inst.clients.lambda
 	var output, err = client.GetPolicy(
 		ctx,
 		&lambda.GetPolicyInput{
@@ -135,7 +136,7 @@ func (inst *lambdaApi) ListEventSourceMappings(
 	}
 
 	var paginator = lambda.NewListEventSourceMappingsPaginator(
-		GetAwsApiClients().lambda,
+		inst.clients.lambda,
 		&lambda.ListEventSourceMappingsInput{FunctionName: aws.String(lambdaArn)},
 	)
 
@@ -157,7 +158,7 @@ func (inst *lambdaApi) ListTags(ctx context.Context, lambdaArn string) (map[stri
 		return nil, err
 	}
 
-	var client = GetAwsApiClients().lambda
+	var client = inst.clients.lambda
 	var output, err = client.ListTags(
 		ctx,
 		&lambda.ListTagsInput{
@@ -192,7 +193,7 @@ func (inst *lambdaApi) ListVersions(ctx context.Context, lambdaArn string) ([]ty
 	}
 
 	var paginator = lambda.NewListVersionsByFunctionPaginator(
-		GetAwsApiClients().lambda,
+		inst.clients.lambda,
 		&lambda.ListVersionsByFunctionInput{FunctionName: aws.String(lambdaArn)},
 	)
 
@@ -217,7 +218,7 @@ func (inst *lambdaApi) ListAliases(ctx context.Context, lambdaArn string) ([]typ
 	}
 
 	var paginator = lambda.NewListAliasesPaginator(
-		GetAwsApiClients().lambda,
+		inst.clients.lambda,
 		&lambda.ListAliasesInput{FunctionName: aws.String(lambdaArn)},
 	)
 

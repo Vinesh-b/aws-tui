@@ -35,6 +35,14 @@ type AppContext struct {
 	// empty if they are not kept
 	QueriesPath string
 
+	// clients are the api clients of the profile in use, which are built from
+	// clientsConfig when they are first asked for. They are read by background
+	// goroutines, such as the session monitor, so they are only reached
+	// through GetApiClients and ResetApiClients.
+	clientsMtx    sync.Mutex
+	clients       *awsapi.AwsApiClients
+	clientsConfig aws.Config
+
 	listenersMtx      sync.Mutex
 	apiResetListeners []*func()
 	themeListeners    []func()
@@ -91,15 +99,26 @@ func (inst *AppContext) SaveTable(
 	return nil
 }
 
+// GetApiClients are the api clients of the profile in use, which service apis
+// are built with. An api keeps the clients it was built with, so apis are
+// built again when the clients are reset.
 func (inst *AppContext) GetApiClients() *awsapi.AwsApiClients {
-	return awsapi.GetAwsApiClients()
+	inst.clientsMtx.Lock()
+	defer inst.clientsMtx.Unlock()
+	if inst.clients == nil {
+		inst.clients = awsapi.NewAwsApiClients(inst.clientsConfig, "")
+	}
+	return inst.clients
 }
 
 // ResetApiClients replaces the api clients and then tells the listeners, so
 // they can drop whatever they loaded with the old clients. Call it on the UI
 // goroutine as the listeners change views.
 func (inst *AppContext) ResetApiClients(cfg aws.Config, profile string) {
-	awsapi.ResetAwsApiClients(cfg, profile)
+	var clients = awsapi.NewAwsApiClients(cfg, profile)
+	inst.clientsMtx.Lock()
+	inst.clients = clients
+	inst.clientsMtx.Unlock()
 
 	// A copy is used as listeners can remove themselves, such as when the
 	// views they belong to are replaced
@@ -158,15 +177,24 @@ func (inst *AppContext) OnKeyBindingsChanged(listener func()) {
 	inst.keyListeners = append(inst.keyListeners, listener)
 }
 
+// NewAppContext is the context of an app whose api clients are built from the
+// config, or from an empty one if there is none, which reaches no account.
+// Nothing is loaded from the environment, so the clients are only ever the
+// ones the app was given, here or with ResetApiClients.
 func NewAppContext(
 	ctx context.Context, app *tview.Application, config *aws.Config, logger *log.Logger, theme *AppTheme,
 ) *AppContext {
+	var cfg aws.Config
+	if config != nil {
+		cfg = *config
+	}
 	return &AppContext{
-		Ctx:       ctx,
-		App:       app,
-		Logger:    logger,
-		Theme:     theme,
-		clipboard: newAppClipboard(),
+		Ctx:           ctx,
+		App:           app,
+		Logger:        logger,
+		Theme:         theme,
+		clientsConfig: cfg,
+		clipboard:     newAppClipboard(),
 	}
 }
 

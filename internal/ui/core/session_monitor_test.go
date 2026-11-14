@@ -10,8 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"aws-tui/internal/awsapi"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/rivo/tview"
 )
@@ -229,8 +227,6 @@ func TestSessionMonitor__StopsWithTheApp(t *testing.T) {
 }
 
 func TestSessionMonitor__NoCredentialsConfiguredIsAnErrorNotAPanic(t *testing.T) {
-	awsapi.ResetAwsApiClients(aws.Config{}, "")
-	t.Cleanup(func() { awsapi.ResetAwsApiClients(aws.Config{}, "") })
 	var monitor = newSessionMonitor(newTestAppContext())
 
 	var _, err = monitor.retrieve(context.Background())
@@ -238,4 +234,19 @@ func TestSessionMonitor__NoCredentialsConfiguredIsAnErrorNotAPanic(t *testing.T)
 	if err == nil {
 		t.Error("expected an error when the config has no credentials")
 	}
+}
+
+// An app context can have no logger, as the ones of tests do, and a poll that
+// fails must not stop the app for the lack of one
+func TestSessionMonitor__ErrorWithoutALoggerIsStillShown(t *testing.T) {
+	var appCtx, _, fake = newMonitorTest(t)
+	appCtx.Logger = nil
+	fake.set(func(f *fakeSession) { f.retrieveEr = errors.New("token expired") })
+
+	appCtx.Session().Subscribe(fake.record)
+
+	waitFor(t, "the error of the session", func() bool {
+		var session = fake.last()
+		return session != nil && session.err == "token expired"
+	})
 }

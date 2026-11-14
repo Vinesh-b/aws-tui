@@ -34,16 +34,17 @@ type stateMachineApi struct {
 }
 
 func NewStateMachineApi(
+	clients *AwsApiClients,
 	logger *log.Logger,
 ) StateMachineApi {
 	return &stateMachineApi{
-		baseApi: baseApi{logger: logger},
+		baseApi: baseApi{clients: clients, logger: logger},
 	}
 }
 
 func (inst *stateMachineApi) ListStateMachines(ctx context.Context, force bool) ([]types.StateMachineListItem, error) {
 	var paginator = sfn.NewListStateMachinesPaginator(
-		GetAwsApiClients().sfn, &sfn.ListStateMachinesInput{},
+		inst.clients.sfn, &sfn.ListStateMachinesInput{},
 	)
 
 	var result, err = collectPaginator(paginator.HasMorePages, func() ([]types.StateMachineListItem, error) {
@@ -64,7 +65,7 @@ func (inst *stateMachineApi) DescribeStateMachine(ctx context.Context, stateMach
 		return nil, err
 	}
 
-	var client = GetAwsApiClients().sfn
+	var client = inst.clients.sfn
 
 	var output, err = client.DescribeStateMachine(
 		ctx,
@@ -90,7 +91,7 @@ func (inst *stateMachineApi) ListExecutions(
 		return empty, err
 	}
 
-	var client = GetAwsApiClients().sfn
+	var client = inst.clients.sfn
 
 	if inst.listExecutionsPaginator == nil || reset == true {
 		inst.listExecutionsPaginator = sfn.NewListExecutionsPaginator(
@@ -131,7 +132,7 @@ func (inst *stateMachineApi) DescribeExecution(ctx context.Context, executionArn
 		return nil, err
 	}
 
-	var client = GetAwsApiClients().sfn
+	var client = inst.clients.sfn
 
 	var response, err = client.DescribeExecution(ctx, &sfn.DescribeExecutionInput{
 		ExecutionArn: &executionArn,
@@ -149,7 +150,7 @@ func (inst *stateMachineApi) GetExecutionHistory(ctx context.Context, executionA
 		return nil, err
 	}
 
-	var client = GetAwsApiClients().sfn
+	var client = inst.clients.sfn
 	var response, err = client.GetExecutionHistory(ctx, &sfn.GetExecutionHistoryInput{
 		ExecutionArn:         aws.String(executionArn),
 		IncludeExecutionData: aws.Bool(true),
@@ -181,7 +182,7 @@ func (inst *stateMachineApi) StartExecution(
 		startInput.Name = aws.String(name)
 	}
 
-	var response, err = GetAwsApiClients().sfn.StartExecution(ctx, startInput)
+	var response, err = inst.clients.sfn.StartExecution(ctx, startInput)
 	if err != nil {
 		return nil, inst.logErr(err)
 	}

@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -11,6 +13,7 @@ import (
 	"time"
 
 	"aws-tui/internal/awsapi"
+	"aws-tui/internal/safetest"
 	"aws-tui/internal/settings"
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/sqs"
@@ -40,9 +43,9 @@ func TestCreateApplication__ApiClientsLogToTheInAppLogger(t *testing.T) {
 	t.Setenv("AWS_CONFIG_FILE", "")
 	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", "")
 
-	CreateApplication(context.Background(), aws.Config{Region: "us-east-1"}, "test-version")
+	var _, appCtx = newApplication(context.Background(), aws.Config{Region: "us-east-1"}, "test-version")
 
-	var logger = awsapi.GetAwsApiClients().Config.Logger
+	var logger = appCtx.GetApiClients().Config.Logger
 	if _, ok := logger.(logging.StandardLogger); !ok {
 		t.Errorf("api client logger = %T, want the in-app logger so SDK output stays off the terminal", logger)
 	}
@@ -591,4 +594,67 @@ func TestCreateApplication__StartCommandShowsWhyItFailed(t *testing.T) {
 	var tuiApp, screen = startApp(t, WithStartCommand("nope"))
 
 	uitest.AwaitScreenText(t, tuiApp, screen, "not a command or service: nope")
+}
+
+// recordingAws answers every request with an empty result and records the host
+// it was sent to, which holds the region of the clients that sent it
+type recordingAws struct {
+	hosts safetest.Recorder[string]
+}
+
+func (inst *recordingAws) Do(req *http.Request) (*http.Response, error) {
+	inst.hosts.Record(req.URL.Host)
+	return &http.Response{
+		StatusCode: 200,
+		Header:     http.Header{"Content-Type": []string{"application/x-amz-json-1.1"}},
+		Body:       io.NopCloser(strings.NewReader("{}")),
+		Request:    req,
+	}, nil
+}
+
+func recordedConfig(region string, backend *recordingAws) aws.Config {
+	return aws.Config{
+		Region:           region,
+		Credentials:      credentials.NewStaticCredentialsProvider("key", "secret", ""),
+		HTTPClient:       backend,
+		RetryMaxAttempts: 1,
+	}
+}
+
+// The pages are built again with apis of the new clients, so nothing is asked
+// of the account of the profile that was left
+func TestCreateApplication__PagesUseTheNewClientsAfterTheyAreReset(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("AWS_CONFIG_FILE", "")
+	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", "")
+	var styles, borders = tview.Styles, tview.Borders
+	t.Cleanup(func() { tview.Styles, tview.Borders = styles, borders })
+	var ctx, cancel = context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	var first, second recordingAws
+	var tuiApp, appCtx = newApplication(ctx, recordedConfig("us-east-1", &first), "test-version")
+	var screen = uitest.RunApp(t, tuiApp)
+
+	// The home page starts with the services list focused, 7 opens the logs
+	typeRunes(tuiApp, "7")
+	uitest.AwaitScreenText(t, tuiApp, screen, "Log Group Details")
+	typeRunes(tuiApp, string(core.APP_KEY_BINDINGS.Reset))
+	uitest.Eventually(t, tuiApp, func() bool { return first.hosts.Count() > 0 }, "the first clients are asked")
+	var askedOfFirst = first.hosts.Count()
+
+	uitest.OnUI(t, tuiApp, func() { appCtx.ResetApiClients(recordedConfig("eu-west-1", &second), "other") })
+	tuiApp.QueueEvent(tcell.NewEventKey(core.APP_KEY_BINDINGS.ToggleServicesMenu, 0, tcell.ModNone))
+	typeRunes(tuiApp, "7")
+	uitest.AwaitScreenText(t, tuiApp, screen, "Log Group Details")
+	typeRunes(tuiApp, string(core.APP_KEY_BINDINGS.Reset))
+
+	uitest.Eventually(t, tuiApp, func() bool { return second.hosts.Count() > 0 }, "the new clients are asked")
+	for _, host := range second.hosts.Calls() {
+		if !strings.Contains(host, "eu-west-1") {
+			t.Errorf("request sent to %s, want the region of the new clients", host)
+		}
+	}
+	if got := first.hosts.Count(); got != askedOfFirst {
+		t.Errorf("the old clients were asked %d more times after the reset", got-askedOfFirst)
+	}
 }

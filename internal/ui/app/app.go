@@ -391,6 +391,15 @@ func loadSettings(path string) (settings.Settings, []error) {
 func CreateApplication(
 	ctx context.Context, config aws.Config, version string, opts ...Option,
 ) *tview.Application {
+	var app, _ = newApplication(ctx, config, version, opts...)
+	return app
+}
+
+// newApplication is the application with its context, which holds the api
+// clients its pages are built with
+func newApplication(
+	ctx context.Context, config aws.Config, version string, opts ...Option,
+) (*tview.Application, *core.AppContext) {
 	var options appOptions
 	for _, opt := range opts {
 		opt(&options)
@@ -443,67 +452,67 @@ func CreateApplication(
 		newServiceItem("󰘧 "+string(core.LAMBDA), "Lambdas and logs", rune('1'), func() core.ServicePage {
 			return lambda.NewLambdaHomeView(
 				appContext,
-				awsapi.NewLambdaApi(appContext.Logger),
-				awsapi.NewCloudWatchLogsApi(appContext.Logger),
-				awsapi.NewCloudWatchMetricsApi(appContext.Logger),
+				awsapi.NewLambdaApi(appContext.GetApiClients(), appContext.Logger),
+				awsapi.NewCloudWatchLogsApi(appContext.GetApiClients(), appContext.Logger),
+				awsapi.NewCloudWatchMetricsApi(appContext.GetApiClients(), appContext.Logger),
 			)
 		}),
 		newServiceItem("󰆼 "+string(core.DYNAMODB), "View and search DynamoDB tables", rune('3'), func() core.ServicePage {
-			return dynamodb.NewDynamoDBHomeView(appContext, awsapi.NewDynamoDBApi(appContext.Logger))
+			return dynamodb.NewDynamoDBHomeView(appContext, awsapi.NewDynamoDBApi(appContext.GetApiClients(), appContext.Logger))
 		}),
 		newServiceItem("󱁊 "+string(core.STATE_MACHINES), "Step Functions and executions", rune('4'), func() core.ServicePage {
 			return sfn.NewStepFunctionsHomeView(
 				appContext,
-				awsapi.NewStateMachineApi(appContext.Logger),
-				awsapi.NewCloudWatchLogsApi(appContext.Logger),
+				awsapi.NewStateMachineApi(appContext.GetApiClients(), appContext.Logger),
+				awsapi.NewCloudWatchLogsApi(appContext.GetApiClients(), appContext.Logger),
 			)
 		}),
 		newServiceItem("󱐕 "+string(core.S3BUCKETS), "S3 buckets and objects", rune('5'), func() core.ServicePage {
-			return s3.NewS3bucketsHomeView(appContext, awsapi.NewS3BucketsApi(appContext.Logger))
+			return s3.NewS3bucketsHomeView(appContext, awsapi.NewS3BucketsApi(appContext.GetApiClients(), appContext.Logger))
 		}),
 		newServiceItem("󰙵 "+string(core.SYSTEMS_MANAGER), "Application parameters", rune('6'), func() core.ServicePage {
-			return ssm.NewSystemManagerHomeView(appContext, awsapi.NewSystemsManagerApi(appContext.Logger))
+			return ssm.NewSystemManagerHomeView(appContext, awsapi.NewSystemsManagerApi(appContext.GetApiClients(), appContext.Logger))
 		}),
 		newServiceItem(" "+string(core.CLOUDWATCH_LOGS), "Log groups, streams and Insights queries", rune('7'), func() core.ServicePage {
-			return cloudwatch.NewLogsHomeView(appContext, awsapi.NewCloudWatchLogsApi(appContext.Logger))
+			return cloudwatch.NewLogsHomeView(appContext, awsapi.NewCloudWatchLogsApi(appContext.GetApiClients(), appContext.Logger))
 		}),
 		newServiceItem("󰘘 "+string(core.EVENTBRIDGE), "Event buses, rules, schedules...", rune('8'), func() core.ServicePage {
 			return eventbridge.NewEventBridgeHomeView(
-				appContext, awsapi.NewEventBridgeApi(appContext.Logger), awsapi.NewSchedulerApi(appContext.Logger),
+				appContext, awsapi.NewEventBridgeApi(appContext.GetApiClients(), appContext.Logger), awsapi.NewSchedulerApi(appContext.GetApiClients(), appContext.Logger),
 			)
 		}),
 		newServiceItem(" "+string(core.CLOUDFORMATION), "Cloud formation stacks", rune('󰯉'), func() core.ServicePage {
-			return cloudformation.NewStacksHomeView(appContext, awsapi.NewCloudFormationApi(appContext.Logger))
+			return cloudformation.NewStacksHomeView(appContext, awsapi.NewCloudFormationApi(appContext.GetApiClients(), appContext.Logger))
 		}),
 		newServiceItem("󰞏 "+string(core.CLOUDWATCH_ALARMS), "Metric alarms", rune('󰯉'), func() core.ServicePage {
-			return cloudwatch.NewAlarmsHomeView(appContext, awsapi.NewCloudWatchAlarmsApi(appContext.Logger))
+			return cloudwatch.NewAlarmsHomeView(appContext, awsapi.NewCloudWatchAlarmsApi(appContext.GetApiClients(), appContext.Logger))
 		}),
 		newServiceItem(" "+string(core.CLOUDWATCH_METRICS), "View metrics", rune('󰯉'), func() core.ServicePage {
-			return cloudwatch.NewMetricsHomeView(appContext, awsapi.NewCloudWatchMetricsApi(appContext.Logger))
+			return cloudwatch.NewMetricsHomeView(appContext, awsapi.NewCloudWatchMetricsApi(appContext.GetApiClients(), appContext.Logger))
 		}),
 		newServiceItem("󰘦 "+string(core.API_GATEWAY), "REST APIs and their details", rune('󰯉'), func() core.ServicePage {
-			return apigateway.NewApiGatewayHomeView(appContext, awsapi.NewApiGatewayApi(appContext.Logger))
+			return apigateway.NewApiGatewayHomeView(appContext, awsapi.NewApiGatewayApi(appContext.GetApiClients(), appContext.Logger))
 		}),
 		newServiceItem(" "+string(core.EC2), "Instances and their details", rune('󰯉'), func() core.ServicePage {
-			return ec2.NewEc2HomeView(appContext, awsapi.NewEc2Api(appContext.Logger))
+			return ec2.NewEc2HomeView(appContext, awsapi.NewEc2Api(appContext.GetApiClients(), appContext.Logger))
 		}),
 		newServiceItem("󱇱 "+string(core.VPC), "VPCs, endpoints, subnets...", rune('󰯉'), func() core.ServicePage {
-			return vpc.NewVpcHomeView(appContext, awsapi.NewEc2Api(appContext.Logger))
+			return vpc.NewVpcHomeView(appContext, awsapi.NewEc2Api(appContext.GetApiClients(), appContext.Logger))
 		}),
 		newServiceItem("󰌆 "+string(core.IAM), "Roles, users and policies", rune('󰯉'), func() core.ServicePage {
-			return iam.NewIamHomeView(appContext, awsapi.NewIamApi(appContext.Logger))
+			return iam.NewIamHomeView(appContext, awsapi.NewIamApi(appContext.GetApiClients(), appContext.Logger))
 		}),
 		newServiceItem("󱃔 "+string(core.SQS), "Queues and their attributes", rune('󰯉'), func() core.ServicePage {
-			return sqs.NewSqsHomeView(appContext, awsapi.NewSqsApi(appContext.Logger))
+			return sqs.NewSqsHomeView(appContext, awsapi.NewSqsApi(appContext.GetApiClients(), appContext.Logger))
 		}),
 		newServiceItem("󰂚 "+string(core.SNS), "Topics and their attributes", rune('󰯉'), func() core.ServicePage {
-			return sns.NewSnsHomeView(appContext, awsapi.NewSnsApi(appContext.Logger))
+			return sns.NewSnsHomeView(appContext, awsapi.NewSnsApi(appContext.GetApiClients(), appContext.Logger))
 		}),
 		newServiceItem("󰯄 "+string(core.KMS), "Encryption keys, aliases and policies", rune('󰯉'), func() core.ServicePage {
-			return kms.NewKmsHomeView(appContext, awsapi.NewKmsApi(appContext.Logger))
+			return kms.NewKmsHomeView(appContext, awsapi.NewKmsApi(appContext.GetApiClients(), appContext.Logger))
 		}),
 		newServiceItem("󰌋 "+string(core.SECRETS_MANAGER), "Secrets and their values", rune('󰯉'), func() core.ServicePage {
-			return secretsmanager.NewSecretsManagerHomeView(appContext, awsapi.NewSecretsManagerApi(appContext.Logger))
+			return secretsmanager.NewSecretsManagerHomeView(appContext, awsapi.NewSecretsManagerApi(appContext.GetApiClients(), appContext.Logger))
 		}),
 		themedServiceItem("󰘥 "+string(core.HELP), "Help docs on how to use this app", rune('?'), func() core.ServicePage {
 			return services.NewHelpHomeView(appContext)
@@ -697,5 +706,5 @@ func CreateApplication(
 	if options.startCommand != "" {
 		appCommands.Run(options.startCommand, nil)
 	}
-	return app
+	return app, appContext
 }

@@ -25,6 +25,10 @@ import (
 // fakeHttp serves canned responses to the SDK clients so the api methods can be
 // tested end to end without touching AWS.
 type fakeHttp struct {
+	// clients are the clients that send their requests to the fake, which the
+	// apis under test are built with
+	clients *AwsApiClients
+
 	mtx      sync.Mutex
 	requests []string // request bodies in call order
 	handler  func(call int, req *http.Request, body string) *http.Response
@@ -75,19 +79,18 @@ func jsonResponse(body string) *http.Response {
 	return response(200, "application/x-amz-json-1.0", body)
 }
 
-// useFakeAws points the package client singleton at a fake HTTP backend.
+// useFakeAws is a fake HTTP backend with the clients that reach it, to build
+// the apis under test with.
 func useFakeAws(t *testing.T, handler func(call int, req *http.Request, body string) *http.Response) *fakeHttp {
 	t.Helper()
 
 	var fake = &fakeHttp{handler: handler}
-	ResetAwsApiClients(aws.Config{
+	fake.clients = NewAwsApiClients(aws.Config{
 		Region:           "us-east-1",
 		Credentials:      credentials.NewStaticCredentialsProvider("id", "secret", ""),
 		HTTPClient:       fake,
 		RetryMaxAttempts: 1,
 	}, "test")
-
-	t.Cleanup(func() { ResetAwsApiClients(aws.Config{}, "") })
 	return fake
 }
 
@@ -96,12 +99,12 @@ func testLogger() *log.Logger {
 }
 
 func TestS3DownloadFile(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(200, "application/octet-stream", "file contents")
 	})
 
 	var target = filepath.Join(t.TempDir(), "out.txt")
-	if err := NewS3BucketsApi(testLogger()).DownloadFile(context.Background(), "bucket", "key", target); err != nil {
+	if err := NewS3BucketsApi(fake.clients, testLogger()).DownloadFile(context.Background(), "bucket", "key", target); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -116,12 +119,12 @@ func TestS3DownloadFileIsPrivateToTheUser(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("file modes are not used on windows")
 	}
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(200, "application/octet-stream", "file contents")
 	})
 
 	var target = filepath.Join(t.TempDir(), "out.txt")
-	if err := NewS3BucketsApi(testLogger()).DownloadFile(context.Background(), "bucket", "key", target); err != nil {
+	if err := NewS3BucketsApi(fake.clients, testLogger()).DownloadFile(context.Background(), "bucket", "key", target); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -135,7 +138,7 @@ func TestS3DownloadFileIsPrivateToTheUser(t *testing.T) {
 }
 
 func TestS3DownloadFileDoesNotReplaceAFile(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(200, "application/octet-stream", "file contents")
 	})
 
@@ -144,7 +147,7 @@ func TestS3DownloadFileDoesNotReplaceAFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var err = NewS3BucketsApi(testLogger()).DownloadFile(context.Background(), "bucket", "key", target)
+	var err = NewS3BucketsApi(fake.clients, testLogger()).DownloadFile(context.Background(), "bucket", "key", target)
 
 	if err == nil || !strings.Contains(err.Error(), "already exists") {
 		t.Errorf("error = %v, want one that says the file already exists", err)
@@ -159,7 +162,7 @@ func TestS3DownloadFileDoesNotWriteThroughALink(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("making a link needs a privilege on windows")
 	}
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(200, "application/octet-stream", "file contents")
 	})
 
@@ -170,7 +173,7 @@ func TestS3DownloadFileDoesNotWriteThroughALink(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var err = NewS3BucketsApi(testLogger()).DownloadFile(context.Background(), "bucket", "key", target)
+	var err = NewS3BucketsApi(fake.clients, testLogger()).DownloadFile(context.Background(), "bucket", "key", target)
 
 	if err == nil {
 		t.Error("expected an error for a file name that is a link")
@@ -198,7 +201,7 @@ func (b *failingBody) Close() error { return nil }
 // Half an object is not left behind, as it would look like the whole object
 // and stop the download from being tried again.
 func TestS3DownloadFileRemovesTheFileWhenTheDownloadFails(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return &http.Response{
 			StatusCode: 200,
 			Header:     http.Header{"Content-Type": []string{"application/octet-stream"}},
@@ -207,7 +210,7 @@ func TestS3DownloadFileRemovesTheFileWhenTheDownloadFails(t *testing.T) {
 	})
 
 	var target = filepath.Join(t.TempDir(), "out.txt")
-	var err = NewS3BucketsApi(testLogger()).DownloadFile(context.Background(), "bucket", "key", target)
+	var err = NewS3BucketsApi(fake.clients, testLogger()).DownloadFile(context.Background(), "bucket", "key", target)
 
 	if err == nil {
 		t.Fatal("expected an error for a download that failed part way")
@@ -218,11 +221,11 @@ func TestS3DownloadFileRemovesTheFileWhenTheDownloadFails(t *testing.T) {
 }
 
 func TestS3GetObjectContentReturnsBody(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(200, "text/plain", "file contents")
 	})
 
-	var got, err = NewS3BucketsApi(testLogger()).GetObjectContent(context.Background(), "bucket", "key", 100)
+	var got, err = NewS3BucketsApi(fake.clients, testLogger()).GetObjectContent(context.Background(), "bucket", "key", 100)
 
 	if err != nil || string(got) != "file contents" {
 		t.Fatalf("unexpected content %q, err=%v", got, err)
@@ -230,11 +233,11 @@ func TestS3GetObjectContentReturnsBody(t *testing.T) {
 }
 
 func TestS3GetObjectContentAcceptsObjectExactlyAtTheLimit(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(200, "text/plain", "12345")
 	})
 
-	var got, err = NewS3BucketsApi(testLogger()).GetObjectContent(context.Background(), "bucket", "key", 5)
+	var got, err = NewS3BucketsApi(fake.clients, testLogger()).GetObjectContent(context.Background(), "bucket", "key", 5)
 
 	if err != nil || string(got) != "12345" {
 		t.Fatalf("unexpected content %q, err=%v", got, err)
@@ -242,11 +245,11 @@ func TestS3GetObjectContentAcceptsObjectExactlyAtTheLimit(t *testing.T) {
 }
 
 func TestS3GetObjectContentRejectsObjectOverTheLimit(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(200, "text/plain", "123456")
 	})
 
-	var got, err = NewS3BucketsApi(testLogger()).GetObjectContent(context.Background(), "bucket", "key", 5)
+	var got, err = NewS3BucketsApi(fake.clients, testLogger()).GetObjectContent(context.Background(), "bucket", "key", 5)
 
 	if err == nil || got != nil {
 		t.Fatalf("expected an error and no content, got %q, err=%v", got, err)
@@ -254,11 +257,11 @@ func TestS3GetObjectContentRejectsObjectOverTheLimit(t *testing.T) {
 }
 
 func TestS3GetObjectContentReportsServiceErrors(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(404, "application/xml", "<Error><Code>NoSuchKey</Code></Error>")
 	})
 
-	var _, err = NewS3BucketsApi(testLogger()).GetObjectContent(context.Background(), "bucket", "key", 5)
+	var _, err = NewS3BucketsApi(fake.clients, testLogger()).GetObjectContent(context.Background(), "bucket", "key", 5)
 
 	if err == nil {
 		t.Fatal("expected an error for a missing object")
@@ -272,7 +275,7 @@ func TestSsmGetParametersByPathDoesNotDecrypt(t *testing.T) {
 		return response(200, "application/x-amz-json-1.1", `{"Parameters":[{"Name":"/app/db/pass","Type":"SecureString"}]}`)
 	})
 
-	var parameters, err = NewSystemsManagerApi(testLogger()).GetParametersByPath(context.Background(), "/", true)
+	var parameters, err = NewSystemsManagerApi(fake.clients, testLogger()).GetParametersByPath(context.Background(), "/", true)
 
 	if err != nil || len(parameters) != 1 {
 		t.Fatalf("parameters = %v, err = %v, want the one parameter", parameters, err)
@@ -287,7 +290,7 @@ func TestSsmGetParameterHistoryDoesNotDecrypt(t *testing.T) {
 		return response(200, "application/x-amz-json-1.1", `{"Parameters":[{"Name":"/app/db/pass","Type":"SecureString","Version":1}]}`)
 	})
 
-	var history, err = NewSystemsManagerApi(testLogger()).GetParameterHistory(context.Background(), "/app/db/pass", true)
+	var history, err = NewSystemsManagerApi(fake.clients, testLogger()).GetParameterHistory(context.Background(), "/app/db/pass", true)
 
 	if err != nil || len(history) != 1 {
 		t.Fatalf("history = %v, err = %v, want the one version", history, err)
@@ -302,7 +305,7 @@ func TestSsmGetParameterValueDecryptsTheVersionAskedFor(t *testing.T) {
 		return response(200, "application/x-amz-json-1.1", `{"Parameter":{"Name":"/app/db/pass","Value":"hunter2"}}`)
 	})
 
-	var value, err = NewSystemsManagerApi(testLogger()).GetParameterValue(context.Background(), "/app/db/pass", 3)
+	var value, err = NewSystemsManagerApi(fake.clients, testLogger()).GetParameterValue(context.Background(), "/app/db/pass", 3)
 
 	if err != nil || value != "hunter2" {
 		t.Fatalf("value = %q, err = %v, want hunter2", value, err)
@@ -324,7 +327,7 @@ func TestSsmGetParameterValueAsksForTheLatestWithoutAVersion(t *testing.T) {
 		return response(200, "application/x-amz-json-1.1", `{"Parameter":{"Name":"/app/db/pass","Value":"hunter2"}}`)
 	})
 
-	if _, err := NewSystemsManagerApi(testLogger()).GetParameterValue(context.Background(), "/app/db/pass", 0); err != nil {
+	if _, err := NewSystemsManagerApi(fake.clients, testLogger()).GetParameterValue(context.Background(), "/app/db/pass", 0); err != nil {
 		t.Fatal(err)
 	}
 	var sent struct{ Name string }
@@ -337,11 +340,11 @@ func TestSsmGetParameterValueAsksForTheLatestWithoutAVersion(t *testing.T) {
 }
 
 func TestSsmGetParameterValueReportsServiceErrors(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(400, "application/x-amz-json-1.1", `{"__type":"ParameterNotFound"}`)
 	})
 
-	var _, err = NewSystemsManagerApi(testLogger()).GetParameterValue(context.Background(), "/app/db/pass", 0)
+	var _, err = NewSystemsManagerApi(fake.clients, testLogger()).GetParameterValue(context.Background(), "/app/db/pass", 0)
 
 	if err == nil {
 		t.Fatal("expected an error for a parameter that is not there")
@@ -356,7 +359,7 @@ func TestDynamoDBListTagsFollowsNextToken(t *testing.T) {
 		return jsonResponse(`{"Tags":[{"Key":"b","Value":"2"}]}`)
 	})
 
-	var tags, err = NewDynamoDBApi(testLogger()).ListTags(context.Background(), true, "arn:aws:dynamodb:::table/t")
+	var tags, err = NewDynamoDBApi(fake.clients, testLogger()).ListTags(context.Background(), true, "arn:aws:dynamodb:::table/t")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -369,7 +372,7 @@ func TestDynamoDBListTagsFollowsNextToken(t *testing.T) {
 }
 
 func TestLambdaListLambdasSortedAcrossPages(t *testing.T) {
-	useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+	var fake = useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
 		if call == 1 {
 			return response(200, "application/json",
 				`{"Functions":[{"FunctionName":"zeta"}],"NextMarker":"m"}`)
@@ -377,7 +380,7 @@ func TestLambdaListLambdasSortedAcrossPages(t *testing.T) {
 		return response(200, "application/json", `{"Functions":[{"FunctionName":"alpha"}]}`)
 	})
 
-	var funcs, err = NewLambdaApi(testLogger()).ListLambdas(context.Background(), true)
+	var funcs, err = NewLambdaApi(fake.clients, testLogger()).ListLambdas(context.Background(), true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -393,10 +396,10 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 	})
 
 	var logger = testLogger()
-	var cwl = NewCloudWatchLogsApi(logger)
-	var sfnApi = NewStateMachineApi(logger)
-	var lambdaApi = NewLambdaApi(logger)
-	var s3Api = NewS3BucketsApi(logger)
+	var cwl = NewCloudWatchLogsApi(fake.clients, logger)
+	var sfnApi = NewStateMachineApi(fake.clients, logger)
+	var lambdaApi = NewLambdaApi(fake.clients, logger)
+	var s3Api = NewS3BucketsApi(fake.clients, logger)
 
 	var tests = []struct {
 		name string
@@ -404,11 +407,11 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 		want string
 	}{
 		{"cloudformation stack events", func() error {
-			var _, err = NewCloudFormationApi(logger).DescribeStackEvents(context.Background(), "", true)
+			var _, err = NewCloudFormationApi(fake.clients, logger).DescribeStackEvents(context.Background(), "", true)
 			return err
 		}, "stack name not set"},
 		{"alarm history", func() error {
-			var _, err = NewCloudWatchAlarmsApi(logger).ListAlarmHistory(context.Background(), "", true)
+			var _, err = NewCloudWatchAlarmsApi(fake.clients, logger).ListAlarmHistory(context.Background(), "", true)
 			return err
 		}, "alarm name not set"},
 		{"log streams", func() error {
@@ -432,7 +435,7 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			return err
 		}, "record pointer not set"},
 		{"describe table", func() error {
-			var _, err = NewDynamoDBApi(logger).DescribeTable(context.Background(), "")
+			var _, err = NewDynamoDBApi(fake.clients, logger).DescribeTable(context.Background(), "")
 			return err
 		}, "table name not set"},
 		{"invoke lambda", func() error {
@@ -448,55 +451,55 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			return err
 		}, "lambda ARN not set"},
 		{"secret value", func() error {
-			var _, err = NewSecretsManagerApi(logger).GetSecretValue(context.Background(), "")
+			var _, err = NewSecretsManagerApi(fake.clients, logger).GetSecretValue(context.Background(), "")
 			return err
 		}, "secret ID not set"},
 		{"put secret id", func() error {
-			return NewSecretsManagerApi(logger).PutSecretValue(context.Background(), "", "value")
+			return NewSecretsManagerApi(fake.clients, logger).PutSecretValue(context.Background(), "", "value")
 		}, "secret ID not set"},
 		{"put secret value", func() error {
-			return NewSecretsManagerApi(logger).PutSecretValue(context.Background(), "id", "")
+			return NewSecretsManagerApi(fake.clients, logger).PutSecretValue(context.Background(), "id", "")
 		}, "secret value not set"},
 		{"put parameter name", func() error {
-			return NewSystemsManagerApi(logger).PutParameter(context.Background(), "", "value", "String")
+			return NewSystemsManagerApi(fake.clients, logger).PutParameter(context.Background(), "", "value", "String")
 		}, "parameter name not set"},
 		{"put parameter value", func() error {
-			return NewSystemsManagerApi(logger).PutParameter(context.Background(), "/name", "", "String")
+			return NewSystemsManagerApi(fake.clients, logger).PutParameter(context.Background(), "/name", "", "String")
 		}, "parameter value not set"},
 		{"create parameter name", func() error {
-			return NewSystemsManagerApi(logger).CreateParameter(context.Background(), "", "value", "String")
+			return NewSystemsManagerApi(fake.clients, logger).CreateParameter(context.Background(), "", "value", "String")
 		}, "parameter name not set"},
 		{"create parameter value", func() error {
-			return NewSystemsManagerApi(logger).CreateParameter(context.Background(), "/name", "", "String")
+			return NewSystemsManagerApi(fake.clients, logger).CreateParameter(context.Background(), "/name", "", "String")
 		}, "parameter value not set"},
 		{"delete secret", func() error {
-			return NewSecretsManagerApi(logger).DeleteSecret(context.Background(), "")
+			return NewSecretsManagerApi(fake.clients, logger).DeleteSecret(context.Background(), "")
 		}, "secret ID not set"},
 		{"delete parameter", func() error {
-			return NewSystemsManagerApi(logger).DeleteParameter(context.Background(), "")
+			return NewSystemsManagerApi(fake.clients, logger).DeleteParameter(context.Background(), "")
 		}, "parameter name not set"},
 		{"describe key", func() error {
-			var _, err = NewKmsApi(logger).DescribeKey(context.Background(), "")
+			var _, err = NewKmsApi(fake.clients, logger).DescribeKey(context.Background(), "")
 			return err
 		}, "key ID not set"},
 		{"key tags", func() error {
-			var _, err = NewKmsApi(logger).ListTags(context.Background(), true, "")
+			var _, err = NewKmsApi(fake.clients, logger).ListTags(context.Background(), true, "")
 			return err
 		}, "key ID not set"},
 		{"key policy", func() error {
-			var _, err = NewKmsApi(logger).GetKeyPolicy(context.Background(), "")
+			var _, err = NewKmsApi(fake.clients, logger).GetKeyPolicy(context.Background(), "")
 			return err
 		}, "key ID not set"},
 		{"ssm path", func() error {
-			var _, err = NewSystemsManagerApi(logger).GetParametersByPath(context.Background(), "", true)
+			var _, err = NewSystemsManagerApi(fake.clients, logger).GetParametersByPath(context.Background(), "", true)
 			return err
 		}, "parameter path not set"},
 		{"ssm history", func() error {
-			var _, err = NewSystemsManagerApi(logger).GetParameterHistory(context.Background(), "", true)
+			var _, err = NewSystemsManagerApi(fake.clients, logger).GetParameterHistory(context.Background(), "", true)
 			return err
 		}, "parameter name not set"},
 		{"ssm value", func() error {
-			var _, err = NewSystemsManagerApi(logger).GetParameterValue(context.Background(), "", 0)
+			var _, err = NewSystemsManagerApi(fake.clients, logger).GetParameterValue(context.Background(), "", 0)
 			return err
 		}, "parameter name not set"},
 		{"describe state machine", func() error {
@@ -520,72 +523,72 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			return err
 		}, "state machine ARN not set"},
 		{"sqs send without queue", func() error {
-			var _, err = NewSqsApi(logger).SendMessage(context.Background(), "", "body", "", "", nil)
+			var _, err = NewSqsApi(fake.clients, logger).SendMessage(context.Background(), "", "body", "", "", nil)
 			return err
 		}, "queueUrl not set"},
 		{"sqs send without body", func() error {
-			var _, err = NewSqsApi(logger).SendMessage(context.Background(), "https://q", "", "", "", nil)
+			var _, err = NewSqsApi(fake.clients, logger).SendMessage(context.Background(), "https://q", "", "", "", nil)
 			return err
 		}, "message body not set"},
 		{"put event without bus", func() error {
-			var _, err = NewEventBridgeApi(logger).PutEvent(context.Background(), "", "src", "type", "{}", nil)
+			var _, err = NewEventBridgeApi(fake.clients, logger).PutEvent(context.Background(), "", "src", "type", "{}", nil)
 			return err
 		}, "event bus not set"},
 		{"put event without source", func() error {
-			var _, err = NewEventBridgeApi(logger).PutEvent(context.Background(), "bus", "", "type", "{}", nil)
+			var _, err = NewEventBridgeApi(fake.clients, logger).PutEvent(context.Background(), "bus", "", "type", "{}", nil)
 			return err
 		}, "event source not set"},
 		{"put event without detail type", func() error {
-			var _, err = NewEventBridgeApi(logger).PutEvent(context.Background(), "bus", "src", "", "{}", nil)
+			var _, err = NewEventBridgeApi(fake.clients, logger).PutEvent(context.Background(), "bus", "src", "", "{}", nil)
 			return err
 		}, "event detail type not set"},
 		{"put event without detail", func() error {
-			var _, err = NewEventBridgeApi(logger).PutEvent(context.Background(), "bus", "src", "type", "", nil)
+			var _, err = NewEventBridgeApi(fake.clients, logger).PutEvent(context.Background(), "bus", "src", "type", "", nil)
 			return err
 		}, "event detail not set"},
 		{"sns topic attributes", func() error {
-			var _, err = NewSnsApi(logger).GetTopicAttributes(context.Background(), "")
+			var _, err = NewSnsApi(fake.clients, logger).GetTopicAttributes(context.Background(), "")
 			return err
 		}, "topicArn not set"},
 		{"sns topic tags", func() error {
-			var _, err = NewSnsApi(logger).ListTopicTags(context.Background(), "")
+			var _, err = NewSnsApi(fake.clients, logger).ListTopicTags(context.Background(), "")
 			return err
 		}, "topicArn not set"},
 		{"sns subscriptions", func() error {
-			var _, err = NewSnsApi(logger).ListTopicSubscriptions(context.Background(), "")
+			var _, err = NewSnsApi(fake.clients, logger).ListTopicSubscriptions(context.Background(), "")
 			return err
 		}, "topicArn not set"},
 		{"sns subscribe without topic", func() error {
-			var _, err = NewSnsApi(logger).Subscribe(context.Background(), "", "email", "a@example.com")
+			var _, err = NewSnsApi(fake.clients, logger).Subscribe(context.Background(), "", "email", "a@example.com")
 			return err
 		}, "topicArn not set"},
 		{"sns subscribe without protocol", func() error {
-			var _, err = NewSnsApi(logger).Subscribe(context.Background(), "arn", "", "a@example.com")
+			var _, err = NewSnsApi(fake.clients, logger).Subscribe(context.Background(), "arn", "", "a@example.com")
 			return err
 		}, "protocol not set"},
 		{"sns subscribe without endpoint", func() error {
-			var _, err = NewSnsApi(logger).Subscribe(context.Background(), "arn", "email", "")
+			var _, err = NewSnsApi(fake.clients, logger).Subscribe(context.Background(), "arn", "email", "")
 			return err
 		}, "endpoint not set"},
 		{"sns unsubscribe without arn", func() error {
-			return NewSnsApi(logger).Unsubscribe(context.Background(), "")
+			return NewSnsApi(fake.clients, logger).Unsubscribe(context.Background(), "")
 		}, "subscriptionArn not set"},
 		{"sns unsubscribe pending", func() error {
-			return NewSnsApi(logger).Unsubscribe(context.Background(), "PendingConfirmation")
+			return NewSnsApi(fake.clients, logger).Unsubscribe(context.Background(), "PendingConfirmation")
 		}, "a subscription that is pending confirmation can't be deleted"},
 		{"sns delete topic without arn", func() error {
-			return NewSnsApi(logger).DeleteTopic(context.Background(), "")
+			return NewSnsApi(fake.clients, logger).DeleteTopic(context.Background(), "")
 		}, "topicArn not set"},
 		{"sns create topic without name", func() error {
-			var _, err = NewSnsApi(logger).CreateTopic(context.Background(), "", false, false)
+			var _, err = NewSnsApi(fake.clients, logger).CreateTopic(context.Background(), "", false, false)
 			return err
 		}, "topic name not set"},
 		{"sns publish without topic", func() error {
-			var _, err = NewSnsApi(logger).Publish(context.Background(), "", "hi", "", "", "", nil)
+			var _, err = NewSnsApi(fake.clients, logger).Publish(context.Background(), "", "hi", "", "", "", nil)
 			return err
 		}, "topicArn not set"},
 		{"sns publish without message", func() error {
-			var _, err = NewSnsApi(logger).Publish(context.Background(), "arn", "", "", "", "", nil)
+			var _, err = NewSnsApi(fake.clients, logger).Publish(context.Background(), "arn", "", "", "", "", nil)
 			return err
 		}, "message not set"},
 		{"s3 list objects", func() error {
@@ -596,7 +599,7 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			return s3Api.DownloadFile(context.Background(), "bucket", "", "file")
 		}, "object key not set"},
 		{"metric data without metric name", func() error {
-			var _, err = NewCloudWatchMetricsApi(logger).GetMetricData(
+			var _, err = NewCloudWatchMetricsApi(fake.clients, logger).GetMetricData(
 				context.Background(), cwTypes.Metric{}, "Average", 60, testTime, testTime,
 			)
 			return err
@@ -636,7 +639,7 @@ func TestDynamoDBPutItemSendsTheItemToTheTable(t *testing.T) {
 	})
 	var item = map[string]any{"id": "a1", "count": json.Number("12345678901234567890"), "tags": []any{"x"}}
 
-	var err = NewDynamoDBApi(testLogger()).PutItem(context.Background(), "orders", item)
+	var err = NewDynamoDBApi(fake.clients, testLogger()).PutItem(context.Background(), "orders", item)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -653,7 +656,7 @@ func TestDynamoDBPutItemRejectsMissingArguments(t *testing.T) {
 	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return jsonResponse(`{}`)
 	})
-	var api = NewDynamoDBApi(testLogger())
+	var api = NewDynamoDBApi(fake.clients, testLogger())
 
 	if err := api.PutItem(context.Background(), "", map[string]any{"id": "a"}); err == nil {
 		t.Error("expected an error without a table name")
@@ -667,11 +670,11 @@ func TestDynamoDBPutItemRejectsMissingArguments(t *testing.T) {
 }
 
 func TestDynamoDBPutItemReportsServiceErrors(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(400, "application/x-amz-json-1.0", `{"__type":"ResourceNotFoundException","message":"missing"}`)
 	})
 
-	var err = NewDynamoDBApi(testLogger()).PutItem(context.Background(), "orders", map[string]any{"id": "a"})
+	var err = NewDynamoDBApi(fake.clients, testLogger()).PutItem(context.Background(), "orders", map[string]any{"id": "a"})
 
 	if err == nil {
 		t.Fatal("expected an error")
@@ -683,7 +686,7 @@ func TestSfnStartExecutionSendsInputAndName(t *testing.T) {
 		return jsonResponse(`{"executionArn":"arn:exec","startDate":1700000000}`)
 	})
 
-	var output, err = NewStateMachineApi(testLogger()).
+	var output, err = NewStateMachineApi(fake.clients, testLogger()).
 		StartExecution(context.Background(), "arn:sm", "run-1", `{"a":1}`)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -705,7 +708,7 @@ func TestSfnStartExecutionDefaultsToEmptyObjectWithoutName(t *testing.T) {
 		return jsonResponse(`{"executionArn":"arn:exec","startDate":1700000000}`)
 	})
 
-	var _, err = NewStateMachineApi(testLogger()).StartExecution(context.Background(), "arn:sm", "", "  ")
+	var _, err = NewStateMachineApi(fake.clients, testLogger()).StartExecution(context.Background(), "arn:sm", "", "  ")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -717,11 +720,11 @@ func TestSfnStartExecutionDefaultsToEmptyObjectWithoutName(t *testing.T) {
 }
 
 func TestSfnStartExecutionReportsServiceErrors(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(400, "application/x-amz-json-1.0", `{"__type":"InvalidArn","message":"bad"}`)
 	})
 
-	var _, err = NewStateMachineApi(testLogger()).StartExecution(context.Background(), "arn:sm", "", "{}")
+	var _, err = NewStateMachineApi(fake.clients, testLogger()).StartExecution(context.Background(), "arn:sm", "", "{}")
 
 	if err == nil {
 		t.Fatal("expected an error")
@@ -733,7 +736,7 @@ func TestSqsSendMessageSendsBodyGroupAndDeduplicationId(t *testing.T) {
 		return response(200, "application/x-amz-json-1.0", `{"MessageId":"m-1","SequenceNumber":"42"}`)
 	})
 
-	var output, err = NewSqsApi(testLogger()).
+	var output, err = NewSqsApi(fake.clients, testLogger()).
 		SendMessage(context.Background(), "https://sqs.us-east-1.amazonaws.com/1/q.fifo", `{"a":1}`, "g1", "d1", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -755,7 +758,7 @@ func TestSqsSendMessageOmitsEmptyGroupAndDeduplicationId(t *testing.T) {
 		return response(200, "application/x-amz-json-1.0", `{"MessageId":"m-1"}`)
 	})
 
-	var _, err = NewSqsApi(testLogger()).SendMessage(context.Background(), "https://q", "hello", "", "", nil)
+	var _, err = NewSqsApi(fake.clients, testLogger()).SendMessage(context.Background(), "https://q", "hello", "", "", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -766,11 +769,11 @@ func TestSqsSendMessageOmitsEmptyGroupAndDeduplicationId(t *testing.T) {
 }
 
 func TestSqsSendMessageReportsServiceErrors(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(400, "application/x-amz-json-1.0", `{"__type":"QueueDoesNotExist","message":"gone"}`)
 	})
 
-	var _, err = NewSqsApi(testLogger()).SendMessage(context.Background(), "https://q", "hello", "", "", nil)
+	var _, err = NewSqsApi(fake.clients, testLogger()).SendMessage(context.Background(), "https://q", "hello", "", "", nil)
 
 	if err == nil {
 		t.Fatal("expected an error")
@@ -786,7 +789,7 @@ func TestSqsSendMessageSendsMessageAttributes(t *testing.T) {
 		"Count":  {DataType: aws.String("Number"), StringValue: aws.String("3")},
 	}
 
-	var _, err = NewSqsApi(testLogger()).SendMessage(context.Background(), "https://q", "hello", "", "", attributes)
+	var _, err = NewSqsApi(fake.clients, testLogger()).SendMessage(context.Background(), "https://q", "hello", "", "", attributes)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -804,7 +807,7 @@ func TestEventBridgePutEventSendsTheEventToTheBus(t *testing.T) {
 		return jsonResponse(`{"FailedEntryCount":0,"Entries":[{"EventId":"e-1"}]}`)
 	})
 
-	var id, err = NewEventBridgeApi(testLogger()).PutEvent(
+	var id, err = NewEventBridgeApi(fake.clients, testLogger()).PutEvent(
 		context.Background(), "arn:aws:events:us-east-1:1:event-bus/orders", "my.app", "OrderPlaced",
 		`{"id":1}`, []string{"arn:aws:s3:::b"},
 	)
@@ -827,11 +830,11 @@ func TestEventBridgePutEventSendsTheEventToTheBus(t *testing.T) {
 }
 
 func TestEventBridgePutEventReportsARejectedEvent(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return jsonResponse(`{"FailedEntryCount":1,"Entries":[{"ErrorCode":"InvalidArgument","ErrorMessage":"bad detail"}]}`)
 	})
 
-	var _, err = NewEventBridgeApi(testLogger()).PutEvent(context.Background(), "bus", "src", "type", "{}", nil)
+	var _, err = NewEventBridgeApi(fake.clients, testLogger()).PutEvent(context.Background(), "bus", "src", "type", "{}", nil)
 
 	if err == nil || !strings.Contains(err.Error(), "InvalidArgument") || !strings.Contains(err.Error(), "bad detail") {
 		t.Fatalf("error = %v, want one with the rejection code and message", err)
@@ -839,11 +842,11 @@ func TestEventBridgePutEventReportsARejectedEvent(t *testing.T) {
 }
 
 func TestEventBridgePutEventReportsServiceErrors(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(400, "application/x-amz-json-1.1", `{"__type":"ResourceNotFoundException","message":"gone"}`)
 	})
 
-	var _, err = NewEventBridgeApi(testLogger()).PutEvent(context.Background(), "bus", "src", "type", "{}", nil)
+	var _, err = NewEventBridgeApi(fake.clients, testLogger()).PutEvent(context.Background(), "bus", "src", "type", "{}", nil)
 
 	if err == nil {
 		t.Fatal("expected an error")
@@ -851,14 +854,14 @@ func TestEventBridgePutEventReportsServiceErrors(t *testing.T) {
 }
 
 func TestSnsListTopicsSortedAcrossPages(t *testing.T) {
-	useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+	var fake = useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
 		if call == 1 {
 			return response(200, "text/xml", `<ListTopicsResponse><ListTopicsResult><Topics><member><TopicArn>arn:aws:sns:us-east-1:1:zeta</TopicArn></member></Topics><NextToken>t</NextToken></ListTopicsResult></ListTopicsResponse>`)
 		}
 		return response(200, "text/xml", `<ListTopicsResponse><ListTopicsResult><Topics><member><TopicArn>arn:aws:sns:us-east-1:1:alpha</TopicArn></member></Topics></ListTopicsResult></ListTopicsResponse>`)
 	})
 
-	var topics, err = NewSnsApi(testLogger()).ListTopics(context.Background(), true)
+	var topics, err = NewSnsApi(fake.clients, testLogger()).ListTopics(context.Background(), true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -869,11 +872,11 @@ func TestSnsListTopicsSortedAcrossPages(t *testing.T) {
 }
 
 func TestSnsGetTopicAttributes(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(200, "text/xml", `<GetTopicAttributesResponse><GetTopicAttributesResult><Attributes><entry><key>DisplayName</key><value>Orders</value></entry></Attributes></GetTopicAttributesResult></GetTopicAttributesResponse>`)
 	})
 
-	var attributes, err = NewSnsApi(testLogger()).GetTopicAttributes(context.Background(), "arn:aws:sns:us-east-1:1:orders")
+	var attributes, err = NewSnsApi(fake.clients, testLogger()).GetTopicAttributes(context.Background(), "arn:aws:sns:us-east-1:1:orders")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -884,11 +887,11 @@ func TestSnsGetTopicAttributes(t *testing.T) {
 }
 
 func TestSnsListTopicTags(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(200, "text/xml", `<ListTagsForResourceResponse><ListTagsForResourceResult><Tags><member><Key>env</Key><Value>prod</Value></member></Tags></ListTagsForResourceResult></ListTagsForResourceResponse>`)
 	})
 
-	var tags, err = NewSnsApi(testLogger()).ListTopicTags(context.Background(), "arn:aws:sns:us-east-1:1:orders")
+	var tags, err = NewSnsApi(fake.clients, testLogger()).ListTopicTags(context.Background(), "arn:aws:sns:us-east-1:1:orders")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -899,11 +902,11 @@ func TestSnsListTopicTags(t *testing.T) {
 }
 
 func TestSnsGetTopicAttributesReportsServiceErrors(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(404, "text/xml", `<ErrorResponse><Error><Type>Sender</Type><Code>NotFound</Code><Message>gone</Message></Error></ErrorResponse>`)
 	})
 
-	var _, err = NewSnsApi(testLogger()).GetTopicAttributes(context.Background(), "arn:aws:sns:us-east-1:1:orders")
+	var _, err = NewSnsApi(fake.clients, testLogger()).GetTopicAttributes(context.Background(), "arn:aws:sns:us-east-1:1:orders")
 
 	if err == nil {
 		t.Fatal("expected an error")
@@ -920,7 +923,7 @@ func TestSnsPublishSendsMessageAndOptions(t *testing.T) {
 		"Source": {DataType: aws.String("String"), StringValue: aws.String("tui")},
 	}
 
-	var output, err = NewSnsApi(testLogger()).Publish(
+	var output, err = NewSnsApi(fake.clients, testLogger()).Publish(
 		context.Background(), "arn:aws:sns:us-east-1:1:orders.fifo", "hello", "Greeting", "g1", "d1", attributes,
 	)
 	if err != nil {
@@ -948,7 +951,7 @@ func TestSnsPublishOmitsEmptyOptions(t *testing.T) {
 		return response(200, "text/xml", snsPublishResponse)
 	})
 
-	var _, err = NewSnsApi(testLogger()).Publish(context.Background(), "arn", "hello", "", "", "", nil)
+	var _, err = NewSnsApi(fake.clients, testLogger()).Publish(context.Background(), "arn", "hello", "", "", "", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -962,11 +965,11 @@ func TestSnsPublishOmitsEmptyOptions(t *testing.T) {
 }
 
 func TestSnsPublishReportsServiceErrors(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(404, "text/xml", `<ErrorResponse><Error><Type>Sender</Type><Code>NotFound</Code><Message>gone</Message></Error></ErrorResponse>`)
 	})
 
-	var _, err = NewSnsApi(testLogger()).Publish(context.Background(), "arn", "hello", "", "", "", nil)
+	var _, err = NewSnsApi(fake.clients, testLogger()).Publish(context.Background(), "arn", "hello", "", "", "", nil)
 
 	if err == nil {
 		t.Fatal("expected an error")
@@ -981,7 +984,7 @@ func TestSnsListTopicSubscriptionsFollowsNextToken(t *testing.T) {
 		return response(200, "text/xml", `<ListSubscriptionsByTopicResponse><ListSubscriptionsByTopicResult><Subscriptions><member><SubscriptionArn>PendingConfirmation</SubscriptionArn><Protocol>sqs</Protocol><Endpoint>arn:aws:sqs:q</Endpoint></member></Subscriptions></ListSubscriptionsByTopicResult></ListSubscriptionsByTopicResponse>`)
 	})
 
-	var subs, err = NewSnsApi(testLogger()).ListTopicSubscriptions(context.Background(), "arn:aws:sns:us-east-1:1:orders")
+	var subs, err = NewSnsApi(fake.clients, testLogger()).ListTopicSubscriptions(context.Background(), "arn:aws:sns:us-east-1:1:orders")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -995,11 +998,11 @@ func TestSnsListTopicSubscriptionsFollowsNextToken(t *testing.T) {
 }
 
 func TestSnsListTopicSubscriptionsReportsServiceErrors(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(404, "text/xml", `<ErrorResponse><Error><Type>Sender</Type><Code>NotFound</Code><Message>gone</Message></Error></ErrorResponse>`)
 	})
 
-	var _, err = NewSnsApi(testLogger()).ListTopicSubscriptions(context.Background(), "arn")
+	var _, err = NewSnsApi(fake.clients, testLogger()).ListTopicSubscriptions(context.Background(), "arn")
 
 	if err == nil {
 		t.Fatal("expected an error")
@@ -1011,7 +1014,7 @@ func TestSnsSubscribeSendsTheSubscriptionAndReturnsItsArn(t *testing.T) {
 		return response(200, "text/xml", `<SubscribeResponse><SubscribeResult><SubscriptionArn>arn:aws:sns:us-east-1:1:orders:abc</SubscriptionArn></SubscribeResult></SubscribeResponse>`)
 	})
 
-	var arn, err = NewSnsApi(testLogger()).Subscribe(
+	var arn, err = NewSnsApi(fake.clients, testLogger()).Subscribe(
 		context.Background(), "arn:aws:sns:us-east-1:1:orders", "email", "a@example.com",
 	)
 	if err != nil {
@@ -1033,11 +1036,11 @@ func TestSnsSubscribeSendsTheSubscriptionAndReturnsItsArn(t *testing.T) {
 }
 
 func TestSnsSubscribeReportsServiceErrors(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(400, "text/xml", `<ErrorResponse><Error><Type>Sender</Type><Code>InvalidParameter</Code><Message>bad endpoint</Message></Error></ErrorResponse>`)
 	})
 
-	var _, err = NewSnsApi(testLogger()).Subscribe(context.Background(), "arn", "email", "nope")
+	var _, err = NewSnsApi(fake.clients, testLogger()).Subscribe(context.Background(), "arn", "email", "nope")
 
 	if err == nil {
 		t.Fatal("expected an error")
@@ -1049,7 +1052,7 @@ func TestSnsUnsubscribeDeletesTheSubscription(t *testing.T) {
 		return response(200, "text/xml", `<UnsubscribeResponse><ResponseMetadata><RequestId>r</RequestId></ResponseMetadata></UnsubscribeResponse>`)
 	})
 
-	var err = NewSnsApi(testLogger()).Unsubscribe(context.Background(), "arn:aws:sns:us-east-1:1:orders:abc")
+	var err = NewSnsApi(fake.clients, testLogger()).Unsubscribe(context.Background(), "arn:aws:sns:us-east-1:1:orders:abc")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1063,11 +1066,11 @@ func TestSnsUnsubscribeDeletesTheSubscription(t *testing.T) {
 }
 
 func TestSnsUnsubscribeReportsServiceErrors(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(404, "text/xml", `<ErrorResponse><Error><Type>Sender</Type><Code>NotFound</Code><Message>gone</Message></Error></ErrorResponse>`)
 	})
 
-	var err = NewSnsApi(testLogger()).Unsubscribe(context.Background(), "arn:aws:sns:us-east-1:1:orders:abc")
+	var err = NewSnsApi(fake.clients, testLogger()).Unsubscribe(context.Background(), "arn:aws:sns:us-east-1:1:orders:abc")
 
 	if err == nil {
 		t.Fatal("expected an error")
@@ -1079,7 +1082,7 @@ func TestSnsDeleteTopicDeletesTheTopic(t *testing.T) {
 		return response(200, "text/xml", `<DeleteTopicResponse><ResponseMetadata><RequestId>r</RequestId></ResponseMetadata></DeleteTopicResponse>`)
 	})
 
-	var err = NewSnsApi(testLogger()).DeleteTopic(context.Background(), "arn:aws:sns:us-east-1:1:orders")
+	var err = NewSnsApi(fake.clients, testLogger()).DeleteTopic(context.Background(), "arn:aws:sns:us-east-1:1:orders")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1093,11 +1096,11 @@ func TestSnsDeleteTopicDeletesTheTopic(t *testing.T) {
 }
 
 func TestSnsDeleteTopicReportsServiceErrors(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(403, "text/xml", `<ErrorResponse><Error><Type>Sender</Type><Code>AuthorizationError</Code><Message>denied</Message></Error></ErrorResponse>`)
 	})
 
-	var err = NewSnsApi(testLogger()).DeleteTopic(context.Background(), "arn:aws:sns:us-east-1:1:orders")
+	var err = NewSnsApi(fake.clients, testLogger()).DeleteTopic(context.Background(), "arn:aws:sns:us-east-1:1:orders")
 
 	if err == nil {
 		t.Fatal("expected an error")
@@ -1111,7 +1114,7 @@ func TestSnsCreateTopicCreatesAStandardTopic(t *testing.T) {
 		return response(200, "text/xml", snsCreateTopicResponse)
 	})
 
-	var arn, err = NewSnsApi(testLogger()).CreateTopic(context.Background(), "orders", false, true)
+	var arn, err = NewSnsApi(fake.clients, testLogger()).CreateTopic(context.Background(), "orders", false, true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1133,7 +1136,7 @@ func TestSnsCreateTopicCreatesAFifoTopic(t *testing.T) {
 		return response(200, "text/xml", snsCreateTopicResponse)
 	})
 
-	var _, err = NewSnsApi(testLogger()).CreateTopic(context.Background(), "orders.fifo", true, true)
+	var _, err = NewSnsApi(fake.clients, testLogger()).CreateTopic(context.Background(), "orders.fifo", true, true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1154,7 +1157,7 @@ func TestSnsCreateTopicOmitsContentBasedDeduplicationUnlessAsked(t *testing.T) {
 		return response(200, "text/xml", snsCreateTopicResponse)
 	})
 
-	var _, err = NewSnsApi(testLogger()).CreateTopic(context.Background(), "orders.fifo", true, false)
+	var _, err = NewSnsApi(fake.clients, testLogger()).CreateTopic(context.Background(), "orders.fifo", true, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1166,11 +1169,11 @@ func TestSnsCreateTopicOmitsContentBasedDeduplicationUnlessAsked(t *testing.T) {
 }
 
 func TestSnsCreateTopicReportsServiceErrors(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(400, "text/xml", `<ErrorResponse><Error><Type>Sender</Type><Code>InvalidParameter</Code><Message>bad name</Message></Error></ErrorResponse>`)
 	})
 
-	var _, err = NewSnsApi(testLogger()).CreateTopic(context.Background(), "bad name", false, false)
+	var _, err = NewSnsApi(fake.clients, testLogger()).CreateTopic(context.Background(), "bad name", false, false)
 
 	if err == nil {
 		t.Fatal("expected an error")
@@ -1182,7 +1185,7 @@ func TestDynamoDBUpdateItemOnlyChangesTheGivenAttributes(t *testing.T) {
 		return jsonResponse(`{}`)
 	})
 
-	var err = NewDynamoDBApi(testLogger()).UpdateItem(
+	var err = NewDynamoDBApi(fake.clients, testLogger()).UpdateItem(
 		context.Background(), "orders",
 		map[string]any{"id": "a1"},
 		map[string]any{"status": "shipped", "count": json.Number("12345678901234567890")},
@@ -1207,7 +1210,7 @@ func TestDynamoDBUpdateItemRejectsInvalidArguments(t *testing.T) {
 	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return jsonResponse(`{}`)
 	})
-	var api = NewDynamoDBApi(testLogger())
+	var api = NewDynamoDBApi(fake.clients, testLogger())
 	var key = map[string]any{"id": "a1"}
 	var set = map[string]any{"status": "shipped"}
 
@@ -1228,11 +1231,11 @@ func TestDynamoDBUpdateItemRejectsInvalidArguments(t *testing.T) {
 }
 
 func TestDynamoDBUpdateItemReportsServiceErrors(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(400, "application/x-amz-json-1.0", `{"__type":"com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException","message":"The conditional request failed"}`)
 	})
 
-	var err = NewDynamoDBApi(testLogger()).UpdateItem(
+	var err = NewDynamoDBApi(fake.clients, testLogger()).UpdateItem(
 		context.Background(), "orders", map[string]any{"id": "a1"}, map[string]any{"status": "x"}, nil,
 	)
 
@@ -1246,7 +1249,7 @@ func TestDynamoDBDeleteItemDeletesTheItemWithTheKey(t *testing.T) {
 		return jsonResponse(`{}`)
 	})
 
-	var err = NewDynamoDBApi(testLogger()).DeleteItem(
+	var err = NewDynamoDBApi(fake.clients, testLogger()).DeleteItem(
 		context.Background(), "orders", map[string]any{"id": "a1", "ts": json.Number("5")},
 	)
 	if err != nil {
@@ -1268,7 +1271,7 @@ func TestDynamoDBDeleteItemRejectsInvalidArguments(t *testing.T) {
 	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return jsonResponse(`{}`)
 	})
-	var api = NewDynamoDBApi(testLogger())
+	var api = NewDynamoDBApi(fake.clients, testLogger())
 
 	for name, err := range map[string]error{
 		"no table":    api.DeleteItem(context.Background(), "", map[string]any{"id": "a1"}),
@@ -1285,11 +1288,11 @@ func TestDynamoDBDeleteItemRejectsInvalidArguments(t *testing.T) {
 }
 
 func TestDynamoDBDeleteItemReportsAMissingItem(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(400, "application/x-amz-json-1.0", `{"__type":"com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException","message":"The conditional request failed"}`)
 	})
 
-	var err = NewDynamoDBApi(testLogger()).DeleteItem(context.Background(), "orders", map[string]any{"id": "a1"})
+	var err = NewDynamoDBApi(fake.clients, testLogger()).DeleteItem(context.Background(), "orders", map[string]any{"id": "a1"})
 
 	if err == nil || !strings.Contains(err.Error(), "ConditionalCheckFailed") {
 		t.Fatalf("error = %v, want the conditional check failure", err)
@@ -1312,14 +1315,14 @@ func iamResponse(action string, result string) *http.Response {
 }
 
 func TestIamListRolesSortedAcrossPages(t *testing.T) {
-	useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+	var fake = useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
 		if call == 1 {
 			return iamResponse("ListRoles", `<IsTruncated>true</IsTruncated><Marker>m</Marker><Roles><member><RoleName>zeta</RoleName></member></Roles>`)
 		}
 		return iamResponse("ListRoles", `<IsTruncated>false</IsTruncated><Roles><member><RoleName>alpha</RoleName></member></Roles>`)
 	})
 
-	var roles, err = NewIamApi(testLogger()).ListRoles(context.Background(), true)
+	var roles, err = NewIamApi(fake.clients, testLogger()).ListRoles(context.Background(), true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1330,11 +1333,11 @@ func TestIamListRolesSortedAcrossPages(t *testing.T) {
 }
 
 func TestIamGetRoleDecodesTrustPolicy(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return iamResponse("GetRole", `<Role><RoleName>orders</RoleName><AssumeRolePolicyDocument>%7B%22Version%22%3A%222012-10-17%22%7D</AssumeRolePolicyDocument></Role>`)
 	})
 
-	var role, err = NewIamApi(testLogger()).GetRole(context.Background(), "orders")
+	var role, err = NewIamApi(fake.clients, testLogger()).GetRole(context.Background(), "orders")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1345,7 +1348,7 @@ func TestIamGetRoleDecodesTrustPolicy(t *testing.T) {
 }
 
 func TestIamListRolePoliciesGivesAttachedThenInline(t *testing.T) {
-	useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+	var fake = useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
 		switch iamAction(body) {
 		case "ListAttachedRolePolicies":
 			return iamResponse("ListAttachedRolePolicies", `<IsTruncated>false</IsTruncated><AttachedPolicies>`+
@@ -1358,7 +1361,7 @@ func TestIamListRolePoliciesGivesAttachedThenInline(t *testing.T) {
 		return response(400, "text/xml", `<ErrorResponse><Error><Code>Unexpected</Code></Error></ErrorResponse>`)
 	})
 
-	var policies, err = NewIamApi(testLogger()).ListRolePolicies(context.Background(), "orders")
+	var policies, err = NewIamApi(fake.clients, testLogger()).ListRolePolicies(context.Background(), "orders")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1383,7 +1386,7 @@ func TestIamGetRolePolicyDocumentOfInlinePolicy(t *testing.T) {
 		return iamResponse("GetRolePolicy", `<PolicyDocument>%7B%22Statement%22%3A%5B%5D%7D</PolicyDocument>`)
 	})
 
-	var document, err = NewIamApi(testLogger()).GetRolePolicyDocument(
+	var document, err = NewIamApi(fake.clients, testLogger()).GetRolePolicyDocument(
 		context.Background(), "orders", PrincipalPolicy{Name: "queue-access"},
 	)
 	if err != nil {
@@ -1409,7 +1412,7 @@ func TestIamGetRolePolicyDocumentOfManagedPolicyUsesDefaultVersion(t *testing.T)
 		return response(400, "text/xml", `<ErrorResponse><Error><Code>Unexpected</Code></Error></ErrorResponse>`)
 	})
 
-	var document, err = NewIamApi(testLogger()).GetRolePolicyDocument(
+	var document, err = NewIamApi(fake.clients, testLogger()).GetRolePolicyDocument(
 		context.Background(), "orders", PrincipalPolicy{Name: "Logs", Arn: "arn:aws:iam::1:policy/Logs"},
 	)
 	if err != nil {
@@ -1425,11 +1428,11 @@ func TestIamGetRolePolicyDocumentOfManagedPolicyUsesDefaultVersion(t *testing.T)
 }
 
 func TestIamGetRoleReportsServiceErrors(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(404, "text/xml", `<ErrorResponse><Error><Type>Sender</Type><Code>NoSuchEntity</Code><Message>gone</Message></Error></ErrorResponse>`)
 	})
 
-	var _, err = NewIamApi(testLogger()).GetRole(context.Background(), "orders")
+	var _, err = NewIamApi(fake.clients, testLogger()).GetRole(context.Background(), "orders")
 
 	if err == nil || !strings.Contains(err.Error(), "NoSuchEntity") {
 		t.Fatalf("error = %v, want the service error", err)
@@ -1440,7 +1443,7 @@ func TestIamMissingArgumentsAreRejected(t *testing.T) {
 	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return iamResponse("GetRole", "")
 	})
-	var api = NewIamApi(testLogger())
+	var api = NewIamApi(fake.clients, testLogger())
 	var ctx = context.Background()
 
 	var tests = []struct {
@@ -1472,7 +1475,7 @@ func TestIamMissingArgumentsAreRejected(t *testing.T) {
 }
 
 func TestIamListUserPoliciesGivesAttachedThenInline(t *testing.T) {
-	useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+	var fake = useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
 		switch iamAction(body) {
 		case "ListAttachedUserPolicies":
 			return iamResponse("ListAttachedUserPolicies", `<IsTruncated>false</IsTruncated><AttachedPolicies>`+
@@ -1484,7 +1487,7 @@ func TestIamListUserPoliciesGivesAttachedThenInline(t *testing.T) {
 		return response(400, "text/xml", `<ErrorResponse><Error><Code>Unexpected</Code></Error></ErrorResponse>`)
 	})
 
-	var policies, err = NewIamApi(testLogger()).ListUserPolicies(context.Background(), "alice")
+	var policies, err = NewIamApi(fake.clients, testLogger()).ListUserPolicies(context.Background(), "alice")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1509,7 +1512,7 @@ func TestIamGetUserPolicyDocumentOfInlinePolicy(t *testing.T) {
 		return iamResponse("GetUserPolicy", `<PolicyDocument>%7B%22Statement%22%3A%5B%5D%7D</PolicyDocument>`)
 	})
 
-	var document, err = NewIamApi(testLogger()).GetUserPolicyDocument(
+	var document, err = NewIamApi(fake.clients, testLogger()).GetUserPolicyDocument(
 		context.Background(), "alice", PrincipalPolicy{Name: "deploy"},
 	)
 	if err != nil {
@@ -1525,7 +1528,7 @@ func TestIamGetUserPolicyDocumentOfInlinePolicy(t *testing.T) {
 }
 
 func TestIamListUsersGroupsAndAccessKeys(t *testing.T) {
-	useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+	var fake = useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
 		switch iamAction(body) {
 		case "ListUsers":
 			return iamResponse("ListUsers", `<IsTruncated>false</IsTruncated><Users><member><UserName>bob</UserName></member><member><UserName>alice</UserName></member></Users>`)
@@ -1536,7 +1539,7 @@ func TestIamListUsersGroupsAndAccessKeys(t *testing.T) {
 		}
 		return response(400, "text/xml", `<ErrorResponse><Error><Code>Unexpected</Code></Error></ErrorResponse>`)
 	})
-	var api = NewIamApi(testLogger())
+	var api = NewIamApi(fake.clients, testLogger())
 	var ctx = context.Background()
 
 	var users, err = api.ListUsers(ctx, true)
@@ -1563,7 +1566,7 @@ func TestIamListPoliciesGivesCustomerThenAttachedAwsPolicies(t *testing.T) {
 		return iamResponse("ListPolicies", `<IsTruncated>false</IsTruncated><Policies><member><PolicyName>ReadOnly</PolicyName></member><member><PolicyName>Admin</PolicyName></member></Policies>`)
 	})
 
-	var policies, err = NewIamApi(testLogger()).ListPolicies(context.Background(), true)
+	var policies, err = NewIamApi(fake.clients, testLogger()).ListPolicies(context.Background(), true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1581,7 +1584,7 @@ func TestIamListPoliciesGivesCustomerThenAttachedAwsPolicies(t *testing.T) {
 }
 
 func TestIamGetPolicyDocumentUsesDefaultVersion(t *testing.T) {
-	useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+	var fake = useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
 		switch iamAction(body) {
 		case "GetPolicy":
 			return iamResponse("GetPolicy", `<Policy><DefaultVersionId>v2</DefaultVersionId></Policy>`)
@@ -1594,7 +1597,7 @@ func TestIamGetPolicyDocumentUsesDefaultVersion(t *testing.T) {
 		return response(400, "text/xml", `<ErrorResponse><Error><Code>Unexpected</Code></Error></ErrorResponse>`)
 	})
 
-	var document, err = NewIamApi(testLogger()).GetPolicyDocument(context.Background(), "arn:aws:iam::1:policy/orders")
+	var document, err = NewIamApi(fake.clients, testLogger()).GetPolicyDocument(context.Background(), "arn:aws:iam::1:policy/orders")
 
 	if err != nil || document != "{}" {
 		t.Errorf("document = %q, %v", document, err)
@@ -1602,14 +1605,14 @@ func TestIamGetPolicyDocumentUsesDefaultVersion(t *testing.T) {
 }
 
 func TestIamListPolicyEntitiesGivesRolesUsersThenGroups(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return iamResponse("ListEntitiesForPolicy", `<IsTruncated>false</IsTruncated>`+
 			`<PolicyGroups><member><GroupName>dev</GroupName></member></PolicyGroups>`+
 			`<PolicyUsers><member><UserName>bob</UserName></member><member><UserName>alice</UserName></member></PolicyUsers>`+
 			`<PolicyRoles><member><RoleName>orders</RoleName></member></PolicyRoles>`)
 	})
 
-	var entities, err = NewIamApi(testLogger()).ListPolicyEntities(context.Background(), "arn:aws:iam::1:policy/orders")
+	var entities, err = NewIamApi(fake.clients, testLogger()).ListPolicyEntities(context.Background(), "arn:aws:iam::1:policy/orders")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1634,7 +1637,7 @@ func TestIamUserAndPolicyMissingArgumentsAreRejected(t *testing.T) {
 	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return iamResponse("GetUser", "")
 	})
-	var api = NewIamApi(testLogger())
+	var api = NewIamApi(fake.clients, testLogger())
 	var ctx = context.Background()
 
 	var tests = []struct {
@@ -1683,7 +1686,7 @@ func TestLambdaListEventSourceMappingsSortedAcrossPages(t *testing.T) {
 		return original(call, req, body)
 	}
 
-	var mappings, err = NewLambdaApi(testLogger()).ListEventSourceMappings(
+	var mappings, err = NewLambdaApi(fake.clients, testLogger()).ListEventSourceMappings(
 		context.Background(), "arn:aws:lambda:us-east-1:1:function:orders",
 	)
 	if err != nil {
@@ -1699,11 +1702,11 @@ func TestLambdaListEventSourceMappingsSortedAcrossPages(t *testing.T) {
 }
 
 func TestLambdaGetPolicy(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(200, "application/json", `{"Policy":"{\"Version\":\"2012-10-17\"}","RevisionId":"r1"}`)
 	})
 
-	var policy, err = NewLambdaApi(testLogger()).GetPolicy(context.Background(), "arn:aws:lambda:us-east-1:1:function:orders")
+	var policy, err = NewLambdaApi(fake.clients, testLogger()).GetPolicy(context.Background(), "arn:aws:lambda:us-east-1:1:function:orders")
 
 	if err != nil || policy != `{"Version":"2012-10-17"}` {
 		t.Errorf("policy = %q, %v", policy, err)
@@ -1717,11 +1720,11 @@ func lambdaErrorResponse(status int, errorType string) *http.Response {
 }
 
 func TestLambdaGetPolicyOfLambdaWithoutOneIsEmpty(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return lambdaErrorResponse(404, "ResourceNotFoundException")
 	})
 
-	var policy, err = NewLambdaApi(testLogger()).GetPolicy(context.Background(), "arn:aws:lambda:us-east-1:1:function:orders")
+	var policy, err = NewLambdaApi(fake.clients, testLogger()).GetPolicy(context.Background(), "arn:aws:lambda:us-east-1:1:function:orders")
 
 	if err != nil || policy != "" {
 		t.Errorf("policy = %q, %v, want empty without an error", policy, err)
@@ -1729,11 +1732,11 @@ func TestLambdaGetPolicyOfLambdaWithoutOneIsEmpty(t *testing.T) {
 }
 
 func TestLambdaGetPolicyReportsOtherErrors(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return lambdaErrorResponse(403, "AccessDeniedException")
 	})
 
-	var _, err = NewLambdaApi(testLogger()).GetPolicy(context.Background(), "arn:aws:lambda:us-east-1:1:function:orders")
+	var _, err = NewLambdaApi(fake.clients, testLogger()).GetPolicy(context.Background(), "arn:aws:lambda:us-east-1:1:function:orders")
 
 	if err == nil || !strings.Contains(err.Error(), "AccessDeniedException") {
 		t.Errorf("error = %v, want the service error", err)
@@ -1745,7 +1748,7 @@ func TestLambdaListEventSourceMappingsRejectsMissingLambda(t *testing.T) {
 		return response(200, "application/json", `{}`)
 	})
 
-	var _, err = NewLambdaApi(testLogger()).ListEventSourceMappings(context.Background(), "")
+	var _, err = NewLambdaApi(fake.clients, testLogger()).ListEventSourceMappings(context.Background(), "")
 
 	if err == nil || err.Error() != "lambda ARN not set" || fake.calls() != 0 {
 		t.Errorf("error = %v, calls = %d", err, fake.calls())
@@ -1753,7 +1756,7 @@ func TestLambdaListEventSourceMappingsRejectsMissingLambda(t *testing.T) {
 }
 
 func TestLambdaListVersionsGivesLatestThenNewestFirst(t *testing.T) {
-	useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+	var fake = useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
 		if call == 1 {
 			return response(200, "application/json",
 				`{"Versions":[{"Version":"$LATEST"},{"Version":"1"},{"Version":"9"}],"NextMarker":"m"}`)
@@ -1761,7 +1764,7 @@ func TestLambdaListVersionsGivesLatestThenNewestFirst(t *testing.T) {
 		return response(200, "application/json", `{"Versions":[{"Version":"10"},{"Version":"2"}]}`)
 	})
 
-	var versions, err = NewLambdaApi(testLogger()).ListVersions(context.Background(), "arn:aws:lambda:us-east-1:1:function:orders")
+	var versions, err = NewLambdaApi(fake.clients, testLogger()).ListVersions(context.Background(), "arn:aws:lambda:us-east-1:1:function:orders")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1776,11 +1779,11 @@ func TestLambdaListVersionsGivesLatestThenNewestFirst(t *testing.T) {
 }
 
 func TestLambdaListAliasesSortedByName(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(200, "application/json", `{"Aliases":[{"Name":"staging"},{"Name":"prod"}]}`)
 	})
 
-	var aliases, err = NewLambdaApi(testLogger()).ListAliases(context.Background(), "arn:aws:lambda:us-east-1:1:function:orders")
+	var aliases, err = NewLambdaApi(fake.clients, testLogger()).ListAliases(context.Background(), "arn:aws:lambda:us-east-1:1:function:orders")
 
 	if err != nil || len(aliases) != 2 || aws.ToString(aliases[0].Name) != "prod" {
 		t.Errorf("aliases = %v, %v, want prod then staging", aliases, err)
@@ -1791,7 +1794,7 @@ func TestLambdaVersionsAndAliasesRejectMissingLambda(t *testing.T) {
 	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(200, "application/json", `{}`)
 	})
-	var api = NewLambdaApi(testLogger())
+	var api = NewLambdaApi(fake.clients, testLogger())
 
 	var _, versionsErr = api.ListVersions(context.Background(), "")
 	var _, aliasesErr = api.ListAliases(context.Background(), "")
@@ -1803,5 +1806,33 @@ func TestLambdaVersionsAndAliasesRejectMissingLambda(t *testing.T) {
 	}
 	if fake.calls() != 0 {
 		t.Errorf("calls = %d, want none", fake.calls())
+	}
+}
+
+// An api keeps the clients it was built with, so one built for a profile never
+// reaches the account of another, whatever clients are built after it.
+func TestApisOnlyUseTheClientsTheyWereBuiltWith(t *testing.T) {
+	var answer = func(int, *http.Request, string) *http.Response {
+		return response(200, "application/x-amz-json-1.1", `{"Parameter":{"Name":"/app/db/host","Value":"db.internal"}}`)
+	}
+	var first = useFakeAws(t, answer)
+	var api = NewSystemsManagerApi(first.clients, testLogger())
+	var second = useFakeAws(t, answer)
+
+	if _, err := api.GetParameterValue(context.Background(), "/app/db/host", 0); err != nil {
+		t.Fatal(err)
+	}
+
+	if first.calls() != 1 || second.calls() != 0 {
+		t.Errorf("calls = %d to the clients of the api and %d to the others, want 1 and 0", first.calls(), second.calls())
+	}
+}
+
+func TestNewAwsApiClients__KeepsTheConfigAndProfile(t *testing.T) {
+	var clients = NewAwsApiClients(aws.Config{Region: "eu-west-1"}, "beta")
+
+	if clients.Config.Region != "eu-west-1" || clients.Profile != "beta" || clients.Sts == nil {
+		t.Errorf("clients = region %q, profile %q, sts %v, want eu-west-1, beta and an sts client",
+			clients.Config.Region, clients.Profile, clients.Sts)
 	}
 }

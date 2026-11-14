@@ -106,17 +106,18 @@ type cloudWatchLogsApi struct {
 }
 
 func NewCloudWatchLogsApi(
+	clients *AwsApiClients,
 	logger *log.Logger,
 ) CloudWatchLogsApi {
 	return &cloudWatchLogsApi{
-		baseApi: baseApi{logger: logger},
+		baseApi: baseApi{clients: clients, logger: logger},
 	}
 }
 
 func (inst *cloudWatchLogsApi) ListLogGroups(ctx context.Context, reset bool) ([]types.LogGroup, error) {
 	if reset || inst.logGroupsPaginator == nil {
 		inst.logGroupsPaginator = cloudwatchlogs.NewDescribeLogGroupsPaginator(
-			GetAwsApiClients().cloudwatchlogs,
+			inst.clients.cloudwatchlogs,
 			&cloudwatchlogs.DescribeLogGroupsInput{
 				Limit: aws.Int32(50),
 			},
@@ -159,7 +160,7 @@ func (inst *cloudWatchLogsApi) ListLogStreams(
 			searchPrefixPtr = &searchPrefix
 		}
 
-		var client = GetAwsApiClients().cloudwatchlogs
+		var client = inst.clients.cloudwatchlogs
 
 		inst.logStreamsPaginator = cloudwatchlogs.NewDescribeLogStreamsPaginator(
 			client,
@@ -223,7 +224,7 @@ func (inst *cloudWatchLogsApi) ListLogEvents(
 		return empty, err
 	}
 
-	var client = GetAwsApiClients().cloudwatchlogs
+	var client = inst.clients.cloudwatchlogs
 
 	inst.logEventsMtx.Lock()
 	defer inst.logEventsMtx.Unlock()
@@ -286,7 +287,7 @@ func (inst *cloudWatchLogsApi) FollowLogEvents(
 
 	// The paginator stops once the end of the stream is reached, but the
 	// token of the end can be asked again for what came after it
-	var output, err = GetAwsApiClients().cloudwatchlogs.GetLogEvents(
+	var output, err = inst.clients.cloudwatchlogs.GetLogEvents(
 		ctx, &cloudwatchlogs.GetLogEventsInput{
 			LogGroupName:  aws.String(logGroupName),
 			LogStreamName: aws.String(logStreamName),
@@ -319,7 +320,7 @@ func (inst *cloudWatchLogsApi) ListFilteredLogEvents(
 		return empty, err
 	}
 
-	var client = GetAwsApiClients().cloudwatchlogs
+	var client = inst.clients.cloudwatchlogs
 
 	inst.logEventsMtx.Lock()
 	defer inst.logEventsMtx.Unlock()
@@ -369,7 +370,7 @@ func (inst *cloudWatchLogsApi) StartInsightsQuery(
 	endTime time.Time,
 	query string,
 ) (string, error) {
-	var client = GetAwsApiClients().cloudwatchlogs
+	var client = inst.clients.cloudwatchlogs
 	var output, err = client.StartQuery(
 		ctx, &cloudwatchlogs.StartQueryInput{
 			StartTime:     aws.Int64(startTime.Unix()),
@@ -394,7 +395,7 @@ func (inst *cloudWatchLogsApi) StopInsightsQuery(
 		return false, err
 	}
 
-	var client = GetAwsApiClients().cloudwatchlogs
+	var client = inst.clients.cloudwatchlogs
 
 	var output, err = client.StopQuery(
 		ctx, &cloudwatchlogs.StopQueryInput{
@@ -419,7 +420,7 @@ func (inst *cloudWatchLogsApi) GetInsightsQueryResults(
 		return empty, err
 	}
 
-	var client = GetAwsApiClients().cloudwatchlogs
+	var client = inst.clients.cloudwatchlogs
 
 	var output, err = client.GetQueryResults(
 		ctx, &cloudwatchlogs.GetQueryResultsInput{
@@ -447,7 +448,7 @@ func (inst *cloudWatchLogsApi) GetInsightsLogRecord(
 		return empty, err
 	}
 
-	var client = GetAwsApiClients().cloudwatchlogs
+	var client = inst.clients.cloudwatchlogs
 
 	var output, err = client.GetLogRecord(
 		ctx, &cloudwatchlogs.GetLogRecordInput{

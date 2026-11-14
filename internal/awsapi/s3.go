@@ -45,10 +45,11 @@ type s3BucketsApi struct {
 }
 
 func NewS3BucketsApi(
+	clients *AwsApiClients,
 	logger *log.Logger,
 ) S3BucketsApi {
 	return &s3BucketsApi{
-		baseApi:    baseApi{logger: logger},
+		baseApi:    baseApi{clients: clients, logger: logger},
 		allbuckets: []types.Bucket{},
 	}
 }
@@ -59,7 +60,7 @@ func (inst *s3BucketsApi) ListBuckets(ctx context.Context, force bool) ([]types.
 	}
 
 	var paginator = s3.NewListBucketsPaginator(
-		GetAwsApiClients().s3, &s3.ListBucketsInput{},
+		inst.clients.s3, &s3.ListBucketsInput{},
 	)
 
 	var result, err = collectPaginator(paginator.HasMorePages, func() ([]types.Bucket, error) {
@@ -92,7 +93,7 @@ func (inst *s3BucketsApi) ListObjects(
 		objPrefix = nil
 	}
 
-	var client = GetAwsApiClients().s3
+	var client = inst.clients.s3
 	if force || inst.objectsPaginator == nil {
 		inst.objectsPaginator = s3.NewListObjectsV2Paginator(
 			client, &s3.ListObjectsV2Input{
@@ -127,7 +128,7 @@ func (inst *s3BucketsApi) openObject(
 		return nil, err
 	}
 
-	var result, err = GetAwsApiClients().s3.GetObject(ctx, &s3.GetObjectInput{
+	var result, err = inst.clients.s3.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(objectKey),
 	})
@@ -208,7 +209,7 @@ func (inst *s3BucketsApi) GetObjectContent(
 }
 
 func (inst *s3BucketsApi) GetBucketPolicy(ctx context.Context, bucketArn string, force bool) (string, error) {
-	var client = GetAwsApiClients().s3
+	var client = inst.clients.s3
 
 	var output, err = client.GetBucketPolicy(ctx,
 		&s3.GetBucketPolicyInput{
@@ -226,7 +227,7 @@ func (inst *s3BucketsApi) GetBucketTags(
 	ctx context.Context,
 	bucketArn string, force bool,
 ) ([]types.Tag, error) {
-	var client = GetAwsApiClients().s3
+	var client = inst.clients.s3
 
 	var output, err = client.GetBucketTagging(ctx,
 		&s3.GetBucketTaggingInput{
@@ -244,7 +245,7 @@ func (inst *s3BucketsApi) HeadBucket(
 	ctx context.Context,
 	bucketArn string, objectKey string, force bool,
 ) (s3.HeadBucketOutput, error) {
-	var client = GetAwsApiClients().s3
+	var client = inst.clients.s3
 	var empty = s3.HeadBucketOutput{}
 	var output, err = client.HeadBucket(ctx,
 		&s3.HeadBucketInput{
@@ -262,7 +263,7 @@ func (inst *s3BucketsApi) HeadObject(
 	ctx context.Context,
 	bucketArn string, objectKey string, force bool,
 ) (s3.HeadObjectOutput, error) {
-	var client = GetAwsApiClients().s3
+	var client = inst.clients.s3
 	var empty = s3.HeadObjectOutput{}
 	var output, err = client.HeadObject(ctx,
 		&s3.HeadObjectInput{

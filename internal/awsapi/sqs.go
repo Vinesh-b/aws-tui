@@ -27,16 +27,17 @@ type sqsApi struct {
 }
 
 func NewSqsApi(
+	clients *AwsApiClients,
 	logger *log.Logger,
 ) SqsApi {
 	return &sqsApi{
-		baseApi: baseApi{logger: logger},
+		baseApi: baseApi{clients: clients, logger: logger},
 	}
 }
 
 func (inst *sqsApi) ListQueues(ctx context.Context, force bool) ([]string, error) {
 	var paginator = sqs.NewListQueuesPaginator(
-		GetAwsApiClients().sqs,
+		inst.clients.sqs,
 		&sqs.ListQueuesInput{},
 	)
 
@@ -58,7 +59,7 @@ func (inst *sqsApi) GetQueueAttributes(ctx context.Context, queueUrl string) (ma
 		return nil, err
 	}
 
-	var output, err = GetAwsApiClients().sqs.GetQueueAttributes(ctx,
+	var output, err = inst.clients.sqs.GetQueueAttributes(ctx,
 		&sqs.GetQueueAttributesInput{
 			QueueUrl:       &queueUrl,
 			AttributeNames: []types.QueueAttributeName{types.QueueAttributeNameAll},
@@ -76,7 +77,7 @@ func (inst *sqsApi) ListQueueTags(ctx context.Context, queueUrl string) (map[str
 		return nil, err
 	}
 
-	var output, err = GetAwsApiClients().sqs.ListQueueTags(ctx,
+	var output, err = inst.clients.sqs.ListQueueTags(ctx,
 		&sqs.ListQueueTagsInput{QueueUrl: &queueUrl},
 	)
 	if err != nil {
@@ -111,7 +112,7 @@ func (inst *sqsApi) SendMessage(
 		input.MessageAttributes = attributes
 	}
 
-	var output, err = GetAwsApiClients().sqs.SendMessage(ctx, input)
+	var output, err = inst.clients.sqs.SendMessage(ctx, input)
 	if err != nil {
 		return nil, inst.logErr(err)
 	}

@@ -182,7 +182,7 @@ func (inst *SessionMonitor) poll() {
 
 		if text := session.shown(); text != shown && generation == inst.generation.Load() {
 			shown = text
-			if len(session.err) > 0 {
+			if len(session.err) > 0 && inst.appCtx.Logger != nil {
 				inst.appCtx.Logger.Print(session.err)
 			}
 			inst.queue(func() {

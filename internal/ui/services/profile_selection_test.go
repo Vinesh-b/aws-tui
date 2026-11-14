@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"aws-tui/internal/awsapi"
 	"aws-tui/internal/safetest"
 	"aws-tui/internal/ui/uitest"
 
@@ -44,9 +43,9 @@ func TestProfileSelection__SelectingProfileSwitchesApiClients(t *testing.T) {
 	uitest.PressRune(t, appCtx.App, 'j')
 	uitest.PressKey(t, appCtx.App, tcell.KeyEnter)
 
-	uitest.Eventually(t, appCtx.App, func() bool { return awsapi.GetAwsApiClients().Profile == "beta" })
+	uitest.Eventually(t, appCtx.App, func() bool { return appCtx.GetApiClients().Profile == "beta" })
 	uitest.AwaitScreenText(t, appCtx.App, screen, "Switched to profile beta (region ap-south-1)")
-	var cfg = awsapi.GetAwsApiClients().Config
+	var cfg = appCtx.GetApiClients().Config
 	if cfg.Region != "ap-south-1" {
 		t.Errorf("region = %q, want ap-south-1", cfg.Region)
 	}

@@ -75,10 +75,11 @@ type iamApi struct {
 }
 
 func NewIamApi(
+	clients *AwsApiClients,
 	logger *log.Logger,
 ) IamApi {
 	return &iamApi{
-		baseApi: baseApi{logger: logger},
+		baseApi: baseApi{clients: clients, logger: logger},
 	}
 }
 
@@ -113,7 +114,7 @@ func inlinePolicies(names []string) []PrincipalPolicy {
 // managedPolicyDocument is the decoded document of the default version of the
 // managed policy
 func (inst *iamApi) managedPolicyDocument(ctx context.Context, policyArn string) (string, error) {
-	var client = GetAwsApiClients().iam
+	var client = inst.clients.iam
 	var managed, err = client.GetPolicy(ctx, &iam.GetPolicyInput{PolicyArn: &policyArn})
 	if err != nil {
 		return "", inst.logErr(err)
@@ -135,7 +136,7 @@ func (inst *iamApi) managedPolicyDocument(ctx context.Context, policyArn string)
 
 func (inst *iamApi) ListRoles(ctx context.Context, force bool) ([]types.Role, error) {
 	var paginator = iam.NewListRolesPaginator(
-		GetAwsApiClients().iam,
+		inst.clients.iam,
 		&iam.ListRolesInput{},
 	)
 
@@ -157,7 +158,7 @@ func (inst *iamApi) GetRole(ctx context.Context, roleName string) (*types.Role, 
 		return nil, err
 	}
 
-	var output, err = GetAwsApiClients().iam.GetRole(ctx, &iam.GetRoleInput{RoleName: &roleName})
+	var output, err = inst.clients.iam.GetRole(ctx, &iam.GetRoleInput{RoleName: &roleName})
 	if err != nil {
 		return nil, inst.logErr(err)
 	}
@@ -179,7 +180,7 @@ func (inst *iamApi) ListRolePolicies(ctx context.Context, roleName string) ([]Pr
 		return nil, err
 	}
 
-	var client = GetAwsApiClients().iam
+	var client = inst.clients.iam
 	var attachedPaginator = iam.NewListAttachedRolePoliciesPaginator(client,
 		&iam.ListAttachedRolePoliciesInput{RoleName: &roleName},
 	)
@@ -226,7 +227,7 @@ func (inst *iamApi) GetRolePolicyDocument(
 		return inst.managedPolicyDocument(ctx, policy.Arn)
 	}
 
-	var output, err = GetAwsApiClients().iam.GetRolePolicy(ctx, &iam.GetRolePolicyInput{
+	var output, err = inst.clients.iam.GetRolePolicy(ctx, &iam.GetRolePolicyInput{
 		RoleName:   &roleName,
 		PolicyName: &policy.Name,
 	})
@@ -245,7 +246,7 @@ func (inst *iamApi) ListRoleTags(ctx context.Context, roleName string) ([]types.
 	}
 
 	var paginator = iam.NewListRoleTagsPaginator(
-		GetAwsApiClients().iam,
+		inst.clients.iam,
 		&iam.ListRoleTagsInput{RoleName: &roleName},
 	)
 
@@ -262,7 +263,7 @@ func (inst *iamApi) ListRoleTags(ctx context.Context, roleName string) ([]types.
 
 func (inst *iamApi) ListUsers(ctx context.Context, force bool) ([]types.User, error) {
 	var paginator = iam.NewListUsersPaginator(
-		GetAwsApiClients().iam,
+		inst.clients.iam,
 		&iam.ListUsersInput{},
 	)
 
@@ -284,7 +285,7 @@ func (inst *iamApi) GetUser(ctx context.Context, userName string) (*types.User, 
 		return nil, err
 	}
 
-	var output, err = GetAwsApiClients().iam.GetUser(ctx, &iam.GetUserInput{UserName: &userName})
+	var output, err = inst.clients.iam.GetUser(ctx, &iam.GetUserInput{UserName: &userName})
 	if err != nil {
 		return nil, inst.logErr(err)
 	}
@@ -296,7 +297,7 @@ func (inst *iamApi) ListUserPolicies(ctx context.Context, userName string) ([]Pr
 		return nil, err
 	}
 
-	var client = GetAwsApiClients().iam
+	var client = inst.clients.iam
 	var attachedPaginator = iam.NewListAttachedUserPoliciesPaginator(client,
 		&iam.ListAttachedUserPoliciesInput{UserName: &userName},
 	)
@@ -343,7 +344,7 @@ func (inst *iamApi) GetUserPolicyDocument(
 		return inst.managedPolicyDocument(ctx, policy.Arn)
 	}
 
-	var output, err = GetAwsApiClients().iam.GetUserPolicy(ctx, &iam.GetUserPolicyInput{
+	var output, err = inst.clients.iam.GetUserPolicy(ctx, &iam.GetUserPolicyInput{
 		UserName:   &userName,
 		PolicyName: &policy.Name,
 	})
@@ -362,7 +363,7 @@ func (inst *iamApi) ListUserGroups(ctx context.Context, userName string) ([]type
 	}
 
 	var paginator = iam.NewListGroupsForUserPaginator(
-		GetAwsApiClients().iam,
+		inst.clients.iam,
 		&iam.ListGroupsForUserInput{UserName: &userName},
 	)
 
@@ -385,7 +386,7 @@ func (inst *iamApi) ListUserAccessKeys(ctx context.Context, userName string) ([]
 	}
 
 	var paginator = iam.NewListAccessKeysPaginator(
-		GetAwsApiClients().iam,
+		inst.clients.iam,
 		&iam.ListAccessKeysInput{UserName: &userName},
 	)
 
@@ -406,7 +407,7 @@ func (inst *iamApi) ListUserTags(ctx context.Context, userName string) ([]types.
 	}
 
 	var paginator = iam.NewListUserTagsPaginator(
-		GetAwsApiClients().iam,
+		inst.clients.iam,
 		&iam.ListUserTagsInput{UserName: &userName},
 	)
 
@@ -422,7 +423,7 @@ func (inst *iamApi) ListUserTags(ctx context.Context, userName string) ([]types.
 }
 
 func (inst *iamApi) listPolicies(ctx context.Context, input *iam.ListPoliciesInput) ([]types.Policy, error) {
-	var paginator = iam.NewListPoliciesPaginator(GetAwsApiClients().iam, input)
+	var paginator = iam.NewListPoliciesPaginator(inst.clients.iam, input)
 
 	var result, err = collectPaginator(paginator.HasMorePages, func() ([]types.Policy, error) {
 		var output, err = paginator.NextPage(ctx)
@@ -457,7 +458,7 @@ func (inst *iamApi) GetPolicy(ctx context.Context, policyArn string) (*types.Pol
 		return nil, err
 	}
 
-	var output, err = GetAwsApiClients().iam.GetPolicy(ctx, &iam.GetPolicyInput{PolicyArn: &policyArn})
+	var output, err = inst.clients.iam.GetPolicy(ctx, &iam.GetPolicyInput{PolicyArn: &policyArn})
 	if err != nil {
 		return nil, inst.logErr(err)
 	}
@@ -477,7 +478,7 @@ func (inst *iamApi) ListPolicyEntities(ctx context.Context, policyArn string) ([
 	}
 
 	var paginator = iam.NewListEntitiesForPolicyPaginator(
-		GetAwsApiClients().iam,
+		inst.clients.iam,
 		&iam.ListEntitiesForPolicyInput{PolicyArn: &policyArn},
 	)
 
@@ -514,7 +515,7 @@ func (inst *iamApi) ListPolicyTags(ctx context.Context, policyArn string) ([]typ
 	}
 
 	var paginator = iam.NewListPolicyTagsPaginator(
-		GetAwsApiClients().iam,
+		inst.clients.iam,
 		&iam.ListPolicyTagsInput{PolicyArn: &policyArn},
 	)
 

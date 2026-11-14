@@ -31,10 +31,11 @@ type kmsApi struct {
 }
 
 func NewKmsApi(
+	clients *AwsApiClients,
 	logger *log.Logger,
 ) KmsApi {
 	return &kmsApi{
-		baseApi: baseApi{logger: logger},
+		baseApi: baseApi{clients: clients, logger: logger},
 	}
 }
 
@@ -43,7 +44,7 @@ func (inst *kmsApi) ListKeys(ctx context.Context, force bool) ([]types.KeyListEn
 		return inst.allKeys, nil
 	}
 
-	var paginator = kms.NewListKeysPaginator(GetAwsApiClients().kms, &kms.ListKeysInput{})
+	var paginator = kms.NewListKeysPaginator(inst.clients.kms, &kms.ListKeysInput{})
 	var keys, err = collectPaginator(paginator.HasMorePages, func() ([]types.KeyListEntry, error) {
 		var output, err = paginator.NextPage(ctx)
 		if err != nil {
@@ -62,7 +63,7 @@ func (inst *kmsApi) ListAliases(ctx context.Context, force bool) ([]types.AliasL
 		return inst.allAliases, nil
 	}
 
-	var paginator = kms.NewListAliasesPaginator(GetAwsApiClients().kms, &kms.ListAliasesInput{})
+	var paginator = kms.NewListAliasesPaginator(inst.clients.kms, &kms.ListAliasesInput{})
 	var aliases, err = collectPaginator(paginator.HasMorePages, func() ([]types.AliasListEntry, error) {
 		var output, err = paginator.NextPage(ctx)
 		if err != nil {
@@ -81,7 +82,7 @@ func (inst *kmsApi) DescribeKey(ctx context.Context, keyId string) (*types.KeyMe
 		return nil, err
 	}
 
-	var output, err = GetAwsApiClients().kms.DescribeKey(ctx,
+	var output, err = inst.clients.kms.DescribeKey(ctx,
 		&kms.DescribeKeyInput{KeyId: aws.String(keyId)},
 	)
 	if err != nil {
@@ -95,7 +96,7 @@ func (inst *kmsApi) ListTags(ctx context.Context, force bool, keyId string) ([]t
 		return nil, err
 	}
 
-	var paginator = kms.NewListResourceTagsPaginator(GetAwsApiClients().kms,
+	var paginator = kms.NewListResourceTagsPaginator(inst.clients.kms,
 		&kms.ListResourceTagsInput{KeyId: aws.String(keyId)},
 	)
 	var tags, err = collectPaginator(paginator.HasMorePages, func() ([]types.Tag, error) {
@@ -114,7 +115,7 @@ func (inst *kmsApi) GetKeyPolicy(ctx context.Context, keyId string) (string, err
 		return "", err
 	}
 
-	var output, err = GetAwsApiClients().kms.GetKeyPolicy(ctx,
+	var output, err = inst.clients.kms.GetKeyPolicy(ctx,
 		&kms.GetKeyPolicyInput{
 			KeyId:      aws.String(keyId),
 			PolicyName: aws.String(kmsDefaultPolicyName),

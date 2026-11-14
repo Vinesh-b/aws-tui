@@ -38,10 +38,11 @@ type secretsManagerApi struct {
 }
 
 func NewSecretsManagerApi(
+	clients *AwsApiClients,
 	logger *log.Logger,
 ) SecretsManagerApi {
 	return &secretsManagerApi{
-		baseApi: baseApi{logger: logger},
+		baseApi: baseApi{clients: clients, logger: logger},
 	}
 }
 
@@ -50,7 +51,7 @@ func (inst *secretsManagerApi) ListSecrets(
 	reset bool,
 ) ([]types.SecretListEntry, error) {
 	var empty []types.SecretListEntry
-	var client = GetAwsApiClients().secretsmanager
+	var client = inst.clients.secretsmanager
 
 	if inst.listSecretsPaginator == nil || reset {
 		inst.listSecretsPaginator = secretsmanager.NewListSecretsPaginator(
@@ -79,7 +80,7 @@ func (inst *secretsManagerApi) GetSecretValue(
 		return nil, err
 	}
 
-	var output, err = GetAwsApiClients().secretsmanager.GetSecretValue(
+	var output, err = inst.clients.secretsmanager.GetSecretValue(
 		ctx,
 		&secretsmanager.GetSecretValueInput{SecretId: aws.String(secretId)},
 	)
@@ -102,7 +103,7 @@ func (inst *secretsManagerApi) PutSecretValue(
 		return err
 	}
 
-	var _, err = GetAwsApiClients().secretsmanager.PutSecretValue(
+	var _, err = inst.clients.secretsmanager.PutSecretValue(
 		ctx,
 		&secretsmanager.PutSecretValueInput{
 			SecretId:     aws.String(secretId),
@@ -126,7 +127,7 @@ func (inst *secretsManagerApi) DeleteSecret(
 		return err
 	}
 
-	var _, err = GetAwsApiClients().secretsmanager.DeleteSecret(
+	var _, err = inst.clients.secretsmanager.DeleteSecret(
 		ctx,
 		&secretsmanager.DeleteSecretInput{
 			SecretId:             aws.String(secretId),

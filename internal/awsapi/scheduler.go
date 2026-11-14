@@ -30,15 +30,15 @@ type schedulerApi struct {
 	baseApi
 }
 
-func NewSchedulerApi(logger *log.Logger) SchedulerApi {
+func NewSchedulerApi(clients *AwsApiClients, logger *log.Logger) SchedulerApi {
 	return &schedulerApi{
-		baseApi: baseApi{logger: logger},
+		baseApi: baseApi{clients: clients, logger: logger},
 	}
 }
 
 func (inst *schedulerApi) ListSchedules(ctx context.Context) ([]types.ScheduleSummary, error) {
 	var paginator = scheduler.NewListSchedulesPaginator(
-		GetAwsApiClients().scheduler,
+		inst.clients.scheduler,
 		&scheduler.ListSchedulesInput{MaxResults: aws.Int32(100)},
 	)
 
@@ -67,7 +67,7 @@ func (inst *schedulerApi) GetSchedule(
 		return scheduler.GetScheduleOutput{}, err
 	}
 
-	var output, err = GetAwsApiClients().scheduler.GetSchedule(ctx, &scheduler.GetScheduleInput{
+	var output, err = inst.clients.scheduler.GetSchedule(ctx, &scheduler.GetScheduleInput{
 		Name:      aws.String(name),
 		GroupName: optionalString(groupName),
 	})
@@ -83,7 +83,7 @@ func (inst *schedulerApi) CreateSchedule(ctx context.Context, input scheduler.Cr
 		return "", err
 	}
 
-	var output, err = GetAwsApiClients().scheduler.CreateSchedule(ctx, &input)
+	var output, err = inst.clients.scheduler.CreateSchedule(ctx, &input)
 	if err != nil {
 		return "", inst.logErr(err)
 	}
@@ -96,7 +96,7 @@ func (inst *schedulerApi) UpdateSchedule(ctx context.Context, input scheduler.Up
 		return "", err
 	}
 
-	var output, err = GetAwsApiClients().scheduler.UpdateSchedule(ctx, &input)
+	var output, err = inst.clients.scheduler.UpdateSchedule(ctx, &input)
 	if err != nil {
 		return "", inst.logErr(err)
 	}
@@ -109,7 +109,7 @@ func (inst *schedulerApi) DeleteSchedule(ctx context.Context, groupName string, 
 		return err
 	}
 
-	var _, err = GetAwsApiClients().scheduler.DeleteSchedule(ctx, &scheduler.DeleteScheduleInput{
+	var _, err = inst.clients.scheduler.DeleteSchedule(ctx, &scheduler.DeleteScheduleInput{
 		Name:      aws.String(name),
 		GroupName: optionalString(groupName),
 	})

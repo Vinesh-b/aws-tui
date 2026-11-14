@@ -23,7 +23,7 @@ func schedulerRequest(req *http.Request) string {
 
 func TestSchedulerListSchedulesSortedByGroupAndNameAcrossPages(t *testing.T) {
 	var requests []string
-	useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+	var fake = useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
 		requests = append(requests, schedulerRequest(req))
 		if call == 1 {
 			return jsonResponse(`{"Schedules":[{"Name":"zeta","GroupName":"default","State":"ENABLED"},` +
@@ -32,7 +32,7 @@ func TestSchedulerListSchedulesSortedByGroupAndNameAcrossPages(t *testing.T) {
 		return jsonResponse(`{"Schedules":[{"Name":"alpha","GroupName":"default","State":"ENABLED"}]}`)
 	})
 
-	var schedules, err = NewSchedulerApi(testLogger()).ListSchedules(context.Background())
+	var schedules, err = NewSchedulerApi(fake.clients, testLogger()).ListSchedules(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -52,13 +52,13 @@ func TestSchedulerListSchedulesSortedByGroupAndNameAcrossPages(t *testing.T) {
 
 func TestSchedulerGetScheduleAsksForTheGroupAndName(t *testing.T) {
 	var request string
-	useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+	var fake = useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
 		request = schedulerRequest(req)
 		return jsonResponse(`{"Name":"nightly","GroupName":"ops","ScheduleExpression":"rate(1 day)",` +
 			`"State":"ENABLED","Target":{"Arn":"arn:aws:lambda:us-east-1:1:function:f","RoleArn":"arn:aws:iam::1:role/r"}}`)
 	})
 
-	var schedule, err = NewSchedulerApi(testLogger()).GetSchedule(context.Background(), "ops", "nightly")
+	var schedule, err = NewSchedulerApi(fake.clients, testLogger()).GetSchedule(context.Background(), "ops", "nightly")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestSchedulerCreateScheduleSendsTheScheduleAndReturnsItsArn(t *testing.T) {
 		return jsonResponse(`{"ScheduleArn":"arn:aws:scheduler:us-east-1:1:schedule/ops/nightly"}`)
 	})
 
-	var arn, err = NewSchedulerApi(testLogger()).CreateSchedule(context.Background(), scheduler.CreateScheduleInput{
+	var arn, err = NewSchedulerApi(fake.clients, testLogger()).CreateSchedule(context.Background(), scheduler.CreateScheduleInput{
 		Name:               aws.String("nightly"),
 		GroupName:          aws.String("ops"),
 		ScheduleExpression: aws.String("rate(1 day)"),
@@ -118,7 +118,7 @@ func TestSchedulerUpdateScheduleSendsTheSchedule(t *testing.T) {
 		return jsonResponse(`{"ScheduleArn":"arn:aws:scheduler:us-east-1:1:schedule/ops/nightly"}`)
 	})
 
-	var _, err = NewSchedulerApi(testLogger()).UpdateSchedule(context.Background(), scheduler.UpdateScheduleInput{
+	var _, err = NewSchedulerApi(fake.clients, testLogger()).UpdateSchedule(context.Background(), scheduler.UpdateScheduleInput{
 		Name:               aws.String("nightly"),
 		GroupName:          aws.String("ops"),
 		ScheduleExpression: aws.String("rate(2 days)"),
@@ -140,12 +140,12 @@ func TestSchedulerUpdateScheduleSendsTheSchedule(t *testing.T) {
 
 func TestSchedulerDeleteScheduleDeletesItFromTheGroup(t *testing.T) {
 	var request string
-	useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+	var fake = useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
 		request = schedulerRequest(req)
 		return jsonResponse(`{}`)
 	})
 
-	if err := NewSchedulerApi(testLogger()).DeleteSchedule(context.Background(), "ops", "nightly"); err != nil {
+	if err := NewSchedulerApi(fake.clients, testLogger()).DeleteSchedule(context.Background(), "ops", "nightly"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -155,11 +155,11 @@ func TestSchedulerDeleteScheduleDeletesItFromTheGroup(t *testing.T) {
 }
 
 func TestSchedulerReportsServiceErrors(t *testing.T) {
-	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return response(404, "application/json", `{"Message":"gone"}`)
 	})
 
-	if err := NewSchedulerApi(testLogger()).DeleteSchedule(context.Background(), "ops", "nightly"); err == nil {
+	if err := NewSchedulerApi(fake.clients, testLogger()).DeleteSchedule(context.Background(), "ops", "nightly"); err == nil {
 		t.Fatal("expected an error")
 	}
 }
@@ -168,7 +168,7 @@ func TestSchedulerMissingNamesAreRejected(t *testing.T) {
 	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
 		return jsonResponse("{}")
 	})
-	var api = NewSchedulerApi(testLogger())
+	var api = NewSchedulerApi(fake.clients, testLogger())
 	var ctx = context.Background()
 
 	var _, getErr = api.GetSchedule(ctx, "ops", "")

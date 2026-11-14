@@ -34,16 +34,17 @@ type apiGatewayApi struct {
 }
 
 func NewApiGatewayApi(
+	clients *AwsApiClients,
 	logger *log.Logger,
 ) ApiGatewayApi {
 	return &apiGatewayApi{
-		baseApi: baseApi{logger: logger},
+		baseApi: baseApi{clients: clients, logger: logger},
 	}
 }
 
 func (inst *apiGatewayApi) ListRestApis(ctx context.Context, force bool) ([]types.RestApi, error) {
 	var result, err = collectTokenPages(func(position *string) ([]types.RestApi, *string, error) {
-		var output, err = GetAwsApiClients().apigateway.GetRestApis(ctx,
+		var output, err = inst.clients.apigateway.GetRestApis(ctx,
 			&apigateway.GetRestApisInput{Position: position},
 		)
 		if err != nil {
@@ -63,7 +64,7 @@ func (inst *apiGatewayApi) ListResources(ctx context.Context, force bool, restAp
 	}
 
 	var result, err = collectTokenPages(func(position *string) ([]types.Resource, *string, error) {
-		var output, err = GetAwsApiClients().apigateway.GetResources(ctx,
+		var output, err = inst.clients.apigateway.GetResources(ctx,
 			&apigateway.GetResourcesInput{
 				RestApiId: &restApiId,
 				Embed:     []string{"methods"},
@@ -113,7 +114,7 @@ func (inst *apiGatewayApi) TestInvokeMethod(
 		input.Body = &body
 	}
 
-	var output, err = GetAwsApiClients().apigateway.TestInvokeMethod(ctx, input)
+	var output, err = inst.clients.apigateway.TestInvokeMethod(ctx, input)
 
 	return output, inst.logErr(err)
 }

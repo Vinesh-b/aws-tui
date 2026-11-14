@@ -34,10 +34,11 @@ type cloudWatchMetricsApi struct {
 }
 
 func NewCloudWatchMetricsApi(
+	clients *AwsApiClients,
 	logger *log.Logger,
 ) CloudWatchMetricsApi {
 	return &cloudWatchMetricsApi{
-		baseApi:          baseApi{logger: logger},
+		baseApi:          baseApi{clients: clients, logger: logger},
 		metricsPaginator: nil,
 	}
 }
@@ -60,7 +61,7 @@ func (inst *cloudWatchMetricsApi) ListMetrics(
 	}
 
 	inst.metricsPaginator = cloudwatch.NewListMetricsPaginator(
-		GetAwsApiClients().cloudwatch,
+		inst.clients.cloudwatch,
 		&cloudwatch.ListMetricsInput{
 			Dimensions: dims,
 			MetricName: queryMetricName,
@@ -97,7 +98,7 @@ func (inst *cloudWatchMetricsApi) GetMetricData(
 	}
 
 	var paginator = cloudwatch.NewGetMetricDataPaginator(
-		GetAwsApiClients().cloudwatch,
+		inst.clients.cloudwatch,
 		&cloudwatch.GetMetricDataInput{
 			StartTime: &start,
 			EndTime:   &end,

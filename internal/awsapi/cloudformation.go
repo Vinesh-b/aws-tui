@@ -20,16 +20,17 @@ type cloudFormationApi struct {
 }
 
 func NewCloudFormationApi(
+	clients *AwsApiClients,
 	logger *log.Logger,
 ) CloudFormationApi {
 	return &cloudFormationApi{
-		baseApi: baseApi{logger: logger},
+		baseApi: baseApi{clients: clients, logger: logger},
 	}
 }
 
 func (inst *cloudFormationApi) ListStacks(ctx context.Context, force bool) ([]types.StackSummary, error) {
 	var paginator = cloudformation.NewListStacksPaginator(
-		GetAwsApiClients().cloudformation, &cloudformation.ListStacksInput{},
+		inst.clients.cloudformation, &cloudformation.ListStacksInput{},
 	)
 
 	var result, err = collectPaginator(paginator.HasMorePages, func() ([]types.StackSummary, error) {
@@ -52,7 +53,7 @@ func (inst *cloudFormationApi) DescribeStackEvents(ctx context.Context, stackNam
 		return empty, err
 	}
 
-	var client = GetAwsApiClients().cloudformation
+	var client = inst.clients.cloudformation
 
 	if inst.stackEventsPaginator == nil || force {
 		inst.stackEventsPaginator = cloudformation.NewDescribeStackEventsPaginator(

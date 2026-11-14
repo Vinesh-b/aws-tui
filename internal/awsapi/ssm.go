@@ -50,10 +50,11 @@ type systemsManagerApi struct {
 }
 
 func NewSystemsManagerApi(
+	clients *AwsApiClients,
 	logger *log.Logger,
 ) SystemsManagerApi {
 	return &systemsManagerApi{
-		baseApi: baseApi{logger: logger},
+		baseApi: baseApi{clients: clients, logger: logger},
 	}
 }
 
@@ -67,7 +68,7 @@ func (inst *systemsManagerApi) GetParametersByPath(
 		return empty, err
 	}
 
-	var client = GetAwsApiClients().ssm
+	var client = inst.clients.ssm
 	if inst.getParamsByPathPaginator == nil || reset {
 		inst.getParamsByPathPaginator = ssm.NewGetParametersByPathPaginator(
 			client,
@@ -101,7 +102,7 @@ func (inst *systemsManagerApi) GetParameterHistory(
 		return empty, err
 	}
 
-	var client = GetAwsApiClients().ssm
+	var client = inst.clients.ssm
 
 	if inst.getParamHistoryPaginator == nil || reset {
 		inst.getParamHistoryPaginator = ssm.NewGetParameterHistoryPaginator(
@@ -139,7 +140,7 @@ func (inst *systemsManagerApi) GetParameterValue(
 		selector = fmt.Sprintf("%s:%d", name, version)
 	}
 
-	var output, err = GetAwsApiClients().ssm.GetParameter(
+	var output, err = inst.clients.ssm.GetParameter(
 		ctx,
 		&ssm.GetParameterInput{
 			Name:           aws.String(selector),
@@ -168,7 +169,7 @@ func (inst *systemsManagerApi) PutParameter(
 		return err
 	}
 
-	var _, err = GetAwsApiClients().ssm.PutParameter(
+	var _, err = inst.clients.ssm.PutParameter(
 		ctx,
 		&ssm.PutParameterInput{
 			Name:      aws.String(name),
@@ -197,7 +198,7 @@ func (inst *systemsManagerApi) CreateParameter(
 		return err
 	}
 
-	var _, err = GetAwsApiClients().ssm.PutParameter(
+	var _, err = inst.clients.ssm.PutParameter(
 		ctx,
 		&ssm.PutParameterInput{
 			Name:      aws.String(name),
@@ -222,7 +223,7 @@ func (inst *systemsManagerApi) DeleteParameter(
 		return err
 	}
 
-	var _, err = GetAwsApiClients().ssm.DeleteParameter(
+	var _, err = inst.clients.ssm.DeleteParameter(
 		ctx,
 		&ssm.DeleteParameterInput{Name: aws.String(name)},
 	)
