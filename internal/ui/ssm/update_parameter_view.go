@@ -90,13 +90,24 @@ func NewParameterUpdateValuePageView(
 }
 
 // SetSelectedParameter sets the parameter the value is stored for and puts its
-// value in the editor. The listing already has the value, so nothing is fetched.
+// value in the editor. The listing already has the value, so nothing is fetched,
+// unless it is secure: that is not decrypted until it is asked for with
+// LoadCurrentValue, and the editor starts empty.
 // Text typed for another parameter is replaced so it is never stored in this one.
 func (inst *ParameterUpdateValuePageView) SetSelectedParameter(parameter types.Parameter) {
 	inst.selectedParameter = parameter
 	inst.valueInput.SetTitleExtra(aws.ToString(parameter.Name))
-	inst.valueInput.SetText(aws.ToString(parameter.Value), false)
+	inst.valueInput.SetText(listedValue(parameter), false)
 	inst.resultOutput.SetText("", false)
+}
+
+// listedValue is the value the parameter was listed with, which is nothing for
+// a secure one as that is listed in its encrypted form
+func listedValue(parameter types.Parameter) string {
+	if isSecure(parameter.Type) {
+		return ""
+	}
+	return aws.ToString(parameter.Value)
 }
 
 func (inst *ParameterUpdateValuePageView) SetOnValueUpdated(handler func(parameter types.Parameter)) {
@@ -104,13 +115,39 @@ func (inst *ParameterUpdateValuePageView) SetOnValueUpdated(handler func(paramet
 }
 
 // LoadCurrentValue replaces the contents of the editor with the value the
-// parameter had when it was listed, which discards any edits.
+// parameter had when it was listed, which discards any edits. A secure value
+// is fetched and decrypted, as it was not when it was listed.
 func (inst *ParameterUpdateValuePageView) LoadCurrentValue() {
-	if inst.selectedParameter.Name == nil {
+	var parameter = inst.selectedParameter
+	if parameter.Name == nil {
 		inst.valueInput.ErrorMessageCallback("No parameter selected")
 		return
 	}
-	inst.valueInput.SetText(aws.ToString(inst.selectedParameter.Value), false)
+	if !isSecure(parameter.Type) {
+		inst.valueInput.SetText(listedValue(parameter), false)
+		return
+	}
+
+	var name = aws.ToString(parameter.Name)
+	var value string
+	var apiErr error
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+
+	dataLoader.AsyncLoadData(func() {
+		value, apiErr = inst.serviceCtx.Api.GetParameterValue(inst.serviceCtx.Ctx, name, parameter.Version)
+	})
+
+	dataLoader.AsyncUpdateView(inst.resultOutput.Box, func() {
+		// Another parameter was selected while this one was loading
+		if aws.ToString(inst.selectedParameter.Name) != name {
+			return
+		}
+		if apiErr != nil {
+			inst.valueInput.ErrorMessageCallback("%s", apiErr.Error())
+			return
+		}
+		inst.valueInput.SetText(value, false)
+	})
 }
 
 // FormatValue lays out a json value over lines. Other text can't be formatted.

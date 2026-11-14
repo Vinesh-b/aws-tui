@@ -46,6 +46,17 @@ func (f *fakeHttp) Do(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
+// requestBody is the body of the request at the index, in call order, which is
+// empty if there were not that many
+func (f *fakeHttp) requestBody(index int) string {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	if index >= len(f.requests) {
+		return ""
+	}
+	return f.requests[index]
+}
+
 func (f *fakeHttp) calls() int {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
@@ -254,6 +265,89 @@ func TestS3GetObjectContentReportsServiceErrors(t *testing.T) {
 	}
 }
 
+// Listing must not decrypt, or every secure parameter is decrypted just to
+// show their names.
+func TestSsmGetParametersByPathDoesNotDecrypt(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "application/x-amz-json-1.1", `{"Parameters":[{"Name":"/app/db/pass","Type":"SecureString"}]}`)
+	})
+
+	var parameters, err = NewSystemsManagerApi(testLogger()).GetParametersByPath(context.Background(), "/", true)
+
+	if err != nil || len(parameters) != 1 {
+		t.Fatalf("parameters = %v, err = %v, want the one parameter", parameters, err)
+	}
+	if body := fake.requestBody(0); strings.Contains(body, "WithDecryption") {
+		t.Errorf("request = %s, want one that does not ask for decryption", body)
+	}
+}
+
+func TestSsmGetParameterHistoryDoesNotDecrypt(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "application/x-amz-json-1.1", `{"Parameters":[{"Name":"/app/db/pass","Type":"SecureString","Version":1}]}`)
+	})
+
+	var history, err = NewSystemsManagerApi(testLogger()).GetParameterHistory(context.Background(), "/app/db/pass", true)
+
+	if err != nil || len(history) != 1 {
+		t.Fatalf("history = %v, err = %v, want the one version", history, err)
+	}
+	if body := fake.requestBody(0); strings.Contains(body, "WithDecryption") {
+		t.Errorf("request = %s, want one that does not ask for decryption", body)
+	}
+}
+
+func TestSsmGetParameterValueDecryptsTheVersionAskedFor(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "application/x-amz-json-1.1", `{"Parameter":{"Name":"/app/db/pass","Value":"hunter2"}}`)
+	})
+
+	var value, err = NewSystemsManagerApi(testLogger()).GetParameterValue(context.Background(), "/app/db/pass", 3)
+
+	if err != nil || value != "hunter2" {
+		t.Fatalf("value = %q, err = %v, want hunter2", value, err)
+	}
+	var sent struct {
+		Name           string
+		WithDecryption bool
+	}
+	if err := json.Unmarshal([]byte(fake.requestBody(0)), &sent); err != nil {
+		t.Fatal(err)
+	}
+	if sent.Name != "/app/db/pass:3" || !sent.WithDecryption {
+		t.Errorf("request = %+v, want version 3 of /app/db/pass decrypted", sent)
+	}
+}
+
+func TestSsmGetParameterValueAsksForTheLatestWithoutAVersion(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(200, "application/x-amz-json-1.1", `{"Parameter":{"Name":"/app/db/pass","Value":"hunter2"}}`)
+	})
+
+	if _, err := NewSystemsManagerApi(testLogger()).GetParameterValue(context.Background(), "/app/db/pass", 0); err != nil {
+		t.Fatal(err)
+	}
+	var sent struct{ Name string }
+	if err := json.Unmarshal([]byte(fake.requestBody(0)), &sent); err != nil {
+		t.Fatal(err)
+	}
+	if sent.Name != "/app/db/pass" {
+		t.Errorf("name = %q, want /app/db/pass with no version", sent.Name)
+	}
+}
+
+func TestSsmGetParameterValueReportsServiceErrors(t *testing.T) {
+	useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return response(400, "application/x-amz-json-1.1", `{"__type":"ParameterNotFound"}`)
+	})
+
+	var _, err = NewSystemsManagerApi(testLogger()).GetParameterValue(context.Background(), "/app/db/pass", 0)
+
+	if err == nil {
+		t.Fatal("expected an error for a parameter that is not there")
+	}
+}
+
 func TestDynamoDBListTagsFollowsNextToken(t *testing.T) {
 	var fake = useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
 		if call == 1 {
@@ -399,6 +493,10 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 		}, "parameter path not set"},
 		{"ssm history", func() error {
 			var _, err = NewSystemsManagerApi(logger).GetParameterHistory(context.Background(), "", true)
+			return err
+		}, "parameter name not set"},
+		{"ssm value", func() error {
+			var _, err = NewSystemsManagerApi(logger).GetParameterValue(context.Background(), "", 0)
 			return err
 		}, "parameter name not set"},
 		{"describe state machine", func() error {

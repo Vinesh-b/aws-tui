@@ -55,10 +55,15 @@ func (inst *SSMParameterHistoryTable) populateTable(data []types.ParameterHistor
 	var tableData []core.TableRow
 	var privateData []types.ParameterHistory
 	for _, row := range data {
+		// What is listed for a secure value is its encrypted form
+		var value = aws.ToString(row.Value)
+		if isSecure(row.Type) {
+			value = secureValueCell
+		}
 		tableData = append(tableData, core.TableRow{
 			fmt.Sprintf("%d", row.Version),
 			string(row.Type),
-			aws.ToString(row.Value),
+			value,
 			aws.ToTime(row.LastModifiedDate).Format(time.DateTime),
 			aws.ToString(row.LastModifiedUser),
 		})

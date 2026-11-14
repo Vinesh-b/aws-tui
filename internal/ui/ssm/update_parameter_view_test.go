@@ -13,9 +13,17 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
 )
 
-func newSecretParameter(name string, value string) types.Parameter {
+// newSecretParameter is a secure parameter as it is listed, with the encrypted
+// form of its value
+func newSecretParameter(name string, encrypted string) types.Parameter {
 	var parameter = newParameter(name, 1)
 	parameter.Type = types.ParameterTypeSecureString
+	parameter.Value = aws.String(encrypted)
+	return parameter
+}
+
+func newPlainParameter(name string, value string) types.Parameter {
+	var parameter = newParameter(name, 1)
 	parameter.Value = aws.String(value)
 	return parameter
 }
@@ -31,10 +39,62 @@ func newUpdateValueView(t *testing.T, api *ssmfake.Api) *ParameterUpdateValuePag
 func TestUpdateValueView__SelectingAParameterShowsItsValueInTheEditor(t *testing.T) {
 	var view = newUpdateValueView(t, ssmfake.New())
 
-	view.SetSelectedParameter(newSecretParameter("/app/db/pass", "hunter2"))
+	view.SetSelectedParameter(newPlainParameter("/app/db/host", "db.internal"))
 
-	if got := view.valueInput.GetText(); got != "hunter2" {
-		t.Errorf("editor = %q, want hunter2", got)
+	if got := view.valueInput.GetText(); got != "db.internal" {
+		t.Errorf("editor = %q, want db.internal", got)
+	}
+}
+
+func TestUpdateValueView__SelectingASecureParameterDecryptsNothing(t *testing.T) {
+	var api = ssmfake.New(ssmfake.WithValue("/app/db/pass", 1, "hunter2"))
+	var view = newUpdateValueView(t, api)
+
+	uitest.OnUI(t, view.serviceCtx.App, func() {
+		view.SetSelectedParameter(newSecretParameter("/app/db/pass", "AQICAHencrypted"))
+	})
+
+	var editor string
+	uitest.OnUI(t, view.serviceCtx.App, func() { editor = view.valueInput.GetText() })
+	if editor != "" {
+		t.Errorf("editor = %q, want it empty", editor)
+	}
+	if requests := api.ValueRequests(); len(requests) != 0 {
+		t.Errorf("value requests = %v, want none", requests)
+	}
+}
+
+func TestUpdateValueView__LoadCurrentValueDecryptsASecureValue(t *testing.T) {
+	var api = ssmfake.New(ssmfake.WithValue("/app/db/pass", 1, "hunter2"))
+	var view = newUpdateValueView(t, api)
+
+	uitest.OnUI(t, view.serviceCtx.App, func() {
+		view.SetSelectedParameter(newSecretParameter("/app/db/pass", "AQICAHencrypted"))
+		view.LoadCurrentValue()
+	})
+
+	uitest.Eventually(t, view.serviceCtx.App, func() bool {
+		return view.valueInput.GetText() == "hunter2"
+	}, "the editor holds the decrypted value")
+	if requests := api.ValueRequests(); len(requests) != 1 ||
+		requests[0] != (ssmfake.ValueRequest{Name: "/app/db/pass", Version: 1}) {
+		t.Errorf("value requests = %v, want version 1 of /app/db/pass once", requests)
+	}
+}
+
+func TestUpdateValueView__LoadCurrentValueReportsApiError(t *testing.T) {
+	var api = ssmfake.New(ssmfake.WithValueErr(errors.New("access denied to the key")))
+	var view = newUpdateValueView(t, api)
+	var callback, received = uitest.CaptureErrors()
+	view.valueInput.ErrorMessageCallback = callback
+
+	uitest.OnUI(t, view.serviceCtx.App, func() {
+		view.SetSelectedParameter(newSecretParameter("/app/db/pass", "AQICAHencrypted"))
+		view.LoadCurrentValue()
+	})
+
+	if message := uitest.AwaitError(t, received); !strings.Contains(message, "access denied to the key") {
+		t.Fatalf("Unexpected error %q", message)
 	}
 }
 
@@ -64,7 +124,8 @@ func TestUpdateValueView__ReportsApiError(t *testing.T) {
 	var callback, received = uitest.CaptureErrors()
 	view.resultOutput.ErrorMessageCallback = callback
 	view.SetOnValueUpdated(func(types.Parameter) { t.Error("updated callback must not run on failure") })
-	view.SetSelectedParameter(newSecretParameter("/app/db/pass", "hunter2"))
+	view.SetSelectedParameter(newSecretParameter("/app/db/pass", "AQICAHencrypted"))
+	view.valueInput.SetText("hunter3", false)
 
 	uitest.OnUI(t, view.serviceCtx.App, view.UpdateValue)
 
@@ -104,13 +165,13 @@ func TestUpdateValueView__RejectsMissingParameterOrValueWithoutCallingTheApi(t *
 
 func TestUpdateValueView__LoadCurrentValueDiscardsEdits(t *testing.T) {
 	var view = newUpdateValueView(t, ssmfake.New())
-	view.SetSelectedParameter(newSecretParameter("/app/db/pass", "hunter2"))
-	view.valueInput.SetText("hunter3", false)
+	view.SetSelectedParameter(newPlainParameter("/app/db/host", "db.internal"))
+	view.valueInput.SetText("db.external", false)
 
 	view.LoadCurrentValue()
 
-	if got := view.valueInput.GetText(); got != "hunter2" {
-		t.Errorf("editor = %q, want hunter2", got)
+	if got := view.valueInput.GetText(); got != "db.internal" {
+		t.Errorf("editor = %q, want db.internal", got)
 	}
 }
 

@@ -17,8 +17,9 @@ var historyHeadings = core.TableRow{"Version", "Type", "Value", "LastModified", 
 func newHistory(version int64, value string) types.ParameterHistory {
 	var modified = time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC)
 	return types.ParameterHistory{
+		Name:             aws.String("/app/db/url"),
 		Version:          version,
-		Type:             types.ParameterTypeSecureString,
+		Type:             types.ParameterTypeString,
 		Value:            aws.String(value),
 		LastModifiedDate: &modified,
 		LastModifiedUser: aws.String("arn:aws:iam::123456789012:user/alice"),
@@ -36,8 +37,8 @@ func TestParameterHistoryTable__ShowsHeadingsAndOneRowPerVersion(t *testing.T) {
 
 	uitest.AssertTableRows(t, table, []core.TableRow{
 		historyHeadings,
-		{"2", "SecureString", "new", "2024-01-02 03:04:05", "arn:aws:iam::123456789012:user/alice"},
-		{"1", "SecureString", "old", "2024-01-02 03:04:05", "arn:aws:iam::123456789012:user/alice"},
+		{"2", "String", "new", "2024-01-02 03:04:05", "arn:aws:iam::123456789012:user/alice"},
+		{"1", "String", "old", "2024-01-02 03:04:05", "arn:aws:iam::123456789012:user/alice"},
 	})
 }
 
@@ -64,6 +65,24 @@ func TestParameterHistoryTable__SearchFiltersOnTheValue(t *testing.T) {
 
 	uitest.AssertTableRows(t, table, []core.TableRow{
 		historyHeadings,
-		{"2", "SecureString", "postgres://db", "2024-01-02 03:04:05", "arn:aws:iam::123456789012:user/alice"},
+		{"2", "String", "postgres://db", "2024-01-02 03:04:05", "arn:aws:iam::123456789012:user/alice"},
+	})
+}
+
+// newSecureHistory is a version as it is listed, with the encrypted form of
+// its value
+func newSecureHistory(name string, version int64, encrypted string) types.ParameterHistory {
+	var history = newHistory(version, encrypted)
+	history.Name = aws.String(name)
+	history.Type = types.ParameterTypeSecureString
+	return history
+}
+
+func TestParameterHistoryTable__SecureValuesAreNotShown(t *testing.T) {
+	var table = newPopulatedHistoryTable(newSecureHistory("/app/db/pass", 1, "AQICAHencrypted"))
+
+	uitest.AssertTableRows(t, table, []core.TableRow{
+		historyHeadings,
+		{"1", "SecureString", secureValueCell, "2024-01-02 03:04:05", "arn:aws:iam::123456789012:user/alice"},
 	})
 }

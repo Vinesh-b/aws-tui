@@ -7,6 +7,7 @@ package ssmfake
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"sync"
 
@@ -23,19 +24,28 @@ type Put struct {
 	Type  types.ParameterType
 }
 
+// ValueRequest is one version of a parameter, which is 0 for the latest one.
+type ValueRequest struct {
+	Name    string
+	Version int64
+}
+
 type Api struct {
 	awsapi.SystemsManagerApi
 
-	mtx        sync.Mutex
-	parameters []types.Parameter
-	history    []types.ParameterHistory
-	err        error
-	putErr     error
-	createErr  error
-	deleteErr  error
-	puts       []Put
-	creates    []Put
-	deleted    []string
+	mtx           sync.Mutex
+	parameters    []types.Parameter
+	history       []types.ParameterHistory
+	values        map[ValueRequest]string
+	valueRequests []ValueRequest
+	valueErr      error
+	err           error
+	putErr        error
+	createErr     error
+	deleteErr     error
+	puts          []Put
+	creates       []Put
+	deleted       []string
 }
 
 type Option func(*Api)
@@ -47,6 +57,15 @@ func WithHistory(history []types.ParameterHistory) Option {
 	return func(f *Api) { f.history = history }
 }
 
+// WithValue is the decrypted value of the version of the parameter, which is
+// only given by GetParameterValue.
+func WithValue(name string, version int64, value string) Option {
+	return func(f *Api) { f.values[ValueRequest{Name: name, Version: version}] = value }
+}
+
+// WithValueErr is the error of getting a decrypted value.
+func WithValueErr(err error) Option { return func(f *Api) { f.valueErr = err } }
+
 // WithErr is the error of listing the parameters and of getting the history.
 func WithErr(err error) Option    { return func(f *Api) { f.err = err } }
 func WithPutErr(err error) Option { return func(f *Api) { f.putErr = err } }
@@ -56,7 +75,7 @@ func WithCreateErr(err error) Option { return func(f *Api) { f.createErr = err }
 func WithDeleteErr(err error) Option { return func(f *Api) { f.deleteErr = err } }
 
 func New(options ...Option) *Api {
-	var f = &Api{}
+	var f = &Api{values: map[ValueRequest]string{}}
 	for _, option := range options {
 		option(f)
 	}
@@ -110,6 +129,29 @@ func (f *Api) GetParameterHistory(
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 	return f.history, f.err
+}
+
+// GetParameterValue records the call and gives the value set with WithValue.
+func (f *Api) GetParameterValue(ctx context.Context, name string, version int64) (string, error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	var request = ValueRequest{Name: name, Version: version}
+	f.valueRequests = append(f.valueRequests, request)
+	if f.valueErr != nil {
+		return "", f.valueErr
+	}
+	var value, found = f.values[request]
+	if !found {
+		return "", fmt.Errorf("no value for version %d of %s", version, name)
+	}
+	return value, nil
+}
+
+// ValueRequests are the GetParameterValue calls so far.
+func (f *Api) ValueRequests() []ValueRequest {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return slices.Clone(f.valueRequests)
 }
 
 func (f *Api) PutParameter(

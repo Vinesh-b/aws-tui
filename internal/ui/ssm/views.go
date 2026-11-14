@@ -34,6 +34,10 @@ type ParametersPageView struct {
 	DetailsTabView           *core.TabViewHorizontal
 	TabView                  *core.TabViewHorizontal
 	serviceCtx               *core.ServiceContext[awsapi.SystemsManagerApi]
+	decrypted                decryptedValues
+	// shownValue is the parameter or the version whose value is shown, to show
+	// it again once it is decrypted. It is only used on the UI goroutine.
+	shownValue any
 }
 
 func NewParametersPageView(
@@ -44,14 +48,15 @@ func NewParametersPageView(
 	ssmParamHistoryTable *SSMParameterHistoryTable,
 	serviceCtx *core.ServiceContext[awsapi.SystemsManagerApi],
 ) *ParametersPageView {
+	var decrypted = decryptedValues{}
 	var paramValueView = &core.JsonTextView[any]{
 		TextView: core.NewSearchableTextView("", serviceCtx.AppContext),
 		ExtractTextFunc: func(data any) string {
 			switch d := data.(type) {
 			case types.Parameter:
-				return aws.ToString(d.Value)
+				return decrypted.text(aws.ToString(d.Name), d.Version, d.Type, aws.ToString(d.Value))
 			case types.ParameterHistory:
-				return aws.ToString(d.Value)
+				return decrypted.text(aws.ToString(d.Name), d.Version, d.Type, aws.ToString(d.Value))
 			}
 			return ""
 		},
@@ -105,13 +110,52 @@ func NewParametersPageView(
 		DetailsTabView:           detailsTabView,
 		TabView:                  tabView,
 		serviceCtx:               serviceCtx,
+		decrypted:                decrypted,
 	}
+}
+
+// showValue shows the value of the parameter or of the version of one, or how
+// to see it if it is secure and was not decrypted yet
+func (inst *ParametersPageView) showValue(data any) {
+	inst.shownValue = data
+	inst.ParameterValueView.SetText(data)
+}
+
+// decryptValue fetches the value of the version of a secure parameter, which
+// is only done when it is asked for, and shows it if that version is still the
+// one shown. It is false if there was nothing to fetch, as the parameter is
+// not secure or its value was already decrypted.
+func (inst *ParametersPageView) decryptValue(name string, version int64, paramType types.ParameterType) bool {
+	var key = valueVersion{name, version}
+	if _, shown := inst.decrypted[key]; !isSecure(paramType) || shown || name == "" {
+		return false
+	}
+
+	var value string
+	var apiErr error
+	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.App, 10)
+
+	dataLoader.AsyncLoadData(func() {
+		value, apiErr = inst.serviceCtx.Api.GetParameterValue(inst.serviceCtx.Ctx, name, version)
+	})
+
+	dataLoader.AsyncUpdateView(inst.ParameterValueView.TextView.Box, func() {
+		if apiErr != nil {
+			inst.DisplayMessage(core.ErrorPrompt, "%s", apiErr.Error())
+			return
+		}
+		inst.decrypted[key] = value
+		// Another row may have been selected while this one was loading,
+		// which is then shown as it is
+		inst.ParameterValueView.SetText(inst.shownValue)
+	})
+	return true
 }
 
 func (inst *ParametersPageView) InitInputCapture() {
 	inst.SSMParametersListTable.SetSelectionChangedFunc(func(row, column int) {
 		var parameter = inst.SSMParametersListTable.GetSelectedParameter()
-		inst.ParameterValueView.SetText(parameter)
+		inst.showValue(parameter)
 		inst.ParameterDetailsTable.RefreshDetails(parameter)
 		inst.UpdateValueView.SetSelectedParameter(parameter)
 	})
@@ -127,7 +171,13 @@ func (inst *ParametersPageView) InitInputCapture() {
 	})
 
 	inst.SSMParameterHistoryTable.SetSelectionChangedFunc(func(row, column int) {
-		inst.ParameterValueView.SetText(inst.SSMParameterHistoryTable.GetSelectedHistory())
+		inst.showValue(inst.SSMParameterHistoryTable.GetSelectedHistory())
+	})
+
+	// A secure value of a version is only decrypted when it is asked for
+	inst.SSMParameterHistoryTable.SetSelectedFunc(func(row, column int) {
+		var version = inst.SSMParameterHistoryTable.GetSelectedHistory()
+		inst.decryptValue(aws.ToString(version.Name), version.Version, version.Type)
 	})
 
 	var loadedTabs = map[int]bool{}
@@ -154,7 +204,15 @@ func (inst *ParametersPageView) InitInputCapture() {
 		loadedTabs[index] = true
 	}
 
+	// A secure value is only decrypted when it is asked for, which the first
+	// Enter on its parameter does. The history is opened by the next one, and
+	// straight away for the other parameters.
 	inst.SSMParametersListTable.SetSelectedFunc(func(row, column int) {
+		var parameter = inst.SSMParametersListTable.GetSelectedParameter()
+		if inst.decryptValue(aws.ToString(parameter.Name), parameter.Version, parameter.Type) {
+			return
+		}
+
 		var tabName, index = inst.TabView.GetCurrentTab()
 		tabChangeFunc(tabName, index)
 		inst.TabView.SwitchToTab(SsmTabNameParameterHistory)
