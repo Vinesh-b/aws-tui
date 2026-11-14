@@ -3,7 +3,6 @@ package app
 import (
 	"slices"
 
-	"aws-tui/internal/awsapi"
 	"aws-tui/internal/settings"
 	"aws-tui/internal/ui/apigateway"
 	"aws-tui/internal/ui/cloudformation"
@@ -77,12 +76,14 @@ type ServiceItem struct {
 	// clients change. Pages that are only built again for a new theme leave it
 	// false, so switching profile does not replace the page being used.
 	HoldsAwsData bool
+	// Aliases are short commands for the page, beside its name
+	Aliases []string
 }
 
 func newServiceItem(
 	mainText string, secondaryText string, shortcut rune, build func() core.ServicePage,
 ) *ServiceItem {
-	return &ServiceItem{mainText, secondaryText, shortcut, build(), build, true}
+	return &ServiceItem{mainText, secondaryText, shortcut, build(), build, true, nil}
 }
 
 // themedServiceItem is a page that holds no data from AWS but takes its colours
@@ -90,13 +91,13 @@ func newServiceItem(
 func themedServiceItem(
 	mainText string, secondaryText string, shortcut rune, build func() core.ServicePage,
 ) *ServiceItem {
-	return &ServiceItem{mainText, secondaryText, shortcut, build(), build, false}
+	return &ServiceItem{mainText, secondaryText, shortcut, build(), build, false, nil}
 }
 
 func staticServiceItem(
 	mainText string, secondaryText string, shortcut rune, page core.ServicePage,
 ) *ServiceItem {
-	return &ServiceItem{mainText, secondaryText, shortcut, page, nil, false}
+	return &ServiceItem{mainText, secondaryText, shortcut, page, nil, false, nil}
 }
 
 // rebuildServicePages replaces every page that holds AWS data with a new one,
@@ -306,16 +307,63 @@ func (inst *navigator) restart() {
 	}
 }
 
+// awsServices are the services of AWS in the app, in the order of the services
+// list. A service is added by listing what its package gives here.
+var awsServices = []core.Service{
+	lambda.Service,
+	dynamodb.Service,
+	sfn.Service,
+	s3.Service,
+	ssm.Service,
+	cloudwatch.LogsService,
+	eventbridge.Service,
+	cloudformation.Service,
+	cloudwatch.AlarmsService,
+	cloudwatch.MetricsService,
+	apigateway.Service,
+	ec2.Service,
+	vpc.Service,
+	iam.Service,
+	sqs.Service,
+	sns.Service,
+	kms.Service,
+	secretsmanager.Service,
+}
+
+// withAliases gives the item short commands, beside its name
+func withAliases(item *ServiceItem, aliases ...string) *ServiceItem {
+	item.Aliases = aliases
+	return item
+}
+
+// awsServiceItem is the item of a service, whose page holds data from AWS
+func awsServiceItem(service core.Service, appCtx *core.AppContext) *ServiceItem {
+	var item = newServiceItem(
+		service.Icon+" "+string(service.Id), service.Description, service.Shortcut,
+		func() core.ServicePage { return service.Build(appCtx) },
+	)
+	item.Aliases = service.Aliases
+	return item
+}
+
 type appOptions struct {
 	settingsPath       string
 	pollSessionAtStart bool
 	copyToSystem       func(text string) error
 	profile            string
 	startCommand       string
+	readOnly           bool
 }
 
 // Option changes how the application is created.
 type Option func(*appOptions)
+
+// WithReadOnly makes the app refuse everything that could change something in
+// the account, whichever profile or region is switched to. The status bars
+// show that it is read-only.
+func WithReadOnly() Option {
+	return func(options *appOptions) { options.readOnly = true }
+}
 
 // WithSettingsFile keeps the settings the user chooses, such as the theme, in the
 // file. They are read when the application is created and written when they
@@ -432,6 +480,8 @@ func newApplication(
 		appContext = core.NewAppContext(ctx, app, &config, inAppLogger, &appTheme)
 	)
 	appContext.PollSessionAtStart = options.pollSessionAtStart
+	// Before the pages are built, as their apis keep the clients they get
+	appContext.SetReadOnly(options.readOnly)
 	if options.copyToSystem != nil {
 		appContext.SetSystemClipboard(options.copyToSystem)
 	}
@@ -448,72 +498,11 @@ func newApplication(
 	// terminal would shift the whole screen.
 	appContext.ResetApiClients(config, options.profile)
 
-	var serviceViews = []*ServiceItem{
-		newServiceItem("󰘧 "+string(core.LAMBDA), "Lambdas and logs", rune('1'), func() core.ServicePage {
-			return lambda.NewLambdaHomeView(
-				appContext,
-				awsapi.NewLambdaApi(appContext.GetApiClients(), appContext.Logger),
-				awsapi.NewCloudWatchLogsApi(appContext.GetApiClients(), appContext.Logger),
-				awsapi.NewCloudWatchMetricsApi(appContext.GetApiClients(), appContext.Logger),
-			)
-		}),
-		newServiceItem("󰆼 "+string(core.DYNAMODB), "View and search DynamoDB tables", rune('3'), func() core.ServicePage {
-			return dynamodb.NewDynamoDBHomeView(appContext, awsapi.NewDynamoDBApi(appContext.GetApiClients(), appContext.Logger))
-		}),
-		newServiceItem("󱁊 "+string(core.STATE_MACHINES), "Step Functions and executions", rune('4'), func() core.ServicePage {
-			return sfn.NewStepFunctionsHomeView(
-				appContext,
-				awsapi.NewStateMachineApi(appContext.GetApiClients(), appContext.Logger),
-				awsapi.NewCloudWatchLogsApi(appContext.GetApiClients(), appContext.Logger),
-			)
-		}),
-		newServiceItem("󱐕 "+string(core.S3BUCKETS), "S3 buckets and objects", rune('5'), func() core.ServicePage {
-			return s3.NewS3bucketsHomeView(appContext, awsapi.NewS3BucketsApi(appContext.GetApiClients(), appContext.Logger))
-		}),
-		newServiceItem("󰙵 "+string(core.SYSTEMS_MANAGER), "Application parameters", rune('6'), func() core.ServicePage {
-			return ssm.NewSystemManagerHomeView(appContext, awsapi.NewSystemsManagerApi(appContext.GetApiClients(), appContext.Logger))
-		}),
-		newServiceItem(" "+string(core.CLOUDWATCH_LOGS), "Log groups, streams and Insights queries", rune('7'), func() core.ServicePage {
-			return cloudwatch.NewLogsHomeView(appContext, awsapi.NewCloudWatchLogsApi(appContext.GetApiClients(), appContext.Logger))
-		}),
-		newServiceItem("󰘘 "+string(core.EVENTBRIDGE), "Event buses, rules, schedules...", rune('8'), func() core.ServicePage {
-			return eventbridge.NewEventBridgeHomeView(
-				appContext, awsapi.NewEventBridgeApi(appContext.GetApiClients(), appContext.Logger), awsapi.NewSchedulerApi(appContext.GetApiClients(), appContext.Logger),
-			)
-		}),
-		newServiceItem(" "+string(core.CLOUDFORMATION), "Cloud formation stacks", rune('󰯉'), func() core.ServicePage {
-			return cloudformation.NewStacksHomeView(appContext, awsapi.NewCloudFormationApi(appContext.GetApiClients(), appContext.Logger))
-		}),
-		newServiceItem("󰞏 "+string(core.CLOUDWATCH_ALARMS), "Metric alarms", rune('󰯉'), func() core.ServicePage {
-			return cloudwatch.NewAlarmsHomeView(appContext, awsapi.NewCloudWatchAlarmsApi(appContext.GetApiClients(), appContext.Logger))
-		}),
-		newServiceItem(" "+string(core.CLOUDWATCH_METRICS), "View metrics", rune('󰯉'), func() core.ServicePage {
-			return cloudwatch.NewMetricsHomeView(appContext, awsapi.NewCloudWatchMetricsApi(appContext.GetApiClients(), appContext.Logger))
-		}),
-		newServiceItem("󰘦 "+string(core.API_GATEWAY), "REST APIs and their details", rune('󰯉'), func() core.ServicePage {
-			return apigateway.NewApiGatewayHomeView(appContext, awsapi.NewApiGatewayApi(appContext.GetApiClients(), appContext.Logger))
-		}),
-		newServiceItem(" "+string(core.EC2), "Instances and their details", rune('󰯉'), func() core.ServicePage {
-			return ec2.NewEc2HomeView(appContext, awsapi.NewEc2Api(appContext.GetApiClients(), appContext.Logger))
-		}),
-		newServiceItem("󱇱 "+string(core.VPC), "VPCs, endpoints, subnets...", rune('󰯉'), func() core.ServicePage {
-			return vpc.NewVpcHomeView(appContext, awsapi.NewEc2Api(appContext.GetApiClients(), appContext.Logger))
-		}),
-		newServiceItem("󰌆 "+string(core.IAM), "Roles, users and policies", rune('󰯉'), func() core.ServicePage {
-			return iam.NewIamHomeView(appContext, awsapi.NewIamApi(appContext.GetApiClients(), appContext.Logger))
-		}),
-		newServiceItem("󱃔 "+string(core.SQS), "Queues and their attributes", rune('󰯉'), func() core.ServicePage {
-			return sqs.NewSqsHomeView(appContext, awsapi.NewSqsApi(appContext.GetApiClients(), appContext.Logger))
-		}),
-		newServiceItem("󰂚 "+string(core.SNS), "Topics and their attributes", rune('󰯉'), func() core.ServicePage {
-			return sns.NewSnsHomeView(appContext, awsapi.NewSnsApi(appContext.GetApiClients(), appContext.Logger))
-		}),
-		newServiceItem("󰯄 "+string(core.KMS), "Encryption keys, aliases and policies", rune('󰯉'), func() core.ServicePage {
-			return kms.NewKmsHomeView(appContext, awsapi.NewKmsApi(appContext.GetApiClients(), appContext.Logger))
-		}),
-		newServiceItem("󰌋 "+string(core.SECRETS_MANAGER), "Secrets and their values", rune('󰯉'), func() core.ServicePage {
-			return secretsmanager.NewSecretsManagerHomeView(appContext, awsapi.NewSecretsManagerApi(appContext.GetApiClients(), appContext.Logger))
-		}),
+	var serviceViews []*ServiceItem
+	for _, service := range awsServices {
+		serviceViews = append(serviceViews, awsServiceItem(service, appContext))
+	}
+	serviceViews = append(serviceViews,
 		themedServiceItem("󰘥 "+string(core.HELP), "Help docs on how to use this app", rune('?'), func() core.ServicePage {
 			return services.NewHelpHomeView(appContext)
 		}),
@@ -523,10 +512,13 @@ func newApplication(
 		staticServiceItem(" "+string(core.DEBUG_LOGS), "View debug logs", rune('0'),
 			errorTextArea,
 		),
-		themedServiceItem(" "+string(core.PROFILE_SELECTION), "AWS Profile selection", rune('p'), func() core.ServicePage {
+		withAliases(themedServiceItem(" "+string(core.PROFILE_SELECTION), "AWS Profile selection", rune('p'), func() core.ServicePage {
 			return services.NewProfileSelectionView(appContext)
-		}),
-	}
+		}), "profile"),
+		withAliases(themedServiceItem(" "+string(core.REGION_SELECTION), "AWS Region selection", rune('r'), func() core.ServicePage {
+			return services.NewRegionSelectionView(appContext)
+		}), "region"),
+	)
 
 	errorTextArea.
 		SetBorder(true).

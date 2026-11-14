@@ -11,20 +11,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-// serviceAliases are short commands for services, beside their names
-var serviceAliases = map[core.ViewId][]string{
-	core.CLOUDWATCH_LOGS:    {"logs"},
-	core.CLOUDWATCH_ALARMS:  {"alarms"},
-	core.CLOUDWATCH_METRICS: {"metrics"},
-	core.CLOUDFORMATION:     {"cfn"},
-	core.DYNAMODB:           {"ddb"},
-	core.S3BUCKETS:          {"s3"},
-	core.SECRETS_MANAGER:    {"secrets"},
-	core.STATE_MACHINES:     {"sfn"},
-	core.SYSTEMS_MANAGER:    {"ssm"},
-	core.PROFILE_SELECTION:  {"profile"},
-}
-
 // serviceName is the name of the service without the icon of its menu item
 func serviceName(item *ServiceItem) string {
 	return strings.TrimLeftFunc(item.MainText, func(r rune) bool {
@@ -37,7 +23,7 @@ func serviceName(item *ServiceItem) string {
 func serviceCommands(item *ServiceItem) []string {
 	var name = serviceName(item)
 	var commands = []string{strings.ToLower(strings.ReplaceAll(name, " ", ""))}
-	return append(commands, serviceAliases[core.ViewId(name)]...)
+	return append(commands, item.Aliases...)
 }
 
 // messageLine shows what a command did, such as the command line

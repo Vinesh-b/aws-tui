@@ -4,6 +4,7 @@ type ViewId string
 
 const (
 	PROFILE_SELECTION  ViewId = "Profile Selection"
+	REGION_SELECTION   ViewId = "Region Selection"
 	KMS                ViewId = "KMS"
 	LAMBDA             ViewId = "Lambda"
 	CLOUDWATCH_LOGS    ViewId = "CloudWatch Logs"

@@ -60,11 +60,13 @@ func main() {
 		profile     string
 		region      string
 		open        string
+		readOnly    bool
 	)
 	flag.BoolVar(&versionFlag, "version", false, "Print version")
 	flag.StringVar(&profile, "profile", "", "AWS profile to start with")
 	flag.StringVar(&region, "region", "", "AWS region to start with")
 	flag.StringVar(&open, "open", "", "Command to run at the start, such as \"logs streams\"")
+	flag.BoolVar(&readOnly, "read-only", false, "Refuse everything that could change something in the account")
 	flag.Parse()
 
 	if versionFlag {
@@ -85,6 +87,9 @@ func main() {
 	var appOptions = []app.Option{app.WithSessionPollAtStart(),
 		app.WithProfile(profile),
 		app.WithStartCommand(open),
+	}
+	if readOnly {
+		appOptions = append(appOptions, app.WithReadOnly())
 	}
 	if settingsPath, err := settings.DefaultPath(); err != nil {
 		log.Printf("settings will not be saved: %v", err)

@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -656,5 +657,109 @@ func TestCreateApplication__PagesUseTheNewClientsAfterTheyAreReset(t *testing.T)
 	}
 	if got := first.hosts.Count(); got != askedOfFirst {
 		t.Errorf("the old clients were asked %d more times after the reset", got-askedOfFirst)
+	}
+}
+
+// startAppWith starts the app with the config, and gives its context
+func startAppWith(
+	t *testing.T, cfg aws.Config, opts ...Option,
+) (*tview.Application, *core.AppContext, tcell.SimulationScreen) {
+	t.Helper()
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("AWS_CONFIG_FILE", "")
+	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", "")
+	var styles, borders = tview.Styles, tview.Borders
+	t.Cleanup(func() { tview.Styles, tview.Borders = styles, borders })
+	var ctx, cancel = context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	var tuiApp, appCtx = newApplication(ctx, cfg, "test-version", opts...)
+	return tuiApp, appCtx, uitest.RunApp(t, tuiApp)
+}
+
+// A page of the app tries to change something, as it would from a form
+func sendSqsMessage(appCtx *core.AppContext) error {
+	var api = awsapi.NewSqsApi(appCtx.GetApiClients(), appCtx.Logger)
+	var _, err = api.SendMessage(context.Background(), "https://sqs.us-east-1.amazonaws.com/1/orders", "body", "", "", nil)
+	return err
+}
+
+func TestCreateApplication__ReadOnlyRefusesChangesAndIsShownOnTheStatusBar(t *testing.T) {
+	var backend recordingAws
+	var tuiApp, appCtx, screen = startAppWith(t, recordedConfig("us-east-1", &backend), WithReadOnly())
+
+	// The home page starts with the services list focused, 7 opens the logs
+	typeRunes(tuiApp, "7")
+	uitest.AwaitScreenText(t, tuiApp, screen, "READ-ONLY")
+	// Reading still works: the logs page loads its groups
+	typeRunes(tuiApp, string(core.APP_KEY_BINDINGS.Reset))
+	uitest.Eventually(t, tuiApp, func() bool { return backend.hosts.Count() > 0 }, "the log groups are read")
+	var reads = backend.hosts.Count()
+
+	var err error
+	uitest.OnUI(t, tuiApp, func() { err = sendSqsMessage(appCtx) })
+
+	var refused *awsapi.ReadOnlyError
+	if !errors.As(err, &refused) || refused.Operation != "SendMessage" {
+		t.Errorf("err = %v, want the message refused as read-only", err)
+	}
+	if got := backend.hosts.Count(); got != reads {
+		t.Errorf("%d requests were sent for the change, want none", got-reads)
+	}
+}
+
+func TestCreateApplication__ReadOnlyStaysOnAfterTheClientsAreReset(t *testing.T) {
+	var first, second recordingAws
+	var tuiApp, appCtx, _ = startAppWith(t, recordedConfig("us-east-1", &first), WithReadOnly())
+
+	var err error
+	uitest.OnUI(t, tuiApp, func() {
+		appCtx.ResetApiClients(recordedConfig("eu-west-1", &second), "other")
+		err = sendSqsMessage(appCtx)
+	})
+
+	// The session of the new profile is still looked up, which only reads
+	var sentToSqs = slices.ContainsFunc(second.hosts.Calls(), func(host string) bool {
+		return strings.HasPrefix(host, "sqs.")
+	})
+	var refused *awsapi.ReadOnlyError
+	if !errors.As(err, &refused) || sentToSqs {
+		t.Errorf("err = %v, sent to sqs = %v, want the message refused for the new profile too", err, sentToSqs)
+	}
+}
+
+func TestCreateApplication__ChangesAreSentUnlessTheAppIsReadOnly(t *testing.T) {
+	var backend recordingAws
+	var tuiApp, appCtx, screen = startAppWith(t, recordedConfig("us-east-1", &backend))
+	typeRunes(tuiApp, "7")
+	uitest.AwaitScreenText(t, tuiApp, screen, "Log Group Details")
+
+	var err error
+	uitest.OnUI(t, tuiApp, func() { err = sendSqsMessage(appCtx) })
+
+	if err != nil || backend.hosts.Count() == 0 {
+		t.Errorf("err = %v with %d requests sent, want the message sent", err, backend.hosts.Count())
+	}
+	if strings.Contains(uitest.ScreenText(screen), "READ-ONLY") {
+		t.Error("the status bar says read-only, want no marker")
+	}
+}
+
+func TestCreateApplication__RegionCommandOpensTheRegionsAndPickingOneSwitches(t *testing.T) {
+	var backend recordingAws
+	var tuiApp, appCtx, screen = startAppWith(
+		t, recordedConfig("us-east-1", &backend), WithStartCommand("region"),
+	)
+	uitest.AwaitScreenText(t, tuiApp, screen, "Available Regions")
+
+	// The second region of the list
+	typeRunes(tuiApp, "j")
+	uitest.PressKey(t, tuiApp, tcell.KeyEnter)
+
+	uitest.AwaitScreenText(t, tuiApp, screen, "Switched to region us-east-2")
+	var region string
+	uitest.OnUI(t, tuiApp, func() { region = appCtx.GetApiClients().Config.Region })
+	if region != "us-east-2" {
+		t.Errorf("region = %q, want us-east-2", region)
 	}
 }

@@ -35,13 +35,16 @@ type AppContext struct {
 	// empty if they are not kept
 	QueriesPath string
 
-	// clients are the api clients of the profile in use, which are built from
-	// clientsConfig when they are first asked for. They are read by background
+	// clients are the api clients of the profile and region in use, which are
+	// built from clientsConfig when they are first asked for, and refuse what
+	// could change something if readOnly is set. They are read by background
 	// goroutines, such as the session monitor, so they are only reached
-	// through GetApiClients and ResetApiClients.
-	clientsMtx    sync.Mutex
-	clients       *awsapi.AwsApiClients
-	clientsConfig aws.Config
+	// through the methods of the context.
+	clientsMtx     sync.Mutex
+	clients        *awsapi.AwsApiClients
+	clientsConfig  aws.Config
+	clientsProfile string
+	readOnly       bool
 
 	listenersMtx      sync.Mutex
 	apiResetListeners []*func()
@@ -106,18 +109,52 @@ func (inst *AppContext) GetApiClients() *awsapi.AwsApiClients {
 	inst.clientsMtx.Lock()
 	defer inst.clientsMtx.Unlock()
 	if inst.clients == nil {
-		inst.clients = awsapi.NewAwsApiClients(inst.clientsConfig, "")
+		var cfg = inst.clientsConfig
+		if inst.readOnly {
+			cfg = awsapi.WithReadOnly(cfg)
+		}
+		inst.clients = awsapi.NewAwsApiClients(cfg, inst.clientsProfile)
 	}
 	return inst.clients
+}
+
+// SetReadOnly makes the api clients refuse every request that could change
+// something, for as long as the app runs and whichever profile or region is
+// switched to. Set it before the pages are built, as apis keep the clients
+// they were built with.
+func (inst *AppContext) SetReadOnly(readOnly bool) {
+	inst.clientsMtx.Lock()
+	defer inst.clientsMtx.Unlock()
+	inst.readOnly = readOnly
+	inst.clients = nil
+}
+
+// ReadOnly is whether the api clients refuse what could change something
+func (inst *AppContext) ReadOnly() bool {
+	inst.clientsMtx.Lock()
+	defer inst.clientsMtx.Unlock()
+	return inst.readOnly
+}
+
+// SwitchRegion replaces the api clients with ones of the region, for the same
+// profile, and tells the listeners as ResetApiClients does. Call it on the UI
+// goroutine.
+func (inst *AppContext) SwitchRegion(region string) {
+	inst.clientsMtx.Lock()
+	var cfg, profile = inst.clientsConfig, inst.clientsProfile
+	inst.clientsMtx.Unlock()
+
+	cfg.Region = region
+	inst.ResetApiClients(cfg, profile)
 }
 
 // ResetApiClients replaces the api clients and then tells the listeners, so
 // they can drop whatever they loaded with the old clients. Call it on the UI
 // goroutine as the listeners change views.
 func (inst *AppContext) ResetApiClients(cfg aws.Config, profile string) {
-	var clients = awsapi.NewAwsApiClients(cfg, profile)
 	inst.clientsMtx.Lock()
-	inst.clients = clients
+	inst.clientsConfig, inst.clientsProfile = cfg, profile
+	inst.clients = nil
 	inst.clientsMtx.Unlock()
 
 	// A copy is used as listeners can remove themselves, such as when the

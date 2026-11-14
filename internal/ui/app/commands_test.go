@@ -57,7 +57,7 @@ func newCommandsTest(appCtx *core.AppContext) *commandsTest {
 		if name == core.CLOUDWATCH_LOGS {
 			page = newPagedPage("logs", "Groups", "Streams", "Events", "Insights")
 		}
-		items = append(items, staticServiceItem("󰘧 "+string(name), "", 'x', page))
+		items = append(items, withAliases(staticServiceItem("󰘧 "+string(name), "", 'x', page), aliasesOf(name)...))
 	}
 	test.commands = &commands{
 		items:  items,
@@ -226,5 +226,92 @@ func TestCommands__WWithoutATableIsAnError(t *testing.T) {
 
 	if _, errors := test.line.shown(); !slices.Equal(errors, []string{"the selected pane is not a table"}) {
 		t.Errorf("errors = %v", errors)
+	}
+}
+
+// aliasesOf are the short commands the service is listed with in the app
+func aliasesOf(id core.ViewId) []string {
+	for _, service := range awsServices {
+		if service.Id == id {
+			return service.Aliases
+		}
+	}
+	return nil
+}
+
+// A service is added to the app with what its package gives, so what it gives
+// is checked here for every service.
+func TestAwsServices__EachCanBeListedAndBuilt(t *testing.T) {
+	var ids = map[core.ViewId]bool{}
+	for _, service := range awsServices {
+		if service.Id == "" || service.Icon == "" || service.Description == "" || service.Build == nil {
+			t.Errorf("service %q is missing its name, icon, description or build func: %+v", service.Id, service)
+		}
+		if ids[service.Id] {
+			t.Errorf("service %q is listed twice", service.Id)
+		}
+		ids[service.Id] = true
+	}
+}
+
+func TestAwsServices__CommandsNameOnlyOneService(t *testing.T) {
+	var appCtx = uitest.NewAppContext()
+	var owners = map[string]core.ViewId{}
+	for _, service := range awsServices {
+		for _, command := range serviceCommands(awsServiceItem(service, appCtx)) {
+			if owner, taken := owners[command]; taken {
+				t.Errorf("command %q goes to both %s and %s", command, owner, service.Id)
+			}
+			owners[command] = service.Id
+		}
+	}
+}
+
+func TestAwsServices__KeepTheirShortCommands(t *testing.T) {
+	var want = map[string]core.ViewId{
+		"logs":    core.CLOUDWATCH_LOGS,
+		"alarms":  core.CLOUDWATCH_ALARMS,
+		"metrics": core.CLOUDWATCH_METRICS,
+		"cfn":     core.CLOUDFORMATION,
+		"ddb":     core.DYNAMODB,
+		"s3":      core.S3BUCKETS,
+		"secrets": core.SECRETS_MANAGER,
+		"sfn":     core.STATE_MACHINES,
+		"ssm":     core.SYSTEMS_MANAGER,
+	}
+	for alias, id := range want {
+		if !slices.Contains(aliasesOf(id), alias) {
+			t.Errorf("%s has the short commands %v, want %s among them", id, aliasesOf(id), alias)
+		}
+	}
+}
+
+// The item of a service is built with the app context, and is one that is
+// built again when the api clients change
+func TestAwsServiceItem__IsNamedAndBuiltFromTheService(t *testing.T) {
+	var appCtx = uitest.NewAppContext()
+	var page = &countingPage{Box: tview.NewBox()}
+	var builtWith *core.AppContext
+	// The icons of the services are in the private use area, which is how the
+	// name is told from them
+	var icon = awsServices[0].Icon
+	var service = core.Service{
+		Id: core.SQS, Icon: icon, Description: "Queues", Shortcut: 'q', Aliases: []string{"queues"},
+		Build: func(appCtx *core.AppContext) core.ServicePage {
+			builtWith = appCtx
+			return page
+		},
+	}
+
+	var item = awsServiceItem(service, appCtx)
+
+	if item.MainText != icon+" SQS" || item.SecondaryText != "Queues" || item.Shortcut != 'q' || !item.HoldsAwsData {
+		t.Errorf("item = %+v, want it named and described by the service, holding AWS data", item)
+	}
+	if item.ServicePage != core.ServicePage(page) || builtWith != appCtx {
+		t.Errorf("page = %v built with %p, want the page of the service built with the app context", item.ServicePage, builtWith)
+	}
+	if got := serviceCommands(item); !slices.Equal(got, []string{"sqs", "queues"}) {
+		t.Errorf("commands = %v, want sqs and queues", got)
 	}
 }

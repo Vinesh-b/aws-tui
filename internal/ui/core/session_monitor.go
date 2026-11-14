@@ -24,7 +24,9 @@ type SessionMonitor struct {
 	retrieve func(ctx context.Context) (aws.Credentials, error)
 	identify func(ctx context.Context) (account string, user string, err error)
 	profile  func() string
-	now      func() time.Time
+	// region is the region of the api clients
+	region func() string
+	now    func() time.Time
 	// queue runs a change of the session on the UI goroutine
 	queue func(update func())
 
@@ -60,6 +62,7 @@ func newSessionMonitor(appCtx *AppContext) *SessionMonitor {
 			return aws.ToString(identity.Account), aws.ToString(identity.UserId), nil
 		},
 		profile:     func() string { return sessionProfileName(appCtx.GetApiClients().Profile) },
+		region:      func() string { return appCtx.GetApiClients().Config.Region },
 		now:         time.Now,
 		queue:       func(update func()) { appCtx.App.QueueUpdateDraw(update) },
 		subscribers: map[int]func(*sessionInfo){},
@@ -170,10 +173,13 @@ func (inst *SessionMonitor) poll() {
 			accessKey = ""
 			session = sessionInfo{err: err.Error()}
 		case !creds.CanExpire:
-			session = sessionInfo{profile: inst.profile(), accountId: account, userId: user, duration: math.MinInt64}
+			session = sessionInfo{
+				profile: inst.profile(), region: inst.region(), accountId: account, userId: user, duration: math.MinInt64,
+			}
 		default:
 			session = sessionInfo{
 				profile:   inst.profile(),
+				region:    inst.region(),
 				accountId: account,
 				userId:    user,
 				duration:  max(creds.Expires.Sub(inst.now()).Truncate(time.Second), 0),

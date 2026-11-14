@@ -358,3 +358,56 @@ func TestPageKeysHint__FollowsThePageSequences(t *testing.T) {
 		t.Errorf("hint = %q, want none", got)
 	}
 }
+
+func TestPaginatorView__ShowsTheRegionAfterTheProfile(t *testing.T) {
+	var view, _ = newTestPaginator(t, tcell.ColorBlue)
+	view.session = &sessionInfo{
+		profile: "dev", region: "eu-west-1", accountId: "123456789012", userId: "AROA:me", duration: time.Hour,
+	}
+	var screen = drawPaginator(t, view, 160)
+
+	if line := screenLine(screen); !strings.Contains(line, "Profile dev  │  Region eu-west-1  │  Account 123456789012") {
+		t.Errorf("line = %q, want the region between the profile and the account", line)
+	}
+}
+
+func TestPaginatorView__MarksAReadOnlyApp(t *testing.T) {
+	keepGlobalStyle(t)
+	var theme = DefaultTheme()
+	var appCtx = NewAppContext(context.Background(), tview.NewApplication(), nil, nil, &theme)
+	appCtx.SetReadOnly(true)
+	var view = newPaginatorView("Step Functions", appCtx)
+	view.session = &sessionInfo{profile: "dev", accountId: "123456789012", userId: "AROA:me", duration: time.Hour}
+	var screen = drawPaginator(t, view, 160)
+
+	if line := screenLine(screen); !strings.Contains(line, readOnlyMarker+"  │  Profile dev") {
+		t.Errorf("line = %q, want the marker before the session", line)
+	}
+	if fg, _ := lineColours(t, screen, readOnlyMarker); fg != theme.TertiaryTextColour {
+		t.Errorf("marker fg = %x, want %x", fg.Hex(), theme.TertiaryTextColour.Hex())
+	}
+}
+
+// The marker is shown whatever the session is, as it is while it loads or fails
+func TestPaginatorView__MarksAReadOnlyAppWithoutASession(t *testing.T) {
+	keepGlobalStyle(t)
+	var theme = DefaultTheme()
+	var appCtx = NewAppContext(context.Background(), tview.NewApplication(), nil, nil, &theme)
+	appCtx.SetReadOnly(true)
+	var view = newPaginatorView("Step Functions", appCtx)
+	var screen = drawPaginator(t, view, 160)
+
+	if line := screenLine(screen); !strings.Contains(line, readOnlyMarker) || !strings.Contains(line, "Loading session") {
+		t.Errorf("line = %q, want the marker and that the session is loading", line)
+	}
+}
+
+func TestPaginatorView__HasNoMarkerUnlessTheAppIsReadOnly(t *testing.T) {
+	var view, _ = newTestPaginator(t, tcell.ColorBlue)
+	view.session = &sessionInfo{profile: "dev", accountId: "123456789012", userId: "AROA:me", duration: time.Hour}
+	var screen = drawPaginator(t, view, 160)
+
+	if line := screenLine(screen); strings.Contains(line, readOnlyMarker) || strings.Contains(line, "Region") {
+		t.Errorf("line = %q, want no marker and no region when there is none", line)
+	}
+}

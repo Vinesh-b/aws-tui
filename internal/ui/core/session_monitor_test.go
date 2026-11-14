@@ -250,3 +250,33 @@ func TestSessionMonitor__ErrorWithoutALoggerIsStillShown(t *testing.T) {
 		return session != nil && session.err == "token expired"
 	})
 }
+
+func TestSessionMonitor__SessionHasTheRegionOfTheClients(t *testing.T) {
+	var appCtx, _, fake = newMonitorTest(t)
+	appCtx.ResetApiClients(aws.Config{Region: "eu-west-1"}, "dev")
+
+	appCtx.Session().Subscribe(fake.record)
+
+	waitFor(t, "the session with its region", func() bool {
+		var session = fake.last()
+		return session != nil && session.region == "eu-west-1"
+	})
+}
+
+// The clients are reset to change the region, which shows the session again
+func TestSessionMonitor__TellsTheBarsWhenTheRegionChanges(t *testing.T) {
+	var appCtx, _, fake = newMonitorTest(t)
+	appCtx.ResetApiClients(aws.Config{Region: "eu-west-1"}, "dev")
+	appCtx.Session().Subscribe(fake.record)
+	waitFor(t, "the first session", func() bool {
+		var session = fake.last()
+		return session != nil && session.region == "eu-west-1"
+	})
+
+	appCtx.SwitchRegion("ap-south-1")
+
+	waitFor(t, "the session of the new region", func() bool {
+		var session = fake.last()
+		return session != nil && session.region == "ap-south-1"
+	})
+}

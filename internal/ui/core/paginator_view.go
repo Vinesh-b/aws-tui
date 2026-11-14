@@ -21,7 +21,10 @@ const SessionExpiryWarning = time.Minute * 15
 
 // sessionInfo is the state of the credentials shown on the paginator.
 type sessionInfo struct {
-	profile   string
+	profile string
+	// region is the region of the api clients, which is left out when there
+	// is none
+	region    string
 	accountId string
 	userId    string
 	duration  time.Duration
@@ -45,8 +48,11 @@ type PaginatorView struct {
 	onPageSelected func(name string)
 	theme          AppTheme
 	serviceColour  tcell.Color
-	stopOnce       *sync.Once
-	unsubscribe    func()
+	// readOnly is shown before the session, as the app refuses to change
+	// anything
+	readOnly    bool
+	stopOnce    *sync.Once
+	unsubscribe func()
 }
 
 // CreatePaginatorView is the status bar of the service, which shows the
@@ -68,6 +74,7 @@ func newPaginatorView(service string, appContext *AppContext) *PaginatorView {
 		theme:       *appContext.Theme,
 		// The colour scheme of a service is set while its views are built
 		serviceColour: tview.Styles.BorderColor,
+		readOnly:      appContext.ReadOnly(),
 		stopOnce:      &sync.Once{},
 		unsubscribe:   func() {},
 	}
@@ -140,9 +147,27 @@ func formatSessionDuration(duration time.Duration) string {
 	}
 }
 
-// sessionSegments is the text of the session details, or that they are loading
-// until the first poll.
+// readOnlyMarker is shown on the status bar while the app is read-only
+const readOnlyMarker = "READ-ONLY"
+
+// sessionSegments is the text of the session details, after the marker of an
+// app that is read-only
 func (inst *PaginatorView) sessionSegments() []textSegment {
+	var segments = inst.sessionDetailSegments()
+	if !inst.readOnly {
+		return segments
+	}
+
+	var background = tcell.StyleDefault.Background(inst.theme.BackgroundColour)
+	return append([]textSegment{
+		{readOnlyMarker, background.Foreground(inst.theme.TertiaryTextColour).Bold(true)},
+		{"  │  ", background.Foreground(inst.theme.PlaceholderTextColour)},
+	}, segments...)
+}
+
+// sessionDetailSegments is the text of the session details, or that they are
+// loading until the first poll.
+func (inst *PaginatorView) sessionDetailSegments() []textSegment {
 	var theme = inst.theme
 	var background = tcell.StyleDefault.Background(theme.BackgroundColour)
 	var label = background.Foreground(theme.PlaceholderTextColour)
@@ -175,12 +200,15 @@ func (inst *PaginatorView) sessionSegments() []textSegment {
 	}
 
 	var separator = textSegment{"  │  ", label}
-	return []textSegment{
-		{"Profile ", label}, {session.profile, value}, separator,
-		{"Account ", label}, {session.accountId, value}, separator,
-		{"Session ", label}, {durationText, durationStyle}, separator,
-		{"User ", label}, {session.userId, value},
+	var segments = []textSegment{{"Profile ", label}, {session.profile, value}, separator}
+	if len(session.region) > 0 {
+		segments = append(segments, textSegment{"Region ", label}, textSegment{session.region, value}, separator)
 	}
+	return append(segments,
+		textSegment{"Account ", label}, textSegment{session.accountId, value}, separator,
+		textSegment{"Session ", label}, textSegment{durationText, durationStyle}, separator,
+		textSegment{"User ", label}, textSegment{session.userId, value},
+	)
 }
 
 func (inst *PaginatorView) Draw(screen tcell.Screen) {

@@ -9,7 +9,7 @@ Lambda, CloudWatch (Logs, Logs Insights, Alarms, Metrics), DynamoDB, IAM (Roles,
 ## Requirements
 
 - Go (see `go.mod` for the version)
-- AWS credentials and region configured the usual way (environment variables, `~/.aws/config`, SSO, ...). The profile can be switched from inside the app.
+- AWS credentials and region configured the usual way (environment variables, `~/.aws/config`, SSO, ...). The profile and the region can be switched from inside the app.
 
 ## Build and run
 
@@ -21,6 +21,8 @@ make build        # outputs ./bin/aws-tui
 ```
 
 `-profile` and `-region` start with that profile and region, and `-open` runs a command of the command line, such as `logs streams`, once the app has started.
+
+`-read-only` makes the app refuse everything that could change something in the account, such as storing a value, sending a message, invoking a lambda or deleting a resource, whichever profile or region is switched to. Only requests that read are sent: the ones that get, list, describe, query or scan, and Logs Insights queries. What is refused is reported as an error, and the status bar shows `READ-ONLY`.
 
 Other targets: `make build-all` (linux, darwin, windows), `make test`, `make clean`.
 
@@ -112,7 +114,7 @@ In forms, the view focus keys move between the fields. Text inputs keep their ow
 | `:w [file]`, `:write [file]` | Save the selected table to a csv file, at the path given or else in the download directory, named after the table |
 | `:<service>` | Go to the service |
 
-A service is named by its name in lower case without spaces, such as `:lambda` or `:cloudwatchlogs`, or by a short name: `:logs`, `:alarms`, `:metrics`, `:ddb`, `:sfn`, `:s3`, `:ssm`, `:secrets`, `:cfn` or `:profile`. The start of a name is enough when only one service has it, and `:help` and `:settings` open those pages.
+A service is named by its name in lower case without spaces, such as `:lambda` or `:cloudwatchlogs`, or by a short name: `:logs`, `:alarms`, `:metrics`, `:ddb`, `:sfn`, `:s3`, `:ssm`, `:secrets`, `:cfn`, `:profile` or `:region`. The start of a name is enough when only one service has it, and `:help` and `:settings` open those pages.
 
 Commands are completed as they are typed: Tab puts the selected completion in, and Enter runs it. What a command did, or why it failed, stays in the line until the next key.
 
@@ -189,11 +191,13 @@ internal/settings/  the settings file that keeps the user's choices between runs
 internal/utils/     small generic helpers
 internal/ui/app/    wires the services together into the tview application
 internal/ui/core/   reusable widgets, table infrastructure and app-wide state
-internal/ui/services/  service picker, help and profile selection
+internal/ui/services/  service picker, help, profile and region selection
 internal/ui/<service>/ views and tables for one service
                        (cloudformation, cloudwatch, dynamodb, ec2, eventbridge,
                         iam, lambda, kms, s3, secretsmanager, sfn, sns, sqs, ssm, vpc)
 ```
+
+A service is added to the app by its package: `service.go` gives a `core.Service` with the name, icon, description, shortcut, short commands and how to build the page, which is then listed in `awsServices` in `internal/ui/app/app.go`.
 
 ## License
 
