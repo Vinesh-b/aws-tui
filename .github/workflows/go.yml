@@ -30,3 +30,19 @@ jobs:
 
     - name: Test
       run: make test
+
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.26'
+
+    - name: Staticcheck
+      run: make staticcheck
+
+    - name: Vulnerabilities
+      run: make vulncheck

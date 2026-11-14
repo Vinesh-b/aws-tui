@@ -1,5 +1,11 @@
 BINARY_NAME=aws-tui
 
+# The versions of the checks are pinned, so that a new release of one of them
+# can't fail a build that passed before
+# v0.8.2 is the release named 2026.2.2
+STATICCHECK_VERSION=v0.8.2
+GOVULNCHECK_VERSION=v1.4.0
+
 build:
 	go build -o ./bin/${BINARY_NAME} ./cmd/aws-tui
 
@@ -29,6 +35,15 @@ sleep-check:
 	test -z "$$found" || { echo "Unmarked time.Sleep in tests, use uitest.Eventually or uitest.Consistently:"; echo "$$found"; exit 1; }
 
 lint: fmt-check vet sleep-check
+
+# Downloads staticcheck the first time it is run
+staticcheck:
+	go run honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION} ./...
+
+# Reports the known vulnerabilities in the modules and the standard library
+# that the code can reach. It asks vuln.go.dev, so it needs the network.
+vulncheck:
+	go run golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION} ./...
 
 get-modules:
 	go mod download
