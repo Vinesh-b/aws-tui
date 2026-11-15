@@ -5,6 +5,7 @@ import (
 
 	"aws-tui/internal/settings"
 	"aws-tui/internal/ui/apigateway"
+	"aws-tui/internal/ui/bedrock"
 	"aws-tui/internal/ui/cloudformation"
 	"aws-tui/internal/ui/cloudtrail"
 	"aws-tui/internal/ui/cloudwatch"
@@ -333,6 +334,7 @@ var awsServices = []core.Service{
 	waf.Service,
 	route53.Service,
 	cognito.Service,
+	bedrock.Service,
 	iam.Service,
 	sqs.Service,
 	sns.Service,

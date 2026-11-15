@@ -4,7 +4,7 @@ A terminal UI for browsing AWS services, built with [tview](https://github.com/r
 
 ## Supported services
 
-Lambda, CloudWatch (Logs, Logs Insights, Alarms, Metrics), DynamoDB, IAM (Roles, Users, Policies), Step Functions, S3 (Buckets, Access Points), Systems Manager (Parameter Store), Secrets Manager, KMS, EventBridge (Event Buses, Schedules), CloudFormation, CloudTrail (Event History, Trails), X-Ray (Traces, Sampling Rules), SQS, SNS, API Gateway, EC2, VPC (VPCs, Subnets, Network ACLs), WAF (Web ACLs, IP Sets), Route 53 (Hosted Zones, Health Checks) and Cognito (User Pools, Identity Pools).
+Lambda, CloudWatch (Logs, Logs Insights, Alarms, Metrics), DynamoDB, IAM (Roles, Users, Policies), Step Functions, S3 (Buckets, Access Points), Systems Manager (Parameter Store), Secrets Manager, KMS, EventBridge (Event Buses, Schedules), CloudFormation, CloudTrail (Event History, Trails), X-Ray (Traces, Sampling Rules), SQS, SNS, API Gateway, EC2, VPC (VPCs, Subnets, Network ACLs), WAF (Web ACLs, IP Sets), Route 53 (Hosted Zones, Health Checks), Cognito (User Pools, Identity Pools) and Bedrock (Foundation Models, Inference Profiles).
 
 ## Requirements
 
@@ -193,7 +193,7 @@ internal/ui/app/    wires the services together into the tview application
 internal/ui/core/   reusable widgets, table infrastructure and app-wide state
 internal/ui/services/  service picker, help, profile and region selection
 internal/ui/<service>/ views and tables for one service
-                       (cloudformation, cloudtrail, cloudwatch, cognito, dynamodb, ec2, eventbridge,
+                       (bedrock, cloudformation, cloudtrail, cloudwatch, cognito, dynamodb, ec2, eventbridge,
                         iam, lambda, kms, route53, s3, secretsmanager, sfn, sns, sqs, ssm, vpc, waf, xray)
 ```
 

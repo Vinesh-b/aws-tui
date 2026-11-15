@@ -514,6 +514,10 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			var _, err = NewWafApi(fake.clients, logger).GetIPSet(context.Background(), "")
 			return err
 		}, "IP set ARN not set"},
+		{"model availability", func() error {
+			var _, err = NewBedrockApi(fake.clients, logger).GetFoundationModelAvailability(context.Background(), "")
+			return err
+		}, "model id not set"},
 		{"user pool", func() error {
 			var _, err = NewCognitoApi(fake.clients, logger).DescribeUserPool(context.Background(), "")
 			return err

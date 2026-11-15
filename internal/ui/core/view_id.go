@@ -15,6 +15,7 @@ const (
 	COGNITO            ViewId = "Cognito"
 	DYNAMODB           ViewId = "DynamoDB"
 	API_GATEWAY        ViewId = "API Gateway"
+	BEDROCK            ViewId = "Bedrock"
 	EC2                ViewId = "EC2"
 	EVENTBRIDGE        ViewId = "EventBridge"
 	IAM                ViewId = "IAM"

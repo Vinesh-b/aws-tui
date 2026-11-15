@@ -3,6 +3,7 @@ package awsapi
 import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/apigateway"
+	"github.com/aws/aws-sdk-go-v2/service/bedrock"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go-v2/service/cloudtrail"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
@@ -38,6 +39,7 @@ type AwsApiClients struct {
 	Profile string
 
 	apigateway     *apigateway.Client
+	bedrock        *bedrock.Client
 	cloudformation *cloudformation.Client
 	cloudtrail     *cloudtrail.Client
 	cloudwatch     *cloudwatch.Client
@@ -72,6 +74,7 @@ func NewAwsApiClients(cfg aws.Config, profile string) *AwsApiClients {
 		Profile: profile,
 
 		apigateway:     apigateway.NewFromConfig(cfg),
+		bedrock:        bedrock.NewFromConfig(cfg),
 		cloudformation: cloudformation.NewFromConfig(cfg),
 		cloudtrail:     cloudtrail.NewFromConfig(cfg),
 		cloudwatch:     cloudwatch.NewFromConfig(cfg),
