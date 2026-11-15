@@ -1,8 +1,11 @@
 package awsapi
 
 import (
+	"cmp"
 	"context"
 	"log"
+	"slices"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -20,6 +23,9 @@ type Ec2Api interface {
 	// ListNetworkAcls returns the network ACLs of every VPC in the region,
 	// with their rules and subnet associations, sorted by ID.
 	ListNetworkAcls(ctx context.Context, force bool) ([]types.NetworkAcl, error)
+	// ListSubnets returns the subnets of every VPC in the region, sorted by
+	// VPC and then by IPv4 CIDR block.
+	ListSubnets(ctx context.Context, force bool) ([]types.Subnet, error)
 }
 
 type ec2Api struct {
@@ -120,6 +126,27 @@ func (inst *ec2Api) ListNetworkAcls(ctx context.Context, force bool) ([]types.Ne
 	})
 
 	sortByKey(result, func(acl types.NetworkAcl) *string { return acl.NetworkAclId })
+
+	return result, inst.logErr(err)
+}
+
+func (inst *ec2Api) ListSubnets(ctx context.Context, force bool) ([]types.Subnet, error) {
+	var result, err = collectTokenPages(func(token *string) ([]types.Subnet, *string, error) {
+		var output, err = inst.clients.ec2.DescribeSubnets(ctx,
+			&ec2.DescribeSubnetsInput{NextToken: token},
+		)
+		if err != nil {
+			return nil, nil, err
+		}
+		return output.Subnets, output.NextToken, nil
+	})
+
+	slices.SortStableFunc(result, func(a, b types.Subnet) int {
+		return cmp.Or(
+			strings.Compare(aws.ToString(a.VpcId), aws.ToString(b.VpcId)),
+			strings.Compare(aws.ToString(a.CidrBlock), aws.ToString(b.CidrBlock)),
+		)
+	})
 
 	return result, inst.logErr(err)
 }

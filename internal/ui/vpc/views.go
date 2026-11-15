@@ -200,6 +200,60 @@ func NewNetworkAclsPageView(
 	}
 }
 
+const SubnetTabNameDetails = "Details"
+
+// SubnetsPageView is the subnets of the region, with the details of the one
+// selected in a tab over them
+type SubnetsPageView struct {
+	*core.ServicePageView
+	SubnetsTable *SubnetsTable
+	DetailsTable *SubnetDetailsTable
+	TabView      *core.TabViewHorizontal
+}
+
+func NewSubnetsPageView(
+	subnetsTable *SubnetsTable,
+	detailsTable *SubnetDetailsTable,
+	serviceCtx *core.ServiceContext[awsapi.Ec2Api],
+) *SubnetsPageView {
+	const tabViewSize = 5000
+	const listSize = 5000
+
+	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
+		AddAndSwitchToTab(SubnetTabNameDetails, detailsTable, 0, 1, true)
+
+	var mainPage = core.NewResizableView(
+		tabView, tabViewSize,
+		subnetsTable, listSize,
+		tview.FlexRow,
+		serviceCtx.AppContext,
+	)
+	var serviceView = core.NewServicePageView(serviceCtx.AppContext)
+	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
+	serviceView.InitViewNavigation(
+		[][]core.View{
+			{tabView},
+			{subnetsTable},
+		},
+	)
+
+	subnetsTable.ErrorMessageCallback = func(text string, a ...any) {
+		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
+	}
+
+	// The list has everything the details show, so they change with it
+	subnetsTable.SetSelectionChangedFunc(func(row, column int) {
+		detailsTable.SetSubnet(subnetsTable.GetSelectedSubnet())
+	})
+
+	return &SubnetsPageView{
+		ServicePageView: serviceView,
+		SubnetsTable:    subnetsTable,
+		DetailsTable:    detailsTable,
+		TabView:         tabView,
+	}
+}
+
 func NewVpcHomeView(appCtx *core.AppContext, api awsapi.Ec2Api) core.ServicePage {
 	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0x660033))
 	defer appCtx.Theme.ResetGlobalStyle()
@@ -223,12 +277,18 @@ func NewVpcHomeView(appCtx *core.AppContext, api awsapi.Ec2Api) core.ServicePage
 			NewNetworkAclAssociationsTable(serviceCtx),
 			serviceCtx,
 		)
+		subnetsView = NewSubnetsPageView(
+			NewSubnetsTable(serviceCtx),
+			NewSubnetDetailsTable(serviceCtx),
+			serviceCtx,
+		)
 	)
 
 	var serviceRootView = core.NewServiceRootView(string(core.VPC), appCtx)
 
 	serviceRootView.
 		AddAndSwitchToPage("VPCs", eventbridgeDetailsView, true).
+		AddPage("Subnets", subnetsView, true, true).
 		AddPage("Network ACLs", networkAclsView, true, true)
 
 	serviceRootView.InitPageNavigation()

@@ -18,16 +18,22 @@ import (
 type Api struct {
 	awsapi.Ec2Api
 
-	mtx         sync.Mutex
-	networkAcls []types.NetworkAcl
-	err         error
-	aclListings int
+	mtx            sync.Mutex
+	networkAcls    []types.NetworkAcl
+	subnets        []types.Subnet
+	err            error
+	aclListings    int
+	subnetListings int
 }
 
 type Option func(*Api)
 
 func WithNetworkAcls(acls []types.NetworkAcl) Option {
 	return func(f *Api) { f.networkAcls = slices.Clone(acls) }
+}
+
+func WithSubnets(subnets []types.Subnet) Option {
+	return func(f *Api) { f.subnets = slices.Clone(subnets) }
 }
 
 func WithErr(err error) Option { return func(f *Api) { f.err = err } }
@@ -44,6 +50,12 @@ func (f *Api) SetNetworkAcls(acls []types.NetworkAcl) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 	f.networkAcls = slices.Clone(acls)
+}
+
+func (f *Api) SetSubnets(subnets []types.Subnet) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	f.subnets = slices.Clone(subnets)
 }
 
 func (f *Api) SetErr(err error) {
@@ -64,4 +76,18 @@ func (f *Api) ListNetworkAcls(ctx context.Context, force bool) ([]types.NetworkA
 	defer f.mtx.Unlock()
 	f.aclListings++
 	return slices.Clone(f.networkAcls), f.err
+}
+
+// SubnetListings is how many times the subnets were listed.
+func (f *Api) SubnetListings() int {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return f.subnetListings
+}
+
+func (f *Api) ListSubnets(ctx context.Context, force bool) ([]types.Subnet, error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	f.subnetListings++
+	return slices.Clone(f.subnets), f.err
 }
