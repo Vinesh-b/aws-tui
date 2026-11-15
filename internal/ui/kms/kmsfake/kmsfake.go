@@ -7,6 +7,7 @@ package kmsfake
 
 import (
 	"context"
+	"slices"
 	"sync"
 
 	"aws-tui/internal/awsapi"
@@ -25,6 +26,8 @@ type Api struct {
 	policy   string
 	err      error
 	listed   int
+	// described is the IDs of the keys described, in order
+	described []string
 }
 
 type Option func(*Api)
@@ -82,9 +85,17 @@ func (f *Api) ListAliases(ctx context.Context, force bool) ([]types.AliasListEnt
 	return f.aliases, f.err
 }
 
+// Described is the IDs of the keys that were described, in order.
+func (f *Api) Described() []string {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return slices.Clone(f.described)
+}
+
 func (f *Api) DescribeKey(ctx context.Context, keyId string) (*types.KeyMetadata, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
+	f.described = append(f.described, keyId)
 	return f.metadata[keyId], f.err
 }
 
