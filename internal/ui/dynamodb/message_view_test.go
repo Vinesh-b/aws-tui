@@ -39,8 +39,7 @@ func newMessageViewFixture(t *testing.T, items ...map[string]any) *messageViewFi
 func (f *messageViewFixture) press(t *testing.T, key tcell.Key, r rune) {
 	t.Helper()
 	// Sent through the whole focus chain, as the key is handled by a parent view
-	f.app.QueueEvent(tcell.NewEventKey(key, r, tcell.ModNone))
-	uitest.OnUI(t, f.app, func() {})
+	uitest.PressKeyEvent(t, f.app, tcell.NewEventKey(key, r, tcell.ModNone))
 }
 
 func (f *messageViewFixture) editing(t *testing.T) bool {

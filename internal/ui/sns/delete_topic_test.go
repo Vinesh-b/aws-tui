@@ -42,8 +42,7 @@ func (f *deleteTopicFixture) app() *tview.Application { return f.table.serviceCt
 func (f *deleteTopicFixture) press(t *testing.T, event *tcell.EventKey) {
 	t.Helper()
 	// Sent through the whole focus chain, as the keys are handled by parent views
-	f.app().QueueEvent(event)
-	uitest.OnUI(t, f.app(), func() {})
+	uitest.PressKeyEvent(t, f.app(), event)
 }
 
 func (f *deleteTopicFixture) open(t *testing.T) {

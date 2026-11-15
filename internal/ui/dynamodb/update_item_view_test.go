@@ -137,8 +137,7 @@ func (f *updateItemFixture) app() *tview.Application { return f.table.serviceCtx
 func (f *updateItemFixture) press(t *testing.T, key tcell.Key, r rune) {
 	t.Helper()
 	// Sent through the whole focus chain, as the keys are handled by parent views
-	f.app().QueueEvent(tcell.NewEventKey(key, r, tcell.ModNone))
-	uitest.OnUI(t, f.app(), func() {})
+	uitest.PressKeyEvent(t, f.app(), tcell.NewEventKey(key, r, tcell.ModNone))
 }
 
 func newUpdateItemPageView(t *testing.T, api *dynamodbfake.Api, item map[string]any) *DynamoDBUpdateItemPageView {

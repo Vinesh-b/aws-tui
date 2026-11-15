@@ -298,11 +298,47 @@ func AwaitScreenText(t *testing.T, app *tview.Application, screen tcell.Simulati
 }
 
 // PressKey sends the key through the whole focus chain, so key handlers on
-// parent views run as they would for a real key press.
+// parent views run as they would for a real key press, and returns once the
+// app has handled it.
 func PressKey(t *testing.T, app *tview.Application, key tcell.Key) {
 	t.Helper()
-	app.QueueEvent(tcell.NewEventKey(key, 0, tcell.ModNone))
-	OnUI(t, app, func() {})
+	PressKeyEvent(t, app, tcell.NewEventKey(key, 0, tcell.ModNone))
+}
+
+// PressKeyEvent sends the key event through the whole focus chain, as
+// PressKey does, for a key with a rune or modifiers.
+//
+// The app handles its events in order, but runs a queued update whenever it
+// likes, before or after an event queued earlier. So waiting for an update
+// would not mean the key was handled. Instead a marker event is sent after the
+// key, which an input capture put in front of the app's own catches and then
+// takes away again.
+func PressKeyEvent(t *testing.T, app *tview.Application, event *tcell.EventKey) {
+	t.Helper()
+	var marker = tcell.NewEventKey(tcell.KeyRune, 0, tcell.ModNone)
+	var handled = make(chan struct{})
+	OnUI(t, app, func() {
+		var capture = app.GetInputCapture()
+		app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			if event == marker {
+				app.SetInputCapture(capture)
+				close(handled)
+				return nil
+			}
+			if capture == nil {
+				return event
+			}
+			return capture(event)
+		})
+	})
+
+	app.QueueEvent(event)
+	app.QueueEvent(marker)
+	select {
+	case <-handled:
+	case <-time.After(asyncTimeout):
+		t.Fatal("timed out waiting for the key to be handled")
+	}
 }
 
 // DetailsRowOf is the first row of the table with the label, e.g. the heading

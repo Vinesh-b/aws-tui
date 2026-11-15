@@ -38,8 +38,7 @@ func newUnsubscribeFixture(t *testing.T, api *snsfake.Api) *unsubscribeFixture {
 func (f *unsubscribeFixture) press(t *testing.T, event *tcell.EventKey) {
 	t.Helper()
 	// Sent through the whole focus chain, as the keys are handled by parent views
-	f.table.serviceCtx.App.QueueEvent(event)
-	uitest.OnUI(t, f.table.serviceCtx.App, func() {})
+	uitest.PressKeyEvent(t, f.table.serviceCtx.App, event)
 }
 
 func (f *unsubscribeFixture) open(t *testing.T) {

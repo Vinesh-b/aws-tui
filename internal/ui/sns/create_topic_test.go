@@ -69,8 +69,7 @@ func (f *createTopicFixture) view() *CreateTopicView { return f.table.CreateView
 func (f *createTopicFixture) press(t *testing.T, key tcell.Key, r rune) {
 	t.Helper()
 	// Sent through the whole focus chain, as the keys are handled by parent views
-	f.app().QueueEvent(tcell.NewEventKey(key, r, tcell.ModNone))
-	uitest.OnUI(t, f.app(), func() {})
+	uitest.PressKeyEvent(t, f.app(), tcell.NewEventKey(key, r, tcell.ModNone))
 }
 
 func (f *createTopicFixture) open(t *testing.T) {

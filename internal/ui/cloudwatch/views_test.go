@@ -48,8 +48,7 @@ func TestLogsHomeView__ResetKeyLoadsLogGroupsFromApi(t *testing.T) {
 // the key handlers of the pages and redraws the screen
 func sendRune(t *testing.T, appCtx *core.AppContext, r rune, mod tcell.ModMask) {
 	t.Helper()
-	appCtx.App.QueueEvent(tcell.NewEventKey(tcell.KeyRune, r, mod))
-	uitest.OnUI(t, appCtx.App, func() {})
+	uitest.PressKeyEvent(t, appCtx.App, tcell.NewEventKey(tcell.KeyRune, r, mod))
 }
 
 // showLogGroups shows the logs on the groups page with the groups loaded
