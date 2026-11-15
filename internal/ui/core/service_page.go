@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -40,6 +41,10 @@ type ServicePageView struct {
 	errorView      *MessagePromptView
 	infoView       *MessagePromptView
 	appCtx         *AppContext
+	// messagesMtx guards lastMessages, the last message of each type, which
+	// are given on any goroutine and shown on the UI goroutine
+	messagesMtx  sync.Mutex
+	lastMessages map[MessagePromptType]string
 }
 
 func NewServicePageView(appCtx *AppContext) *ServicePageView {
@@ -53,6 +58,7 @@ func NewServicePageView(appCtx *AppContext) *ServicePageView {
 		infoView:       NewMessagePromptView(appCtx.App),
 		viewNavigation: viewNav,
 		appCtx:         appCtx,
+		lastMessages:   map[MessagePromptType]string{},
 	}
 
 	view.MainPage.SetDirection(tview.FlexRow)
@@ -92,8 +98,13 @@ func (inst *ServicePageView) GetViewNavigation() [][]View {
 	return inst.viewNavigation.GetOrderedViews()
 }
 
+// DisplayMessage shows the message over the page, with the focus on it. It is
+// called from the UI goroutine, and from the goroutines that load data, which
+// report their errors with it, so the page is only changed on the UI
+// goroutine. That is queued from a goroutine of its own, as queuing from the
+// UI goroutine would wait on itself. The queued updates can run in any order,
+// so each shows the last message of its type, which is the one that stays.
 func (inst *ServicePageView) DisplayMessage(messageType MessagePromptType, text string, a ...any) {
-
 	var message = fmt.Sprintf(text, a...)
 	var view *MessagePromptView
 	switch messageType {
@@ -106,9 +117,19 @@ func (inst *ServicePageView) DisplayMessage(messageType MessagePromptType, text 
 		return
 	}
 
-	inst.Pages.ShowPage(string(messageType))
-	view.SetText(message)
-	inst.appCtx.App.SetFocus(view)
+	inst.messagesMtx.Lock()
+	inst.lastMessages[messageType] = message
+	inst.messagesMtx.Unlock()
+
+	go inst.appCtx.App.QueueUpdateDraw(func() {
+		inst.messagesMtx.Lock()
+		var last = inst.lastMessages[messageType]
+		inst.messagesMtx.Unlock()
+
+		inst.Pages.ShowPage(string(messageType))
+		view.SetText(last)
+		inst.appCtx.App.SetFocus(view)
+	})
 }
 
 func (inst *ServicePageView) GetLastFocusedView() tview.Primitive {
