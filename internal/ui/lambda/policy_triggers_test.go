@@ -7,6 +7,7 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"aws-tui/internal/ui/lambda/lambdafake"
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
@@ -98,10 +99,10 @@ func TestLambdaTrigger__RawDataIsWhatItWasReadFrom(t *testing.T) {
 }
 
 func TestTriggersView__ListsApiGatewayTriggersAfterTheMappings(t *testing.T) {
-	var api = &fakeLambdaApi{
-		mappings: map[string][]types.EventSourceMappingConfiguration{ordersArn: {newQueueMapping()}},
-		policies: map[string]string{ordersArn: ordersPolicy},
-	}
+	var api = lambdafake.New(
+		lambdafake.WithMappings(map[string][]types.EventSourceMappingConfiguration{ordersArn: {newQueueMapping()}}),
+		lambdafake.WithPolicies(map[string]string{ordersArn: ordersPolicy}),
+	)
 	var view = newRunningTriggersView(t, api)
 	var app = view.serviceCtx.App
 
@@ -122,10 +123,10 @@ func TestTriggersView__ListsApiGatewayTriggersAfterTheMappings(t *testing.T) {
 }
 
 func TestTriggersView__MappingsAreShownWhenThePolicyFails(t *testing.T) {
-	var api = &fakeLambdaApi{
-		mappings:  map[string][]types.EventSourceMappingConfiguration{ordersArn: {newQueueMapping()}},
-		policyErr: errors.New("access denied"),
-	}
+	var api = lambdafake.New(
+		lambdafake.WithMappings(map[string][]types.EventSourceMappingConfiguration{ordersArn: {newQueueMapping()}}),
+		lambdafake.WithPolicyErr(errors.New("access denied")),
+	)
 	var view = newRunningTriggersView(t, api)
 	var app = view.serviceCtx.App
 	var callback, received = uitest.CaptureErrors()
@@ -143,7 +144,7 @@ func TestTriggersView__MappingsAreShownWhenThePolicyFails(t *testing.T) {
 }
 
 func TestTriggersView__FocusKeysMoveBetweenTheListAndTheDetails(t *testing.T) {
-	var api = &fakeLambdaApi{mappings: map[string][]types.EventSourceMappingConfiguration{ordersArn: {newQueueMapping()}}}
+	var api = lambdafake.New(lambdafake.WithMappings(map[string][]types.EventSourceMappingConfiguration{ordersArn: {newQueueMapping()}}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.LambdaApi](api)
 	var view = NewLambdaTriggersView(serviceCtx)
 	var below = core.NewSelectableTable[string]("Lambdas", core.TableRow{"Name"}, serviceCtx.AppContext)

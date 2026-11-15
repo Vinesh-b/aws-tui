@@ -1,4 +1,5 @@
-// Package cloudwatchfake is an in-memory awsapi.CloudWatchLogsApi for tests.
+// Package cloudwatchfake is an in-memory awsapi.CloudWatchLogsApi,
+// awsapi.CloudWatchAlarmsApi and awsapi.CloudWatchMetricsApi for tests.
 //
 // All state is private and guarded by one mutex. Configure it with options when
 // constructing, or with the Set and Queue methods afterwards. UI code calls the
@@ -31,6 +32,11 @@ type Api struct {
 	followErr   error
 	calls       []string
 	unmask      bool
+	groups      []types.LogGroup
+	err         error
+
+	// The state of the Insights queries, in insights.go
+	insights insightsState
 }
 
 type Option func(*Api)
@@ -44,6 +50,14 @@ func WithLogEvents(events ...types.OutputLogEvent) Option {
 func WithLogStreams(streams ...types.LogStream) Option {
 	return func(f *Api) { f.streams = streams }
 }
+
+// WithLogGroups sets the groups ListLogGroups gives
+func WithLogGroups(groups ...types.LogGroup) Option {
+	return func(f *Api) { f.groups = groups }
+}
+
+// WithErr makes ListLogGroups, ListLogStreams and ListLogEvents fail
+func WithErr(err error) Option { return func(f *Api) { f.err = err } }
 
 // WithMoreLogEvents and WithMoreLogStreams make the api say it has more pages
 func WithMoreLogEvents(more bool) Option  { return func(f *Api) { f.moreEvents = more } }
@@ -110,13 +124,19 @@ func (f *Api) HasMoreLogStreams() bool {
 	return f.moreStreams
 }
 
+func (f *Api) ListLogGroups(ctx context.Context, reset bool) ([]types.LogGroup, error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return slices.Clone(f.groups), f.err
+}
+
 func (f *Api) ListLogStreams(
 	ctx context.Context, logGroupName string, searchPrefix string, reset bool,
 ) ([]types.LogStream, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 	f.calls = append(f.calls, "streams "+logGroupName)
-	return slices.Clone(f.streams), nil
+	return slices.Clone(f.streams), f.err
 }
 
 func (f *Api) ListLogEvents(
@@ -129,7 +149,7 @@ func (f *Api) ListLogEvents(
 		call += " from " + startTime.UTC().Format(time.RFC3339)
 	}
 	f.calls = append(f.calls, call)
-	return slices.Clone(f.events), nil
+	return slices.Clone(f.events), f.err
 }
 
 // ListFilteredLogEvents gives the events that were set with WithLogEvents and

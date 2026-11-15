@@ -3,6 +3,7 @@ package cloudformation
 import (
 	"testing"
 
+	"aws-tui/internal/ui/cloudformation/cloudformationfake"
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/uitest"
 
@@ -11,7 +12,7 @@ import (
 
 func TestHomeView__ResetKeyLoadsStacksFromApi(t *testing.T) {
 	var appCtx = uitest.NewAppContext()
-	var page = NewStacksHomeView(appCtx, &fakeCloudFormationApi{stacks: []types.StackSummary{newStack("orders-stack", types.StackStatusCreateComplete)}})
+	var page = NewStacksHomeView(appCtx, cloudformationfake.New(cloudformationfake.WithStacks([]types.StackSummary{newStack("orders-stack", types.StackStatusCreateComplete)})))
 	var screen = uitest.ShowPage(t, appCtx.App, page)
 
 	uitest.PressRune(t, appCtx.App, core.APP_KEY_BINDINGS.Reset)

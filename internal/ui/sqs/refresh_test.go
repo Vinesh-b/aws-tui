@@ -1,37 +1,17 @@
 package sqs
 
 import (
-	"context"
 	"errors"
 	"testing"
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"aws-tui/internal/ui/sqs/sqsfake"
 	"aws-tui/internal/ui/uitest"
 )
 
-type fakeSqsApi struct {
-	awsapi.SqsApi
-	queues     []string
-	attributes map[string]string
-	tags       map[string]string
-	err        error
-}
-
-func (f *fakeSqsApi) ListQueues(ctx context.Context, force bool) ([]string, error) {
-	return f.queues, f.err
-}
-
-func (f *fakeSqsApi) GetQueueAttributes(ctx context.Context, queueUrl string) (map[string]string, error) {
-	return f.attributes, f.err
-}
-
-func (f *fakeSqsApi) ListQueueTags(ctx context.Context, queueUrl string) (map[string]string, error) {
-	return f.tags, f.err
-}
-
 func TestQueueListTable__RefreshLoadsQueuesFromApi(t *testing.T) {
-	var api = &fakeSqsApi{queues: []string{queueUrl("orders")}}
+	var api = sqsfake.New(sqsfake.WithQueues([]string{queueUrl("orders")}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SqsApi](api)
 	var table = NewQueueListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -45,7 +25,7 @@ func TestQueueListTable__RefreshLoadsQueuesFromApi(t *testing.T) {
 }
 
 func TestQueueListTable__RefreshReportsApiError(t *testing.T) {
-	var api = &fakeSqsApi{err: errors.New("access denied")}
+	var api = sqsfake.New(sqsfake.WithErr(errors.New("access denied")))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SqsApi](api)
 	var table = NewQueueListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -60,7 +40,7 @@ func TestQueueListTable__RefreshReportsApiError(t *testing.T) {
 }
 
 func TestQueueListTable__SearchShowsMatchingQueues(t *testing.T) {
-	var api = &fakeSqsApi{queues: []string{queueUrl("orders"), queueUrl("billing")}}
+	var api = sqsfake.New(sqsfake.WithQueues([]string{queueUrl("orders"), queueUrl("billing")}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SqsApi](api)
 	var table = NewQueueListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -76,7 +56,7 @@ func TestQueueListTable__SearchShowsMatchingQueues(t *testing.T) {
 }
 
 func TestQueueDetailsTable__RefreshLoadsAttributesFromApi(t *testing.T) {
-	var api = &fakeSqsApi{attributes: newQueueAttributes()}
+	var api = sqsfake.New(sqsfake.WithAttributes(newQueueAttributes()))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SqsApi](api)
 	var table = NewQueueDetailsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -87,7 +67,7 @@ func TestQueueDetailsTable__RefreshLoadsAttributesFromApi(t *testing.T) {
 }
 
 func TestQueueDetailsTable__RefreshReportsApiError(t *testing.T) {
-	var api = &fakeSqsApi{err: errors.New("queue does not exist")}
+	var api = sqsfake.New(sqsfake.WithErr(errors.New("queue does not exist")))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SqsApi](api)
 	var table = NewQueueDetailsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)

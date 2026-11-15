@@ -1,53 +1,17 @@
 package sfn
 
 import (
-	"context"
 	"errors"
+	"slices"
 	"strings"
-	"sync"
 	"testing"
-	"time"
 
 	"aws-tui/internal/awsapi"
+	"aws-tui/internal/ui/sfn/sfnfake"
 	"aws-tui/internal/ui/uitest"
-
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/sfn"
 )
 
-type fakeStartExecutionApi struct {
-	fakeStateMachineApi
-	mtx      sync.Mutex
-	arn      string
-	input    string
-	calls    int
-	startErr error
-}
-
-func (f *fakeStartExecutionApi) StartExecution(
-	ctx context.Context, stateMachineArn string, name string, input string,
-) (*sfn.StartExecutionOutput, error) {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
-	f.calls++
-	f.arn = stateMachineArn
-	f.input = input
-	if f.startErr != nil {
-		return nil, f.startErr
-	}
-	return &sfn.StartExecutionOutput{
-		ExecutionArn: aws.String("arn:execution:run-1"),
-		StartDate:    aws.Time(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)),
-	}, nil
-}
-
-func (f *fakeStartExecutionApi) startCalls() int {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
-	return f.calls
-}
-
-func newStartExecutionView(t *testing.T, api *fakeStartExecutionApi) *SfnStartExecutionPageView {
+func newStartExecutionView(t *testing.T, api *sfnfake.Api) *SfnStartExecutionPageView {
 	t.Helper()
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.StateMachineApi](api)
 	var view = NewSfnStartExecutionPageView(serviceCtx)
@@ -56,7 +20,7 @@ func newStartExecutionView(t *testing.T, api *fakeStartExecutionApi) *SfnStartEx
 }
 
 func TestStartExecutionView__StartsTheSelectedStateMachine(t *testing.T) {
-	var api = &fakeStartExecutionApi{}
+	var api = sfnfake.New()
 	var view = newStartExecutionView(t, api)
 	var started = make(chan struct{}, 1)
 	view.SetOnExecutionStarted(func() { started <- struct{}{} })
@@ -66,19 +30,17 @@ func TestStartExecutionView__StartsTheSelectedStateMachine(t *testing.T) {
 	uitest.OnUI(t, view.serviceCtx.App, view.StartExecution)
 
 	<-started
-	if api.arn != "arn:sm:orders" {
-		t.Errorf("Unexpected state machine %q", api.arn)
-	}
-	if api.input != `{"big":12345678901234567890,"id":"a1"}` {
-		t.Errorf("Unexpected input %q", api.input)
+	var want = []sfnfake.Started{{StateMachineArn: "arn:sm:orders", Input: `{"big":12345678901234567890,"id":"a1"}`}}
+	if got := api.Started(); !slices.Equal(got, want) {
+		t.Errorf("started = %v, want %v", got, want)
 	}
 	uitest.Eventually(t, view.serviceCtx.App, func() bool {
-		return strings.Contains(view.resultOutput.GetText(), "arn:execution:run-1")
+		return strings.Contains(view.resultOutput.GetText(), sfnfake.StartedExecutionArn)
 	})
 }
 
 func TestStartExecutionView__EmptyInputStartsWithAnEmptyObject(t *testing.T) {
-	var api = &fakeStartExecutionApi{}
+	var api = sfnfake.New()
 	var view = newStartExecutionView(t, api)
 	var started = make(chan struct{}, 1)
 	view.SetOnExecutionStarted(func() { started <- struct{}{} })
@@ -87,13 +49,13 @@ func TestStartExecutionView__EmptyInputStartsWithAnEmptyObject(t *testing.T) {
 	uitest.OnUI(t, view.serviceCtx.App, view.StartExecution)
 
 	<-started
-	if api.input != "{}" {
-		t.Errorf("Unexpected input %q", api.input)
+	if got := api.Started(); len(got) != 1 || got[0].Input != "{}" {
+		t.Errorf("started = %v, want one with the input {}", got)
 	}
 }
 
 func TestStartExecutionView__ReportsApiError(t *testing.T) {
-	var api = &fakeStartExecutionApi{startErr: errors.New("access denied")}
+	var api = sfnfake.New(sfnfake.WithStartErr(errors.New("access denied")))
 	var view = newStartExecutionView(t, api)
 	var callback, received = uitest.CaptureErrors()
 	view.resultOutput.ErrorMessageCallback = callback
@@ -113,7 +75,7 @@ func TestStartExecutionView__RejectsInvalidInputWithoutCallingTheApi(t *testing.
 		"trailing": `{"id": "a"} {"id": "b"}`,
 	} {
 		t.Run(name, func(t *testing.T) {
-			var api = &fakeStartExecutionApi{}
+			var api = sfnfake.New()
 			var view = newStartExecutionView(t, api)
 			var callback, received = uitest.CaptureErrors()
 			view.inputArea.ErrorMessageCallback = callback
@@ -123,15 +85,15 @@ func TestStartExecutionView__RejectsInvalidInputWithoutCallingTheApi(t *testing.
 			uitest.OnUI(t, view.serviceCtx.App, view.StartExecution)
 
 			uitest.AwaitError(t, received)
-			if api.startCalls() != 0 {
-				t.Fatalf("Expected no api calls but got %d", api.startCalls())
+			if got := api.Started(); len(got) != 0 {
+				t.Fatalf("Expected no api calls but got %v", got)
 			}
 		})
 	}
 }
 
 func TestStartExecutionView__RequiresASelectedStateMachine(t *testing.T) {
-	var api = &fakeStartExecutionApi{}
+	var api = sfnfake.New()
 	var view = newStartExecutionView(t, api)
 	var callback, received = uitest.CaptureErrors()
 	view.inputArea.ErrorMessageCallback = callback
@@ -141,13 +103,13 @@ func TestStartExecutionView__RequiresASelectedStateMachine(t *testing.T) {
 	if message := uitest.AwaitError(t, received); !strings.Contains(message, "No state machine") {
 		t.Fatalf("Unexpected error %q", message)
 	}
-	if api.startCalls() != 0 {
-		t.Fatalf("Expected no api calls but got %d", api.startCalls())
+	if got := api.Started(); len(got) != 0 {
+		t.Fatalf("Expected no api calls but got %v", got)
 	}
 }
 
 func TestStartExecutionView__FormatKeepsLargeNumbers(t *testing.T) {
-	var view = newStartExecutionView(t, &fakeStartExecutionApi{})
+	var view = newStartExecutionView(t, sfnfake.New())
 	view.inputArea.SetText(`{"big":12345678901234567890}`, false)
 
 	uitest.OnUI(t, view.serviceCtx.App, view.FormatInput)

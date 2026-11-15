@@ -1,14 +1,11 @@
 package cloudwatch
 
 import (
-	"context"
 	"errors"
-	"slices"
-	"sync"
 	"testing"
-	"time"
 
 	"aws-tui/internal/awsapi"
+	"aws-tui/internal/ui/cloudwatch/cloudwatchfake"
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/uitest"
 
@@ -17,102 +14,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 )
 
-type fakeCloudWatchAlarmsApi struct {
-	awsapi.CloudWatchAlarmsApi
-	alarms  []cwTypes.MetricAlarm
-	history []cwTypes.AlarmHistoryItem
-	err     error
-}
-
-func (f *fakeCloudWatchAlarmsApi) ListAlarms(ctx context.Context, force bool) ([]cwTypes.MetricAlarm, error) {
-	return f.alarms, f.err
-}
-
-func (f *fakeCloudWatchAlarmsApi) ListAlarmHistory(
-	ctx context.Context, name string, force bool,
-) ([]cwTypes.AlarmHistoryItem, error) {
-	return f.history, f.err
-}
-
-type metricDataRequest struct {
-	stat   string
-	period int32
-	start  time.Time
-	end    time.Time
-}
-
-type fakeCloudWatchMetricsApi struct {
-	awsapi.CloudWatchMetricsApi
-	metrics []cwTypes.Metric
-	err     error
-
-	data    cwTypes.MetricDataResult
-	dataErr error
-
-	mu       sync.Mutex
-	requests []metricDataRequest
-	// charted is the names of the metrics whose data was asked for, in order
-	charted []string
-}
-
-func (f *fakeCloudWatchMetricsApi) chartedMetrics() []string {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return slices.Clone(f.charted)
-}
-
-func (f *fakeCloudWatchMetricsApi) metricDataRequests() []metricDataRequest {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return append([]metricDataRequest(nil), f.requests...)
-}
-
-func (f *fakeCloudWatchMetricsApi) GetMetricData(
-	ctx context.Context, metric cwTypes.Metric, stat string, periodSeconds int32, start time.Time, end time.Time,
-) (cwTypes.MetricDataResult, error) {
-	f.mu.Lock()
-	f.requests = append(f.requests, metricDataRequest{stat, periodSeconds, start, end})
-	f.charted = append(f.charted, aws.ToString(metric.MetricName))
-	f.mu.Unlock()
-	return f.data, f.dataErr
-}
-
-func (f *fakeCloudWatchMetricsApi) ListMetrics(
-	ctx context.Context, dims []cwTypes.DimensionFilter, namespace string, metricName string, force bool,
-) ([]cwTypes.Metric, error) {
-	return f.metrics, f.err
-}
-
-type fakeCloudWatchLogsApi struct {
-	awsapi.CloudWatchLogsApi
-	groups  []types.LogGroup
-	streams []types.LogStream
-	events  []types.OutputLogEvent
-	err     error
-}
-
-func (f *fakeCloudWatchLogsApi) ListLogGroups(ctx context.Context, reset bool) ([]types.LogGroup, error) {
-	return f.groups, f.err
-}
-
-func (f *fakeCloudWatchLogsApi) HasMoreLogStreams() bool { return false }
-
-func (f *fakeCloudWatchLogsApi) HasMoreLogEvents() bool { return false }
-
-func (f *fakeCloudWatchLogsApi) ListLogStreams(
-	ctx context.Context, logGroupName string, searchPrefix string, reset bool,
-) ([]types.LogStream, error) {
-	return f.streams, f.err
-}
-
-func (f *fakeCloudWatchLogsApi) ListLogEvents(
-	ctx context.Context, logGroupName string, logStreamName string, startTime time.Time, reset bool,
-) ([]types.OutputLogEvent, error) {
-	return f.events, f.err
-}
-
 func TestAlarmListTable__RefreshLoadsAlarmsFromApi(t *testing.T) {
-	var api = &fakeCloudWatchAlarmsApi{alarms: []cwTypes.MetricAlarm{newAlarm("cpu-high", cwTypes.StateValueAlarm)}}
+	var api = cloudwatchfake.NewAlarms(cloudwatchfake.WithAlarms([]cwTypes.MetricAlarm{newAlarm("cpu-high", cwTypes.StateValueAlarm)}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudWatchAlarmsApi](api)
 	var table = NewAlarmListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -123,7 +26,7 @@ func TestAlarmListTable__RefreshLoadsAlarmsFromApi(t *testing.T) {
 }
 
 func TestAlarmListTable__RefreshReportsApiError(t *testing.T) {
-	var api = &fakeCloudWatchAlarmsApi{err: errors.New("access denied")}
+	var api = cloudwatchfake.NewAlarms(cloudwatchfake.WithAlarmsErr(errors.New("access denied")))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudWatchAlarmsApi](api)
 	var table = NewAlarmListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -138,9 +41,11 @@ func TestAlarmListTable__RefreshReportsApiError(t *testing.T) {
 }
 
 func TestAlarmListTable__SearchShowsMatchingAlarms(t *testing.T) {
-	var api = &fakeCloudWatchAlarmsApi{alarms: []cwTypes.MetricAlarm{
-		newAlarm("cpu-high", cwTypes.StateValueAlarm), newAlarm("disk-ok", cwTypes.StateValueOk),
-	}}
+	var api = cloudwatchfake.NewAlarms(
+		cloudwatchfake.WithAlarms([]cwTypes.MetricAlarm{
+			newAlarm("cpu-high", cwTypes.StateValueAlarm), newAlarm("disk-ok", cwTypes.StateValueOk),
+		}),
+	)
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudWatchAlarmsApi](api)
 	var table = NewAlarmListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -153,9 +58,11 @@ func TestAlarmListTable__SearchShowsMatchingAlarms(t *testing.T) {
 }
 
 func TestAlarmHistoryTable__RefreshLoadsHistoryFromApi(t *testing.T) {
-	var api = &fakeCloudWatchAlarmsApi{history: []cwTypes.AlarmHistoryItem{
-		newHistoryItem("Alarm updated from OK to ALARM", 0),
-	}}
+	var api = cloudwatchfake.NewAlarms(
+		cloudwatchfake.WithAlarmHistory([]cwTypes.AlarmHistoryItem{
+			newHistoryItem("Alarm updated from OK to ALARM", 0),
+		}),
+	)
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudWatchAlarmsApi](api)
 	var table = NewAlarmHistoryTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -170,7 +77,7 @@ func TestAlarmHistoryTable__RefreshLoadsHistoryFromApi(t *testing.T) {
 }
 
 func TestMetricListTable__RefreshLoadsMetricsFromApi(t *testing.T) {
-	var api = &fakeCloudWatchMetricsApi{metrics: []cwTypes.Metric{newMetric("AWS/EC2", "CPUUtilization")}}
+	var api = cloudwatchfake.NewMetrics(cloudwatchfake.WithMetrics([]cwTypes.Metric{newMetric("AWS/EC2", "CPUUtilization")}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudWatchMetricsApi](api)
 	var table = NewMetricsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -184,9 +91,11 @@ func TestMetricListTable__RefreshLoadsMetricsFromApi(t *testing.T) {
 }
 
 func TestMetricListTable__SearchShowsMatchingMetrics(t *testing.T) {
-	var api = &fakeCloudWatchMetricsApi{metrics: []cwTypes.Metric{
-		newMetric("AWS/EC2", "CPUUtilization"), newMetric("AWS/S3", "BucketSizeBytes"),
-	}}
+	var api = cloudwatchfake.NewMetrics(
+		cloudwatchfake.WithMetrics([]cwTypes.Metric{
+			newMetric("AWS/EC2", "CPUUtilization"), newMetric("AWS/S3", "BucketSizeBytes"),
+		}),
+	)
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudWatchMetricsApi](api)
 	var table = NewMetricsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -202,10 +111,12 @@ func TestMetricListTable__SearchShowsMatchingMetrics(t *testing.T) {
 }
 
 func TestMetricListTable__SearchMatchesDimensionValues(t *testing.T) {
-	var api = &fakeCloudWatchMetricsApi{metrics: []cwTypes.Metric{
-		newMetric("AWS/Lambda", "Invocations", cwTypes.Dimension{Name: aws.String("FunctionName"), Value: aws.String("orders")}),
-		newMetric("AWS/Lambda", "Invocations", cwTypes.Dimension{Name: aws.String("FunctionName"), Value: aws.String("billing")}),
-	}}
+	var api = cloudwatchfake.NewMetrics(
+		cloudwatchfake.WithMetrics([]cwTypes.Metric{
+			newMetric("AWS/Lambda", "Invocations", cwTypes.Dimension{Name: aws.String("FunctionName"), Value: aws.String("orders")}),
+			newMetric("AWS/Lambda", "Invocations", cwTypes.Dimension{Name: aws.String("FunctionName"), Value: aws.String("billing")}),
+		}),
+	)
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudWatchMetricsApi](api)
 	var table = NewMetricsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -221,7 +132,7 @@ func TestMetricListTable__SearchMatchesDimensionValues(t *testing.T) {
 }
 
 func TestLogGroupsTable__RefreshLoadsGroupsFromApi(t *testing.T) {
-	var api = &fakeCloudWatchLogsApi{groups: []types.LogGroup{newLogGroup("/aws/lambda/orders")}}
+	var api = cloudwatchfake.New(cloudwatchfake.WithLogGroups([]types.LogGroup{newLogGroup("/aws/lambda/orders")}...))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudWatchLogsApi](api)
 	var table = NewLogGroupsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -232,7 +143,7 @@ func TestLogGroupsTable__RefreshLoadsGroupsFromApi(t *testing.T) {
 }
 
 func TestLogGroupsTable__RefreshReportsApiError(t *testing.T) {
-	var api = &fakeCloudWatchLogsApi{err: errors.New("access denied")}
+	var api = cloudwatchfake.New(cloudwatchfake.WithErr(errors.New("access denied")))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudWatchLogsApi](api)
 	var table = NewLogGroupsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -247,7 +158,7 @@ func TestLogGroupsTable__RefreshReportsApiError(t *testing.T) {
 }
 
 func TestLogGroupsTable__SearchFiltersToTheMatchingGroups(t *testing.T) {
-	var api = &fakeCloudWatchLogsApi{groups: []types.LogGroup{newLogGroup("/aws/lambda/orders"), newLogGroup("/aws/ecs/web")}}
+	var api = cloudwatchfake.New(cloudwatchfake.WithLogGroups([]types.LogGroup{newLogGroup("/aws/lambda/orders"), newLogGroup("/aws/ecs/web")}...))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudWatchLogsApi](api)
 	var table = NewLogGroupsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -260,7 +171,7 @@ func TestLogGroupsTable__SearchFiltersToTheMatchingGroups(t *testing.T) {
 }
 
 func TestLogStreamsTable__RefreshLoadsStreamsFromApi(t *testing.T) {
-	var api = &fakeCloudWatchLogsApi{streams: []types.LogStream{newLogStream("stream-a", 0)}}
+	var api = cloudwatchfake.New(cloudwatchfake.WithLogStreams([]types.LogStream{newLogStream("stream-a", 0)}...))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudWatchLogsApi](api)
 	var table = NewLogStreamsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -275,7 +186,7 @@ func TestLogStreamsTable__RefreshLoadsStreamsFromApi(t *testing.T) {
 }
 
 func TestLogEventsTable__RefreshLoadsEventsFromApi(t *testing.T) {
-	var api = &fakeCloudWatchLogsApi{events: []types.OutputLogEvent{newLogEvent("START", 0)}}
+	var api = cloudwatchfake.New(cloudwatchfake.WithLogEvents([]types.OutputLogEvent{newLogEvent("START", 0)}...))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudWatchLogsApi](api)
 	var table = NewLogEventsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -289,7 +200,7 @@ func TestLogEventsTable__RefreshLoadsEventsFromApi(t *testing.T) {
 }
 
 func TestLogStreamsTable__MovingDownFromTheLastRowLoadsTheNextPage(t *testing.T) {
-	var api = &fakeCloudWatchLogsApi{streams: []types.LogStream{newLogStream("stream-a", 0), newLogStream("stream-b", 0)}}
+	var api = cloudwatchfake.New(cloudwatchfake.WithLogStreams([]types.LogStream{newLogStream("stream-a", 0), newLogStream("stream-b", 0)}...))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudWatchLogsApi](api)
 	var table = NewLogStreamsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)

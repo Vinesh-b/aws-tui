@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"aws-tui/internal/ui/core"
+	"aws-tui/internal/ui/iam/iamfake"
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
@@ -47,14 +48,14 @@ func TestHomeView__OpensRolesUsersAndPolicies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var appCtx = uitest.NewAppContext()
-			var api = &fakeIamApi{
-				roles:    []types.Role{newRole("billing"), newRole("orders")},
-				role:     newDetailsRole(),
-				users:    []types.User{newUser("alice")},
-				user:     newDetailsUser(),
-				policies: []types.Policy{newPolicy("orders-queue", testPolicyArn)},
-				policy:   &types.Policy{PolicyName: newPolicy("orders-queue", testPolicyArn).PolicyName},
-			}
+			var api = iamfake.New(
+				iamfake.WithRoles([]types.Role{newRole("billing"), newRole("orders")}),
+				iamfake.WithRole(newDetailsRole()),
+				iamfake.WithUsers([]types.User{newUser("alice")}),
+				iamfake.WithUser(newDetailsUser()),
+				iamfake.WithPolicies([]types.Policy{newPolicy("orders-queue", testPolicyArn)}),
+				iamfake.WithPolicy(&types.Policy{PolicyName: newPolicy("orders-queue", testPolicyArn).PolicyName}),
+			)
 			var page = NewIamHomeView(appCtx, api)
 			var screen = uitest.ShowPage(t, appCtx.App, page)
 			var opener, ok = page.(core.ResourceOpener)

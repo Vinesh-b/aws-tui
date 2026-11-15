@@ -1,36 +1,19 @@
 package cloudformation
 
 import (
-	"context"
 	"errors"
 	"testing"
 
 	"aws-tui/internal/awsapi"
+	"aws-tui/internal/ui/cloudformation/cloudformationfake"
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 )
 
-type fakeCloudFormationApi struct {
-	awsapi.CloudFormationApi
-	stacks []types.StackSummary
-	events []types.StackEvent
-	err    error
-}
-
-func (f *fakeCloudFormationApi) ListStacks(ctx context.Context, force bool) ([]types.StackSummary, error) {
-	return f.stacks, f.err
-}
-
-func (f *fakeCloudFormationApi) DescribeStackEvents(
-	ctx context.Context, stackName string, force bool,
-) ([]types.StackEvent, error) {
-	return f.events, f.err
-}
-
 func TestStackListTable__RefreshLoadsStacksFromApi(t *testing.T) {
-	var api = &fakeCloudFormationApi{stacks: []types.StackSummary{newStack("orders", types.StackStatusCreateComplete)}}
+	var api = cloudformationfake.New(cloudformationfake.WithStacks([]types.StackSummary{newStack("orders", types.StackStatusCreateComplete)}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudFormationApi](api)
 	var table = NewStackListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -44,7 +27,7 @@ func TestStackListTable__RefreshLoadsStacksFromApi(t *testing.T) {
 }
 
 func TestStackListTable__RefreshReportsApiError(t *testing.T) {
-	var api = &fakeCloudFormationApi{err: errors.New("access denied")}
+	var api = cloudformationfake.New(cloudformationfake.WithErr(errors.New("access denied")))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudFormationApi](api)
 	var table = NewStackListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -59,10 +42,12 @@ func TestStackListTable__RefreshReportsApiError(t *testing.T) {
 }
 
 func TestStackListTable__SearchShowsMatchingStacks(t *testing.T) {
-	var api = &fakeCloudFormationApi{stacks: []types.StackSummary{
-		newStack("orders", types.StackStatusCreateComplete),
-		newStack("billing", types.StackStatusCreateComplete),
-	}}
+	var api = cloudformationfake.New(
+		cloudformationfake.WithStacks([]types.StackSummary{
+			newStack("orders", types.StackStatusCreateComplete),
+			newStack("billing", types.StackStatusCreateComplete),
+		}),
+	)
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudFormationApi](api)
 	var table = NewStackListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -78,9 +63,11 @@ func TestStackListTable__SearchShowsMatchingStacks(t *testing.T) {
 }
 
 func TestStackEventsTable__RefreshLoadsEventsForSelectedStack(t *testing.T) {
-	var api = &fakeCloudFormationApi{events: []types.StackEvent{
-		newStackEvent("Bucket", types.ResourceStatusCreateComplete, ""),
-	}}
+	var api = cloudformationfake.New(
+		cloudformationfake.WithEvents([]types.StackEvent{
+			newStackEvent("Bucket", types.ResourceStatusCreateComplete, ""),
+		}),
+	)
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudFormationApi](api)
 	var table = NewStackEventsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -95,9 +82,11 @@ func TestStackEventsTable__RefreshLoadsEventsForSelectedStack(t *testing.T) {
 }
 
 func TestStackEventsTable__RefreshWithoutSelectedStackShowsNothing(t *testing.T) {
-	var api = &fakeCloudFormationApi{events: []types.StackEvent{
-		newStackEvent("Bucket", types.ResourceStatusCreateComplete, ""),
-	}}
+	var api = cloudformationfake.New(
+		cloudformationfake.WithEvents([]types.StackEvent{
+			newStackEvent("Bucket", types.ResourceStatusCreateComplete, ""),
+		}),
+	)
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudFormationApi](api)
 	var table = NewStackEventsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)

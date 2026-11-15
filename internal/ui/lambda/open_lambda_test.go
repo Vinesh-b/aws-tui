@@ -5,6 +5,7 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"aws-tui/internal/ui/lambda/lambdafake"
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
@@ -14,7 +15,7 @@ import (
 )
 
 func TestListTable__OpenLambdaLoadsListToSelectIt(t *testing.T) {
-	var api = &fakeLambdaApi{functions: []types.FunctionConfiguration{newFunction("alpha"), newFunction("beta")}}
+	var api = lambdafake.New(lambdafake.WithFunctions([]types.FunctionConfiguration{newFunction("alpha"), newFunction("beta")}))
 	var table = newRunningListTable(t, api)
 	var opened = false
 
@@ -29,7 +30,7 @@ func TestListTable__OpenLambdaLoadsListToSelectIt(t *testing.T) {
 }
 
 func TestListTable__OpenLoadedLambdaDoesNotLoadAgain(t *testing.T) {
-	var api = &fakeLambdaApi{functions: []types.FunctionConfiguration{newFunction("alpha"), newFunction("beta")}}
+	var api = lambdafake.New(lambdafake.WithFunctions([]types.FunctionConfiguration{newFunction("alpha"), newFunction("beta")}))
 	var table = newRunningListTable(t, api)
 	table.RefreshLambdas(true)
 	uitest.Eventually(t, table.serviceCtx.App, func() bool { return table.GetTable().GetRowCount() == 3 })
@@ -40,13 +41,13 @@ func TestListTable__OpenLoadedLambdaDoesNotLoadAgain(t *testing.T) {
 	if !opened {
 		t.Error("loaded lambda should be opened straight away")
 	}
-	if got := api.listCalls.Load(); got != 1 {
+	if got := len(api.CallsWithPrefix("ListLambdas")); got != 1 {
 		t.Errorf("list calls = %d, want 1", got)
 	}
 }
 
 func TestListTable__OpenMissingLambdaReportsIt(t *testing.T) {
-	var api = &fakeLambdaApi{functions: []types.FunctionConfiguration{newFunction("alpha")}}
+	var api = lambdafake.New(lambdafake.WithFunctions([]types.FunctionConfiguration{newFunction("alpha")}))
 	var table = newRunningListTable(t, api)
 	var callback, received = uitest.CaptureErrors()
 	table.ErrorMessageCallback = callback
@@ -59,7 +60,7 @@ func TestListTable__OpenMissingLambdaReportsIt(t *testing.T) {
 }
 
 func TestHomeView__OpensLambdaResources(t *testing.T) {
-	var page = NewLambdaHomeView(uitest.NewAppContext(), &fakeLambdaApi{}, awsapi.CloudWatchLogsApi(nil), awsapi.CloudWatchMetricsApi(nil))
+	var page = NewLambdaHomeView(uitest.NewAppContext(), lambdafake.New(), awsapi.CloudWatchLogsApi(nil), awsapi.CloudWatchMetricsApi(nil))
 
 	var opener, ok = page.(core.ResourceOpener)
 
@@ -105,7 +106,7 @@ func TestDetailsTable__RoleLinksToIamRole(t *testing.T) {
 }
 
 func TestListTable__OpenLambdaHiddenByTheSearchClearsItToSelectIt(t *testing.T) {
-	var api = &fakeLambdaApi{functions: []types.FunctionConfiguration{newFunction("alpha"), newFunction("beta")}}
+	var api = lambdafake.New(lambdafake.WithFunctions([]types.FunctionConfiguration{newFunction("alpha"), newFunction("beta")}))
 	var table = newRunningListTable(t, api)
 	table.RefreshLambdas(true)
 	uitest.Eventually(t, table.serviceCtx.App, func() bool { return table.GetTable().GetRowCount() == 3 })

@@ -1,56 +1,18 @@
 package sqs
 
 import (
-	"context"
 	"errors"
 	"strings"
-	"sync"
 	"testing"
 
 	"aws-tui/internal/awsapi"
+	"aws-tui/internal/ui/sqs/sqsfake"
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/sqs"
-	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 )
 
-type fakeSendMessageApi struct {
-	fakeSqsApi
-	mtx      sync.Mutex
-	queueUrl string
-	body     string
-	groupId  string
-	dedupId  string
-	attrs    map[string]types.MessageAttributeValue
-	calls    int
-	sendErr  error
-}
-
-func (f *fakeSendMessageApi) SendMessage(
-	ctx context.Context, queueUrl string, body string, groupId string, deduplicationId string,
-	attributes map[string]types.MessageAttributeValue,
-) (*sqs.SendMessageOutput, error) {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
-	f.calls++
-	f.queueUrl, f.body, f.groupId, f.dedupId, f.attrs = queueUrl, body, groupId, deduplicationId, attributes
-	if f.sendErr != nil {
-		return nil, f.sendErr
-	}
-	return &sqs.SendMessageOutput{
-		MessageId:      aws.String("m-1"),
-		SequenceNumber: aws.String("42"),
-	}, nil
-}
-
-func (f *fakeSendMessageApi) sendCalls() int {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
-	return f.calls
-}
-
-func newSendMessageView(t *testing.T, api *fakeSendMessageApi) *SendMessagePageView {
+func newSendMessageView(t *testing.T, api *sqsfake.Api) *SendMessagePageView {
 	t.Helper()
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SqsApi](api)
 	var view = NewSendMessagePageView(serviceCtx)
@@ -59,7 +21,7 @@ func newSendMessageView(t *testing.T, api *fakeSendMessageApi) *SendMessagePageV
 }
 
 func TestSendMessageView__SendsTheBodyToTheSelectedQueue(t *testing.T) {
-	var api = &fakeSendMessageApi{}
+	var api = sqsfake.New()
 	var view = newSendMessageView(t, api)
 	var sent = make(chan string, 1)
 	view.SetOnMessageSent(func(queueUrl string) { sent <- queueUrl })
@@ -71,16 +33,17 @@ func TestSendMessageView__SendsTheBodyToTheSelectedQueue(t *testing.T) {
 	if got := <-sent; got != queueUrl("orders") {
 		t.Errorf("Unexpected queue %q", got)
 	}
-	if api.body != "hello\nworld" || api.groupId != "" || api.dedupId != "" {
-		t.Errorf("Unexpected message %q / %q / %q", api.body, api.groupId, api.dedupId)
+	if got := api.Sent(); len(got) != 1 || got[0].QueueUrl != queueUrl("orders") ||
+		got[0].Body != "hello\nworld" || got[0].GroupId != "" || got[0].DeduplicationId != "" {
+		t.Errorf("sent = %+v, want hello\\nworld to the orders queue, without IDs", got)
 	}
 	uitest.Eventually(t, view.serviceCtx.App, func() bool {
-		return strings.Contains(view.resultOutput.GetText(), "Message ID: m-1")
+		return strings.Contains(view.resultOutput.GetText(), "Message ID: "+sqsfake.SentMessageId)
 	})
 }
 
 func TestSendMessageView__FifoQueueSendsGroupAndDeduplicationId(t *testing.T) {
-	var api = &fakeSendMessageApi{}
+	var api = sqsfake.New()
 	var view = newSendMessageView(t, api)
 	var sent = make(chan string, 1)
 	view.SetOnMessageSent(func(queueUrl string) { sent <- queueUrl })
@@ -92,8 +55,8 @@ func TestSendMessageView__FifoQueueSendsGroupAndDeduplicationId(t *testing.T) {
 	uitest.OnUI(t, view.serviceCtx.App, view.SendMessage)
 
 	<-sent
-	if api.groupId != "g1" || api.dedupId != "d1" {
-		t.Errorf("Unexpected IDs %q / %q", api.groupId, api.dedupId)
+	if got := api.Sent(); len(got) != 1 || got[0].GroupId != "g1" || got[0].DeduplicationId != "d1" {
+		t.Errorf("sent = %+v, want one with the group g1 and the deduplication id d1", got)
 	}
 	uitest.Eventually(t, view.serviceCtx.App, func() bool {
 		return strings.Contains(view.resultOutput.GetText(), "Sequence Number: 42")
@@ -101,7 +64,7 @@ func TestSendMessageView__FifoQueueSendsGroupAndDeduplicationId(t *testing.T) {
 }
 
 func TestSendMessageView__FifoQueueRequiresAGroupId(t *testing.T) {
-	var api = &fakeSendMessageApi{}
+	var api = sqsfake.New()
 	var view = newSendMessageView(t, api)
 	var callback, received = uitest.CaptureErrors()
 	view.bodyArea.ErrorMessageCallback = callback
@@ -113,8 +76,8 @@ func TestSendMessageView__FifoQueueRequiresAGroupId(t *testing.T) {
 	if message := uitest.AwaitError(t, received); !strings.Contains(message, "Group ID") {
 		t.Fatalf("Unexpected error %q", message)
 	}
-	if api.sendCalls() != 0 {
-		t.Fatalf("Expected no api calls but got %d", api.sendCalls())
+	if got := api.Sent(); len(got) != 0 {
+		t.Fatalf("Expected no api calls but got %+v", got)
 	}
 }
 
@@ -124,7 +87,7 @@ func TestSendMessageView__RejectsMissingQueueOrBodyWithoutCallingTheApi(t *testi
 		"no body":  func(view *SendMessagePageView) { view.SetSelectedQueue(queueUrl("orders")) },
 	} {
 		t.Run(name, func(t *testing.T) {
-			var api = &fakeSendMessageApi{}
+			var api = sqsfake.New()
 			var view = newSendMessageView(t, api)
 			var callback, received = uitest.CaptureErrors()
 			view.bodyArea.ErrorMessageCallback = callback
@@ -133,15 +96,15 @@ func TestSendMessageView__RejectsMissingQueueOrBodyWithoutCallingTheApi(t *testi
 			uitest.OnUI(t, view.serviceCtx.App, view.SendMessage)
 
 			uitest.AwaitError(t, received)
-			if api.sendCalls() != 0 {
-				t.Fatalf("Expected no api calls but got %d", api.sendCalls())
+			if got := api.Sent(); len(got) != 0 {
+				t.Fatalf("Expected no api calls but got %+v", got)
 			}
 		})
 	}
 }
 
 func TestSendMessageView__ReportsApiError(t *testing.T) {
-	var api = &fakeSendMessageApi{sendErr: errors.New("access denied")}
+	var api = sqsfake.New(sqsfake.WithSendErr(errors.New("access denied")))
 	var view = newSendMessageView(t, api)
 	var callback, received = uitest.CaptureErrors()
 	view.resultOutput.ErrorMessageCallback = callback
@@ -157,7 +120,7 @@ func TestSendMessageView__ReportsApiError(t *testing.T) {
 }
 
 func TestSendMessageView__FormatIndentsJsonAndLeavesOtherTextAlone(t *testing.T) {
-	var view = newSendMessageView(t, &fakeSendMessageApi{})
+	var view = newSendMessageView(t, sqsfake.New())
 	var callback, received = uitest.CaptureErrors()
 	view.bodyArea.ErrorMessageCallback = callback
 
@@ -176,9 +139,7 @@ func TestSendMessageView__FormatIndentsJsonAndLeavesOtherTextAlone(t *testing.T)
 }
 
 func TestDetailsPageView__SelectingAQueueSelectsItForSending(t *testing.T) {
-	var api = &fakeSendMessageApi{fakeSqsApi: fakeSqsApi{
-		queues: []string{queueUrl("orders")}, attributes: newQueueAttributes(),
-	}}
+	var api = sqsfake.New(sqsfake.WithQueues([]string{queueUrl("orders")}), sqsfake.WithAttributes(newQueueAttributes()))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SqsApi](api)
 	var view = NewSqsDetailsPageView(
 		NewQueueListTable(serviceCtx), NewQueueDetailsTable(serviceCtx), serviceCtx,
@@ -196,7 +157,7 @@ func TestDetailsPageView__SelectingAQueueSelectsItForSending(t *testing.T) {
 }
 
 func TestSendMessageView__SendsMessageAttributes(t *testing.T) {
-	var api = &fakeSendMessageApi{}
+	var api = sqsfake.New()
 	var view = newSendMessageView(t, api)
 	var sent = make(chan string, 1)
 	view.SetOnMessageSent(func(queueUrl string) { sent <- queueUrl })
@@ -207,15 +168,20 @@ func TestSendMessageView__SendsMessageAttributes(t *testing.T) {
 	uitest.OnUI(t, view.serviceCtx.App, view.SendMessage)
 
 	<-sent
-	if len(api.attrs) != 2 ||
-		aws.ToString(api.attrs["Source"].StringValue) != "tui" ||
-		aws.ToString(api.attrs["Count"].DataType) != "Number" {
-		t.Errorf("Unexpected attributes %v", api.attrs)
+	var got = api.Sent()
+	if len(got) != 1 {
+		t.Fatalf("sent = %+v, want one message", got)
+	}
+	var attrs = got[0].Attributes
+	if len(attrs) != 2 ||
+		aws.ToString(attrs["Source"].StringValue) != "tui" ||
+		aws.ToString(attrs["Count"].DataType) != "Number" {
+		t.Errorf("Unexpected attributes %v", attrs)
 	}
 }
 
 func TestSendMessageView__InvalidAttributesAreReportedWithoutCallingTheApi(t *testing.T) {
-	var api = &fakeSendMessageApi{}
+	var api = sqsfake.New()
 	var view = newSendMessageView(t, api)
 	var callback, received = uitest.CaptureErrors()
 	view.bodyArea.ErrorMessageCallback = callback
@@ -228,7 +194,7 @@ func TestSendMessageView__InvalidAttributesAreReportedWithoutCallingTheApi(t *te
 	if message := uitest.AwaitError(t, received); !strings.Contains(message, "line 1") {
 		t.Fatalf("Unexpected error %q", message)
 	}
-	if api.sendCalls() != 0 {
-		t.Fatalf("Expected no api calls but got %d", api.sendCalls())
+	if got := api.Sent(); len(got) != 0 {
+		t.Fatalf("Expected no api calls but got %+v", got)
 	}
 }

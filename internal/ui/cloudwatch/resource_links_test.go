@@ -3,6 +3,7 @@ package cloudwatch
 import (
 	"testing"
 
+	"aws-tui/internal/ui/cloudwatch/cloudwatchfake"
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/uitest"
 
@@ -14,7 +15,7 @@ import (
 
 func TestLogsHomeView__OpeningLogGroupShowsItsStreams(t *testing.T) {
 	var appCtx = uitest.NewAppContext()
-	var api = &fakeCloudWatchLogsApi{streams: []types.LogStream{{LogStreamName: aws.String("2024/01/02/[$LATEST]abc")}}}
+	var api = cloudwatchfake.New(cloudwatchfake.WithLogStreams([]types.LogStream{{LogStreamName: aws.String("2024/01/02/[$LATEST]abc")}}...))
 	var page = NewLogsHomeView(appCtx, api)
 	var screen = uitest.ShowPage(t, appCtx.App, page)
 	var opener, ok = page.(core.ResourceOpener)

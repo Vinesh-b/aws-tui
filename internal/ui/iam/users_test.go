@@ -6,6 +6,7 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"aws-tui/internal/ui/iam/iamfake"
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -45,7 +46,7 @@ func TestUserDetailsTable__ShowsUser(t *testing.T) {
 }
 
 func TestUserListTable__ShowsUsers(t *testing.T) {
-	var serviceCtx = uitest.NewServiceContextWith[awsapi.IamApi](&fakeIamApi{users: []types.User{newUser("alice"), newUser("bob")}})
+	var serviceCtx = uitest.NewServiceContextWith[awsapi.IamApi](iamfake.New(iamfake.WithUsers([]types.User{newUser("alice"), newUser("bob")})))
 	var table = NewUserListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
 
@@ -60,17 +61,17 @@ func TestUserListTable__ShowsUsers(t *testing.T) {
 
 func TestUsersPage__SelectingUserLoadsItsTabs(t *testing.T) {
 	var keyCreated = time.Date(2024, 3, 4, 5, 6, 7, 0, time.UTC)
-	var api = &fakeIamApi{
-		users:             []types.User{newUser("alice")},
-		user:              newDetailsUser(),
-		principalPolicies: []awsapi.PrincipalPolicy{{Name: "deploy"}},
-		documents:         map[string]string{"deploy": `{"Statement":[]}`},
-		groups:            []types.Group{{GroupName: aws.String("developers"), Path: aws.String("/")}},
-		accessKeys: []types.AccessKeyMetadata{{
+	var api = iamfake.New(
+		iamfake.WithUsers([]types.User{newUser("alice")}),
+		iamfake.WithUser(newDetailsUser()),
+		iamfake.WithPrincipalPolicies([]awsapi.PrincipalPolicy{{Name: "deploy"}}),
+		iamfake.WithDocuments(map[string]string{"deploy": `{"Statement":[]}`}),
+		iamfake.WithGroups([]types.Group{{GroupName: aws.String("developers"), Path: aws.String("/")}}),
+		iamfake.WithAccessKeys([]types.AccessKeyMetadata{{
 			AccessKeyId: aws.String("AKIAEXAMPLE"), Status: types.StatusTypeActive, CreateDate: &keyCreated,
-		}},
-		tags: []types.Tag{{Key: aws.String("team"), Value: aws.String("platform")}},
-	}
+		}}),
+		iamfake.WithTags([]types.Tag{{Key: aws.String("team"), Value: aws.String("platform")}}),
+	)
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.IamApi](api)
 	var view = NewIamUsersPageView(NewUserListTable(serviceCtx), NewUserDetailsTable(serviceCtx), serviceCtx)
 	var app = serviceCtx.App

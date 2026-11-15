@@ -7,13 +7,14 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"aws-tui/internal/ui/iam/iamfake"
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 )
 
-func newRunningRoleList(t *testing.T, api *fakeIamApi) *IamListTable[types.Role] {
+func newRunningRoleList(t *testing.T, api *iamfake.Api) *IamListTable[types.Role] {
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.IamApi](api)
 	var table = NewRoleListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -21,7 +22,7 @@ func newRunningRoleList(t *testing.T, api *fakeIamApi) *IamListTable[types.Role]
 }
 
 func TestRoleListTable__RefreshLoadsRolesFromApi(t *testing.T) {
-	var table = newRunningRoleList(t, &fakeIamApi{roles: []types.Role{newRole("orders"), newRole("billing")}})
+	var table = newRunningRoleList(t, iamfake.New(iamfake.WithRoles([]types.Role{newRole("orders"), newRole("billing")})))
 
 	table.Refresh(true)
 
@@ -33,7 +34,7 @@ func TestRoleListTable__RefreshLoadsRolesFromApi(t *testing.T) {
 }
 
 func TestRoleListTable__RefreshReportsApiError(t *testing.T) {
-	var table = newRunningRoleList(t, &fakeIamApi{err: errors.New("access denied")})
+	var table = newRunningRoleList(t, iamfake.New(iamfake.WithErr(errors.New("access denied"))))
 	var callback, received = uitest.CaptureErrors()
 	table.ErrorMessageCallback = callback
 
@@ -45,7 +46,7 @@ func TestRoleListTable__RefreshReportsApiError(t *testing.T) {
 }
 
 func TestRoleListTable__SearchShowsMatchingRoles(t *testing.T) {
-	var table = newRunningRoleList(t, &fakeIamApi{roles: []types.Role{newRole("orders"), newRole("billing")}})
+	var table = newRunningRoleList(t, iamfake.New(iamfake.WithRoles([]types.Role{newRole("orders"), newRole("billing")})))
 	table.Refresh(true)
 	uitest.Eventually(t, table.serviceCtx.App, func() bool { return table.GetTable().GetRowCount() == 3 })
 
@@ -55,7 +56,7 @@ func TestRoleListTable__SearchShowsMatchingRoles(t *testing.T) {
 }
 
 func TestRoleListTable__OpenRoleLoadsListToSelectIt(t *testing.T) {
-	var api = &fakeIamApi{roles: []types.Role{newRole("billing"), newRole("orders")}}
+	var api = iamfake.New(iamfake.WithRoles([]types.Role{newRole("billing"), newRole("orders")}))
 	var table = newRunningRoleList(t, api)
 
 	uitest.OnUI(t, table.serviceCtx.App, func() { table.Open("orders") })
@@ -68,13 +69,13 @@ func TestRoleListTable__OpenRoleLoadsListToSelectIt(t *testing.T) {
 			t.Errorf("selected = %q, want billing", got)
 		}
 	})
-	if got := api.listRolesCalls(); got != 1 {
+	if got := len(api.CallsWithPrefix("roles")); got != 1 {
 		t.Errorf("list calls = %d, want 1 as the second role was already loaded", got)
 	}
 }
 
 func TestRoleListTable__OpenMissingRoleReportsIt(t *testing.T) {
-	var table = newRunningRoleList(t, &fakeIamApi{roles: []types.Role{newRole("orders")}})
+	var table = newRunningRoleList(t, iamfake.New(iamfake.WithRoles([]types.Role{newRole("orders")})))
 	var callback, received = uitest.CaptureErrors()
 	table.ErrorMessageCallback = callback
 
@@ -160,10 +161,10 @@ func TestRoleDetailsTable__SlowerEarlierRoleDoesNotReplaceLatest(t *testing.T) {
 	uitest.RunInBubble(t, func(t *testing.T) {
 		var billing = newDetailsRole()
 		billing.RoleName = aws.String("billing")
-		var api = &fakeIamApi{
-			rolesByName: map[string]*types.Role{"billing": billing, "orders": newDetailsRole()},
-			roleDelay:   map[string]time.Duration{"billing": 300 * time.Millisecond},
-		}
+		var api = iamfake.New(
+			iamfake.WithRolesByName(map[string]*types.Role{"billing": billing, "orders": newDetailsRole()}),
+			iamfake.WithRoleDelays(map[string]time.Duration{"billing": 300 * time.Millisecond}),
+		)
 		var serviceCtx = uitest.NewServiceContextWith[awsapi.IamApi](api)
 		var table = NewRoleDetailsTable(serviceCtx)
 		uitest.RunApp(t, serviceCtx.App)
@@ -187,7 +188,7 @@ func TestRoleDetailsTable__SlowerEarlierRoleDoesNotReplaceLatest(t *testing.T) {
 	})
 }
 
-func newRolesPage(t *testing.T, api *fakeIamApi) *IamRolesPageView {
+func newRolesPage(t *testing.T, api *iamfake.Api) *IamRolesPageView {
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.IamApi](api)
 	var view = NewIamRolesPageView(NewRoleListTable(serviceCtx), NewRoleDetailsTable(serviceCtx), serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -195,15 +196,15 @@ func newRolesPage(t *testing.T, api *fakeIamApi) *IamRolesPageView {
 }
 
 func TestRolesPage__SelectingRoleLoadsItsDetailsTrustPolicyAndPolicies(t *testing.T) {
-	var api = &fakeIamApi{
-		roles: []types.Role{newRole("orders")},
-		role:  newDetailsRole(),
-		principalPolicies: []awsapi.PrincipalPolicy{
+	var api = iamfake.New(
+		iamfake.WithRoles([]types.Role{newRole("orders")}),
+		iamfake.WithRole(newDetailsRole()),
+		iamfake.WithPrincipalPolicies([]awsapi.PrincipalPolicy{
 			{Name: "Logs", Arn: "arn:aws:iam::1:policy/Logs"}, {Name: "queue-access"},
-		},
-		documents: map[string]string{"Logs": `{"Version":"2012-10-17"}`},
-		tags:      []types.Tag{{Key: aws.String("team"), Value: aws.String("orders")}},
-	}
+		}),
+		iamfake.WithDocuments(map[string]string{"Logs": `{"Version":"2012-10-17"}`}),
+		iamfake.WithTags([]types.Tag{{Key: aws.String("team"), Value: aws.String("orders")}}),
+	)
 	var view = newRolesPage(t, api)
 	var app = view.serviceCtx.App
 
@@ -226,11 +227,11 @@ func TestRolesPage__SelectingRoleLoadsItsDetailsTrustPolicyAndPolicies(t *testin
 
 func TestPrincipalPoliciesView__SlowDocumentOfPreviousPolicyIsDropped(t *testing.T) {
 	uitest.RunInBubble(t, func(t *testing.T) {
-		var api = &fakeIamApi{
-			principalPolicies: []awsapi.PrincipalPolicy{{Name: "slow"}, {Name: "fast"}},
-			documents:         map[string]string{"slow": `{"Name":"slow"}`, "fast": `{"Name":"fast"}`},
-			documentDelay:     map[string]time.Duration{"slow": 200 * time.Millisecond},
-		}
+		var api = iamfake.New(
+			iamfake.WithPrincipalPolicies([]awsapi.PrincipalPolicy{{Name: "slow"}, {Name: "fast"}}),
+			iamfake.WithDocuments(map[string]string{"slow": `{"Name":"slow"}`, "fast": `{"Name":"fast"}`}),
+			iamfake.WithDocumentDelays(map[string]time.Duration{"slow": 200 * time.Millisecond}),
+		)
 		var view = newRolesPage(t, api)
 		var app = view.serviceCtx.App
 		var policies = view.PoliciesView

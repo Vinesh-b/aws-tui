@@ -7,6 +7,7 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"aws-tui/internal/ui/lambda/lambdafake"
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -122,7 +123,7 @@ func TestDetailsTable__LambdaOutsideVpcHasNoVpcSection(t *testing.T) {
 	}
 }
 
-func newRunningDetailsTable(t *testing.T, api *fakeLambdaApi) *LambdaDetailsTable {
+func newRunningDetailsTable(t *testing.T, api *lambdafake.Api) *LambdaDetailsTable {
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.LambdaApi](api)
 	var table = NewLambdaDetailsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -136,7 +137,7 @@ func functionWithArn(name string, arn string) types.FunctionConfiguration {
 }
 
 func TestDetailsTable__TagsAreLoadedIntoTheirSection(t *testing.T) {
-	var api = &fakeLambdaApi{tags: map[string]map[string]string{ordersArn: {"team": "orders", "env": "prod"}}}
+	var api = lambdafake.New(lambdafake.WithTags(map[string]map[string]string{ordersArn: {"team": "orders", "env": "prod"}}))
 	var table = newRunningDetailsTable(t, api)
 	var app = table.serviceCtx.App
 
@@ -157,13 +158,13 @@ func TestDetailsTable__TagsAreLoadedIntoTheirSection(t *testing.T) {
 
 func TestDetailsTable__TagsOfPreviousLambdaAreDropped(t *testing.T) {
 	uitest.RunInBubble(t, func(t *testing.T) {
-		var api = &fakeLambdaApi{
-			tags: map[string]map[string]string{
+		var api = lambdafake.New(
+			lambdafake.WithTags(map[string]map[string]string{
 				billingArn: {"team": "billing"},
 				ordersArn:  {"team": "orders"},
-			},
-			delays: map[string]time.Duration{billingArn: 300 * time.Millisecond},
-		}
+			}),
+			lambdafake.WithDelays(map[string]time.Duration{billingArn: 300 * time.Millisecond}),
+		)
 		var table = newRunningDetailsTable(t, api)
 		var app = table.serviceCtx.App
 
@@ -187,7 +188,7 @@ func TestDetailsTable__TagsOfPreviousLambdaAreDropped(t *testing.T) {
 }
 
 func TestDetailsTable__TagsAreNotLoadedAgainForTheSameLambda(t *testing.T) {
-	var api = &fakeLambdaApi{tags: map[string]map[string]string{ordersArn: {"team": "orders"}}}
+	var api = lambdafake.New(lambdafake.WithTags(map[string]map[string]string{ordersArn: {"team": "orders"}}))
 	var table = newRunningDetailsTable(t, api)
 	var app = table.serviceCtx.App
 	uitest.OnUI(t, app, func() { table.RefreshDetails(functionWithArn("orders", ordersArn)) })
@@ -200,21 +201,13 @@ func TestDetailsTable__TagsAreNotLoadedAgainForTheSameLambda(t *testing.T) {
 			t.Errorf("row 11 = %q, want the tags kept", got)
 		}
 	})
-	var calls = 0
-	api.mu.Lock()
-	for _, call := range api.asked {
-		if call == "ListTags "+ordersArn {
-			calls++
-		}
-	}
-	api.mu.Unlock()
-	if calls != 1 {
-		t.Errorf("ListTags calls = %d, want 1", calls)
+	if calls := api.CallsWithPrefix("ListTags " + ordersArn); len(calls) != 1 {
+		t.Errorf("ListTags calls = %d, want 1", len(calls))
 	}
 }
 
 func TestDetailsTable__TagsFailureIsReported(t *testing.T) {
-	var api = &fakeLambdaApi{tagsErr: errors.New("access denied")}
+	var api = lambdafake.New(lambdafake.WithTagsErr(errors.New("access denied")))
 	var table = newRunningDetailsTable(t, api)
 	var callback, received = uitest.CaptureErrors()
 	table.ErrorMessageCallback = callback

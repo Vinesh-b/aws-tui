@@ -1,18 +1,19 @@
 package lambda
 
 import (
-	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
 	"aws-tui/internal/awsapi"
+	"aws-tui/internal/ui/cloudwatch/cloudwatchfake"
 	"aws-tui/internal/ui/core"
+	"aws-tui/internal/ui/lambda/lambdafake"
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
-	cwlTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 )
 
@@ -118,7 +119,7 @@ func TestEventSourceRows__StreamSourcesAreNotLinked(t *testing.T) {
 	}
 }
 
-func newRunningTriggersView(t *testing.T, api *fakeLambdaApi) *LambdaItemsView[lambdaTrigger] {
+func newRunningTriggersView(t *testing.T, api *lambdafake.Api) *LambdaItemsView[lambdaTrigger] {
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.LambdaApi](api)
 	var view = NewLambdaTriggersView(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -131,9 +132,11 @@ func TestTriggersView__RefreshListsTriggersAndShowsSelected(t *testing.T) {
 		State:          aws.String("Disabled"),
 		BatchSize:      aws.Int32(100),
 	}
-	var api = &fakeLambdaApi{mappings: map[string][]types.EventSourceMappingConfiguration{
-		ordersArn: {newQueueMapping(), kinesis},
-	}}
+	var api = lambdafake.New(
+		lambdafake.WithMappings(map[string][]types.EventSourceMappingConfiguration{
+			ordersArn: {newQueueMapping(), kinesis},
+		}),
+	)
 	var view = newRunningTriggersView(t, api)
 	var app = view.serviceCtx.App
 
@@ -159,7 +162,7 @@ func TestTriggersView__RefreshListsTriggersAndShowsSelected(t *testing.T) {
 }
 
 func TestTriggersView__NoTriggersEmptiesDetails(t *testing.T) {
-	var view = newRunningTriggersView(t, &fakeLambdaApi{})
+	var view = newRunningTriggersView(t, lambdafake.New())
 	var app = view.serviceCtx.App
 
 	uitest.OnUI(t, app, func() { view.Refresh(ordersArn) })
@@ -175,13 +178,13 @@ func TestTriggersView__NoTriggersEmptiesDetails(t *testing.T) {
 
 func TestTriggersView__SlowerEarlierLambdaIsDropped(t *testing.T) {
 	uitest.RunInBubble(t, func(t *testing.T) {
-		var api = &fakeLambdaApi{
-			mappings: map[string][]types.EventSourceMappingConfiguration{
+		var api = lambdafake.New(
+			lambdafake.WithMappings(map[string][]types.EventSourceMappingConfiguration{
 				billingArn: {{EventSourceArn: aws.String("arn:aws:sqs:us-east-1:1:billing-queue")}},
 				ordersArn:  {newQueueMapping()},
-			},
-			delays: map[string]time.Duration{billingArn: 300 * time.Millisecond},
-		}
+			}),
+			lambdafake.WithDelays(map[string]time.Duration{billingArn: 300 * time.Millisecond}),
+		)
 		var view = newRunningTriggersView(t, api)
 		var app = view.serviceCtx.App
 
@@ -204,7 +207,7 @@ func TestTriggersView__SlowerEarlierLambdaIsDropped(t *testing.T) {
 	})
 }
 
-func newRunningPermissionsView(t *testing.T, api *fakeLambdaApi) *LambdaPermissionsView {
+func newRunningPermissionsView(t *testing.T, api *lambdafake.Api) *LambdaPermissionsView {
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.LambdaApi](api)
 	var view = NewLambdaPermissionsView(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -212,9 +215,11 @@ func newRunningPermissionsView(t *testing.T, api *fakeLambdaApi) *LambdaPermissi
 }
 
 func TestPermissionsView__ShowsFormattedPolicy(t *testing.T) {
-	var api = &fakeLambdaApi{policies: map[string]string{
-		ordersArn: `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"s3.amazonaws.com"}}]}`,
-	}}
+	var api = lambdafake.New(
+		lambdafake.WithPolicies(map[string]string{
+			ordersArn: `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"s3.amazonaws.com"}}]}`,
+		}),
+	)
 	var view = newRunningPermissionsView(t, api)
 	var app = view.serviceCtx.App
 
@@ -236,7 +241,7 @@ func TestPermissionsView__ShowsFormattedPolicy(t *testing.T) {
 }
 
 func TestPermissionsView__LambdaWithoutPolicySaysSo(t *testing.T) {
-	var view = newRunningPermissionsView(t, &fakeLambdaApi{})
+	var view = newRunningPermissionsView(t, lambdafake.New())
 	var app = view.serviceCtx.App
 
 	uitest.OnUI(t, app, func() { view.Refresh(ordersArn) })
@@ -250,7 +255,7 @@ func TestPermissionsView__LambdaWithoutPolicySaysSo(t *testing.T) {
 }
 
 func TestPermissionsView__FailureIsReportedAndShowsNothing(t *testing.T) {
-	var view = newRunningPermissionsView(t, &fakeLambdaApi{policyErr: errors.New("access denied")})
+	var view = newRunningPermissionsView(t, lambdafake.New(lambdafake.WithPolicyErr(errors.New("access denied"))))
 	var app = view.serviceCtx.App
 	var callback, received = uitest.CaptureErrors()
 	view.ErrorMessageCallback = callback
@@ -270,10 +275,10 @@ func TestPermissionsView__FailureIsReportedAndShowsNothing(t *testing.T) {
 
 func TestPermissionsView__SlowerEarlierLambdaIsDropped(t *testing.T) {
 	uitest.RunInBubble(t, func(t *testing.T) {
-		var api = &fakeLambdaApi{
-			policies: map[string]string{billingArn: `{"Id":"billing"}`, ordersArn: `{"Id":"orders"}`},
-			delays:   map[string]time.Duration{billingArn: 300 * time.Millisecond},
-		}
+		var api = lambdafake.New(
+			lambdafake.WithPolicies(map[string]string{billingArn: `{"Id":"billing"}`, ordersArn: `{"Id":"orders"}`}),
+			lambdafake.WithDelays(map[string]time.Duration{billingArn: 300 * time.Millisecond}),
+		)
 		var view = newRunningPermissionsView(t, api)
 		var app = view.serviceCtx.App
 
@@ -296,28 +301,16 @@ func TestPermissionsView__SlowerEarlierLambdaIsDropped(t *testing.T) {
 	})
 }
 
-type fakeLogsApi struct {
-	awsapi.CloudWatchLogsApi
-}
-
-func (f *fakeLogsApi) HasMoreLogStreams() bool { return false }
-
-func (f *fakeLogsApi) ListLogStreams(
-	ctx context.Context, logGroupName string, searchPrefix string, reset bool,
-) ([]cwlTypes.LogStream, error) {
-	return nil, nil
-}
-
 func TestHomeView__PickingLambdaLoadsItsTabs(t *testing.T) {
 	var function = newFunction("orders")
 	function.FunctionArn = aws.String(ordersArn)
-	var api = &fakeLambdaApi{
-		functions: []types.FunctionConfiguration{function},
-		mappings:  map[string][]types.EventSourceMappingConfiguration{ordersArn: {newQueueMapping()}},
-		policies:  map[string]string{ordersArn: `{"Id":"orders"}`},
-	}
+	var api = lambdafake.New(
+		lambdafake.WithFunctions([]types.FunctionConfiguration{function}),
+		lambdafake.WithMappings(map[string][]types.EventSourceMappingConfiguration{ordersArn: {newQueueMapping()}}),
+		lambdafake.WithPolicies(map[string]string{ordersArn: `{"Id":"orders"}`}),
+	)
 	var appCtx = uitest.NewAppContext()
-	var page = NewLambdaHomeView(appCtx, api, &fakeLogsApi{}, awsapi.CloudWatchMetricsApi(nil))
+	var page = NewLambdaHomeView(appCtx, api, cloudwatchfake.New(), awsapi.CloudWatchMetricsApi(nil))
 	uitest.ShowPage(t, appCtx.App, page)
 	var opener = page.(core.ResourceOpener)
 	var resource, _ = arn.Parse(ordersArn)
@@ -326,8 +319,8 @@ func TestHomeView__PickingLambdaLoadsItsTabs(t *testing.T) {
 	uitest.OnUI(t, appCtx.App, func() { opener.OpenResource(resource) })
 
 	uitest.Eventually(t, appCtx.App, func() bool {
-		return api.wasAsked("ListEventSourceMappings", ordersArn) && api.wasAsked("GetPolicy", ordersArn) &&
-			api.wasAsked("ListVersions", ordersArn) && api.wasAsked("ListAliases", ordersArn) &&
-			api.wasAsked("ListTags", ordersArn)
+		return slices.Contains(api.Calls(), "ListEventSourceMappings "+ordersArn) && slices.Contains(api.Calls(), "GetPolicy "+ordersArn) &&
+			slices.Contains(api.Calls(), "ListVersions "+ordersArn) && slices.Contains(api.Calls(), "ListAliases "+ordersArn) &&
+			slices.Contains(api.Calls(), "ListTags "+ordersArn)
 	})
 }

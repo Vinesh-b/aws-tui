@@ -5,6 +5,7 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"aws-tui/internal/ui/sqs/sqsfake"
 	"aws-tui/internal/ui/uitest"
 )
 
@@ -113,7 +114,7 @@ func TestQueueDetailsTable__FifoQueueShowsDeduplicationRow(t *testing.T) {
 }
 
 func TestQueueDetailsTable__TagsAreLoadedIntoTheirSection(t *testing.T) {
-	var api = &fakeSqsApi{attributes: newQueueAttributes(), tags: map[string]string{"team": "orders"}}
+	var api = sqsfake.New(sqsfake.WithAttributes(newQueueAttributes()), sqsfake.WithTags(map[string]string{"team": "orders"}))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SqsApi](api)
 	var table = NewQueueDetailsTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"aws-tui/internal/awsapi"
+	"aws-tui/internal/ui/cloudwatch/cloudwatchfake"
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/uitest"
 
@@ -99,11 +100,13 @@ func TestInsightsQueryRunner__RequiresLogGroups(t *testing.T) {
 }
 
 func TestInsightsQueryRunner__GivesTheResultsOnceTheQueryIsDone(t *testing.T) {
-	var api = &fakeInsightsApi{responses: []awsapi.InsightsQueryResults{
-		runningWith(resultRow("@message", "partial")),
-		runningWith(resultRow("@message", "partial")),
-		completeWith(resultRow("@message", "one"), resultRow("@message", "two")),
-	}}
+	var api = cloudwatchfake.New(
+		cloudwatchfake.WithInsightsResults([]awsapi.InsightsQueryResults{
+			runningWith(resultRow("@message", "partial")),
+			runningWith(resultRow("@message", "partial")),
+			completeWith(resultRow("@message", "one"), resultRow("@message", "two")),
+		}...),
+	)
 	var appCtx = uitest.NewAppContext()
 	var runner = NewInsightsQueryRunner(appCtx.Ctx, appCtx.App, api)
 	runner.pollInterval = 5 * time.Millisecond
@@ -122,7 +125,7 @@ func TestInsightsQueryRunner__GivesTheResultsOnceTheQueryIsDone(t *testing.T) {
 }
 
 func TestInsightsQueryRunner__FailedQueryIsReportedWithoutResults(t *testing.T) {
-	var api = &fakeInsightsApi{responses: []awsapi.InsightsQueryResults{{Status: types.QueryStatusTimeout}}}
+	var api = cloudwatchfake.New(cloudwatchfake.WithInsightsResults([]awsapi.InsightsQueryResults{{Status: types.QueryStatusTimeout}}...))
 	var appCtx = uitest.NewAppContext()
 	var runner = NewInsightsQueryRunner(appCtx.Ctx, appCtx.App, api)
 	runner.pollInterval = 5 * time.Millisecond

@@ -1,36 +1,18 @@
 package cloudwatch
 
 import (
-	"context"
 	"errors"
-	"fmt"
 	"slices"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"aws-tui/internal/awsapi"
+	"aws-tui/internal/ui/cloudwatch/cloudwatchfake"
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 )
-
-type fakeInsightsApi struct {
-	fakeCloudWatchLogsApi
-	// responses are given one for each time the results are asked for, and the
-	// last of them after that
-	responses []awsapi.InsightsQueryResults
-	record    map[string]string
-	recordErr error
-
-	mu         sync.Mutex
-	started    [][]string
-	queries    []string
-	stopped    []string
-	polls      int
-	recordPtrs []string
-}
 
 func completeWith(rows ...[]types.ResultField) awsapi.InsightsQueryResults {
 	return awsapi.InsightsQueryResults{Results: rows, Status: types.QueryStatusComplete}
@@ -47,61 +29,6 @@ func runningWith(rows ...[]types.ResultField) awsapi.InsightsQueryResults {
 	}
 }
 
-func (f *fakeInsightsApi) StartInsightsQuery(
-	ctx context.Context, logGroups []string, startTime time.Time, endTime time.Time, query string,
-) (string, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.started = append(f.started, logGroups)
-	f.queries = append(f.queries, query)
-	return fmt.Sprintf("query-%d", len(f.started)), nil
-}
-
-func (f *fakeInsightsApi) StopInsightsQuery(ctx context.Context, queryId string) (bool, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.stopped = append(f.stopped, queryId)
-	return true, nil
-}
-
-func (f *fakeInsightsApi) GetInsightsQueryResults(
-	ctx context.Context, queryId string,
-) (awsapi.InsightsQueryResults, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if len(f.responses) == 0 {
-		return completeWith(), nil
-	}
-	var response = f.responses[min(f.polls, len(f.responses)-1)]
-	f.polls++
-	return response, nil
-}
-
-func (f *fakeInsightsApi) GetInsightsLogRecord(ctx context.Context, recordPtr string) (map[string]string, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.recordPtrs = append(f.recordPtrs, recordPtr)
-	return f.record, f.recordErr
-}
-
-func (f *fakeInsightsApi) startedQueries() [][]string {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return slices.Clone(f.started)
-}
-
-func (f *fakeInsightsApi) stoppedQueries() []string {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return slices.Clone(f.stopped)
-}
-
-func (f *fakeInsightsApi) pollCount() int {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.polls
-}
-
 func newInsightsPageView(t *testing.T, api awsapi.CloudWatchLogsApi) *LogsInsightsPageView {
 	var serviceCtx = uitest.NewServiceContextWith(api)
 	var resultsTable = NewInsightsQueryResultsTable(serviceCtx)
@@ -116,7 +43,7 @@ func newInsightsPageView(t *testing.T, api awsapi.CloudWatchLogsApi) *LogsInsigh
 }
 
 func TestInsightsPageView__MarkedLogGroupsAreListed(t *testing.T) {
-	var view = newInsightsPageView(t, &fakeInsightsApi{})
+	var view = newInsightsPageView(t, cloudwatchfake.New())
 	var app = view.serviceCtx.App
 
 	uitest.OnUI(t, app, func() { view.SelectedGroupsTable.marks.Add("/aws/lambda/orders") })
@@ -127,7 +54,7 @@ func TestInsightsPageView__MarkedLogGroupsAreListed(t *testing.T) {
 }
 
 func TestInsightsPageView__RunningWithoutLogGroupsMovesToThemAndReportsIt(t *testing.T) {
-	var api = &fakeInsightsApi{}
+	var api = cloudwatchfake.New()
 	var view = newInsightsPageView(t, api)
 	var app = view.serviceCtx.App
 	var callback, received = uitest.CaptureErrors()
@@ -144,13 +71,13 @@ func TestInsightsPageView__RunningWithoutLogGroupsMovesToThemAndReportsIt(t *tes
 			t.Errorf("tab = %q, want %q", name, InsightsTabGroups)
 		}
 	})
-	if started := api.startedQueries(); len(started) != 0 {
+	if started := api.QueryLogGroups(); len(started) != 0 {
 		t.Errorf("queries started = %v, want none", started)
 	}
 }
 
 func TestInsightsPageView__RunningQueriesTheSelectedGroupsAndShowsTheResults(t *testing.T) {
-	var api = &fakeInsightsApi{responses: []awsapi.InsightsQueryResults{completeWith(resultRow("@message", "hello", "@ptr", "ptr-1"))}}
+	var api = cloudwatchfake.New(cloudwatchfake.WithInsightsResults([]awsapi.InsightsQueryResults{completeWith(resultRow("@message", "hello", "@ptr", "ptr-1"))}...))
 	var view = newInsightsPageView(t, api)
 	var app = view.serviceCtx.App
 	uitest.OnUI(t, app, func() {
@@ -161,11 +88,11 @@ func TestInsightsPageView__RunningQueriesTheSelectedGroupsAndShowsTheResults(t *
 
 	uitest.Eventually(t, app, func() bool { return view.ResultsTable.GetCellText(1, 0) == "hello" })
 
-	if started := api.startedQueries(); len(started) != 1 || !slices.Equal(started[0], []string{"/aws/lambda/orders"}) {
+	if started := api.QueryLogGroups(); len(started) != 1 || !slices.Equal(started[0], []string{"/aws/lambda/orders"}) {
 		t.Errorf("queries started = %v, want one on /aws/lambda/orders", started)
 	}
-	if api.queries[0] != "fields @message" {
-		t.Errorf("query = %q", api.queries[0])
+	if api.Queries()[0] != "fields @message" {
+		t.Errorf("query = %q", api.Queries()[0])
 	}
 	uitest.OnUI(t, app, func() {
 		if !view.ResultsTable.HasFocus() {
@@ -184,10 +111,12 @@ func runQuery(t *testing.T, view *LogsInsightsPageView) {
 }
 
 func TestInsightsPageView__ResultsAndStatusComeInWhileTheQueryRuns(t *testing.T) {
-	var api = &fakeInsightsApi{responses: []awsapi.InsightsQueryResults{
-		runningWith(resultRow("@message", "one")),
-		completeWith(resultRow("@message", "one"), resultRow("@message", "two")),
-	}}
+	var api = cloudwatchfake.New(
+		cloudwatchfake.WithInsightsResults([]awsapi.InsightsQueryResults{
+			runningWith(resultRow("@message", "one")),
+			completeWith(resultRow("@message", "one"), resultRow("@message", "two")),
+		}...),
+	)
 	var view = newInsightsPageView(t, api)
 	var app = view.serviceCtx.App
 
@@ -198,7 +127,7 @@ func TestInsightsPageView__ResultsAndStatusComeInWhileTheQueryRuns(t *testing.T)
 }
 
 func TestInsightsPageView__RunningStatusShowsMatchedAndScannedRecords(t *testing.T) {
-	var api = &fakeInsightsApi{responses: []awsapi.InsightsQueryResults{runningWith(resultRow("@message", "one"))}}
+	var api = cloudwatchfake.New(cloudwatchfake.WithInsightsResults([]awsapi.InsightsQueryResults{runningWith(resultRow("@message", "one"))}...))
 	var view = newInsightsPageView(t, api)
 
 	runQuery(t, view)
@@ -217,22 +146,24 @@ func TestInsightsPageView__QueryIsPolledUntilItIsDoneHoweverLongItTakes(t *testi
 			responses = append(responses, runningWith())
 		}
 		responses = append(responses, completeWith(resultRow("@message", "late")))
-		var api = &fakeInsightsApi{responses: responses}
+		var api = cloudwatchfake.New(cloudwatchfake.WithInsightsResults(responses...))
 		var view = newInsightsPageView(t, api)
 
 		runQuery(t, view)
 
 		uitest.Eventually(t, view.serviceCtx.App, func() bool { return view.ResultsTable.GetCellText(1, 0) == "late" })
-		if got := api.pollCount(); got != 31 {
+		if got := api.ResultPolls(); got != 31 {
 			t.Errorf("polls = %d, want 31", got)
 		}
 	})
 }
 
 func TestInsightsPageView__FailedQueryIsReportedWithItsStatus(t *testing.T) {
-	var api = &fakeInsightsApi{responses: []awsapi.InsightsQueryResults{
-		{Status: types.QueryStatusFailed},
-	}}
+	var api = cloudwatchfake.New(
+		cloudwatchfake.WithInsightsResults([]awsapi.InsightsQueryResults{
+			{Status: types.QueryStatusFailed},
+		}...),
+	)
 	var view = newInsightsPageView(t, api)
 	var callback, received = uitest.CaptureErrors()
 	view.ResultsTable.ErrorMessageCallback = callback
@@ -246,7 +177,7 @@ func TestInsightsPageView__FailedQueryIsReportedWithItsStatus(t *testing.T) {
 
 func TestInsightsPageView__StoppingStopsTheQueryAndKeepsTheResultsSoFar(t *testing.T) {
 	uitest.RunInBubble(t, func(t *testing.T) {
-		var api = &fakeInsightsApi{responses: []awsapi.InsightsQueryResults{runningWith(resultRow("@message", "one"))}}
+		var api = cloudwatchfake.New(cloudwatchfake.WithInsightsResults([]awsapi.InsightsQueryResults{runningWith(resultRow("@message", "one"))}...))
 		var view = newInsightsPageView(t, api)
 		var app = view.serviceCtx.App
 		runQuery(t, view)
@@ -255,11 +186,11 @@ func TestInsightsPageView__StoppingStopsTheQueryAndKeepsTheResultsSoFar(t *testi
 		uitest.OnUI(t, app, func() { view.ResultsTable.StopQuery() })
 
 		uitest.Eventually(t, app, func() bool { return strings.Contains(view.ResultsTable.GetTitle(), "Cancelled") })
-		if got := api.stoppedQueries(); !slices.Equal(got, []string{"query-1"}) {
+		if got := api.StoppedQueries(); !slices.Equal(got, []string{"query-1"}) {
 			t.Errorf("queries stopped = %v, want [query-1]", got)
 		}
-		var polls = api.pollCount()
-		uitest.Consistently(t, app, 50*time.Millisecond, func() bool { return api.pollCount() <= polls+1 },
+		var polls = api.ResultPolls()
+		uitest.Consistently(t, app, 50*time.Millisecond, func() bool { return api.ResultPolls() <= polls+1 },
 			"the query was still polled after it was stopped")
 		uitest.OnUI(t, app, func() {
 			if got := view.ResultsTable.GetCellText(1, 0); got != "one" {
@@ -270,20 +201,20 @@ func TestInsightsPageView__StoppingStopsTheQueryAndKeepsTheResultsSoFar(t *testi
 }
 
 func TestInsightsPageView__StartingAnotherQueryStopsTheRunningOne(t *testing.T) {
-	var api = &fakeInsightsApi{responses: []awsapi.InsightsQueryResults{runningWith()}}
+	var api = cloudwatchfake.New(cloudwatchfake.WithInsightsResults([]awsapi.InsightsQueryResults{runningWith()}...))
 	var view = newInsightsPageView(t, api)
 	var app = view.serviceCtx.App
 	runQuery(t, view)
-	uitest.Eventually(t, app, func() bool { return api.pollCount() > 0 })
+	uitest.Eventually(t, app, func() bool { return api.ResultPolls() > 0 })
 
 	uitest.OnUI(t, app, func() { view.RunQuery() })
 
-	uitest.Eventually(t, app, func() bool { return len(api.startedQueries()) == 2 })
-	uitest.Eventually(t, app, func() bool { return slices.Equal(api.stoppedQueries(), []string{"query-1"}) })
+	uitest.Eventually(t, app, func() bool { return len(api.QueryLogGroups()) == 2 })
+	uitest.Eventually(t, app, func() bool { return slices.Equal(api.StoppedQueries(), []string{"query-1"}) })
 }
 
 func TestInsightsPageView__EmptyOrBackwardsQueriesAreNotRun(t *testing.T) {
-	var api = &fakeInsightsApi{}
+	var api = cloudwatchfake.New()
 	var view = newInsightsPageView(t, api)
 	var app = view.serviceCtx.App
 	var callback, received = uitest.CaptureErrors()
@@ -297,16 +228,16 @@ func TestInsightsPageView__EmptyOrBackwardsQueriesAreNotRun(t *testing.T) {
 	if got := uitest.AwaitError(t, received); got != "The query is empty" {
 		t.Errorf("message = %q", got)
 	}
-	if started := api.startedQueries(); len(started) != 0 {
+	if started := api.QueryLogGroups(); len(started) != 0 {
 		t.Errorf("queries started = %v, want none", started)
 	}
 }
 
 func TestInsightsPageView__OpeningARecordGivesItsLogGroupAndStream(t *testing.T) {
-	var api = &fakeInsightsApi{
-		responses: []awsapi.InsightsQueryResults{completeWith(resultRow("@message", "hello", "@ptr", "ptr-1"))},
-		record:    map[string]string{"@log": "123456789012:/aws/lambda/orders", "@logStream": "2024/01/02/[$LATEST]abc"},
-	}
+	var api = cloudwatchfake.New(
+		cloudwatchfake.WithInsightsResults([]awsapi.InsightsQueryResults{completeWith(resultRow("@message", "hello", "@ptr", "ptr-1"))}...),
+		cloudwatchfake.WithInsightsRecord(map[string]string{"@log": "123456789012:/aws/lambda/orders", "@logStream": "2024/01/02/[$LATEST]abc"}),
+	)
 	var view = newInsightsPageView(t, api)
 	var app = view.serviceCtx.App
 	runQuery(t, view)
@@ -325,16 +256,16 @@ func TestInsightsPageView__OpeningARecordGivesItsLogGroupAndStream(t *testing.T)
 	case <-time.After(3 * time.Second):
 		t.Fatal("the record was not opened")
 	}
-	if !slices.Equal(api.recordPtrs, []string{"ptr-1"}) {
-		t.Errorf("record pointers asked for = %v", api.recordPtrs)
+	if !slices.Equal(api.RecordPointers(), []string{"ptr-1"}) {
+		t.Errorf("record pointers asked for = %v", api.RecordPointers())
 	}
 }
 
 func TestInsightsPageView__RecordThatFailsToLoadIsReportedAndNotOpened(t *testing.T) {
-	var api = &fakeInsightsApi{
-		responses: []awsapi.InsightsQueryResults{completeWith(resultRow("@message", "hello", "@ptr", "ptr-1"))},
-		recordErr: errors.New("access denied"),
-	}
+	var api = cloudwatchfake.New(
+		cloudwatchfake.WithInsightsResults([]awsapi.InsightsQueryResults{completeWith(resultRow("@message", "hello", "@ptr", "ptr-1"))}...),
+		cloudwatchfake.WithInsightsRecordErr(errors.New("access denied")),
+	)
 	var view = newInsightsPageView(t, api)
 	var app = view.serviceCtx.App
 	var callback, received = uitest.CaptureErrors()
@@ -352,7 +283,7 @@ func TestInsightsPageView__RecordThatFailsToLoadIsReportedAndNotOpened(t *testin
 }
 
 func TestInsightsPageView__ResultWithoutARecordIsReportedAndNotLoaded(t *testing.T) {
-	var api = &fakeInsightsApi{responses: []awsapi.InsightsQueryResults{completeWith(resultRow("count", "42"))}}
+	var api = cloudwatchfake.New(cloudwatchfake.WithInsightsResults([]awsapi.InsightsQueryResults{completeWith(resultRow("count", "42"))}...))
 	var view = newInsightsPageView(t, api)
 	var app = view.serviceCtx.App
 	var callback, received = uitest.CaptureErrors()
@@ -367,7 +298,7 @@ func TestInsightsPageView__ResultWithoutARecordIsReportedAndNotLoaded(t *testing
 	if got := uitest.AwaitError(t, received); got != "This result has no log record to open" {
 		t.Errorf("message = %q", got)
 	}
-	if len(api.recordPtrs) != 0 {
-		t.Errorf("records loaded = %v, want none", api.recordPtrs)
+	if len(api.RecordPointers()) != 0 {
+		t.Errorf("records loaded = %v, want none", api.RecordPointers())
 	}
 }

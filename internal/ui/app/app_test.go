@@ -18,6 +18,7 @@ import (
 	"aws-tui/internal/settings"
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/sqs"
+	"aws-tui/internal/ui/sqs/sqsfake"
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -112,28 +113,11 @@ func TestRebuildServicePages__KeepsAVisibleDataPageVisible(t *testing.T) {
 	}
 }
 
-type fakeSqsApi struct {
-	awsapi.SqsApi
-	queues []string
-}
-
-func (f *fakeSqsApi) ListQueues(ctx context.Context, force bool) ([]string, error) {
-	return f.queues, nil
-}
-
-func (f *fakeSqsApi) GetQueueAttributes(ctx context.Context, queueUrl string) (map[string]string, error) {
-	return nil, nil
-}
-
-func (f *fakeSqsApi) ListQueueTags(ctx context.Context, queueUrl string) (map[string]string, error) {
-	return nil, nil
-}
-
 func TestResetApiClients__ClearsDataLoadedByServicePages(t *testing.T) {
 	var appCtx = uitest.NewAppContext()
 	var pages = tview.NewPages()
 	var item = newServiceItem("sqs", "", 'q', func() core.ServicePage {
-		return sqs.NewSqsHomeView(appCtx, &fakeSqsApi{queues: []string{"https://sqs.example.com/1/orders-queue"}})
+		return sqs.NewSqsHomeView(appCtx, sqsfake.New(sqsfake.WithQueues([]string{"https://sqs.example.com/1/orders-queue"})))
 	})
 	pages.AddPage("sqs", item.ServicePage, true, true)
 	appCtx.OnApiClientsReset(func() { rebuildServicePages(pages, []*ServiceItem{item}) })

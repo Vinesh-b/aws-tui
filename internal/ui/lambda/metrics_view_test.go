@@ -1,45 +1,15 @@
 package lambda
 
 import (
-	"context"
-	"sync"
 	"testing"
-	"time"
 
 	"aws-tui/internal/awsapi"
+	"aws-tui/internal/ui/cloudwatch/cloudwatchfake"
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	cwTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 )
-
-type metricDataRequest struct {
-	metric cwTypes.Metric
-	stat   string
-}
-
-type fakeCloudWatchMetricsApi struct {
-	awsapi.CloudWatchMetricsApi
-
-	mu       sync.Mutex
-	requests []metricDataRequest
-}
-
-func (f *fakeCloudWatchMetricsApi) GetMetricData(
-	ctx context.Context, metric cwTypes.Metric, stat string, periodSeconds int32, start time.Time, end time.Time,
-) (cwTypes.MetricDataResult, error) {
-	f.mu.Lock()
-	f.requests = append(f.requests, metricDataRequest{metric, stat})
-	f.mu.Unlock()
-	return cwTypes.MetricDataResult{}, nil
-}
-
-func (f *fakeCloudWatchMetricsApi) dataRequests() []metricDataRequest {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return append([]metricDataRequest(nil), f.requests...)
-}
 
 func TestMetricsTable__ListsStandardMetrics(t *testing.T) {
 	var view = NewLambdaMetricsTable(uitest.NewAppContext())
@@ -85,7 +55,7 @@ func TestMetricsTable__NoMetricWithoutLambda(t *testing.T) {
 }
 
 func TestMetricsView__SelectingLambdaDoesNotLoadChart(t *testing.T) {
-	var api = &fakeCloudWatchMetricsApi{}
+	var api = cloudwatchfake.NewMetrics()
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudWatchMetricsApi](api)
 	var view = NewLambdaMetricsPageView(serviceCtx)
 	var app = serviceCtx.App
@@ -97,13 +67,13 @@ func TestMetricsView__SelectingLambdaDoesNotLoadChart(t *testing.T) {
 	})
 
 	uitest.OnUI(t, app, func() {})
-	if got := len(api.dataRequests()); got != 0 {
+	if got := len(api.DataRequests()); got != 0 {
 		t.Errorf("requests after selecting a lambda = %d, want 0", got)
 	}
 }
 
 func TestMetricsView__RowSelectionChangeLoadsMetricWithItsStatistic(t *testing.T) {
-	var api = &fakeCloudWatchMetricsApi{}
+	var api = cloudwatchfake.NewMetrics()
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudWatchMetricsApi](api)
 	var view = NewLambdaMetricsPageView(serviceCtx)
 	var app = serviceCtx.App
@@ -115,9 +85,9 @@ func TestMetricsView__RowSelectionChangeLoadsMetricWithItsStatistic(t *testing.T
 		view.MetricsTable.Select(2, 0)
 	})
 
-	uitest.Eventually(t, app, func() bool { return len(api.dataRequests()) == 1 })
-	var req = api.dataRequests()[0]
-	if aws.ToString(req.metric.MetricName) != "Errors" || req.stat != "Sum" {
-		t.Errorf("request = %s %s, want Errors Sum", aws.ToString(req.metric.MetricName), req.stat)
+	uitest.Eventually(t, app, func() bool { return len(api.DataRequests()) == 1 })
+	var req = api.DataRequests()[0]
+	if req.MetricName != "Errors" || req.Stat != "Sum" {
+		t.Errorf("request = %s %s, want Errors Sum", req.MetricName, req.Stat)
 	}
 }

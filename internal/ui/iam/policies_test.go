@@ -6,6 +6,7 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"aws-tui/internal/ui/iam/iamfake"
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -22,10 +23,12 @@ func TestManagedBy(t *testing.T) {
 }
 
 func TestPolicyListTable__ShowsPolicies(t *testing.T) {
-	var api = &fakeIamApi{policies: []types.Policy{
-		newPolicy("orders-queue", testPolicyArn),
-		newPolicy("ReadOnlyAccess", "arn:aws:iam::aws:policy/ReadOnlyAccess"),
-	}}
+	var api = iamfake.New(
+		iamfake.WithPolicies([]types.Policy{
+			newPolicy("orders-queue", testPolicyArn),
+			newPolicy("ReadOnlyAccess", "arn:aws:iam::aws:policy/ReadOnlyAccess"),
+		}),
+	)
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.IamApi](api)
 	var table = NewPolicyListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -80,15 +83,15 @@ func TestPolicyDetailsTable__ShowsPolicy(t *testing.T) {
 }
 
 func TestPoliciesPage__SelectingPolicyLoadsItsDocumentAndEntities(t *testing.T) {
-	var api = &fakeIamApi{
-		policies:  []types.Policy{newPolicy("orders-queue", testPolicyArn)},
-		policy:    &types.Policy{PolicyName: aws.String("orders-queue"), Arn: aws.String(testPolicyArn)},
-		documents: map[string]string{testPolicyArn: `{"Version":"2012-10-17"}`},
-		entities: []awsapi.PolicyEntity{
+	var api = iamfake.New(
+		iamfake.WithPolicies([]types.Policy{newPolicy("orders-queue", testPolicyArn)}),
+		iamfake.WithPolicy(&types.Policy{PolicyName: aws.String("orders-queue"), Arn: aws.String(testPolicyArn)}),
+		iamfake.WithDocuments(map[string]string{testPolicyArn: `{"Version":"2012-10-17"}`}),
+		iamfake.WithEntities([]awsapi.PolicyEntity{
 			{Name: "orders", Type: "Role"}, {Name: "alice", Type: "User"}, {Name: "developers", Type: "Group"},
-		},
-		tags: []types.Tag{{Key: aws.String("team"), Value: aws.String("orders")}},
-	}
+		}),
+		iamfake.WithTags([]types.Tag{{Key: aws.String("team"), Value: aws.String("orders")}}),
+	)
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.IamApi](api)
 	var view = NewIamPoliciesPageView(NewPolicyListTable(serviceCtx), NewPolicyDetailsTable(serviceCtx), serviceCtx)
 	var app = serviceCtx.App

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"aws-tui/internal/awsapi"
+	"aws-tui/internal/ui/cloudwatch/cloudwatchfake"
 	"aws-tui/internal/ui/uitest"
 
 	cwTypes "github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
@@ -25,7 +26,7 @@ func newMetricData(values ...float64) cwTypes.MetricDataResult {
 	return result
 }
 
-func newChartView(t *testing.T, api *fakeCloudWatchMetricsApi) *MetricChartView {
+func newChartView(t *testing.T, api *cloudwatchfake.MetricsApi) *MetricChartView {
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudWatchMetricsApi](api)
 	var view = NewMetricChartView(serviceCtx)
 	view.now = func() time.Time { return chartNow }
@@ -51,12 +52,12 @@ func pressChartKey(t *testing.T, view *MetricChartView, r rune) {
 }
 
 func TestMetricChartView__HiddenChartRequestsNothing(t *testing.T) {
-	var api = &fakeCloudWatchMetricsApi{data: newMetricData(1, 2)}
+	var api = cloudwatchfake.NewMetrics(cloudwatchfake.WithMetricData(newMetricData(1, 2)))
 	var view = newChartView(t, api)
 
 	onChartUI(t, view, func() { view.SetMetric(newMetric("AWS/Lambda", "Invocations")) })
 
-	if got := len(api.metricDataRequests()); got != 0 {
+	if got := len(api.DataRequests()); got != 0 {
 		t.Errorf("requests while hidden = %d, want 0", got)
 	}
 	onChartUI(t, view, func() {
@@ -67,18 +68,20 @@ func TestMetricChartView__HiddenChartRequestsNothing(t *testing.T) {
 }
 
 func TestMetricChartView__ShowingChartRequestsTheSelectedMetric(t *testing.T) {
-	var api = &fakeCloudWatchMetricsApi{data: newMetricData(1, 5, 3)}
+	var api = cloudwatchfake.NewMetrics(cloudwatchfake.WithMetricData(newMetricData(1, 5, 3)))
 	var view = newChartView(t, api)
 	onChartUI(t, view, func() { view.SetMetric(newMetric("AWS/Lambda", "Invocations")) })
 
 	onChartUI(t, view, func() { view.SetVisible(true) })
 
 	awaitChartState(t, view, func() bool { return len(view.GetPoints()) == 3 })
-	var requests = api.metricDataRequests()
+	var requests = api.DataRequests()
 	if len(requests) != 1 {
 		t.Fatalf("requests = %d, want 1", len(requests))
 	}
-	var want = metricDataRequest{"Average", 60, chartNow.Add(-3 * time.Hour), chartNow}
+	var want = cloudwatchfake.DataRequest{
+		MetricName: "Invocations", Stat: "Average", Period: 60, Start: chartNow.Add(-3 * time.Hour), End: chartNow,
+	}
 	if requests[0] != want {
 		t.Errorf("request = %+v, want %+v", requests[0], want)
 	}
@@ -91,7 +94,7 @@ func TestMetricChartView__ShowingChartRequestsTheSelectedMetric(t *testing.T) {
 }
 
 func TestMetricChartView__SelectingMetricWhileVisibleLoadsImmediately(t *testing.T) {
-	var api = &fakeCloudWatchMetricsApi{data: newMetricData(1)}
+	var api = cloudwatchfake.NewMetrics(cloudwatchfake.WithMetricData(newMetricData(1)))
 	var view = newChartView(t, api)
 	onChartUI(t, view, func() { view.SetVisible(true) })
 
@@ -101,7 +104,7 @@ func TestMetricChartView__SelectingMetricWhileVisibleLoadsImmediately(t *testing
 }
 
 func TestMetricChartView__ReopeningChartDoesNotRequestAgain(t *testing.T) {
-	var api = &fakeCloudWatchMetricsApi{data: newMetricData(1)}
+	var api = cloudwatchfake.NewMetrics(cloudwatchfake.WithMetricData(newMetricData(1)))
 	var view = newChartView(t, api)
 	onChartUI(t, view, func() {
 		view.SetMetric(newMetric("AWS/Lambda", "Invocations"))
@@ -114,54 +117,54 @@ func TestMetricChartView__ReopeningChartDoesNotRequestAgain(t *testing.T) {
 		view.SetVisible(true)
 	})
 
-	if got := len(api.metricDataRequests()); got != 1 {
+	if got := len(api.DataRequests()); got != 1 {
 		t.Errorf("requests = %d, want 1", got)
 	}
 }
 
 func TestMetricChartView__StatisticKeyCyclesAndReloads(t *testing.T) {
-	var api = &fakeCloudWatchMetricsApi{data: newMetricData(1)}
+	var api = cloudwatchfake.NewMetrics(cloudwatchfake.WithMetricData(newMetricData(1)))
 	var view = newChartView(t, api)
 	onChartUI(t, view, func() {
 		view.SetMetric(newMetric("AWS/Lambda", "Invocations"))
 		view.SetVisible(true)
 	})
-	awaitChartState(t, view, func() bool { return len(api.metricDataRequests()) == 1 })
+	awaitChartState(t, view, func() bool { return len(api.DataRequests()) == 1 })
 
 	pressChartKey(t, view, chartStatKey)
 
-	awaitChartState(t, view, func() bool { return len(api.metricDataRequests()) == 2 })
-	if got := api.metricDataRequests()[1].stat; got != "Sum" {
+	awaitChartState(t, view, func() bool { return len(api.DataRequests()) == 2 })
+	if got := api.DataRequests()[1].Stat; got != "Sum" {
 		t.Errorf("statistic = %q, want Sum", got)
 	}
 }
 
 func TestMetricChartView__RangeKeyCyclesWindowAndPeriod(t *testing.T) {
-	var api = &fakeCloudWatchMetricsApi{data: newMetricData(1)}
+	var api = cloudwatchfake.NewMetrics(cloudwatchfake.WithMetricData(newMetricData(1)))
 	var view = newChartView(t, api)
 	onChartUI(t, view, func() {
 		view.SetMetric(newMetric("AWS/Lambda", "Invocations"))
 		view.SetVisible(true)
 	})
-	awaitChartState(t, view, func() bool { return len(api.metricDataRequests()) == 1 })
+	awaitChartState(t, view, func() bool { return len(api.DataRequests()) == 1 })
 
 	pressChartKey(t, view, chartRangeKey)
 
-	awaitChartState(t, view, func() bool { return len(api.metricDataRequests()) == 2 })
-	var request = api.metricDataRequests()[1]
-	if request.period != 300 || !request.start.Equal(chartNow.Add(-12*time.Hour)) {
+	awaitChartState(t, view, func() bool { return len(api.DataRequests()) == 2 })
+	var request = api.DataRequests()[1]
+	if request.Period != 300 || !request.Start.Equal(chartNow.Add(-12*time.Hour)) {
 		t.Errorf("request = %+v, want a 12h window with a 300s period", request)
 	}
 }
 
 func TestMetricChartView__ChangingOptionsWhileHiddenDoesNotRequest(t *testing.T) {
-	var api = &fakeCloudWatchMetricsApi{data: newMetricData(1)}
+	var api = cloudwatchfake.NewMetrics(cloudwatchfake.WithMetricData(newMetricData(1)))
 	var view = newChartView(t, api)
 	onChartUI(t, view, func() { view.SetMetric(newMetric("AWS/Lambda", "Invocations")) })
 
 	pressChartKey(t, view, chartStatKey)
 
-	if got := len(api.metricDataRequests()); got != 0 {
+	if got := len(api.DataRequests()); got != 0 {
 		t.Errorf("requests while hidden = %d, want 0", got)
 	}
 	onChartUI(t, view, func() {
@@ -172,18 +175,18 @@ func TestMetricChartView__ChangingOptionsWhileHiddenDoesNotRequest(t *testing.T)
 }
 
 func TestMetricChartView__NoMetricSelectedRequestsNothing(t *testing.T) {
-	var api = &fakeCloudWatchMetricsApi{}
+	var api = cloudwatchfake.NewMetrics()
 	var view = newChartView(t, api)
 
 	onChartUI(t, view, func() { view.SetVisible(true) })
 
-	if got := len(api.metricDataRequests()); got != 0 {
+	if got := len(api.DataRequests()); got != 0 {
 		t.Errorf("requests = %d, want 0", got)
 	}
 }
 
 func TestMetricChartView__EmptyResultShowsMessage(t *testing.T) {
-	var view = newChartView(t, &fakeCloudWatchMetricsApi{})
+	var view = newChartView(t, cloudwatchfake.NewMetrics())
 
 	onChartUI(t, view, func() {
 		view.SetMetric(newMetric("AWS/Lambda", "Invocations"))
@@ -194,7 +197,7 @@ func TestMetricChartView__EmptyResultShowsMessage(t *testing.T) {
 }
 
 func TestMetricChartView__ErrorIsReportedAndRetriedOnReopen(t *testing.T) {
-	var api = &fakeCloudWatchMetricsApi{dataErr: errors.New("access denied")}
+	var api = cloudwatchfake.NewMetrics(cloudwatchfake.WithMetricDataErr(errors.New("access denied")))
 	var view = newChartView(t, api)
 	var callback, received = uitest.CaptureErrors()
 	view.ErrorMessageCallback = callback
@@ -212,11 +215,11 @@ func TestMetricChartView__ErrorIsReportedAndRetriedOnReopen(t *testing.T) {
 		view.SetVisible(false)
 		view.SetVisible(true)
 	})
-	awaitChartState(t, view, func() bool { return len(api.metricDataRequests()) == 2 })
+	awaitChartState(t, view, func() bool { return len(api.DataRequests()) == 2 })
 }
 
 func TestMetricsDetailsView__ChartTabOnlyRequestsOnceItIsOpened(t *testing.T) {
-	var api = &fakeCloudWatchMetricsApi{data: newMetricData(1, 2)}
+	var api = cloudwatchfake.NewMetrics(cloudwatchfake.WithMetricData(newMetricData(1, 2)))
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.CloudWatchMetricsApi](api)
 	var view = NewMetricsDetailsView(
 		NewMetricsTable(serviceCtx),
@@ -229,7 +232,7 @@ func TestMetricsDetailsView__ChartTabOnlyRequestsOnceItIsOpened(t *testing.T) {
 		view.MetricChartView.SetMetric(newMetric("AWS/Lambda", "Invocations"))
 		serviceCtx.App.SetFocus(view.MetricDetailsTable)
 	})
-	if got := len(api.metricDataRequests()); got != 0 {
+	if got := len(api.DataRequests()); got != 0 {
 		t.Fatalf("requested before the tab was opened: %d", got)
 	}
 
@@ -238,7 +241,7 @@ func TestMetricsDetailsView__ChartTabOnlyRequestsOnceItIsOpened(t *testing.T) {
 	uitest.Eventually(t, serviceCtx.App, func() bool { return len(view.MetricChartView.GetPoints()) == 2 })
 	uitest.PressKey(t, serviceCtx.App, tcell.KeyTab)
 	uitest.PressKey(t, serviceCtx.App, tcell.KeyTab)
-	if got := len(api.metricDataRequests()); got != 1 {
+	if got := len(api.DataRequests()); got != 1 {
 		t.Errorf("requests after reopening = %d, want 1", got)
 	}
 }
@@ -256,7 +259,7 @@ func TestChartPoints__PairsTimestampsWithValues(t *testing.T) {
 }
 
 func TestMetricChartView__SetStatisticChangesRequestedStatistic(t *testing.T) {
-	var api = &fakeCloudWatchMetricsApi{data: newMetricData(1)}
+	var api = cloudwatchfake.NewMetrics(cloudwatchfake.WithMetricData(newMetricData(1)))
 	var view = newChartView(t, api)
 
 	onChartUI(t, view, func() {
@@ -266,8 +269,8 @@ func TestMetricChartView__SetStatisticChangesRequestedStatistic(t *testing.T) {
 		view.SetVisible(true)
 	})
 
-	awaitChartState(t, view, func() bool { return len(api.metricDataRequests()) == 1 })
-	if got := api.metricDataRequests()[0].stat; got != "Maximum" {
+	awaitChartState(t, view, func() bool { return len(api.DataRequests()) == 1 })
+	if got := api.DataRequests()[0].Stat; got != "Maximum" {
 		t.Errorf("stat = %q, want Maximum", got)
 	}
 }

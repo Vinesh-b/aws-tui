@@ -5,12 +5,13 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"aws-tui/internal/ui/sqs/sqsfake"
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
 )
 
-func newRunningQueueList(t *testing.T, api *fakeSqsApi) *QueueListTable {
+func newRunningQueueList(t *testing.T, api *sqsfake.Api) *QueueListTable {
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.SqsApi](api)
 	var table = NewQueueListTable(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
@@ -18,7 +19,7 @@ func newRunningQueueList(t *testing.T, api *fakeSqsApi) *QueueListTable {
 }
 
 func TestQueueListTable__OpenQueueLoadsListToSelectIt(t *testing.T) {
-	var api = &fakeSqsApi{queues: []string{queueUrl("orders"), queueUrl("orders-dlq")}}
+	var api = sqsfake.New(sqsfake.WithQueues([]string{queueUrl("orders"), queueUrl("orders-dlq")}))
 	var table = newRunningQueueList(t, api)
 
 	uitest.OnUI(t, table.serviceCtx.App, func() { table.OpenQueue("orders-dlq") })
@@ -29,7 +30,7 @@ func TestQueueListTable__OpenQueueLoadsListToSelectIt(t *testing.T) {
 }
 
 func TestQueueListTable__OpenMissingQueueReportsIt(t *testing.T) {
-	var table = newRunningQueueList(t, &fakeSqsApi{queues: []string{queueUrl("orders")}})
+	var table = newRunningQueueList(t, sqsfake.New(sqsfake.WithQueues([]string{queueUrl("orders")})))
 	var callback, received = uitest.CaptureErrors()
 	table.ErrorMessageCallback = callback
 
@@ -41,7 +42,7 @@ func TestQueueListTable__OpenMissingQueueReportsIt(t *testing.T) {
 }
 
 func TestHomeView__OpensSqsResources(t *testing.T) {
-	var page = NewSqsHomeView(uitest.NewAppContext(), &fakeSqsApi{})
+	var page = NewSqsHomeView(uitest.NewAppContext(), sqsfake.New())
 
 	var opener, ok = page.(core.ResourceOpener)
 

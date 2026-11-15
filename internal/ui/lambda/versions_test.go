@@ -5,6 +5,7 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
+	"aws-tui/internal/ui/lambda/lambdafake"
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -104,12 +105,12 @@ func TestVersionDetailsRows__VersionWithoutAliasesLeavesSectionOut(t *testing.T)
 }
 
 func TestVersionsView__ListsVersionsWithTheirAliases(t *testing.T) {
-	var api = &fakeLambdaApi{
-		versions: map[string][]types.FunctionConfiguration{
+	var api = lambdafake.New(
+		lambdafake.WithVersions(map[string][]types.FunctionConfiguration{
 			ordersArn: {newVersion("$LATEST", ""), newVersion("3", "Adds refunds")},
-		},
-		aliases: map[string][]types.AliasConfiguration{ordersArn: {newAlias("prod", "3", nil)}},
-	}
+		}),
+		lambdafake.WithAliases(map[string][]types.AliasConfiguration{ordersArn: {newAlias("prod", "3", nil)}}),
+	)
 	var serviceCtx = uitest.NewServiceContextWith[awsapi.LambdaApi](api)
 	var view = NewLambdaVersionsView(serviceCtx)
 	uitest.RunApp(t, serviceCtx.App)
