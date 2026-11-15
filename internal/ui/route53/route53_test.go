@@ -295,36 +295,27 @@ func TestHostedZonesPage__SelectingAZoneShowsItThenItsNameServersAndVPCs(t *test
 }
 
 func TestHostedZonesPage__MovingThroughZonesLoadsOnlyTheOneItStopsOn(t *testing.T) {
-	var names = []string{"a.example.com", "b.example.com", "c.example.com", "d.example.com"}
-	var zones []types.HostedZone
-	for _, name := range names {
-		zones = append(zones, newZone(name, 2))
-	}
-	var api = route53fake.New(route53fake.WithHostedZones(zones))
-	var view = newHostedZonesTest(t, api)
-	var app = view.HostedZonesTable.serviceCtx.App
-	loadZones(t, view, len(names))
-	var before = len(api.ZonesAskedFor())
-
-	uitest.OnUI(t, app, func() {
-		for row := 2; row <= 4; row++ {
-			view.HostedZonesTable.Select(row, 0)
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var names = []string{"a.example.com", "b.example.com", "c.example.com", "d.example.com"}
+		var zones []types.HostedZone
+		for _, name := range names {
+			zones = append(zones, newZone(name, 2))
 		}
-	})
-	// The zone is shown straight away, before it is loaded
-	uitest.OnUI(t, app, func() {
-		if got := view.DetailsTable.GetCellText(0, 1); got != "d.example.com" {
-			t.Errorf("zone shown = %q, want d.example.com", got)
-		}
-	})
+		var api = route53fake.New(route53fake.WithHostedZones(zones))
+		var view = newHostedZonesTest(t, api)
+		loadZones(t, view, len(names))
 
-	uitest.Eventually(t, app, func() bool {
-		return slices.Contains(api.ZonesAskedFor()[before:], zoneIdOf("d.example.com"))
-	}, "d.example.com to be loaded")
-	uitest.Consistently(t, app, 2*core.SelectionLoadDelay, func() bool {
-		var asked = api.ZonesAskedFor()[before:]
-		return !slices.Contains(asked, zoneIdOf("c.example.com")) && asked[len(asked)-1] == zoneIdOf("d.example.com")
-	}, "only the first and last zones of the move to be loaded")
+		uitest.AssertMovingThroughLoadsOnlyWhereItStops(t, view.HostedZonesTable.serviceCtx.App, uitest.MoveThrough[string]{
+			Table: view.HostedZonesTable, Passed: zoneIdOf("c.example.com"), StopsOn: zoneIdOf("d.example.com"),
+			Loaded: api.ZonesAskedFor,
+			// The zone is shown straight away, before it is loaded
+			StraightAway: func() {
+				if got := view.DetailsTable.GetCellText(0, 1); got != "d.example.com" {
+					t.Errorf("zone shown = %q, want d.example.com", got)
+				}
+			},
+		})
+	})
 }
 
 func TestHostedZonesPage__RecordsAreOnlyLoadedOnceTheirTabIsOpened(t *testing.T) {
@@ -376,27 +367,29 @@ func TestHostedZonesPage__RecordsAreOnlyLoadedOnceTheirTabIsOpened(t *testing.T)
 }
 
 func TestHostedZonesPage__SelectingAnotherZoneWithTheRecordsOpenLoadsItsRecords(t *testing.T) {
-	var api = route53fake.New(
-		route53fake.WithHostedZones([]types.HostedZone{newZone("example.com", 1), newZone("example.net", 1)}),
-		route53fake.WithRecords(zoneIdOf("example.com"), []types.ResourceRecordSet{
-			simpleRecord("example.com.", types.RRTypeA, "192.0.2.1"),
-		}),
-		route53fake.WithRecords(zoneIdOf("example.net"), []types.ResourceRecordSet{
-			simpleRecord("example.net.", types.RRTypeA, "198.51.100.1"),
-		}),
-	)
-	var view = newHostedZonesTest(t, api)
-	var app = view.HostedZonesTable.serviceCtx.App
-	loadZones(t, view, 2)
-	openRecordsTab(t, view)
-	uitest.AwaitRows(t, app, view.RecordsTable, []core.TableRow{
-		recordHeadings, {"example.com", "A", "Simple", "", "300", "192.0.2.1"},
-	})
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = route53fake.New(
+			route53fake.WithHostedZones([]types.HostedZone{newZone("example.com", 1), newZone("example.net", 1)}),
+			route53fake.WithRecords(zoneIdOf("example.com"), []types.ResourceRecordSet{
+				simpleRecord("example.com.", types.RRTypeA, "192.0.2.1"),
+			}),
+			route53fake.WithRecords(zoneIdOf("example.net"), []types.ResourceRecordSet{
+				simpleRecord("example.net.", types.RRTypeA, "198.51.100.1"),
+			}),
+		)
+		var view = newHostedZonesTest(t, api)
+		var app = view.HostedZonesTable.serviceCtx.App
+		loadZones(t, view, 2)
+		openRecordsTab(t, view)
+		uitest.AwaitRows(t, app, view.RecordsTable, []core.TableRow{
+			recordHeadings, {"example.com", "A", "Simple", "", "300", "192.0.2.1"},
+		})
 
-	uitest.OnUI(t, app, func() { view.HostedZonesTable.Select(2, 0) })
+		uitest.OnUI(t, app, func() { view.HostedZonesTable.Select(2, 0) })
 
-	uitest.AwaitRows(t, app, view.RecordsTable, []core.TableRow{
-		recordHeadings, {"example.net", "A", "Simple", "", "300", "198.51.100.1"},
+		uitest.AwaitRows(t, app, view.RecordsTable, []core.TableRow{
+			recordHeadings, {"example.net", "A", "Simple", "", "300", "198.51.100.1"},
+		})
 	})
 }
 
@@ -570,65 +563,69 @@ func TestHealthChecksPage__CalculatedCheckLinksToItsChildren(t *testing.T) {
 }
 
 func TestHealthChecksPage__StatusIsLoadedEachTimeItsTabIsOpened(t *testing.T) {
-	var api = route53fake.New(
-		route53fake.WithHealthChecks([]types.HealthCheck{httpsCheck("hc-api", "api.example.com")}),
-		route53fake.WithStatus("hc-api", []types.HealthCheckObservation{
-			observation(types.HealthCheckRegionEuWest1, "15.177.62.1", "Success: HTTP Status Code 200, OK"),
-		}),
-	)
-	var view = newHealthChecksTest(t, api)
-	var app = view.HealthChecksTable.serviceCtx.App
-	loadHealthChecks(t, view, 1)
-	uitest.Consistently(t, app, 2*core.SelectionLoadDelay, func() bool {
-		return len(api.StatusesAskedFor()) == 0
-	}, "the status not to be loaded before the tab is opened")
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = route53fake.New(
+			route53fake.WithHealthChecks([]types.HealthCheck{httpsCheck("hc-api", "api.example.com")}),
+			route53fake.WithStatus("hc-api", []types.HealthCheckObservation{
+				observation(types.HealthCheckRegionEuWest1, "15.177.62.1", "Success: HTTP Status Code 200, OK"),
+			}),
+		)
+		var view = newHealthChecksTest(t, api)
+		var app = view.HealthChecksTable.serviceCtx.App
+		loadHealthChecks(t, view, 1)
+		uitest.Consistently(t, app, 2*core.SelectionLoadDelay, func() bool {
+			return len(api.StatusesAskedFor()) == 0
+		}, "the status not to be loaded before the tab is opened")
 
-	openStatusTab(t, view)
+		openStatusTab(t, view)
 
-	var checked = core.FormatTime(aws.Time(time.Date(2026, 11, 15, 9, 30, 0, 0, time.UTC)))
-	uitest.AwaitRows(t, app, view.StatusTable, []core.TableRow{
-		statusHeadings,
-		{"eu-west-1", "15.177.62.1", checked, "Success: HTTP Status Code 200, OK"},
-	})
-
-	// The status has changed by the time the tab is opened again
-	api.SetStatus("hc-api", []types.HealthCheckObservation{
-		observation(types.HealthCheckRegionEuWest1, "15.177.62.1", "Failure: Connection timed out"),
-	})
-	uitest.PressKey(t, app, tcell.KeyTab)
-	uitest.PressKey(t, app, tcell.KeyTab)
-
-	// AwaitRows only waits for the number of rows, which is the same as before
-	uitest.Eventually(t, app, func() bool {
-		return view.StatusTable.GetCellText(1, 3) == "Failure: Connection timed out"
-	}, "the new status to be shown")
-	uitest.OnUI(t, app, func() {
-		uitest.AssertTableRows(t, view.StatusTable, []core.TableRow{
+		var checked = core.FormatTime(aws.Time(time.Date(2026, 11, 15, 9, 30, 0, 0, time.UTC)))
+		uitest.AwaitRows(t, app, view.StatusTable, []core.TableRow{
 			statusHeadings,
-			{"eu-west-1", "15.177.62.1", checked, "Failure: Connection timed out"},
+			{"eu-west-1", "15.177.62.1", checked, "Success: HTTP Status Code 200, OK"},
+		})
+
+		// The status has changed by the time the tab is opened again
+		api.SetStatus("hc-api", []types.HealthCheckObservation{
+			observation(types.HealthCheckRegionEuWest1, "15.177.62.1", "Failure: Connection timed out"),
+		})
+		uitest.PressKey(t, app, tcell.KeyTab)
+		uitest.PressKey(t, app, tcell.KeyTab)
+
+		// AwaitRows only waits for the number of rows, which is the same as before
+		uitest.Eventually(t, app, func() bool {
+			return view.StatusTable.GetCellText(1, 3) == "Failure: Connection timed out"
+		}, "the new status to be shown")
+		uitest.OnUI(t, app, func() {
+			uitest.AssertTableRows(t, view.StatusTable, []core.TableRow{
+				statusHeadings,
+				{"eu-west-1", "15.177.62.1", checked, "Failure: Connection timed out"},
+			})
 		})
 	})
 }
 
 func TestHealthChecksPage__CalculatedCheckHasNoCheckersToAsk(t *testing.T) {
-	var api = route53fake.New(route53fake.WithHealthChecks([]types.HealthCheck{
-		calculatedCheck("hc-all", 1, "hc-api"),
-		httpsCheck("hc-api", "api.example.com"),
-	}))
-	var view = newHealthChecksTest(t, api)
-	var app = view.HealthChecksTable.serviceCtx.App
-	loadHealthChecks(t, view, 2)
-	openStatusTab(t, view)
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = route53fake.New(route53fake.WithHealthChecks([]types.HealthCheck{
+			calculatedCheck("hc-all", 1, "hc-api"),
+			httpsCheck("hc-api", "api.example.com"),
+		}))
+		var view = newHealthChecksTest(t, api)
+		var app = view.HealthChecksTable.serviceCtx.App
+		loadHealthChecks(t, view, 2)
+		openStatusTab(t, view)
 
-	// Moving to a check with checkers shows that its status is asked for, and
-	// that the calculated one before it wasn't
-	uitest.OnUI(t, app, func() { view.HealthChecksTable.Select(2, 0) })
+		// Moving to a check with checkers shows that its status is asked for, and
+		// that the calculated one before it wasn't
+		uitest.OnUI(t, app, func() { view.HealthChecksTable.Select(2, 0) })
 
-	uitest.Eventually(t, app, func() bool { return slices.Contains(api.StatusesAskedFor(), "hc-api") },
-		"the status of hc-api to be loaded")
-	if asked := api.StatusesAskedFor(); slices.Contains(asked, "hc-all") {
-		t.Errorf("status asked for = %v, want not the calculated check", asked)
-	}
+		uitest.Eventually(t, app, func() bool { return slices.Contains(api.StatusesAskedFor(), "hc-api") },
+			"the status of hc-api to be loaded")
+		if asked := api.StatusesAskedFor(); slices.Contains(asked, "hc-all") {
+			t.Errorf("status asked for = %v, want not the calculated check", asked)
+		}
+	})
 }
 
 func TestIsOpenableRoute53Resource(t *testing.T) {

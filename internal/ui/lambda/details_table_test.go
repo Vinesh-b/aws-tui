@@ -156,31 +156,33 @@ func TestDetailsTable__TagsAreLoadedIntoTheirSection(t *testing.T) {
 }
 
 func TestDetailsTable__TagsOfPreviousLambdaAreDropped(t *testing.T) {
-	var api = &fakeLambdaApi{
-		tags: map[string]map[string]string{
-			billingArn: {"team": "billing"},
-			ordersArn:  {"team": "orders"},
-		},
-		delays: map[string]time.Duration{billingArn: 300 * time.Millisecond},
-	}
-	var table = newRunningDetailsTable(t, api)
-	var app = table.serviceCtx.App
-
-	uitest.OnUI(t, app, func() {
-		table.RefreshDetails(functionWithArn("billing", billingArn))
-		table.RefreshDetails(functionWithArn("orders", ordersArn))
-	})
-	uitest.Eventually(t, app, func() bool { return table.GetCellText(12, 1) == "orders" })
-	uitest.Consistently(t, app, 500*time.Millisecond, func() bool { return table.GetCellText(12, 1) == "orders" },
-		"a stale lambda replaced the latest one")
-
-	uitest.OnUI(t, app, func() {
-		if got := table.GetCellText(12, 1); got != "orders" {
-			t.Errorf("team tag = %q, want the latest lambda's", got)
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = &fakeLambdaApi{
+			tags: map[string]map[string]string{
+				billingArn: {"team": "billing"},
+				ordersArn:  {"team": "orders"},
+			},
+			delays: map[string]time.Duration{billingArn: 300 * time.Millisecond},
 		}
-		if got := table.GetTitle(); got != "Lambda Details ❬orders❭" {
-			t.Errorf("title = %q, want the latest lambda's", got)
-		}
+		var table = newRunningDetailsTable(t, api)
+		var app = table.serviceCtx.App
+
+		uitest.OnUI(t, app, func() {
+			table.RefreshDetails(functionWithArn("billing", billingArn))
+			table.RefreshDetails(functionWithArn("orders", ordersArn))
+		})
+		uitest.Eventually(t, app, func() bool { return table.GetCellText(12, 1) == "orders" })
+		uitest.Consistently(t, app, 500*time.Millisecond, func() bool { return table.GetCellText(12, 1) == "orders" },
+			"a stale lambda replaced the latest one")
+
+		uitest.OnUI(t, app, func() {
+			if got := table.GetCellText(12, 1); got != "orders" {
+				t.Errorf("team tag = %q, want the latest lambda's", got)
+			}
+			if got := table.GetTitle(); got != "Lambda Details ❬orders❭" {
+				t.Errorf("title = %q, want the latest lambda's", got)
+			}
+		})
 	})
 }
 

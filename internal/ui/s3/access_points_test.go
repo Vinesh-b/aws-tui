@@ -113,37 +113,29 @@ func TestAccessPointsPage__SelectingAnAccessPointShowsItThenItsDetails(t *testin
 }
 
 func TestAccessPointsPage__MovingThroughAccessPointsLoadsOnlyTheOneItStopsOn(t *testing.T) {
-	var api = s3fake.New(s3fake.WithAccessPoints([]s3controlTypes.AccessPoint{
-		newAccessPoint("analytics", "orders"),
-		newAccessPoint("billing", "orders"),
-		newAccessPoint("network", "orders"),
-		newAccessPoint("security", "orders"),
-	}))
-	var view = newAccessPointsTest(t, api)
-	var app = view.AccessPointsTable.serviceCtx.App
-	view.AccessPointsTable.RefreshAccessPoints()
-	uitest.Eventually(t, app, func() bool { return view.AccessPointsTable.GetTable().GetRowCount() == 5 })
-	var before = len(api.AccessPointsAskedFor())
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = s3fake.New(s3fake.WithAccessPoints([]s3controlTypes.AccessPoint{
+			newAccessPoint("analytics", "orders"),
+			newAccessPoint("billing", "orders"),
+			newAccessPoint("network", "orders"),
+			newAccessPoint("security", "orders"),
+		}))
+		var view = newAccessPointsTest(t, api)
+		var app = view.AccessPointsTable.serviceCtx.App
+		view.AccessPointsTable.RefreshAccessPoints()
+		uitest.Eventually(t, app, func() bool { return view.AccessPointsTable.GetTable().GetRowCount() == 5 })
 
-	uitest.OnUI(t, app, func() {
-		for row := 2; row <= 4; row++ {
-			view.AccessPointsTable.Select(row, 0)
-		}
+		uitest.AssertMovingThroughLoadsOnlyWhereItStops(t, app, uitest.MoveThrough[string]{
+			Table: view.AccessPointsTable, Passed: accessPointArnOf("network"), StopsOn: accessPointArnOf("security"),
+			Loaded: api.AccessPointsAskedFor,
+			// The access point is shown straight away, before its details
+			StraightAway: func() {
+				if got := view.DetailsTable.GetCellText(0, 1); got != "security" {
+					t.Errorf("access point shown = %q, want security", got)
+				}
+			},
+		})
 	})
-	// The access point is shown straight away, before its details
-	uitest.OnUI(t, app, func() {
-		if got := view.DetailsTable.GetCellText(0, 1); got != "security" {
-			t.Errorf("access point shown = %q, want security", got)
-		}
-	})
-
-	uitest.Eventually(t, app, func() bool {
-		return slices.Contains(api.AccessPointsAskedFor()[before:], accessPointArnOf("security"))
-	}, "the details of security to be loaded")
-	uitest.Consistently(t, app, 2*core.SelectionLoadDelay, func() bool {
-		var asked = api.AccessPointsAskedFor()[before:]
-		return !slices.Contains(asked, accessPointArnOf("network")) && asked[len(asked)-1] == accessPointArnOf("security")
-	}, "only the first and last access points of the move to have their details loaded")
 }
 
 func TestAccessPointsTable__ErrorIsShown(t *testing.T) {

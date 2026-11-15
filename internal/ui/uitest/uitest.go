@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"aws-tui/internal/ui/core"
@@ -95,6 +97,43 @@ func PressTableRune(table TableView, r rune) {
 
 const asyncTimeout = 3 * time.Second
 
+// bubbleSettleTime is longer than any timer the app sets, such as the delay
+// before the selection of a list loads its row, so that RunApp can let them
+// all fire before it stops an app that runs in a bubble
+const bubbleSettleTime = time.Minute
+
+// bubbled are the tests running in RunInBubble, by the T it gave them
+var bubbled sync.Map
+
+// RunInBubble runs the test in a synctest bubble, where time is fake: it only
+// moves on when every goroutine of the test is waiting, and then jumps to the
+// next timer. Waiting for a delay, such as the selection of a list settling,
+// takes no real time.
+//
+// Use it rather than synctest.Test for tests that call RunApp, which then lets
+// the work left in the background finish before it stops the app. A queued
+// update that the stopped app never runs would leave its goroutine waiting
+// for ever, which ends the whole test binary in a bubble.
+func RunInBubble(t *testing.T, test func(t *testing.T)) {
+	t.Helper()
+	synctest.Test(t, func(t *testing.T) {
+		bubbled.Store(t, struct{}{})
+		t.Cleanup(func() { bubbled.Delete(t) })
+		test(t)
+	})
+}
+
+// cancelAppContext ends the background work of the app, if it was made with
+// NewAppContext
+func cancelAppContext(app *tview.Application) {
+	cancelsMtx.Lock()
+	defer cancelsMtx.Unlock()
+	if cancel, ok := cancels[app]; ok {
+		cancel()
+		delete(cancels, app)
+	}
+}
+
 func RunApp(t *testing.T, app *tview.Application) tcell.SimulationScreen {
 	t.Helper()
 	var screen = tcell.NewSimulationScreen("UTF-8")
@@ -108,15 +147,17 @@ func RunApp(t *testing.T, app *tview.Application) tcell.SimulationScreen {
 		defer close(stopped)
 		_ = app.Run()
 	}()
+	var _, inBubble = bubbled.Load(t)
 	t.Cleanup(func() {
+		if inBubble {
+			cancelAppContext(app)
+			// The timers and loads still under way queue updates, which the
+			// app has to run for them to end. Fake time passes at once.
+			time.Sleep(bubbleSettleTime) // sleep-ok: fake time, in a synctest bubble
+		}
 		app.Stop()
 		<-stopped
-		cancelsMtx.Lock()
-		defer cancelsMtx.Unlock()
-		if cancel, ok := cancels[app]; ok {
-			cancel()
-			delete(cancels, app)
-		}
+		cancelAppContext(app)
 	})
 	OnUI(t, app, func() {})
 	return screen
@@ -273,6 +314,54 @@ func DetailsRowOf(table *core.DetailsTable, label string) int {
 		}
 	}
 	return -1
+}
+
+// MoveThrough is a quick move of the selection of a list from the second row
+// below its headings to the fourth, for AssertMovingThroughLoadsOnlyWhereItStops
+type MoveThrough[T comparable] struct {
+	// Table is the list, with at least four rows below its headings
+	Table TableView
+	// Passed is the item of the third row, which the selection passes through,
+	// and StopsOn the item of the fourth, where it stops
+	Passed, StopsOn T
+	// Loaded gives every item the api was asked to load so far, oldest first
+	Loaded func() []T
+	// StraightAway, if set, checks what follows the selection without waiting
+	// for it to settle. It runs on the UI goroutine as soon as the selection
+	// stops, before the item it stops on can be loaded. It reports with
+	// t.Errorf, as t.Fatalf would end the UI goroutine and hang the test.
+	StraightAway func()
+}
+
+// AssertMovingThroughLoadsOnlyWhereItStops moves the selection quickly
+// through the rows and checks that the item it stops on is loaded, last, and
+// that the item it passes through never is. The second row may be loaded, as
+// the first move after a quiet spell loads straight away.
+//
+// Run it in RunInBubble, so that waiting for the selection to settle
+// takes no real time.
+func AssertMovingThroughLoadsOnlyWhereItStops[T comparable](
+	t *testing.T, app *tview.Application, move MoveThrough[T],
+) {
+	t.Helper()
+	var before = len(move.Loaded())
+	OnUI(t, app, func() {
+		for row := 2; row <= 4; row++ {
+			move.Table.GetTable().Select(row, 0)
+		}
+		if move.StraightAway != nil {
+			move.StraightAway()
+		}
+	})
+
+	Eventually(t, app, func() bool {
+		return slices.Contains(move.Loaded()[before:], move.StopsOn)
+	}, fmt.Sprintf("%v, where the selection stopped, to be loaded", move.StopsOn))
+	Consistently(t, app, 2*core.SelectionLoadDelay, func() bool {
+		var loaded = move.Loaded()[before:]
+		return !slices.Contains(loaded, move.Passed) && loaded[len(loaded)-1] == move.StopsOn
+	}, fmt.Sprintf("%v, which the selection passed through, never to be loaded, and %v to be loaded last",
+		move.Passed, move.StopsOn))
 }
 
 // AwaitDetailsTag waits for the tags section of the table to have the tag

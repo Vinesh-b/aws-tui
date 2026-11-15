@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"aws-tui/internal/awsapi"
-	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/s3/s3fake"
 	"aws-tui/internal/ui/uitest"
 
@@ -89,51 +88,45 @@ func TestAccessPointsPage__AccessPointWithoutAPolicySaysSo(t *testing.T) {
 }
 
 func TestAccessPointsPage__SelectingAnotherAccessPointWithThePolicyOpenLoadsItsPolicy(t *testing.T) {
-	var api = s3fake.New(
-		s3fake.WithAccessPoints([]s3controlTypes.AccessPoint{
-			newAccessPoint("analytics", "orders"),
-			newAccessPoint("reports", "orders"),
-		}),
-		s3fake.WithAccessPointPolicy(accessPointArnOf("analytics"), `{"Statement":"analytics-only"}`),
-		s3fake.WithAccessPointPolicy(accessPointArnOf("reports"), reportsPolicy),
-	)
-	var view = newAccessPointsPageTest(t, api)
-	openPolicyTab(t, view)
-	awaitPolicyText(t, view, "analytics-only")
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = s3fake.New(
+			s3fake.WithAccessPoints([]s3controlTypes.AccessPoint{
+				newAccessPoint("analytics", "orders"),
+				newAccessPoint("reports", "orders"),
+			}),
+			s3fake.WithAccessPointPolicy(accessPointArnOf("analytics"), `{"Statement":"analytics-only"}`),
+			s3fake.WithAccessPointPolicy(accessPointArnOf("reports"), reportsPolicy),
+		)
+		var view = newAccessPointsPageTest(t, api)
+		openPolicyTab(t, view)
+		awaitPolicyText(t, view, "analytics-only")
 
-	uitest.OnUI(t, view.AccessPointsTable.serviceCtx.App, func() { view.AccessPointsTable.Select(2, 0) })
+		uitest.OnUI(t, view.AccessPointsTable.serviceCtx.App, func() { view.AccessPointsTable.Select(2, 0) })
 
-	awaitPolicyText(t, view, `"Action": "s3:GetObject"`)
+		awaitPolicyText(t, view, `"Action": "s3:GetObject"`)
+	})
 }
 
 func TestAccessPointsPage__MovingThroughAccessPointsWithThePolicyOpenLoadsOnlyTheOneItStopsOn(t *testing.T) {
-	var api = s3fake.New(s3fake.WithAccessPoints([]s3controlTypes.AccessPoint{
-		newAccessPoint("analytics", "orders"),
-		newAccessPoint("billing", "orders"),
-		newAccessPoint("network", "orders"),
-		newAccessPoint("security", "orders"),
-	}))
-	var view = newAccessPointsPageTest(t, api)
-	var app = view.AccessPointsTable.serviceCtx.App
-	openPolicyTab(t, view)
-	uitest.Eventually(t, app, func() bool {
-		return slices.Contains(api.PoliciesAskedFor(), accessPointArnOf("analytics"))
-	}, "the policy of analytics to be loaded")
-	var before = len(api.PoliciesAskedFor())
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = s3fake.New(s3fake.WithAccessPoints([]s3controlTypes.AccessPoint{
+			newAccessPoint("analytics", "orders"),
+			newAccessPoint("billing", "orders"),
+			newAccessPoint("network", "orders"),
+			newAccessPoint("security", "orders"),
+		}))
+		var view = newAccessPointsPageTest(t, api)
+		var app = view.AccessPointsTable.serviceCtx.App
+		openPolicyTab(t, view)
+		uitest.Eventually(t, app, func() bool {
+			return slices.Contains(api.PoliciesAskedFor(), accessPointArnOf("analytics"))
+		}, "the policy of analytics to be loaded")
 
-	uitest.OnUI(t, app, func() {
-		for row := 2; row <= 4; row++ {
-			view.AccessPointsTable.Select(row, 0)
-		}
+		uitest.AssertMovingThroughLoadsOnlyWhereItStops(t, app, uitest.MoveThrough[string]{
+			Table: view.AccessPointsTable, Passed: accessPointArnOf("network"), StopsOn: accessPointArnOf("security"),
+			Loaded: api.PoliciesAskedFor,
+		})
 	})
-
-	uitest.Eventually(t, app, func() bool {
-		return slices.Contains(api.PoliciesAskedFor()[before:], accessPointArnOf("security"))
-	}, "the policy of security to be loaded")
-	uitest.Consistently(t, app, 2*core.SelectionLoadDelay, func() bool {
-		var asked = api.PoliciesAskedFor()[before:]
-		return !slices.Contains(asked, accessPointArnOf("network")) && asked[len(asked)-1] == accessPointArnOf("security")
-	}, "only the first and last access points of the move to have their policy loaded")
 }
 
 func TestAccessPointsPage__PolicyErrorIsShownAndLoadedAgainWhenTheTabIsReopened(t *testing.T) {

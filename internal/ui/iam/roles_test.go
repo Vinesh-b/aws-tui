@@ -157,31 +157,33 @@ func TestRoleDetailsTable__RoleWithoutLastUseOrBoundaryLeavesSectionsOut(t *test
 }
 
 func TestRoleDetailsTable__SlowerEarlierRoleDoesNotReplaceLatest(t *testing.T) {
-	var billing = newDetailsRole()
-	billing.RoleName = aws.String("billing")
-	var api = &fakeIamApi{
-		rolesByName: map[string]*types.Role{"billing": billing, "orders": newDetailsRole()},
-		roleDelay:   map[string]time.Duration{"billing": 300 * time.Millisecond},
-	}
-	var serviceCtx = uitest.NewServiceContextWith[awsapi.IamApi](api)
-	var table = NewRoleDetailsTable(serviceCtx)
-	uitest.RunApp(t, serviceCtx.App)
-
-	uitest.OnUI(t, serviceCtx.App, func() {
-		table.RefreshDetails("billing")
-		table.RefreshDetails("orders")
-	})
-	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetCellText(0, 1) == "orders" })
-	uitest.Consistently(t, serviceCtx.App, 500*time.Millisecond, func() bool { return table.GetCellText(0, 1) == "orders" },
-		"a stale role replaced the latest one")
-
-	uitest.OnUI(t, serviceCtx.App, func() {
-		if got := table.GetCellText(0, 1); got != "orders" {
-			t.Errorf("name = %q, want orders", got)
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var billing = newDetailsRole()
+		billing.RoleName = aws.String("billing")
+		var api = &fakeIamApi{
+			rolesByName: map[string]*types.Role{"billing": billing, "orders": newDetailsRole()},
+			roleDelay:   map[string]time.Duration{"billing": 300 * time.Millisecond},
 		}
-		if got := table.GetTitle(); got != "Role Details ❬orders❭" {
-			t.Errorf("title = %q, want the latest role's", got)
-		}
+		var serviceCtx = uitest.NewServiceContextWith[awsapi.IamApi](api)
+		var table = NewRoleDetailsTable(serviceCtx)
+		uitest.RunApp(t, serviceCtx.App)
+
+		uitest.OnUI(t, serviceCtx.App, func() {
+			table.RefreshDetails("billing")
+			table.RefreshDetails("orders")
+		})
+		uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetCellText(0, 1) == "orders" })
+		uitest.Consistently(t, serviceCtx.App, 500*time.Millisecond, func() bool { return table.GetCellText(0, 1) == "orders" },
+			"a stale role replaced the latest one")
+
+		uitest.OnUI(t, serviceCtx.App, func() {
+			if got := table.GetCellText(0, 1); got != "orders" {
+				t.Errorf("name = %q, want orders", got)
+			}
+			if got := table.GetTitle(); got != "Role Details ❬orders❭" {
+				t.Errorf("title = %q, want the latest role's", got)
+			}
+		})
 	})
 }
 
@@ -223,28 +225,30 @@ func TestRolesPage__SelectingRoleLoadsItsDetailsTrustPolicyAndPolicies(t *testin
 }
 
 func TestPrincipalPoliciesView__SlowDocumentOfPreviousPolicyIsDropped(t *testing.T) {
-	var api = &fakeIamApi{
-		principalPolicies: []awsapi.PrincipalPolicy{{Name: "slow"}, {Name: "fast"}},
-		documents:         map[string]string{"slow": `{"Name":"slow"}`, "fast": `{"Name":"fast"}`},
-		documentDelay:     map[string]time.Duration{"slow": 200 * time.Millisecond},
-	}
-	var view = newRolesPage(t, api)
-	var app = view.serviceCtx.App
-	var policies = view.PoliciesView
-
-	uitest.OnUI(t, app, func() { policies.Refresh("orders") })
-	uitest.Eventually(t, app, func() bool { return policies.PoliciesTable.GetTable().GetRowCount() == 3 })
-	uitest.OnUI(t, app, func() { policies.PoliciesTable.Select(2, 0) })
-
-	uitest.Eventually(t, app, func() bool { return policies.DocumentView.GetText() == "{\n  \"Name\": \"fast\"\n}" })
-	uitest.Consistently(t, app, 300*time.Millisecond, func() bool { return policies.DocumentView.GetText() == "{\n  \"Name\": \"fast\"\n}" },
-		"a slower policy replaced the selected one")
-	uitest.OnUI(t, app, func() {
-		if got := policies.DocumentView.GetText(); got != "{\n  \"Name\": \"fast\"\n}" {
-			t.Errorf("document = %q, want the selected policy's", got)
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = &fakeIamApi{
+			principalPolicies: []awsapi.PrincipalPolicy{{Name: "slow"}, {Name: "fast"}},
+			documents:         map[string]string{"slow": `{"Name":"slow"}`, "fast": `{"Name":"fast"}`},
+			documentDelay:     map[string]time.Duration{"slow": 200 * time.Millisecond},
 		}
-		if got := policies.DocumentView.GetTitle(); got != "Policy Document ❬fast❭" {
-			t.Errorf("document title = %q, want the selected policy's", got)
-		}
+		var view = newRolesPage(t, api)
+		var app = view.serviceCtx.App
+		var policies = view.PoliciesView
+
+		uitest.OnUI(t, app, func() { policies.Refresh("orders") })
+		uitest.Eventually(t, app, func() bool { return policies.PoliciesTable.GetTable().GetRowCount() == 3 })
+		uitest.OnUI(t, app, func() { policies.PoliciesTable.Select(2, 0) })
+
+		uitest.Eventually(t, app, func() bool { return policies.DocumentView.GetText() == "{\n  \"Name\": \"fast\"\n}" })
+		uitest.Consistently(t, app, 300*time.Millisecond, func() bool { return policies.DocumentView.GetText() == "{\n  \"Name\": \"fast\"\n}" },
+			"a slower policy replaced the selected one")
+		uitest.OnUI(t, app, func() {
+			if got := policies.DocumentView.GetText(); got != "{\n  \"Name\": \"fast\"\n}" {
+				t.Errorf("document = %q, want the selected policy's", got)
+			}
+			if got := policies.DocumentView.GetTitle(); got != "Policy Document ❬fast❭" {
+				t.Errorf("document title = %q, want the selected policy's", got)
+			}
+		})
 	})
 }

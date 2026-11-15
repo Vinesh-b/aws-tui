@@ -152,15 +152,17 @@ func TestDeleteTopic__DeletingTheOnlyTopicEmptiesTheOtherViews(t *testing.T) {
 }
 
 func TestDeleteTopic__DeletingOneOfManyShowsTheNextTopic(t *testing.T) {
-	var f = newDeleteTopicFixture(t, snsfake.New(snsfake.WithTopics([]string{topicArn("billing"), topicArn("orders")})))
-	uitest.Eventually(t, f.app(), func() bool { return f.page.PublishView.selectedTopicArn == topicArn("billing") })
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var f = newDeleteTopicFixture(t, snsfake.New(snsfake.WithTopics([]string{topicArn("billing"), topicArn("orders")})))
+		uitest.Eventually(t, f.app(), func() bool { return f.page.PublishView.selectedTopicArn == topicArn("billing") })
 
-	f.open(t)
-	f.confirm(t)
+		f.open(t)
+		f.confirm(t)
 
-	uitest.Eventually(t, f.app(), func() bool {
-		return f.page.PublishView.selectedTopicArn == topicArn("orders") &&
-			f.page.TopicDetailsTable.GetCellText(0, 1) == "orders"
+		uitest.Eventually(t, f.app(), func() bool {
+			return f.page.PublishView.selectedTopicArn == topicArn("orders") &&
+				f.page.TopicDetailsTable.GetCellText(0, 1) == "orders"
+		})
 	})
 }
 

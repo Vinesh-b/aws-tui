@@ -54,23 +54,25 @@ func TestSecretsTable__RefreshLoadsSecretsFromApi(t *testing.T) {
 }
 
 func TestHomeView__ValueStaysHiddenUntilEnterIsPressed(t *testing.T) {
-	var api = secretsmanagerfake.New(
-		secretsmanagerfake.WithSecrets([]types.SecretListEntry{newSecret("db/password", "Database")}),
-		secretsmanagerfake.WithValue("hunter2"),
-	)
-	var appCtx = uitest.NewAppContext()
-	var page = NewSecretsManagerHomeView(appCtx, api)
-	var screen = uitest.ShowPage(t, appCtx.App, page)
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = secretsmanagerfake.New(
+			secretsmanagerfake.WithSecrets([]types.SecretListEntry{newSecret("db/password", "Database")}),
+			secretsmanagerfake.WithValue("hunter2"),
+		)
+		var appCtx = uitest.NewAppContext()
+		var page = NewSecretsManagerHomeView(appCtx, api)
+		var screen = uitest.ShowPage(t, appCtx.App, page)
 
-	uitest.PressRune(t, appCtx.App, core.APP_KEY_BINDINGS.Reset)
-	uitest.AwaitScreenText(t, appCtx.App, screen, "db/password")
-	uitest.Consistently(t, appCtx.App, 200*time.Millisecond, func() bool {
-		return !strings.Contains(uitest.ScreenText(screen), "hunter2")
-	}, "the value stays hidden before Enter")
+		uitest.PressRune(t, appCtx.App, core.APP_KEY_BINDINGS.Reset)
+		uitest.AwaitScreenText(t, appCtx.App, screen, "db/password")
+		uitest.Consistently(t, appCtx.App, 200*time.Millisecond, func() bool {
+			return !strings.Contains(uitest.ScreenText(screen), "hunter2")
+		}, "the value stays hidden before Enter")
 
-	uitest.PressKey(t, appCtx.App, tcell.KeyEnter)
+		uitest.PressKey(t, appCtx.App, tcell.KeyEnter)
 
-	uitest.AwaitScreenText(t, appCtx.App, screen, "hunter2")
+		uitest.AwaitScreenText(t, appCtx.App, screen, "hunter2")
+	})
 }
 
 func TestHomeView__DetailsAreInTheFirstTab(t *testing.T) {

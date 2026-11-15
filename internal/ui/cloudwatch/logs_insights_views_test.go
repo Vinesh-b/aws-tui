@@ -211,20 +211,22 @@ func TestInsightsPageView__RunningStatusShowsMatchedAndScannedRecords(t *testing
 }
 
 func TestInsightsPageView__QueryIsPolledUntilItIsDoneHoweverLongItTakes(t *testing.T) {
-	var responses []awsapi.InsightsQueryResults
-	for range 30 {
-		responses = append(responses, runningWith())
-	}
-	responses = append(responses, completeWith(resultRow("@message", "late")))
-	var api = &fakeInsightsApi{responses: responses}
-	var view = newInsightsPageView(t, api)
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var responses []awsapi.InsightsQueryResults
+		for range 30 {
+			responses = append(responses, runningWith())
+		}
+		responses = append(responses, completeWith(resultRow("@message", "late")))
+		var api = &fakeInsightsApi{responses: responses}
+		var view = newInsightsPageView(t, api)
 
-	runQuery(t, view)
+		runQuery(t, view)
 
-	uitest.Eventually(t, view.serviceCtx.App, func() bool { return view.ResultsTable.GetCellText(1, 0) == "late" })
-	if got := api.pollCount(); got != 31 {
-		t.Errorf("polls = %d, want 31", got)
-	}
+		uitest.Eventually(t, view.serviceCtx.App, func() bool { return view.ResultsTable.GetCellText(1, 0) == "late" })
+		if got := api.pollCount(); got != 31 {
+			t.Errorf("polls = %d, want 31", got)
+		}
+	})
 }
 
 func TestInsightsPageView__FailedQueryIsReportedWithItsStatus(t *testing.T) {
@@ -243,25 +245,27 @@ func TestInsightsPageView__FailedQueryIsReportedWithItsStatus(t *testing.T) {
 }
 
 func TestInsightsPageView__StoppingStopsTheQueryAndKeepsTheResultsSoFar(t *testing.T) {
-	var api = &fakeInsightsApi{responses: []awsapi.InsightsQueryResults{runningWith(resultRow("@message", "one"))}}
-	var view = newInsightsPageView(t, api)
-	var app = view.serviceCtx.App
-	runQuery(t, view)
-	uitest.Eventually(t, app, func() bool { return view.ResultsTable.GetCellText(1, 0) == "one" })
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = &fakeInsightsApi{responses: []awsapi.InsightsQueryResults{runningWith(resultRow("@message", "one"))}}
+		var view = newInsightsPageView(t, api)
+		var app = view.serviceCtx.App
+		runQuery(t, view)
+		uitest.Eventually(t, app, func() bool { return view.ResultsTable.GetCellText(1, 0) == "one" })
 
-	uitest.OnUI(t, app, func() { view.ResultsTable.StopQuery() })
+		uitest.OnUI(t, app, func() { view.ResultsTable.StopQuery() })
 
-	uitest.Eventually(t, app, func() bool { return strings.Contains(view.ResultsTable.GetTitle(), "Cancelled") })
-	if got := api.stoppedQueries(); !slices.Equal(got, []string{"query-1"}) {
-		t.Errorf("queries stopped = %v, want [query-1]", got)
-	}
-	var polls = api.pollCount()
-	uitest.Consistently(t, app, 50*time.Millisecond, func() bool { return api.pollCount() <= polls+1 },
-		"the query was still polled after it was stopped")
-	uitest.OnUI(t, app, func() {
-		if got := view.ResultsTable.GetCellText(1, 0); got != "one" {
-			t.Errorf("results after stopping = %q, want the ones so far", got)
+		uitest.Eventually(t, app, func() bool { return strings.Contains(view.ResultsTable.GetTitle(), "Cancelled") })
+		if got := api.stoppedQueries(); !slices.Equal(got, []string{"query-1"}) {
+			t.Errorf("queries stopped = %v, want [query-1]", got)
 		}
+		var polls = api.pollCount()
+		uitest.Consistently(t, app, 50*time.Millisecond, func() bool { return api.pollCount() <= polls+1 },
+			"the query was still polled after it was stopped")
+		uitest.OnUI(t, app, func() {
+			if got := view.ResultsTable.GetCellText(1, 0); got != "one" {
+				t.Errorf("results after stopping = %q, want the ones so far", got)
+			}
+		})
 	})
 }
 

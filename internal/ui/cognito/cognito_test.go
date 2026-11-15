@@ -245,36 +245,26 @@ func TestUserPoolsPage__SelectingAPoolShowsItThenItsSettings(t *testing.T) {
 }
 
 func TestUserPoolsPage__MovingThroughPoolsLoadsOnlyTheOneItStopsOn(t *testing.T) {
-	var names = []string{"a", "b", "c", "d"}
-	var pools []idpTypes.UserPoolDescriptionType
-	for _, name := range names {
-		pools = append(pools, newUserPoolSummary(name))
-	}
-	var api = cognitofake.New(cognitofake.WithUserPools(pools))
-	var view = newUserPoolsTest(t, api)
-	var app = view.UserPoolsTable.serviceCtx.App
-	loadUserPools(t, view, len(names))
-	var before = len(api.UserPoolsAskedFor())
-
-	uitest.OnUI(t, app, func() {
-		for row := 2; row <= 4; row++ {
-			view.UserPoolsTable.Select(row, 0)
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var names = []string{"a", "b", "c", "d"}
+		var pools []idpTypes.UserPoolDescriptionType
+		for _, name := range names {
+			pools = append(pools, newUserPoolSummary(name))
 		}
-	})
-	// The pool is shown straight away, before it is loaded
-	uitest.OnUI(t, app, func() {
-		if got := view.DetailsTable.GetCellText(0, 1); got != "d" {
-			t.Errorf("user pool shown = %q, want d", got)
-		}
-	})
+		var api = cognitofake.New(cognitofake.WithUserPools(pools))
+		var view = newUserPoolsTest(t, api)
+		loadUserPools(t, view, len(names))
 
-	uitest.Eventually(t, app, func() bool {
-		return slices.Contains(api.UserPoolsAskedFor()[before:], poolIdOf("d"))
-	}, "d to be loaded")
-	uitest.Consistently(t, app, 2*core.SelectionLoadDelay, func() bool {
-		var asked = api.UserPoolsAskedFor()[before:]
-		return !slices.Contains(asked, poolIdOf("c")) && asked[len(asked)-1] == poolIdOf("d")
-	}, "only the first and last user pools of the move to be loaded")
+		uitest.AssertMovingThroughLoadsOnlyWhereItStops(t, view.UserPoolsTable.serviceCtx.App, uitest.MoveThrough[string]{
+			Table: view.UserPoolsTable, Passed: poolIdOf("c"), StopsOn: poolIdOf("d"), Loaded: api.UserPoolsAskedFor,
+			// The pool is shown straight away, before it is loaded
+			StraightAway: func() {
+				if got := view.DetailsTable.GetCellText(0, 1); got != "d" {
+					t.Errorf("user pool shown = %q, want d", got)
+				}
+			},
+		})
+	})
 }
 
 func TestUserPoolsPage__UsersAreOnlyLoadedOnceTheirTabIsOpened(t *testing.T) {
@@ -334,24 +324,26 @@ func TestUserPoolsPage__MovingDownFromTheLastUserLoadsTheNextPage(t *testing.T) 
 }
 
 func TestUserPoolsPage__SelectingAnotherPoolWithTheUsersOpenLoadsItsFirstPage(t *testing.T) {
-	var api = cognitofake.New(
-		cognitofake.WithUserPools([]idpTypes.UserPoolDescriptionType{newUserPoolSummary("admins"), newUserPoolSummary("customers")}),
-		cognitofake.WithUserPages(poolIdOf("admins"), []idpTypes.UserType{newUser("root", idpTypes.UserStatusTypeConfirmed)}),
-		cognitofake.WithUserPages(poolIdOf("customers"), []idpTypes.UserType{newUser("alice", idpTypes.UserStatusTypeConfirmed)}),
-	)
-	var view = newUserPoolsTest(t, api)
-	var app = view.UserPoolsTable.serviceCtx.App
-	loadUserPools(t, view, 2)
-	openUsersTab(t, view)
-	uitest.AwaitRows(t, app, view.UsersTable, []core.TableRow{userHeadings, userRow("root", "CONFIRMED")})
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = cognitofake.New(
+			cognitofake.WithUserPools([]idpTypes.UserPoolDescriptionType{newUserPoolSummary("admins"), newUserPoolSummary("customers")}),
+			cognitofake.WithUserPages(poolIdOf("admins"), []idpTypes.UserType{newUser("root", idpTypes.UserStatusTypeConfirmed)}),
+			cognitofake.WithUserPages(poolIdOf("customers"), []idpTypes.UserType{newUser("alice", idpTypes.UserStatusTypeConfirmed)}),
+		)
+		var view = newUserPoolsTest(t, api)
+		var app = view.UserPoolsTable.serviceCtx.App
+		loadUserPools(t, view, 2)
+		openUsersTab(t, view)
+		uitest.AwaitRows(t, app, view.UsersTable, []core.TableRow{userHeadings, userRow("root", "CONFIRMED")})
 
-	uitest.OnUI(t, app, func() { view.UserPoolsTable.Select(2, 0) })
+		uitest.OnUI(t, app, func() { view.UserPoolsTable.Select(2, 0) })
 
-	awaitRowsWithText(t, app, view.UsersTable, 1, 0, "alice", []core.TableRow{userHeadings, userRow("alice", "CONFIRMED")})
-	var calls = api.UsersCalls()
-	if last := calls[len(calls)-1]; last != (cognitofake.UsersCall{UserPoolId: poolIdOf("customers"), Reset: true}) {
-		t.Errorf("last users call = %v, want the first page of customers", last)
-	}
+		awaitRowsWithText(t, app, view.UsersTable, 1, 0, "alice", []core.TableRow{userHeadings, userRow("alice", "CONFIRMED")})
+		var calls = api.UsersCalls()
+		if last := calls[len(calls)-1]; last != (cognitofake.UsersCall{UserPoolId: poolIdOf("customers"), Reset: true}) {
+			t.Errorf("last users call = %v, want the first page of customers", last)
+		}
+	})
 }
 
 func TestUserPoolsPage__UsersErrorIsShownAndLoadedAgainWhenTheTabIsReopened(t *testing.T) {
@@ -552,33 +544,35 @@ func TestIdentityPoolsPage__RolesShowTheDefaultsThenEachMapping(t *testing.T) {
 }
 
 func TestIdentityPoolsPage__RolesOfThePoolSelectedBeforeAreNotKept(t *testing.T) {
-	var api = shopIdentityPoolApi(cognitofake.WithIdentityPools([]idTypes.IdentityPoolShortDescription{
-		{IdentityPoolId: aws.String(shopIdentityPoolId), IdentityPoolName: aws.String("shop")},
-		{IdentityPoolId: aws.String("us-east-1:other"), IdentityPoolName: aws.String("other")},
-	}))
-	var view = newIdentityPoolsTest(t, api)
-	var app = view.IdentityPoolsTable.serviceCtx.App
-	// The details fail with the roles, and are captured so they aren't shown
-	var callback, received = uitest.CaptureErrors()
-	uitest.OnUI(t, app, func() {
-		view.RolesTable.ErrorMessageCallback = callback
-		view.DetailsTable.ErrorMessageCallback = callback
-	})
-	view.IdentityPoolsTable.RefreshIdentityPools()
-	uitest.Eventually(t, app, func() bool { return view.RolesTable.GetCellText(0, 1) == authRoleArn },
-		"the roles of shop to be shown")
-	// other can't be loaded, so only the roles of shop could be shown for it
-	api.SetErr(errors.New("ResourceNotFoundException: other"))
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = shopIdentityPoolApi(cognitofake.WithIdentityPools([]idTypes.IdentityPoolShortDescription{
+			{IdentityPoolId: aws.String(shopIdentityPoolId), IdentityPoolName: aws.String("shop")},
+			{IdentityPoolId: aws.String("us-east-1:other"), IdentityPoolName: aws.String("other")},
+		}))
+		var view = newIdentityPoolsTest(t, api)
+		var app = view.IdentityPoolsTable.serviceCtx.App
+		// The details fail with the roles, and are captured so they aren't shown
+		var callback, received = uitest.CaptureErrors()
+		uitest.OnUI(t, app, func() {
+			view.RolesTable.ErrorMessageCallback = callback
+			view.DetailsTable.ErrorMessageCallback = callback
+		})
+		view.IdentityPoolsTable.RefreshIdentityPools()
+		uitest.Eventually(t, app, func() bool { return view.RolesTable.GetCellText(0, 1) == authRoleArn },
+			"the roles of shop to be shown")
+		// other can't be loaded, so only the roles of shop could be shown for it
+		api.SetErr(errors.New("ResourceNotFoundException: other"))
 
-	uitest.OnUI(t, app, func() { view.IdentityPoolsTable.Select(2, 0) })
+		uitest.OnUI(t, app, func() { view.IdentityPoolsTable.Select(2, 0) })
 
-	if got := uitest.AwaitError(t, received); !strings.Contains(got, "ResourceNotFoundException") {
-		t.Errorf("error = %q, want the error of the api", got)
-	}
-	uitest.OnUI(t, app, func() {
-		if got := view.RolesTable.GetCellText(0, 0); got != "" {
-			t.Errorf("roles table starts with %q, want nothing as none are loaded for other", got)
+		if got := uitest.AwaitError(t, received); !strings.Contains(got, "ResourceNotFoundException") {
+			t.Errorf("error = %q, want the error of the api", got)
 		}
+		uitest.OnUI(t, app, func() {
+			if got := view.RolesTable.GetCellText(0, 0); got != "" {
+				t.Errorf("roles table starts with %q, want nothing as none are loaded for other", got)
+			}
+		})
 	})
 }
 

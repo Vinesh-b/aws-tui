@@ -185,26 +185,28 @@ func TestDetailsPageView__FirstLoadDoesNotLoadDetailsWithoutATopicArn(t *testing
 		"no topics": nil,
 	} {
 		t.Run(name, func(t *testing.T) {
-			var api = snsfake.New(snsfake.WithTopics(topics), snsfake.WithAttributes(newTopicAttributes()))
-			var serviceCtx = uitest.NewServiceContextWith[awsapi.SnsApi](api)
-			var view = NewSnsDetailsPageView(NewTopicListTable(serviceCtx), NewTopicDetailsTable(serviceCtx), serviceCtx)
-			var callback, received = uitest.CaptureErrors()
-			view.TopicDetailsTable.ErrorMessageCallback = callback
-			uitest.RunApp(t, serviceCtx.App)
+			uitest.RunInBubble(t, func(t *testing.T) {
+				var api = snsfake.New(snsfake.WithTopics(topics), snsfake.WithAttributes(newTopicAttributes()))
+				var serviceCtx = uitest.NewServiceContextWith[awsapi.SnsApi](api)
+				var view = NewSnsDetailsPageView(NewTopicListTable(serviceCtx), NewTopicDetailsTable(serviceCtx), serviceCtx)
+				var callback, received = uitest.CaptureErrors()
+				view.TopicDetailsTable.ErrorMessageCallback = callback
+				uitest.RunApp(t, serviceCtx.App)
 
-			view.TopicListTable.RefreshTopics(true)
-			uitest.Eventually(t, serviceCtx.App, func() bool {
-				return len(topics) == 0 || view.TopicListTable.GetSelectedTopic() != ""
+				view.TopicListTable.RefreshTopics(true)
+				uitest.Eventually(t, serviceCtx.App, func() bool {
+					return len(topics) == 0 || view.TopicListTable.GetSelectedTopic() != ""
+				})
+
+				select {
+				case message := <-received:
+					t.Fatalf("Unexpected error on first load: %q", message)
+				case <-time.After(200 * time.Millisecond):
+				}
+				if slices.ContainsFunc(api.Calls(), func(call string) bool { return strings.HasSuffix(call, " ") }) {
+					t.Fatalf("Details were loaded without a topic ARN: %v", api.Calls())
+				}
 			})
-
-			select {
-			case message := <-received:
-				t.Fatalf("Unexpected error on first load: %q", message)
-			case <-time.After(200 * time.Millisecond):
-			}
-			if slices.ContainsFunc(api.Calls(), func(call string) bool { return strings.HasSuffix(call, " ") }) {
-				t.Fatalf("Details were loaded without a topic ARN: %v", api.Calls())
-			}
 		})
 	}
 }

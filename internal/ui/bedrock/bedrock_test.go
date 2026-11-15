@@ -2,7 +2,6 @@ package bedrock
 
 import (
 	"errors"
-	"slices"
 	"strings"
 	"testing"
 
@@ -231,57 +230,49 @@ func TestFoundationModelsPage__SelectingAModelShowsItThenWhetherItCanBeUsed(t *t
 }
 
 func TestFoundationModelsPage__MovingThroughModelsAsksOnlyForTheOneItStopsOn(t *testing.T) {
-	var ids = []string{"a.one-v1", "b.two-v1", "c.three-v1", "d.four-v1"}
-	var models []types.FoundationModelSummary
-	for _, id := range ids {
-		models = append(models, newModel("Test", id, id, types.ModelModalityText, types.ModelModalityText))
-	}
-	var api = bedrockfake.New(bedrockfake.WithModels(models))
-	var view = newModelsTest(t, api)
-	var app = view.ModelsTable.serviceCtx.App
-	loadModels(t, view, len(ids))
-	var before = len(api.AvailabilityAskedFor())
-
-	uitest.OnUI(t, app, func() {
-		for row := 2; row <= 4; row++ {
-			view.ModelsTable.Select(row, 0)
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var ids = []string{"a.one-v1", "b.two-v1", "c.three-v1", "d.four-v1"}
+		var models []types.FoundationModelSummary
+		for _, id := range ids {
+			models = append(models, newModel("Test", id, id, types.ModelModalityText, types.ModelModalityText))
 		}
-	})
-	// The model is shown straight away, before whether it can be used is
-	uitest.OnUI(t, app, func() {
-		if got := view.DetailsTable.GetCellText(1, 1); got != "d.four-v1" {
-			t.Errorf("model shown = %q, want d.four-v1", got)
-		}
-	})
+		var api = bedrockfake.New(bedrockfake.WithModels(models))
+		var view = newModelsTest(t, api)
+		loadModels(t, view, len(ids))
 
-	uitest.Eventually(t, app, func() bool {
-		return slices.Contains(api.AvailabilityAskedFor()[before:], "d.four-v1")
-	}, "d.four-v1 to be asked for")
-	uitest.Consistently(t, app, 2*core.SelectionLoadDelay, func() bool {
-		var asked = api.AvailabilityAskedFor()[before:]
-		return !slices.Contains(asked, "c.three-v1") && asked[len(asked)-1] == "d.four-v1"
-	}, "only the first and last models of the move to be asked for")
+		uitest.AssertMovingThroughLoadsOnlyWhereItStops(t, view.ModelsTable.serviceCtx.App, uitest.MoveThrough[string]{
+			Table: view.ModelsTable, Passed: "c.three-v1", StopsOn: "d.four-v1", Loaded: api.AvailabilityAskedFor,
+			// The model is shown straight away, before whether it can be used is
+			StraightAway: func() {
+				if got := view.DetailsTable.GetCellText(1, 1); got != "d.four-v1" {
+					t.Errorf("model shown = %q, want d.four-v1", got)
+				}
+			},
+		})
+	})
 }
 
 func TestFoundationModelsPage__ProfilesOfTheModelAreShownOnceTheirTabIsOpened(t *testing.T) {
-	var api = bedrockfake.New(
-		bedrockfake.WithModels([]types.FoundationModelSummary{haiku()}),
-		bedrockfake.WithProfiles(testProfiles()),
-	)
-	var view = newModelsTest(t, api)
-	var app = view.ModelsTable.serviceCtx.App
-	loadModels(t, view, 1)
-	uitest.Consistently(t, app, 2*core.SelectionLoadDelay, func() bool { return api.ProfileLists() == 0 },
-		"the profiles not to be loaded before the tab is opened")
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = bedrockfake.New(
+			bedrockfake.WithModels([]types.FoundationModelSummary{haiku()}),
+			bedrockfake.WithProfiles(testProfiles()),
+		)
+		var view = newModelsTest(t, api)
+		var app = view.ModelsTable.serviceCtx.App
+		loadModels(t, view, 1)
+		uitest.Consistently(t, app, 2*core.SelectionLoadDelay, func() bool { return api.ProfileLists() == 0 },
+			"the profiles not to be loaded before the tab is opened")
 
-	openProfilesTab(t, view)
+		openProfilesTab(t, view)
 
-	awaitProfileRows(t, app, view.ProfilesTable.DetailsTable, "Claude 3 Haiku", []core.TableRow{
-		{"System-defined"},
-		{"EU Claude 3 Haiku", "eu." + haikuId, "arn:aws:bedrock:us-east-1:123456789012:inference-profile/eu." + haikuId},
-		{"US Claude 3 Haiku", "us." + haikuId, "arn:aws:bedrock:us-east-1:123456789012:inference-profile/us." + haikuId},
-		{"Application"},
-		{"chat-costs", "a1b2c3", "arn:aws:bedrock:us-east-1:123456789012:application-inference-profile/a1b2c3"},
+		awaitProfileRows(t, app, view.ProfilesTable.DetailsTable, "Claude 3 Haiku", []core.TableRow{
+			{"System-defined"},
+			{"EU Claude 3 Haiku", "eu." + haikuId, "arn:aws:bedrock:us-east-1:123456789012:inference-profile/eu." + haikuId},
+			{"US Claude 3 Haiku", "us." + haikuId, "arn:aws:bedrock:us-east-1:123456789012:inference-profile/us." + haikuId},
+			{"Application"},
+			{"chat-costs", "a1b2c3", "arn:aws:bedrock:us-east-1:123456789012:application-inference-profile/a1b2c3"},
+		})
 	})
 }
 

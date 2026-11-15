@@ -73,28 +73,30 @@ func TestDetailsPageView__FirstLoadDoesNotLoadDetailsWithoutAQueueUrl(t *testing
 		"no queues": nil,
 	} {
 		t.Run(name, func(t *testing.T) {
-			var api = &strictSqsApi{fakeSqsApi: fakeSqsApi{queues: queues, attributes: newQueueAttributes()}}
-			var serviceCtx = uitest.NewServiceContextWith[awsapi.SqsApi](api)
-			var view = NewSqsDetailsPageView(
-				NewQueueListTable(serviceCtx), NewQueueDetailsTable(serviceCtx), serviceCtx,
-			)
-			var callback, received = uitest.CaptureErrors()
-			view.QueueDetailsTable.ErrorMessageCallback = callback
-			uitest.RunApp(t, serviceCtx.App)
+			uitest.RunInBubble(t, func(t *testing.T) {
+				var api = &strictSqsApi{fakeSqsApi: fakeSqsApi{queues: queues, attributes: newQueueAttributes()}}
+				var serviceCtx = uitest.NewServiceContextWith[awsapi.SqsApi](api)
+				var view = NewSqsDetailsPageView(
+					NewQueueListTable(serviceCtx), NewQueueDetailsTable(serviceCtx), serviceCtx,
+				)
+				var callback, received = uitest.CaptureErrors()
+				view.QueueDetailsTable.ErrorMessageCallback = callback
+				uitest.RunApp(t, serviceCtx.App)
 
-			view.QueueListTable.RefreshQueues(true)
-			uitest.Eventually(t, serviceCtx.App, func() bool {
-				return len(queues) == 0 || view.QueueListTable.GetSelectedQueue() != ""
+				view.QueueListTable.RefreshQueues(true)
+				uitest.Eventually(t, serviceCtx.App, func() bool {
+					return len(queues) == 0 || view.QueueListTable.GetSelectedQueue() != ""
+				})
+
+				select {
+				case message := <-received:
+					t.Fatalf("Unexpected error on first load: %q", message)
+				case <-time.After(200 * time.Millisecond):
+				}
+				if slices.Contains(api.recorded(), "attributes ") || slices.Contains(api.recorded(), "tags ") {
+					t.Fatalf("Details were loaded without a queue URL: %v", api.recorded())
+				}
 			})
-
-			select {
-			case message := <-received:
-				t.Fatalf("Unexpected error on first load: %q", message)
-			case <-time.After(200 * time.Millisecond):
-			}
-			if slices.Contains(api.recorded(), "attributes ") || slices.Contains(api.recorded(), "tags ") {
-				t.Fatalf("Details were loaded without a queue URL: %v", api.recorded())
-			}
 		})
 	}
 }

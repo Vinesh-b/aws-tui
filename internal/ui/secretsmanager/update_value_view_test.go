@@ -127,29 +127,33 @@ func TestUpdateValueView__FormatLaysOutJsonAndRejectsOtherText(t *testing.T) {
 }
 
 func TestUpdateValueView__EnsureCurrentValueLoadsOnceAndKeepsEdits(t *testing.T) {
-	var api = secretsmanagerfake.New(secretsmanagerfake.WithValue("hunter2"))
-	var view = newUpdateValueView(t, api)
-	view.SetSelectedSecret(newSecret("db/password", ""))
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = secretsmanagerfake.New(secretsmanagerfake.WithValue("hunter2"))
+		var view = newUpdateValueView(t, api)
+		view.SetSelectedSecret(newSecret("db/password", ""))
 
-	uitest.OnUI(t, view.serviceCtx.App, view.EnsureCurrentValue)
-	uitest.Eventually(t, view.serviceCtx.App, func() bool {
-		return view.valueInput.GetText() == "hunter2"
-	}, "the current value is in the editor")
+		uitest.OnUI(t, view.serviceCtx.App, view.EnsureCurrentValue)
+		uitest.Eventually(t, view.serviceCtx.App, func() bool {
+			return view.valueInput.GetText() == "hunter2"
+		}, "the current value is in the editor")
 
-	view.valueInput.SetText("hunter3", false)
-	uitest.OnUI(t, view.serviceCtx.App, view.EnsureCurrentValue)
+		view.valueInput.SetText("hunter3", false)
+		uitest.OnUI(t, view.serviceCtx.App, view.EnsureCurrentValue)
 
-	uitest.Consistently(t, view.serviceCtx.App, 200*time.Millisecond, func() bool {
-		return view.valueInput.GetText() == "hunter3"
-	}, "the edit is kept")
+		uitest.Consistently(t, view.serviceCtx.App, 200*time.Millisecond, func() bool {
+			return view.valueInput.GetText() == "hunter3"
+		}, "the edit is kept")
+	})
 }
 
 func TestUpdateValueView__EnsureCurrentValueWithoutASecretDoesNothing(t *testing.T) {
-	var view = newUpdateValueView(t, secretsmanagerfake.New(secretsmanagerfake.WithValue("hunter2")))
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var view = newUpdateValueView(t, secretsmanagerfake.New(secretsmanagerfake.WithValue("hunter2")))
 
-	uitest.OnUI(t, view.serviceCtx.App, view.EnsureCurrentValue)
+		uitest.OnUI(t, view.serviceCtx.App, view.EnsureCurrentValue)
 
-	uitest.Consistently(t, view.serviceCtx.App, 200*time.Millisecond, func() bool {
-		return view.valueInput.GetText() == ""
-	}, "the editor stays empty")
+		uitest.Consistently(t, view.serviceCtx.App, 200*time.Millisecond, func() bool {
+			return view.valueInput.GetText() == ""
+		}, "the editor stays empty")
+	})
 }

@@ -2,7 +2,6 @@ package cloudtrail
 
 import (
 	"errors"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -246,34 +245,26 @@ func TestTrailsPage__SelectingATrailShowsItThenItsStatus(t *testing.T) {
 }
 
 func TestTrailsPage__MovingThroughTrailsLoadsOnlyTheStatusOfTheTrailItStopsOn(t *testing.T) {
-	var api = cloudtrailfake.New(cloudtrailfake.WithTrails([]types.Trail{
-		newTrail("audit"), newTrail("billing"), newTrail("network"), newTrail("security"),
-	}))
-	var view = newTrailsTest(t, api)
-	var app = view.TrailsTable.serviceCtx.App
-	view.TrailsTable.RefreshTrails(true)
-	uitest.Eventually(t, app, func() bool { return view.TrailsTable.GetTable().GetRowCount() == 5 })
-	var before = len(api.StatusesAskedFor())
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = cloudtrailfake.New(cloudtrailfake.WithTrails([]types.Trail{
+			newTrail("audit"), newTrail("billing"), newTrail("network"), newTrail("security"),
+		}))
+		var view = newTrailsTest(t, api)
+		var app = view.TrailsTable.serviceCtx.App
+		view.TrailsTable.RefreshTrails(true)
+		uitest.Eventually(t, app, func() bool { return view.TrailsTable.GetTable().GetRowCount() == 5 })
 
-	uitest.OnUI(t, app, func() {
-		for row := 2; row <= 4; row++ {
-			view.TrailsTable.Select(row, 0)
-		}
+		uitest.AssertMovingThroughLoadsOnlyWhereItStops(t, app, uitest.MoveThrough[string]{
+			Table: view.TrailsTable, Passed: trailArnOf("network"), StopsOn: trailArnOf("security"),
+			Loaded: api.StatusesAskedFor,
+			// The trail is shown straight away, before its status
+			StraightAway: func() {
+				if got := view.DetailsTable.GetCellText(0, 1); got != "security" {
+					t.Errorf("trail shown = %q, want security", got)
+				}
+			},
+		})
 	})
-	// The trail is shown straight away, before its status
-	uitest.OnUI(t, app, func() {
-		if got := view.DetailsTable.GetCellText(0, 1); got != "security" {
-			t.Errorf("trail shown = %q, want security", got)
-		}
-	})
-
-	uitest.Eventually(t, app, func() bool {
-		return slices.Contains(api.StatusesAskedFor()[before:], trailArnOf("security"))
-	}, "the status of security to be loaded")
-	uitest.Consistently(t, app, 2*core.SelectionLoadDelay, func() bool {
-		var asked = api.StatusesAskedFor()[before:]
-		return !slices.Contains(asked, trailArnOf("network")) && asked[len(asked)-1] == trailArnOf("security")
-	}, "only the first and last trails of the move to have their status loaded")
 }
 
 func TestTrailsTable__OpenLoadsTheTrailsToSelectOneNotLoaded(t *testing.T) {

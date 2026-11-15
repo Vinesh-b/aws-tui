@@ -211,38 +211,29 @@ func TestTracesPage__SelectingATraceShowsItThenItsSegments(t *testing.T) {
 }
 
 func TestTracesPage__MovingThroughTracesLoadsOnlyTheTraceItStopsOn(t *testing.T) {
-	var api = xrayfake.New(
-		xrayfake.WithTracePages([]types.TraceSummary{
-			newSummary("t1", "/a", 40), newSummary("t2", "/b", 30), newSummary("t3", "/c", 20), newSummary("t4", "/d", 10),
-		}),
-		xrayfake.WithTrace(newTrace("t1")), xrayfake.WithTrace(newTrace("t2")),
-		xrayfake.WithTrace(newTrace("t3")), xrayfake.WithTrace(newTrace("t4")),
-	)
-	var view = newTracesTest(t, api)
-	var app = view.TracesTable.serviceCtx.App
-	view.TracesTable.RefreshTraces(true)
-	uitest.Eventually(t, app, func() bool { return view.TracesTable.GetTable().GetRowCount() == 5 })
-	var before = len(api.TracesAskedFor())
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = xrayfake.New(
+			xrayfake.WithTracePages([]types.TraceSummary{
+				newSummary("t1", "/a", 40), newSummary("t2", "/b", 30), newSummary("t3", "/c", 20), newSummary("t4", "/d", 10),
+			}),
+			xrayfake.WithTrace(newTrace("t1")), xrayfake.WithTrace(newTrace("t2")),
+			xrayfake.WithTrace(newTrace("t3")), xrayfake.WithTrace(newTrace("t4")),
+		)
+		var view = newTracesTest(t, api)
+		var app = view.TracesTable.serviceCtx.App
+		view.TracesTable.RefreshTraces(true)
+		uitest.Eventually(t, app, func() bool { return view.TracesTable.GetTable().GetRowCount() == 5 })
 
-	uitest.OnUI(t, app, func() {
-		for row := 2; row <= 4; row++ {
-			view.TracesTable.Select(row, 0)
-		}
+		uitest.AssertMovingThroughLoadsOnlyWhereItStops(t, app, uitest.MoveThrough[string]{
+			Table: view.TracesTable, Passed: "t3", StopsOn: "t4", Loaded: api.TracesAskedFor,
+			// The summary is shown straight away, before the segments
+			StraightAway: func() {
+				if got := view.DetailsTable.GetCellText(0, 1); got != "t4" {
+					t.Errorf("trace shown = %q, want t4", got)
+				}
+			},
+		})
 	})
-	// The summary is shown straight away, before the segments
-	uitest.OnUI(t, app, func() {
-		if got := view.DetailsTable.GetCellText(0, 1); got != "t4" {
-			t.Errorf("trace shown = %q, want t4", got)
-		}
-	})
-
-	uitest.Eventually(t, app, func() bool {
-		return slices.Contains(api.TracesAskedFor()[before:], "t4")
-	}, "the segments of t4 to be loaded")
-	uitest.Consistently(t, app, 2*core.SelectionLoadDelay, func() bool {
-		var asked = api.TracesAskedFor()[before:]
-		return !slices.Contains(asked, "t3") && asked[len(asked)-1] == "t4"
-	}, "only the first and last traces of the move to have their segments loaded")
 }
 
 func TestTraceDetailsTable__ErrorLoadingTheSegmentsIsShown(t *testing.T) {
@@ -447,26 +438,28 @@ func TestTracesTable__TimeRangeGoesBackToTheShortestAfterTheLongest(t *testing.T
 }
 
 func TestTracesTable__TracesOfARangeThatCameAfterTheNextAreNotShown(t *testing.T) {
-	var api = xrayfake.New(
-		xrayfake.WithTracePagesSince(3*time.Hour, []types.TraceSummary{newSummary("t1", "/three-hours", 30)}),
-		xrayfake.WithTracePagesSince(6*time.Hour, []types.TraceSummary{newSummary("t2", "/six-hours", 20)}),
-	)
-	var release = api.HoldSpan(3 * time.Hour)
-	t.Cleanup(release)
-	var serviceCtx = uitest.NewServiceContextWith[awsapi.XRayApi](api)
-	var table = NewTracesTable(serviceCtx)
-	uitest.RunApp(t, serviceCtx.App)
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = xrayfake.New(
+			xrayfake.WithTracePagesSince(3*time.Hour, []types.TraceSummary{newSummary("t1", "/three-hours", 30)}),
+			xrayfake.WithTracePagesSince(6*time.Hour, []types.TraceSummary{newSummary("t2", "/six-hours", 20)}),
+		)
+		var release = api.HoldSpan(3 * time.Hour)
+		t.Cleanup(release)
+		var serviceCtx = uitest.NewServiceContextWith[awsapi.XRayApi](api)
+		var table = NewTracesTable(serviceCtx)
+		uitest.RunApp(t, serviceCtx.App)
 
-	uitest.OnUI(t, serviceCtx.App, func() {
-		uitest.PressTableRune(table, core.APP_KEY_BINDINGS.TimeRange)
-		uitest.PressTableRune(table, core.APP_KEY_BINDINGS.TimeRange)
+		uitest.OnUI(t, serviceCtx.App, func() {
+			uitest.PressTableRune(table, core.APP_KEY_BINDINGS.TimeRange)
+			uitest.PressTableRune(table, core.APP_KEY_BINDINGS.TimeRange)
+		})
+		uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetCellText(1, 5) == "/six-hours" }, "/six-hours to be shown")
+		release()
+
+		uitest.Consistently(t, serviceCtx.App, 2*core.SelectionLoadDelay, func() bool {
+			return table.GetCellText(1, 5) == "/six-hours"
+		}, "the traces of the last range to stay")
 	})
-	uitest.Eventually(t, serviceCtx.App, func() bool { return table.GetCellText(1, 5) == "/six-hours" }, "/six-hours to be shown")
-	release()
-
-	uitest.Consistently(t, serviceCtx.App, 2*core.SelectionLoadDelay, func() bool {
-		return table.GetCellText(1, 5) == "/six-hours"
-	}, "the traces of the last range to stay")
 }
 
 // fixedNow is when the ranges ending now end in the tests of the range view

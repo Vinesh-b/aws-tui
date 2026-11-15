@@ -44,22 +44,24 @@ func showSecureParameterPage(t *testing.T, api *ssmfake.Api) (*tview.Application
 }
 
 func TestHomeView__SecureValueStaysHiddenUntilEnterIsPressed(t *testing.T) {
-	var api = ssmfake.New(ssmfake.WithValue("/app/db/pass", 1, "hunter2"))
-	var app, screen = showSecureParameterPage(t, api)
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = ssmfake.New(ssmfake.WithValue("/app/db/pass", 1, "hunter2"))
+		var app, screen = showSecureParameterPage(t, api)
 
-	uitest.Consistently(t, app, 200*time.Millisecond, func() bool {
-		var text = uitest.ScreenText(screen)
-		return !strings.Contains(text, "hunter2") && !strings.Contains(text, encryptedValue) &&
-			len(api.ValueRequests()) == 0
-	}, "nothing is decrypted or shown before Enter")
+		uitest.Consistently(t, app, 200*time.Millisecond, func() bool {
+			var text = uitest.ScreenText(screen)
+			return !strings.Contains(text, "hunter2") && !strings.Contains(text, encryptedValue) &&
+				len(api.ValueRequests()) == 0
+		}, "nothing is decrypted or shown before Enter")
 
-	uitest.PressKey(t, app, tcell.KeyEnter)
+		uitest.PressKey(t, app, tcell.KeyEnter)
 
-	uitest.AwaitScreenText(t, app, screen, "hunter2")
-	if requests := api.ValueRequests(); len(requests) != 1 ||
-		requests[0] != (ssmfake.ValueRequest{Name: "/app/db/pass", Version: 1}) {
-		t.Errorf("value requests = %v, want version 1 of /app/db/pass once", requests)
-	}
+		uitest.AwaitScreenText(t, app, screen, "hunter2")
+		if requests := api.ValueRequests(); len(requests) != 1 ||
+			requests[0] != (ssmfake.ValueRequest{Name: "/app/db/pass", Version: 1}) {
+			t.Errorf("value requests = %v, want version 1 of /app/db/pass once", requests)
+		}
+	})
 }
 
 func TestHomeView__PlainValueIsShownWithoutDecrypting(t *testing.T) {
@@ -88,29 +90,31 @@ func TestHomeView__DecryptErrorIsReported(t *testing.T) {
 // The first Enter decrypts the value, and the next opens the history as it
 // does for the other parameters, where the versions are not decrypted either
 func TestHomeView__SecureVersionStaysHiddenUntilEnterIsPressedInTheHistory(t *testing.T) {
-	var api = ssmfake.New(
-		ssmfake.WithValue("/app/db/pass", 1, "hunter2"),
-		ssmfake.WithValue("/app/db/pass", 7, "hunter7"),
-		ssmfake.WithHistory([]types.ParameterHistory{newSecureHistory("/app/db/pass", 7, encryptedValue)}),
-	)
-	var app, screen = showSecureParameterPage(t, api)
-	uitest.PressKey(t, app, tcell.KeyEnter)
-	uitest.AwaitScreenText(t, app, screen, "hunter2")
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = ssmfake.New(
+			ssmfake.WithValue("/app/db/pass", 1, "hunter2"),
+			ssmfake.WithValue("/app/db/pass", 7, "hunter7"),
+			ssmfake.WithHistory([]types.ParameterHistory{newSecureHistory("/app/db/pass", 7, encryptedValue)}),
+		)
+		var app, screen = showSecureParameterPage(t, api)
+		uitest.PressKey(t, app, tcell.KeyEnter)
+		uitest.AwaitScreenText(t, app, screen, "hunter2")
 
-	uitest.PressKey(t, app, tcell.KeyEnter)
-	uitest.AwaitScreenText(t, app, screen, secureValueCell)
-	uitest.AwaitScreenText(t, app, screen, "Secure value, not decrypted")
-	uitest.Consistently(t, app, 200*time.Millisecond, func() bool {
-		var text = uitest.ScreenText(screen)
-		return !strings.Contains(text, "hunter7") && !strings.Contains(text, encryptedValue) &&
-			len(api.ValueRequests()) == 1
-	}, "the version is not decrypted or shown before Enter")
+		uitest.PressKey(t, app, tcell.KeyEnter)
+		uitest.AwaitScreenText(t, app, screen, secureValueCell)
+		uitest.AwaitScreenText(t, app, screen, "Secure value, not decrypted")
+		uitest.Consistently(t, app, 200*time.Millisecond, func() bool {
+			var text = uitest.ScreenText(screen)
+			return !strings.Contains(text, "hunter7") && !strings.Contains(text, encryptedValue) &&
+				len(api.ValueRequests()) == 1
+		}, "the version is not decrypted or shown before Enter")
 
-	uitest.PressKey(t, app, tcell.KeyEnter)
+		uitest.PressKey(t, app, tcell.KeyEnter)
 
-	uitest.AwaitScreenText(t, app, screen, "hunter7")
-	var want = []ssmfake.ValueRequest{{Name: "/app/db/pass", Version: 1}, {Name: "/app/db/pass", Version: 7}}
-	if requests := api.ValueRequests(); len(requests) != 2 || requests[0] != want[0] || requests[1] != want[1] {
-		t.Errorf("value requests = %v, want %v", requests, want)
-	}
+		uitest.AwaitScreenText(t, app, screen, "hunter7")
+		var want = []ssmfake.ValueRequest{{Name: "/app/db/pass", Version: 1}, {Name: "/app/db/pass", Version: 7}}
+		if requests := api.ValueRequests(); len(requests) != 2 || requests[0] != want[0] || requests[1] != want[1] {
+			t.Errorf("value requests = %v, want %v", requests, want)
+		}
+	})
 }

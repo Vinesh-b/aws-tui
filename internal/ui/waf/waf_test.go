@@ -280,66 +280,59 @@ func TestWebACLsPage__SelectingAWebACLShowsItThenItsDetailsAndRulesInOrder(t *te
 }
 
 func TestWebACLsPage__RulesOfTheWebACLSelectedBeforeAreNotKept(t *testing.T) {
-	var api = waffake.New(
-		waffake.WithWebACLs([]types.WebACLSummary{newWebACLSummary("api"), newWebACLSummary("shop")}),
-		waffake.WithWebACL(webAclArnOf("api"), newWebACL("api", ipSetRule("block-bad-ips", 0, "blocklist"))),
-		waffake.WithWebACL(webAclArnOf("shop"), newWebACL("shop", ipSetRule("block-office", 0, "office"))),
-	)
-	var view = newWebACLsTest(t, api)
-	var app = view.WebACLsTable.serviceCtx.App
-	var callback, received = uitest.CaptureErrors()
-	uitest.OnUI(t, app, func() { view.DetailsTable.ErrorMessageCallback = callback })
-	loadWebACLs(t, view, 2)
-	uitest.Eventually(t, app, func() bool { return view.RulesTable.GetTable().GetRowCount() == 2 },
-		"the rules of api to be shown")
-	// shop can't be loaded, so only the rules of api could be shown for it
-	api.SetErr(errors.New("WAFUnavailableEntityException: shop"))
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = waffake.New(
+			waffake.WithWebACLs([]types.WebACLSummary{newWebACLSummary("api"), newWebACLSummary("shop")}),
+			waffake.WithWebACL(webAclArnOf("api"), newWebACL("api", ipSetRule("block-bad-ips", 0, "blocklist"))),
+			waffake.WithWebACL(webAclArnOf("shop"), newWebACL("shop", ipSetRule("block-office", 0, "office"))),
+		)
+		var view = newWebACLsTest(t, api)
+		var app = view.WebACLsTable.serviceCtx.App
+		var callback, received = uitest.CaptureErrors()
+		uitest.OnUI(t, app, func() { view.DetailsTable.ErrorMessageCallback = callback })
+		loadWebACLs(t, view, 2)
+		uitest.Eventually(t, app, func() bool { return view.RulesTable.GetTable().GetRowCount() == 2 },
+			"the rules of api to be shown")
+		// shop can't be loaded, so only the rules of api could be shown for it
+		api.SetErr(errors.New("WAFUnavailableEntityException: shop"))
 
-	uitest.OnUI(t, app, func() { view.WebACLsTable.Select(2, 0) })
+		uitest.OnUI(t, app, func() { view.WebACLsTable.Select(2, 0) })
 
-	if got := uitest.AwaitError(t, received); !strings.Contains(got, "WAFUnavailableEntityException") {
-		t.Errorf("error = %q, want the error of the api", got)
-	}
-	uitest.OnUI(t, app, func() {
-		if rows := view.RulesTable.GetTable().GetRowCount(); rows != 1 {
-			t.Errorf("rules table has %d rows, want only the headings", rows)
+		if got := uitest.AwaitError(t, received); !strings.Contains(got, "WAFUnavailableEntityException") {
+			t.Errorf("error = %q, want the error of the api", got)
 		}
+		uitest.OnUI(t, app, func() {
+			if rows := view.RulesTable.GetTable().GetRowCount(); rows != 1 {
+				t.Errorf("rules table has %d rows, want only the headings", rows)
+			}
+		})
 	})
 }
 
 func TestWebACLsPage__MovingThroughWebACLsLoadsOnlyTheOneItStopsOn(t *testing.T) {
-	var names = []string{"api", "billing", "network", "shop"}
-	var summaries []types.WebACLSummary
-	var options []waffake.Option
-	for _, name := range names {
-		summaries = append(summaries, newWebACLSummary(name))
-		options = append(options, waffake.WithWebACL(webAclArnOf(name), newWebACL(name)))
-	}
-	var api = waffake.New(append(options, waffake.WithWebACLs(summaries))...)
-	var view = newWebACLsTest(t, api)
-	var app = view.WebACLsTable.serviceCtx.App
-	loadWebACLs(t, view, len(names))
-	var before = len(api.WebACLsAskedFor())
-
-	uitest.OnUI(t, app, func() {
-		for row := 2; row <= 4; row++ {
-			view.WebACLsTable.Select(row, 0)
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var names = []string{"api", "billing", "network", "shop"}
+		var summaries []types.WebACLSummary
+		var options []waffake.Option
+		for _, name := range names {
+			summaries = append(summaries, newWebACLSummary(name))
+			options = append(options, waffake.WithWebACL(webAclArnOf(name), newWebACL(name)))
 		}
-	})
-	// The web ACL is shown straight away, before it is loaded
-	uitest.OnUI(t, app, func() {
-		if got := view.DetailsTable.GetCellText(0, 1); got != "shop" {
-			t.Errorf("web ACL shown = %q, want shop", got)
-		}
-	})
+		var api = waffake.New(append(options, waffake.WithWebACLs(summaries))...)
+		var view = newWebACLsTest(t, api)
+		loadWebACLs(t, view, len(names))
 
-	uitest.Eventually(t, app, func() bool {
-		return slices.Contains(api.WebACLsAskedFor()[before:], webAclArnOf("shop"))
-	}, "shop to be loaded")
-	uitest.Consistently(t, app, 2*core.SelectionLoadDelay, func() bool {
-		var asked = api.WebACLsAskedFor()[before:]
-		return !slices.Contains(asked, webAclArnOf("network")) && asked[len(asked)-1] == webAclArnOf("shop")
-	}, "only the first and last web ACLs of the move to be loaded")
+		uitest.AssertMovingThroughLoadsOnlyWhereItStops(t, view.WebACLsTable.serviceCtx.App, uitest.MoveThrough[string]{
+			Table: view.WebACLsTable, Passed: webAclArnOf("network"), StopsOn: webAclArnOf("shop"),
+			Loaded: api.WebACLsAskedFor,
+			// The web ACL is shown straight away, before it is loaded
+			StraightAway: func() {
+				if got := view.DetailsTable.GetCellText(0, 1); got != "shop" {
+					t.Errorf("web ACL shown = %q, want shop", got)
+				}
+			},
+		})
+	})
 }
 
 func TestWebACLsPage__ResourcesAreOnlyLoadedOnceTheirTabIsOpened(t *testing.T) {
@@ -378,22 +371,24 @@ func TestWebACLsPage__ResourcesAreOnlyLoadedOnceTheirTabIsOpened(t *testing.T) {
 }
 
 func TestWebACLsPage__SelectingAnotherWebACLWithTheResourcesOpenLoadsItsResources(t *testing.T) {
-	var api = waffake.New(
-		waffake.WithWebACLs([]types.WebACLSummary{newWebACLSummary("api"), newWebACLSummary("shop")}),
-		waffake.WithWebACL(webAclArnOf("api"), newWebACL("api")),
-		waffake.WithWebACL(webAclArnOf("shop"), newWebACL("shop")),
-		waffake.WithResources(webAclArnOf("api"), []awsapi.WebACLResource{{Type: types.ResourceTypeApiGateway, Arn: stageArn}}),
-		waffake.WithResources(webAclArnOf("shop"), []awsapi.WebACLResource{{Type: types.ResourceTypeApplicationLoadBalancer, Arn: albArn}}),
-	)
-	var view = newWebACLsTest(t, api)
-	var app = view.WebACLsTable.serviceCtx.App
-	loadWebACLs(t, view, 2)
-	openResourcesTab(t, view)
-	uitest.AwaitRows(t, app, view.ResourcesTable, []core.TableRow{resourceHeadings, {"API Gateway Stage", stageArn}})
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = waffake.New(
+			waffake.WithWebACLs([]types.WebACLSummary{newWebACLSummary("api"), newWebACLSummary("shop")}),
+			waffake.WithWebACL(webAclArnOf("api"), newWebACL("api")),
+			waffake.WithWebACL(webAclArnOf("shop"), newWebACL("shop")),
+			waffake.WithResources(webAclArnOf("api"), []awsapi.WebACLResource{{Type: types.ResourceTypeApiGateway, Arn: stageArn}}),
+			waffake.WithResources(webAclArnOf("shop"), []awsapi.WebACLResource{{Type: types.ResourceTypeApplicationLoadBalancer, Arn: albArn}}),
+		)
+		var view = newWebACLsTest(t, api)
+		var app = view.WebACLsTable.serviceCtx.App
+		loadWebACLs(t, view, 2)
+		openResourcesTab(t, view)
+		uitest.AwaitRows(t, app, view.ResourcesTable, []core.TableRow{resourceHeadings, {"API Gateway Stage", stageArn}})
 
-	uitest.OnUI(t, app, func() { view.WebACLsTable.Select(2, 0) })
+		uitest.OnUI(t, app, func() { view.WebACLsTable.Select(2, 0) })
 
-	uitest.AwaitRows(t, app, view.ResourcesTable, []core.TableRow{resourceHeadings, {"Application Load Balancer", albArn}})
+		uitest.AwaitRows(t, app, view.ResourcesTable, []core.TableRow{resourceHeadings, {"Application Load Balancer", albArn}})
+	})
 }
 
 func TestWebACLsPage__ResourcesErrorIsShownAndLoadedAgainWhenTheTabIsReopened(t *testing.T) {
@@ -544,27 +539,29 @@ func TestHomeView__ResetLoadsTheWebACLs(t *testing.T) {
 }
 
 func TestHomeView__OpeningAnIPSetShowsItOnTheIPSetsPage(t *testing.T) {
-	var api = waffake.New(
-		waffake.WithIPSets([]types.IPSetSummary{newIPSetSummary("blocklist"), newIPSetSummary("office")}),
-		// Loading the list selects blocklist before office is opened
-		waffake.WithIPSet(ipSetArnOf("blocklist"), types.IPSet{
-			Name: aws.String("blocklist"), IPAddressVersion: types.IPAddressVersionIpv4,
-		}),
-		waffake.WithIPSet(ipSetArnOf("office"), types.IPSet{
-			Name: aws.String("office"), IPAddressVersion: types.IPAddressVersionIpv6,
-		}),
-	)
-	var appCtx = uitest.NewAppContext()
-	var page = NewWafHomeView(appCtx, api)
-	var screen = uitest.ShowPage(t, appCtx.App, page)
-	var opener, ok = page.(core.ResourceOpener)
-	var resource, _ = arn.Parse(ipSetArnOf("office"))
-	if !ok || !opener.OpensArn(resource) {
-		t.Fatal("WAF page should open IP sets")
-	}
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = waffake.New(
+			waffake.WithIPSets([]types.IPSetSummary{newIPSetSummary("blocklist"), newIPSetSummary("office")}),
+			// Loading the list selects blocklist before office is opened
+			waffake.WithIPSet(ipSetArnOf("blocklist"), types.IPSet{
+				Name: aws.String("blocklist"), IPAddressVersion: types.IPAddressVersionIpv4,
+			}),
+			waffake.WithIPSet(ipSetArnOf("office"), types.IPSet{
+				Name: aws.String("office"), IPAddressVersion: types.IPAddressVersionIpv6,
+			}),
+		)
+		var appCtx = uitest.NewAppContext()
+		var page = NewWafHomeView(appCtx, api)
+		var screen = uitest.ShowPage(t, appCtx.App, page)
+		var opener, ok = page.(core.ResourceOpener)
+		var resource, _ = arn.Parse(ipSetArnOf("office"))
+		if !ok || !opener.OpensArn(resource) {
+			t.Fatal("WAF page should open IP sets")
+		}
 
-	uitest.OnUI(t, appCtx.App, func() { opener.OpenResource(resource) })
+		uitest.OnUI(t, appCtx.App, func() { opener.OpenResource(resource) })
 
-	// The details of office, which only its IP set has, are shown
-	uitest.AwaitScreenText(t, appCtx.App, screen, "IPV6")
+		// The details of office, which only its IP set has, are shown
+		uitest.AwaitScreenText(t, appCtx.App, screen, "IPV6")
+	})
 }

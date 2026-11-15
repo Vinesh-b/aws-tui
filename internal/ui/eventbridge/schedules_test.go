@@ -261,43 +261,45 @@ func TestCreateSchedule__StartsCleanEachTimeItIsShown(t *testing.T) {
 }
 
 func TestEditSchedule__ShowsTheScheduleAndSavesTheChanges(t *testing.T) {
-	var f = newSchedulesFixture(t, schedulerfake.New(schedulerfake.WithSchedules(
-		newSchedule("default", "a-first"), newSchedule("ops", "nightly"),
-	)))
-	var form = f.table.EditView.Input
-	f.awaitRowCount(t, 3)
-	uitest.OnUI(t, f.app(), func() { f.table.Select(2, 0) })
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var f = newSchedulesFixture(t, schedulerfake.New(schedulerfake.WithSchedules(
+			newSchedule("default", "a-first"), newSchedule("ops", "nightly"),
+		)))
+		var form = f.table.EditView.Input
+		f.awaitRowCount(t, 3)
+		uitest.OnUI(t, f.app(), func() { f.table.Select(2, 0) })
 
-	f.open(t, editScheduleKey)
-	f.awaitStatus(t, form, "Editing ops/nightly")
-	uitest.OnUI(t, f.app(), func() {
-		if got := form.GetValues(); got.Expression != "rate(1 day)" || got.TargetArn != lambdaArn ||
-			got.Window != "5" || got.Input != `{"job":"report"}` || !got.Enabled {
-			t.Errorf("form values = %+v", got)
+		f.open(t, editScheduleKey)
+		f.awaitStatus(t, form, "Editing ops/nightly")
+		uitest.OnUI(t, f.app(), func() {
+			if got := form.GetValues(); got.Expression != "rate(1 day)" || got.TargetArn != lambdaArn ||
+				got.Window != "5" || got.Input != `{"job":"report"}` || !got.Enabled {
+				t.Errorf("form values = %+v", got)
+			}
+			form.expressionInput.SetText("rate(2 days)")
+			form.descriptionInput.SetText("")
+		})
+		f.submit(t, form)
+
+		f.awaitStatus(t, form, "Schedule saved: ops/nightly")
+		var updates = f.api.Updates()
+		if len(updates) != 1 {
+			t.Fatalf("updates = %v", updates)
 		}
-		form.expressionInput.SetText("rate(2 days)")
-		form.descriptionInput.SetText("")
+		var input = updates[0]
+		if aws.ToString(input.Name) != "nightly" || aws.ToString(input.GroupName) != "ops" ||
+			aws.ToString(input.ScheduleExpression) != "rate(2 days)" || input.Description != nil {
+			t.Errorf("input = %+v", input)
+		}
+		if aws.ToInt32(input.Target.RetryPolicy.MaximumRetryAttempts) != 3 || aws.ToString(input.KmsKeyArn) != kmsArn {
+			t.Errorf("settings the form doesn't have were not kept: %+v", input)
+		}
+		// The details are reloaded with the list
+		var details = f.page.ScheduleDetailsTable
+		uitest.Eventually(t, f.app(), func() bool {
+			return details.GetCellText(uitest.DetailsRowOf(details.DetailsTable, "Schedule"), 1) == "rate(2 days)"
+		}, "the details to show the change")
 	})
-	f.submit(t, form)
-
-	f.awaitStatus(t, form, "Schedule saved: ops/nightly")
-	var updates = f.api.Updates()
-	if len(updates) != 1 {
-		t.Fatalf("updates = %v", updates)
-	}
-	var input = updates[0]
-	if aws.ToString(input.Name) != "nightly" || aws.ToString(input.GroupName) != "ops" ||
-		aws.ToString(input.ScheduleExpression) != "rate(2 days)" || input.Description != nil {
-		t.Errorf("input = %+v", input)
-	}
-	if aws.ToInt32(input.Target.RetryPolicy.MaximumRetryAttempts) != 3 || aws.ToString(input.KmsKeyArn) != kmsArn {
-		t.Errorf("settings the form doesn't have were not kept: %+v", input)
-	}
-	// The details are reloaded with the list
-	var details = f.page.ScheduleDetailsTable
-	uitest.Eventually(t, f.app(), func() bool {
-		return details.GetCellText(uitest.DetailsRowOf(details.DetailsTable, "Schedule"), 1) == "rate(2 days)"
-	}, "the details to show the change")
 }
 
 func TestEditSchedule__SavingBeforeTheScheduleIsLoadedStoresNothing(t *testing.T) {
@@ -439,20 +441,22 @@ func TestDeleteSchedule__ReportsApiError(t *testing.T) {
 }
 
 func TestToggleSchedule__KeepsTheToggledScheduleSelected(t *testing.T) {
-	var f = newSchedulesFixture(t, schedulerfake.New(schedulerfake.WithSchedules(
-		newSchedule("default", "a-first"), newSchedule("ops", "nightly"),
-	)))
-	var details = f.page.ScheduleDetailsTable
-	f.awaitRowCount(t, 3)
-	uitest.OnUI(t, f.app(), func() { f.table.Select(2, 0) })
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var f = newSchedulesFixture(t, schedulerfake.New(schedulerfake.WithSchedules(
+			newSchedule("default", "a-first"), newSchedule("ops", "nightly"),
+		)))
+		var details = f.page.ScheduleDetailsTable
+		f.awaitRowCount(t, 3)
+		uitest.OnUI(t, f.app(), func() { f.table.Select(2, 0) })
 
-	f.press(t, tcell.KeyRune, toggleScheduleKey)
+		f.press(t, tcell.KeyRune, toggleScheduleKey)
 
-	uitest.Eventually(t, f.app(), func() bool {
-		var row, _ = f.table.GetTable().GetSelection()
-		return f.table.GetTable().GetCell(2, 2).Text == string(types.ScheduleStateDisabled) && row == 2 &&
-			details.GetCellText(uitest.DetailsRowOf(details.DetailsTable, "State"), 1) == "DISABLED"
-	}, "the toggled schedule to stay selected and show its new state")
+		uitest.Eventually(t, f.app(), func() bool {
+			var row, _ = f.table.GetTable().GetSelection()
+			return f.table.GetTable().GetCell(2, 2).Text == string(types.ScheduleStateDisabled) && row == 2 &&
+				details.GetCellText(uitest.DetailsRowOf(details.DetailsTable, "State"), 1) == "DISABLED"
+		}, "the toggled schedule to stay selected and show its new state")
+	})
 }
 
 func TestCreateSchedule__SelectsTheNewSchedule(t *testing.T) {

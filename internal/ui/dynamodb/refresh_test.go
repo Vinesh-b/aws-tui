@@ -156,34 +156,47 @@ func TestGenericTable__NewQueryCancelsQueryInFlight(t *testing.T) {
 }
 
 func TestGenericTable__ResultsOfReplacedQueryAreDropped(t *testing.T) {
-	var releaseFirst = make(chan struct{})
-	var releaseSecond = make(chan struct{})
-	var api = dynamodbfake.New(dynamodbfake.WithDescription(newTableDescription("users", hashKey("id"))), dynamodbfake.WithQueryFunc(func(ctx context.Context, call int) ([]map[string]any, error) {
-		if call == 0 {
-			// Ignores the cancel, as a request that already finished would
-			<-releaseFirst
-			return []map[string]any{{"id": "stale-1"}, {"id": "stale-2"}}, nil
-		}
-		<-releaseSecond
-		return []map[string]any{{"id": "latest"}}, nil
-	}))
-	var table = newQueriedTable(t, api)
-	var app = table.serviceCtx.App
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var releaseFirst = make(chan struct{})
+		var releaseSecond = make(chan struct{})
+		var api = dynamodbfake.New(dynamodbfake.WithDescription(newTableDescription("users", hashKey("id"))), dynamodbfake.WithQueryFunc(func(ctx context.Context, call int) ([]map[string]any, error) {
+			if call == 0 {
+				// Ignores the cancel, as a request that already finished would
+				<-releaseFirst
+				return []map[string]any{{"id": "stale-1"}, {"id": "stale-2"}}, nil
+			}
+			<-releaseSecond
+			return []map[string]any{{"id": "latest"}}, nil
+		}))
+		var table = newQueriedTable(t, api)
+		var app = table.serviceCtx.App
+		// A check that fails must not leave a query waiting for ever, which
+		// would end the bubble, and with it the test binary
+		t.Cleanup(func() {
+			for _, release := range []chan struct{}{releaseFirst, releaseSecond} {
+				select {
+				case <-release:
+				default:
+					close(release)
+				}
+			}
+		})
 
-	uitest.OnUI(t, app, func() { table.ExecuteSearch(DDBTableQuery, expression.Expression{}, true) })
-	uitest.Eventually(t, app, func() bool { return len(api.QueriedIndexes()) == 1 })
-	uitest.OnUI(t, app, func() { table.ExecuteSearch(DDBTableQuery, expression.Expression{}, true) })
+		uitest.OnUI(t, app, func() { table.ExecuteSearch(DDBTableQuery, expression.Expression{}, true) })
+		uitest.Eventually(t, app, func() bool { return len(api.QueriedIndexes()) == 1 })
+		uitest.OnUI(t, app, func() { table.ExecuteSearch(DDBTableQuery, expression.Expression{}, true) })
 
-	// The second query waits for the first to stop using the api
-	uitest.Consistently(t, app, 50*time.Millisecond, func() bool { return len(api.QueriedIndexes()) == 1 },
-		"the second query started while the first was in flight")
-	close(releaseFirst)
-	uitest.Eventually(t, app, func() bool { return len(api.QueriedIndexes()) == 2 })
+		// The second query waits for the first to stop using the api
+		uitest.Consistently(t, app, 50*time.Millisecond, func() bool { return len(api.QueriedIndexes()) == 1 },
+			"the second query started while the first was in flight")
+		close(releaseFirst)
+		uitest.Eventually(t, app, func() bool { return len(api.QueriedIndexes()) == 2 })
 
-	// Give the first query's results time to reach the view
-	uitest.Consistently(t, app, 300*time.Millisecond, func() bool { return table.GetTable().GetRowCount() == 0 },
-		"rows were shown before the latest query finished")
+		// Give the first query's results time to reach the view
+		uitest.Consistently(t, app, 300*time.Millisecond, func() bool { return table.GetTable().GetRowCount() == 0 },
+			"rows were shown before the latest query finished")
 
-	close(releaseSecond)
-	uitest.AwaitRows(t, app, table, []core.TableRow{{"id"}, {"latest"}})
+		close(releaseSecond)
+		uitest.AwaitRows(t, app, table, []core.TableRow{{"id"}, {"latest"}})
+	})
 }

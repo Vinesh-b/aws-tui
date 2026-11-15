@@ -94,17 +94,19 @@ func TestLogEventsTable__FollowLeavesTheCursorWhereItIsAwayFromTheLastRow(t *tes
 }
 
 func TestLogEventsTable__FollowKeyAgainStopsFollowing(t *testing.T) {
-	var api = cloudwatchfake.New(cloudwatchfake.WithLogEvents(newLogEvent("START", 0)))
-	var table = newFollowedEventsTable(t, api)
-	pressFollow(t, table)
-	uitest.Eventually(t, table.serviceCtx.App, func() bool { return len(api.CallsWithPrefix("follow ")) > 0 }, "following to start")
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = cloudwatchfake.New(cloudwatchfake.WithLogEvents(newLogEvent("START", 0)))
+		var table = newFollowedEventsTable(t, api)
+		pressFollow(t, table)
+		uitest.Eventually(t, table.serviceCtx.App, func() bool { return len(api.CallsWithPrefix("follow ")) > 0 }, "following to start")
 
-	pressFollow(t, table)
-	api.QueueFollowedEvents(newLogEvent("late", 1))
+		pressFollow(t, table)
+		api.QueueFollowedEvents(newLogEvent("late", 1))
 
-	uitest.Consistently(t, table.serviceCtx.App, 100*time.Millisecond, func() bool {
-		return table.GetTable().GetRowCount() == 2 && !table.IsFollowing()
-	}, "the table to stay as it was")
+		uitest.Consistently(t, table.serviceCtx.App, 100*time.Millisecond, func() bool {
+			return table.GetTable().GetRowCount() == 2 && !table.IsFollowing()
+		}, "the table to stay as it was")
+	})
 }
 
 func TestLogEventsTable__FollowIsStoppedByReloadingTheEvents(t *testing.T) {

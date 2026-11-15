@@ -23,13 +23,15 @@ func TestLogEventsTable__TitleShowsThereAreMoreEventsToLoad(t *testing.T) {
 }
 
 func TestLogEventsTable__TitleHasNoMarkerAtTheEndOfTheEvents(t *testing.T) {
-	var api = cloudwatchfake.New(cloudwatchfake.WithLogEvents(newLogEvent("START", 0)))
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = cloudwatchfake.New(cloudwatchfake.WithLogEvents(newLogEvent("START", 0)))
 
-	var table = newFollowedEventsTable(t, api)
+		var table = newFollowedEventsTable(t, api)
 
-	uitest.Consistently(t, table.serviceCtx.App, 100*time.Millisecond, func() bool {
-		return !strings.Contains(table.GetTitle(), moreMarker)
-	}, "the title to have no marker")
+		uitest.Consistently(t, table.serviceCtx.App, 100*time.Millisecond, func() bool {
+			return !strings.Contains(table.GetTitle(), moreMarker)
+		}, "the title to have no marker")
+	})
 }
 
 func TestLogEventsTable__MarkerGoesWhenTheLastEventsAreLoaded(t *testing.T) {

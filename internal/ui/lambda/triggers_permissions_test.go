@@ -174,31 +174,33 @@ func TestTriggersView__NoTriggersEmptiesDetails(t *testing.T) {
 }
 
 func TestTriggersView__SlowerEarlierLambdaIsDropped(t *testing.T) {
-	var api = &fakeLambdaApi{
-		mappings: map[string][]types.EventSourceMappingConfiguration{
-			billingArn: {{EventSourceArn: aws.String("arn:aws:sqs:us-east-1:1:billing-queue")}},
-			ordersArn:  {newQueueMapping()},
-		},
-		delays: map[string]time.Duration{billingArn: 300 * time.Millisecond},
-	}
-	var view = newRunningTriggersView(t, api)
-	var app = view.serviceCtx.App
-
-	uitest.OnUI(t, app, func() {
-		view.Refresh(billingArn)
-		view.Refresh(ordersArn)
-	})
-	uitest.Eventually(t, app, func() bool { return view.ListTable.GetCellText(1, 0) == "orders-queue" })
-	uitest.Consistently(t, app, 500*time.Millisecond, func() bool { return view.ListTable.GetCellText(1, 0) == "orders-queue" },
-		"a stale lambda replaced the latest one")
-
-	uitest.OnUI(t, app, func() {
-		if got := view.ListTable.GetCellText(1, 0); got != "orders-queue" {
-			t.Errorf("trigger = %q, want the latest lambda's", got)
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = &fakeLambdaApi{
+			mappings: map[string][]types.EventSourceMappingConfiguration{
+				billingArn: {{EventSourceArn: aws.String("arn:aws:sqs:us-east-1:1:billing-queue")}},
+				ordersArn:  {newQueueMapping()},
+			},
+			delays: map[string]time.Duration{billingArn: 300 * time.Millisecond},
 		}
-		if got := view.ListTable.GetTitle(); got != "Triggers ❬1❭ ❬orders❭" {
-			t.Errorf("title = %q, want the latest lambda's", got)
-		}
+		var view = newRunningTriggersView(t, api)
+		var app = view.serviceCtx.App
+
+		uitest.OnUI(t, app, func() {
+			view.Refresh(billingArn)
+			view.Refresh(ordersArn)
+		})
+		uitest.Eventually(t, app, func() bool { return view.ListTable.GetCellText(1, 0) == "orders-queue" })
+		uitest.Consistently(t, app, 500*time.Millisecond, func() bool { return view.ListTable.GetCellText(1, 0) == "orders-queue" },
+			"a stale lambda replaced the latest one")
+
+		uitest.OnUI(t, app, func() {
+			if got := view.ListTable.GetCellText(1, 0); got != "orders-queue" {
+				t.Errorf("trigger = %q, want the latest lambda's", got)
+			}
+			if got := view.ListTable.GetTitle(); got != "Triggers ❬1❭ ❬orders❭" {
+				t.Errorf("title = %q, want the latest lambda's", got)
+			}
+		})
 	})
 }
 
@@ -267,28 +269,30 @@ func TestPermissionsView__FailureIsReportedAndShowsNothing(t *testing.T) {
 }
 
 func TestPermissionsView__SlowerEarlierLambdaIsDropped(t *testing.T) {
-	var api = &fakeLambdaApi{
-		policies: map[string]string{billingArn: `{"Id":"billing"}`, ordersArn: `{"Id":"orders"}`},
-		delays:   map[string]time.Duration{billingArn: 300 * time.Millisecond},
-	}
-	var view = newRunningPermissionsView(t, api)
-	var app = view.serviceCtx.App
-
-	uitest.OnUI(t, app, func() {
-		view.Refresh(billingArn)
-		view.Refresh(ordersArn)
-	})
-	uitest.Eventually(t, app, func() bool { return view.GetText() == "{\n  \"Id\": \"orders\"\n}" })
-	uitest.Consistently(t, app, 500*time.Millisecond, func() bool { return view.GetText() == "{\n  \"Id\": \"orders\"\n}" },
-		"a stale lambda replaced the latest one")
-
-	uitest.OnUI(t, app, func() {
-		if got := view.GetText(); got != "{\n  \"Id\": \"orders\"\n}" {
-			t.Errorf("policy = %q, want the latest lambda's", got)
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = &fakeLambdaApi{
+			policies: map[string]string{billingArn: `{"Id":"billing"}`, ordersArn: `{"Id":"orders"}`},
+			delays:   map[string]time.Duration{billingArn: 300 * time.Millisecond},
 		}
-		if got := view.GetTitle(); got != "Resource-based Policy ❬orders❭" {
-			t.Errorf("title = %q, want the latest lambda's", got)
-		}
+		var view = newRunningPermissionsView(t, api)
+		var app = view.serviceCtx.App
+
+		uitest.OnUI(t, app, func() {
+			view.Refresh(billingArn)
+			view.Refresh(ordersArn)
+		})
+		uitest.Eventually(t, app, func() bool { return view.GetText() == "{\n  \"Id\": \"orders\"\n}" })
+		uitest.Consistently(t, app, 500*time.Millisecond, func() bool { return view.GetText() == "{\n  \"Id\": \"orders\"\n}" },
+			"a stale lambda replaced the latest one")
+
+		uitest.OnUI(t, app, func() {
+			if got := view.GetText(); got != "{\n  \"Id\": \"orders\"\n}" {
+				t.Errorf("policy = %q, want the latest lambda's", got)
+			}
+			if got := view.GetTitle(); got != "Resource-based Policy ❬orders❭" {
+				t.Errorf("title = %q, want the latest lambda's", got)
+			}
+		})
 	})
 }
 
