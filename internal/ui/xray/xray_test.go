@@ -92,6 +92,27 @@ func TestFormatSeconds(t *testing.T) {
 	}
 }
 
+func TestRootCause(t *testing.T) {
+	var throttled = types.RootCauseException{Name: aws.String("ThrottlingException"), Message: aws.String("Rate exceeded")}
+	var timedOut = types.RootCauseException{Name: aws.String("TimeoutError")}
+
+	for _, test := range []struct {
+		name       string
+		exceptions [][]types.RootCauseException
+		want       string
+	}{
+		{"no entities", nil, "Fault"},
+		{"entities without exceptions", [][]types.RootCauseException{{}, {}}, "Fault"},
+		{"first entity with exceptions", [][]types.RootCauseException{{}, {throttled}, {timedOut}},
+			"Fault: ThrottlingException: Rate exceeded"},
+		{"first exception of the entity", [][]types.RootCauseException{{timedOut, throttled}}, "Fault: TimeoutError"},
+	} {
+		if got := rootCause("Fault", test.exceptions); got != test.want {
+			t.Errorf("%s: rootCause = %q, want %q", test.name, got, test.want)
+		}
+	}
+}
+
 func TestTracesTable__ResetLoadsTheNewestTraces(t *testing.T) {
 	var api = xrayfake.New(xrayfake.WithTracePages(
 		[]types.TraceSummary{newSummary("t1", "/orders", 30), newSummary("t2", "/carts", 20)},

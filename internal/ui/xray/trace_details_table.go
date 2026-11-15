@@ -91,13 +91,15 @@ func segmentRows(segments []types.Segment) []core.TableRow {
 // of root cause it is when it has none
 func rootCause(kind string, exceptions [][]types.RootCauseException) string {
 	for _, entity := range exceptions {
-		for _, exception := range entity {
-			var text = kind + ": " + aws.ToString(exception.Name)
-			if message := aws.ToString(exception.Message); message != "" {
-				text += ": " + message
-			}
-			return text
+		if len(entity) == 0 {
+			continue
 		}
+		var exception = entity[0]
+		var text = kind + ": " + aws.ToString(exception.Name)
+		if message := aws.ToString(exception.Message); message != "" {
+			text += ": " + message
+		}
+		return text
 	}
 	return kind
 }
