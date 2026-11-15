@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3control"
 	"github.com/aws/aws-sdk-go-v2/service/scheduler"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
@@ -50,6 +51,7 @@ type AwsApiClients struct {
 	sqs            *sqs.Client
 	ssm            *ssm.Client
 	s3             *s3.Client
+	s3control      *s3control.Client
 	xray           *xray.Client
 }
 
@@ -79,6 +81,7 @@ func NewAwsApiClients(cfg aws.Config, profile string) *AwsApiClients {
 		sqs:            sqs.NewFromConfig(cfg),
 		ssm:            ssm.NewFromConfig(cfg),
 		s3:             s3.NewFromConfig(cfg),
+		s3control:      s3control.NewFromConfig(cfg),
 		xray:           xray.NewFromConfig(cfg),
 	}
 }

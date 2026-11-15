@@ -494,6 +494,14 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			var _, err = NewCloudTrailApi(fake.clients, logger).GetTrailStatus(context.Background(), "")
 			return err
 		}, "trail ARN not set"},
+		{"access point", func() error {
+			var _, err = NewS3BucketsApi(fake.clients, logger).GetAccessPoint(context.Background(), "")
+			return err
+		}, "access point ARN not set"},
+		{"access point policy", func() error {
+			var _, err = NewS3BucketsApi(fake.clients, logger).GetAccessPointPolicy(context.Background(), "")
+			return err
+		}, "access point ARN not set"},
 		{"trace", func() error {
 			var _, err = NewXRayApi(fake.clients, logger).GetTrace(context.Background(), "")
 			return err

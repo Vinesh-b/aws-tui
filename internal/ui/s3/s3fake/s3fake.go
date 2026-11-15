@@ -15,6 +15,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/aws-sdk-go-v2/service/s3control"
+	s3controlTypes "github.com/aws/aws-sdk-go-v2/service/s3control/types"
 )
 
 type Api struct {
@@ -33,6 +35,15 @@ type Api struct {
 	contentCalls int
 	downloads    []Download
 	downloadErr  error
+	accessPoints []s3controlTypes.AccessPoint
+	// accessPointDetails are what GetAccessPoint gives, by ARN
+	accessPointDetails map[string]s3control.GetAccessPointOutput
+	// accessPointsAskedFor is the ARNs GetAccessPoint was called with, in order
+	accessPointsAskedFor []string
+	// accessPointPolicies are what GetAccessPointPolicy gives, by ARN
+	accessPointPolicies map[string]string
+	// policiesAskedFor is the ARNs GetAccessPointPolicy was called with, in order
+	policiesAskedFor []string
 }
 
 // Download is one DownloadFile call.
@@ -49,8 +60,25 @@ func WithContent(content []byte) Option         { return func(f *Api) { f.conten
 func WithDownloadErr(err error) Option          { return func(f *Api) { f.downloadErr = err } }
 func WithContentErr(err error) Option           { return func(f *Api) { f.contentErr = err } }
 
+func WithAccessPoints(points []s3controlTypes.AccessPoint) Option {
+	return func(f *Api) { f.accessPoints = points }
+}
+
+// WithAccessPointDetails gives what GetAccessPoint returns for the ARN
+func WithAccessPointDetails(accessPointArn string, details s3control.GetAccessPointOutput) Option {
+	return func(f *Api) { f.accessPointDetails[accessPointArn] = details }
+}
+
+// WithAccessPointPolicy gives what GetAccessPointPolicy returns for the ARN
+func WithAccessPointPolicy(accessPointArn string, policy string) Option {
+	return func(f *Api) { f.accessPointPolicies[accessPointArn] = policy }
+}
+
 func New(options ...Option) *Api {
-	var f = &Api{}
+	var f = &Api{
+		accessPointDetails:  map[string]s3control.GetAccessPointOutput{},
+		accessPointPolicies: map[string]string{},
+	}
 	for _, option := range options {
 		option(f)
 	}
@@ -133,4 +161,57 @@ func (f *Api) Downloads() []Download {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 	return slices.Clone(f.downloads)
+}
+
+// SetErr makes every following call that uses the shared error fail
+func (f *Api) SetErr(err error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	f.err = err
+}
+
+func (f *Api) ListAccessPoints(ctx context.Context) ([]s3controlTypes.AccessPoint, error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	if f.err != nil {
+		return nil, f.err
+	}
+	return slices.Clone(f.accessPoints), nil
+}
+
+func (f *Api) GetAccessPoint(ctx context.Context, accessPointArn string) (*s3control.GetAccessPointOutput, error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	f.accessPointsAskedFor = append(f.accessPointsAskedFor, accessPointArn)
+	if f.err != nil {
+		return nil, f.err
+	}
+	var details = f.accessPointDetails[accessPointArn]
+	return &details, nil
+}
+
+// AccessPointsAskedFor is the ARNs GetAccessPoint was called with, in order
+func (f *Api) AccessPointsAskedFor() []string {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return slices.Clone(f.accessPointsAskedFor)
+}
+
+// GetAccessPointPolicy gives the policy of the ARN, which is empty for one
+// without a policy, as the real api gives it
+func (f *Api) GetAccessPointPolicy(ctx context.Context, accessPointArn string) (string, error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	f.policiesAskedFor = append(f.policiesAskedFor, accessPointArn)
+	if f.err != nil {
+		return "", f.err
+	}
+	return f.accessPointPolicies[accessPointArn], nil
+}
+
+// PoliciesAskedFor is the ARNs GetAccessPointPolicy was called with, in order
+func (f *Api) PoliciesAskedFor() []string {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return slices.Clone(f.policiesAskedFor)
 }

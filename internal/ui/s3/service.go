@@ -9,7 +9,7 @@ import (
 var Service = core.Service{
 	Id:          core.S3BUCKETS,
 	Icon:        "󱐕",
-	Description: "S3 buckets and objects",
+	Description: "S3 buckets, objects and access points",
 	Shortcut:    '5',
 	Aliases:     []string{"s3"},
 	Build: func(appCtx *core.AppContext) core.ServicePage {

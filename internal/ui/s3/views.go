@@ -6,6 +6,7 @@ import (
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/core"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -111,6 +112,82 @@ func (inst *S3BucketsDetailsView) InitInputCapture() {
 	})
 }
 
+const (
+	AccessPointTabNameDetails = "Details"
+	AccessPointTabNamePolicy  = "Policy"
+)
+
+// AccessPointsPageView is the access points of the account, with the details
+// and policy of the one selected in tabs over them, as the objects page has
+// the details and preview of an object
+type AccessPointsPageView struct {
+	*core.ServicePageView
+	AccessPointsTable *AccessPointsTable
+	DetailsTable      *AccessPointDetailsTable
+	PolicyView        *AccessPointPolicyView
+	TabView           *core.TabViewHorizontal
+}
+
+func NewAccessPointsPageView(
+	accessPointsTable *AccessPointsTable,
+	detailsTable *AccessPointDetailsTable,
+	policyView *AccessPointPolicyView,
+	serviceCtx *core.ServiceContext[awsapi.S3BucketsApi],
+) *AccessPointsPageView {
+	const tabViewSize = 3000
+	const listSize = 5000
+
+	var tabView = core.NewTabViewHorizontal(serviceCtx.AppContext).
+		AddAndSwitchToTab(AccessPointTabNameDetails, detailsTable, 0, 1, true).
+		AddTab(AccessPointTabNamePolicy, policyView, 0, 1, true)
+
+	tabView.SetOnTabChangeFunc(func(tabName string, index int) {
+		policyView.SetVisible(tabName == AccessPointTabNamePolicy)
+	})
+
+	var mainPage = core.NewResizableView(
+		tabView, tabViewSize,
+		accessPointsTable, listSize,
+		tview.FlexRow,
+		serviceCtx.AppContext,
+	)
+	var serviceView = core.NewServicePageView(serviceCtx.AppContext)
+	serviceView.MainPage.AddItem(mainPage, 0, 1, true)
+	serviceView.InitViewNavigation(
+		[][]core.View{
+			{tabView},
+			{accessPointsTable},
+		},
+	)
+
+	var errorHandler = func(text string, a ...any) {
+		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
+	}
+	accessPointsTable.ErrorMessageCallback = errorHandler
+	detailsTable.ErrorMessageCallback = errorHandler
+	policyView.ErrorMessageCallback = errorHandler
+
+	// What the list has is shown at once, but the rest is only loaded for the
+	// access point the selection stops on
+	accessPointsTable.SetSelectionChangedFunc(func(row, column int) {
+		var point = accessPointsTable.GetSelectedAccessPoint()
+		detailsTable.SetAccessPoint(point)
+		policyView.SetAccessPoint(aws.ToString(point.AccessPointArn))
+	})
+	accessPointsTable.SetSelectionSettledFunc(func(row, column int) {
+		detailsTable.RefreshDetails()
+		policyView.Load()
+	})
+
+	return &AccessPointsPageView{
+		ServicePageView:   serviceView,
+		AccessPointsTable: accessPointsTable,
+		DetailsTable:      detailsTable,
+		PolicyView:        policyView,
+		TabView:           tabView,
+	}
+}
+
 func NewS3bucketsHomeView(appCtx *core.AppContext, api awsapi.S3BucketsApi) core.ServicePage {
 	appCtx.Theme.ChangeColourScheme(tcell.NewHexColor(0x005500))
 	defer appCtx.Theme.ResetGlobalStyle()
@@ -125,11 +202,19 @@ func NewS3bucketsHomeView(appCtx *core.AppContext, api awsapi.S3BucketsApi) core
 			NewObjectPreviewView(serviceCtx),
 			serviceCtx,
 		)
+		accessPointsView = NewAccessPointsPageView(
+			NewAccessPointsTable(serviceCtx),
+			NewAccessPointDetailsTable(serviceCtx),
+			NewAccessPointPolicyView(serviceCtx),
+			serviceCtx,
+		)
 	)
 
 	var serviceRootView = core.NewServiceRootView(string(core.S3BUCKETS), appCtx)
 
-	serviceRootView.AddAndSwitchToPage("S3Buckets", s3DetailsView, true)
+	serviceRootView.
+		AddAndSwitchToPage("S3Buckets", s3DetailsView, true).
+		AddPage("Access Points", accessPointsView, true, true)
 
 	serviceRootView.InitPageNavigation()
 

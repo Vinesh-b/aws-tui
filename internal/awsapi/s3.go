@@ -11,6 +11,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/aws-sdk-go-v2/service/s3control"
+	s3controlTypes "github.com/aws/aws-sdk-go-v2/service/s3control/types"
 )
 
 type S3BucketsApi interface {
@@ -36,6 +38,14 @@ type S3BucketsApi interface {
 		ctx context.Context,
 		bucketArn string, objectKey string, force bool,
 	) (s3.HeadObjectOutput, error)
+	// ListAccessPoints lists the access points of the account in the region,
+	// sorted by name
+	ListAccessPoints(ctx context.Context) ([]s3controlTypes.AccessPoint, error)
+	// GetAccessPoint describes the access point of the ARN
+	GetAccessPoint(ctx context.Context, accessPointArn string) (*s3control.GetAccessPointOutput, error)
+	// GetAccessPointPolicy returns the policy document of the access point of
+	// the ARN as json text, which is empty if it has no policy
+	GetAccessPointPolicy(ctx context.Context, accessPointArn string) (string, error)
 }
 
 type s3BucketsApi struct {
