@@ -117,6 +117,11 @@ type SelectableTable[T any] struct {
 	// hasMore is true if the table has more rows it can load, which its title
 	// shows
 	hasMore bool
+	// selectionChanged runs as soon as the selection moves, and
+	// selectionSettled once it has stopped moving, through settleDebouncer
+	selectionChanged func(row int, column int)
+	selectionSettled func(row int, column int)
+	settleDebouncer  *Debouncer
 }
 
 func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppContext) *SelectableTable[T] {
@@ -137,7 +142,17 @@ func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppConte
 		currentSearchIdx:     0,
 		HelpView:             NewFloatingHelpView(appCtx),
 		ErrorMessageCallback: func(text string, a ...any) {},
+		selectionChanged:     func(row, column int) {},
+		settleDebouncer:      NewDebouncer(appCtx, SelectionLoadDelay),
 	}
+
+	table.SetSelectionChangedFunc(func(row, column int) {
+		view.selectionChanged(row, column)
+		// The headings are not a row to load anything for
+		if view.selectionSettled != nil && row > 0 {
+			view.settleDebouncer.Run(func() { view.selectionSettled(row, column) })
+		}
+	})
 
 	view.HelpView.View.
 		AddKey(APP_KEY_BINDINGS.Escape, "Hide current floating view").
@@ -751,10 +766,26 @@ func (inst *SelectableTable[T]) SetSearchDoneFunc(handler func(key tcell.Key)) {
 	})
 }
 
+// SetSelectionChangedFunc runs the handler as soon as the selection moves. It
+// is for what has to follow the selection straight away, such as the selected
+// item that other keys act on. Use SetSelectionSettledFunc for what calls the
+// api.
 func (inst *SelectableTable[T]) SetSelectionChangedFunc(
 	handler func(row int, column int),
 ) *SelectableTable[T] {
-	inst.table.SetSelectionChangedFunc(handler)
+	inst.selectionChanged = handler
+	return inst
+}
+
+// SetSelectionSettledFunc runs the handler for the row the selection stops on,
+// after the handler of SetSelectionChangedFunc. Moving one row runs it
+// straight away, while moving quickly through the rows runs it only once they
+// have stayed selected for SelectionLoadDelay, so the rows passed on the way
+// aren't loaded. It is not run for the headings.
+func (inst *SelectableTable[T]) SetSelectionSettledFunc(
+	handler func(row int, column int),
+) *SelectableTable[T] {
+	inst.selectionSettled = handler
 	return inst
 }
 

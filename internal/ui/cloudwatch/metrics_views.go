@@ -75,7 +75,9 @@ func (inst *MetricDetailsView) InitInputCapture() {
 	inst.MetricListTable.SetSelectionChangedFunc(func(row, column int) {
 		var metric = inst.MetricListTable.GetSelectedMetric()
 		inst.MetricDetailsTable.RefreshDetails(metric, false)
-		inst.MetricChartView.SetMetric(metric)
+	})
+	inst.MetricListTable.SetSelectionSettledFunc(func(row, column int) {
+		inst.MetricChartView.SetMetric(inst.MetricListTable.GetSelectedMetric())
 	})
 }
 

@@ -81,8 +81,13 @@ func (inst *SqsDetailsPageView) initInputCapture() {
 		if inst.QueueListTable.GetSelectedQueue() == "" {
 			return
 		}
-		inst.QueueDetailsTable.RefreshDetails(inst.QueueListTable.GetSelectedQueue())
 		inst.SendMessageView.SetSelectedQueue(inst.QueueListTable.GetSelectedQueue())
+	})
+	inst.QueueListTable.SetSelectionSettledFunc(func(row, column int) {
+		if inst.QueueListTable.GetSelectedQueue() == "" {
+			return
+		}
+		inst.QueueDetailsTable.RefreshDetails(inst.QueueListTable.GetSelectedQueue())
 	})
 
 	inst.SendMessageView.SetOnMessageSent(func(queueUrl string) {

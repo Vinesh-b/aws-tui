@@ -139,7 +139,7 @@ func NewIamRolesPageView(
 	}
 	policiesView.SetErrorMessageCallback(roleListTable.ErrorMessageCallback)
 
-	roleListTable.SetSelectionChangedFunc(func(row, column int) {
+	roleListTable.SetSelectionSettledFunc(func(row, column int) {
 		// Nothing to show while the list is empty, e.g. before it is loaded
 		var roleName = roleListTable.GetSelectedKey()
 		if roleName == "" {

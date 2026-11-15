@@ -7,6 +7,7 @@ package apigatewayfake
 
 import (
 	"context"
+	"slices"
 	"sync"
 
 	"aws-tui/internal/awsapi"
@@ -26,6 +27,9 @@ type Api struct {
 
 	resources        map[string][]types.Resource
 	resourceListings int
+	// resourcesListedFor is the IDs of the APIs whose resources were listed,
+	// in order
+	resourcesListedFor []string
 
 	invokeOutput *apigateway.TestInvokeMethodOutput
 	invocations  []Invocation
@@ -106,10 +110,19 @@ func (f *Api) ResourceListings() int {
 	return f.resourceListings
 }
 
+// ResourcesListedFor is the IDs of the APIs whose resources were listed, in
+// order.
+func (f *Api) ResourcesListedFor() []string {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return slices.Clone(f.resourcesListedFor)
+}
+
 func (f *Api) ListResources(ctx context.Context, force bool, restApiId string) ([]types.Resource, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 	f.resourceListings++
+	f.resourcesListedFor = append(f.resourcesListedFor, restApiId)
 	return f.resources[restApiId], f.err
 }
 

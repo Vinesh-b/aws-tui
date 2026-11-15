@@ -3,6 +3,7 @@ package cloudwatch
 import (
 	"context"
 	"errors"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -50,6 +51,14 @@ type fakeCloudWatchMetricsApi struct {
 
 	mu       sync.Mutex
 	requests []metricDataRequest
+	// charted is the names of the metrics whose data was asked for, in order
+	charted []string
+}
+
+func (f *fakeCloudWatchMetricsApi) chartedMetrics() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.charted)
 }
 
 func (f *fakeCloudWatchMetricsApi) metricDataRequests() []metricDataRequest {
@@ -63,6 +72,7 @@ func (f *fakeCloudWatchMetricsApi) GetMetricData(
 ) (cwTypes.MetricDataResult, error) {
 	f.mu.Lock()
 	f.requests = append(f.requests, metricDataRequest{stat, periodSeconds, start, end})
+	f.charted = append(f.charted, aws.ToString(metric.MetricName))
 	f.mu.Unlock()
 	return f.data, f.dataErr
 }

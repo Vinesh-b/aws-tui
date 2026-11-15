@@ -98,13 +98,15 @@ func NewEventBridgeDetailsPageView(
 func (inst *EventBridgeDetailsPageView) initInputCapture() {
 	inst.EventBusListTable.SetSelectionChangedFunc(func(row, column int) {
 		var selectedEventBus = inst.EventBusListTable.GetSelectedEventBus()
-		inst.EventBusDetailsTable.RefreshDetails(selectedEventBus)
-		inst.RulesTabView.RefreshRules(aws.ToString(selectedEventBus.Arn))
-
-		inst.EventBusPolicyView.SetText(inst.EventBusListTable.GetSelectedEventBus())
+		inst.EventBusPolicyView.SetText(selectedEventBus)
 		inst.SendEventView.SetSelectedBus(
 			aws.ToString(selectedEventBus.Name), aws.ToString(selectedEventBus.Arn),
 		)
+	})
+	inst.EventBusListTable.SetSelectionSettledFunc(func(row, column int) {
+		var selectedEventBus = inst.EventBusListTable.GetSelectedEventBus()
+		inst.EventBusDetailsTable.RefreshDetails(selectedEventBus)
+		inst.RulesTabView.RefreshRules(aws.ToString(selectedEventBus.Arn))
 	})
 }
 

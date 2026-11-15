@@ -83,6 +83,8 @@ func (inst *SecretsPageView) InitInputCapture() {
 		inst.SecretDetailsTable.RefreshDetails(inst.SecretsTable.GetSelectedSecret())
 		inst.SecretValueView.Clear()
 		inst.UpdateValueView.SetSelectedSecret(inst.SecretsTable.GetSelectedSecret())
+	})
+	inst.SecretsTable.SetSelectionSettledFunc(func(row, column int) {
 		if tabName, _ := inst.TabView.GetCurrentTab(); tabName == SecretsTabNameUpdate {
 			inst.UpdateValueView.EnsureCurrentValue()
 		}

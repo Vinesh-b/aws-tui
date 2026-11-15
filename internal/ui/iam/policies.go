@@ -124,7 +124,7 @@ func NewIamPoliciesPageView(
 		serviceCtx:         serviceCtx,
 	}
 
-	policyListTable.SetSelectionChangedFunc(func(row, column int) {
+	policyListTable.SetSelectionSettledFunc(func(row, column int) {
 		// Nothing to show while the list is empty, e.g. before it is loaded
 		var policyArn = policyListTable.GetSelectedKey()
 		if policyArn == "" {

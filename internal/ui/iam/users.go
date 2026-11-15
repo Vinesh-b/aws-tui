@@ -127,7 +127,7 @@ func NewIamUsersPageView(
 	}
 	policiesView.SetErrorMessageCallback(userListTable.ErrorMessageCallback)
 
-	userListTable.SetSelectionChangedFunc(func(row, column int) {
+	userListTable.SetSelectionSettledFunc(func(row, column int) {
 		// Nothing to show while the list is empty, e.g. before it is loaded
 		var userName = userListTable.GetSelectedKey()
 		if userName == "" {

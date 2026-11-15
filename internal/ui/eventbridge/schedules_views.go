@@ -91,7 +91,7 @@ func NewSchedulesPageView(
 }
 
 func (inst *SchedulesPageView) initInputCapture() {
-	inst.ScheduleListTable.SetSelectionChangedFunc(func(row, column int) {
+	inst.ScheduleListTable.SetSelectionSettledFunc(func(row, column int) {
 		// Nothing to show while the list is empty, e.g. before it is loaded
 		var id = scheduleIdOf(inst.ScheduleListTable.GetSelectedSchedule())
 		if id.isEmpty() {

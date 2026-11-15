@@ -99,8 +99,10 @@ func (inst *ApiGatewayApisPageView) initInputCapture() {
 	inst.ApisTable.SetSelectionChangedFunc(func(row, column int) {
 		var api = inst.ApisTable.GetSelectedApi()
 		inst.DetailsTable.SetApi(api)
-		inst.EndpointsView.SetApi(api)
 		inst.TestView.SetApi(aws.ToString(api.Id))
+	})
+	inst.ApisTable.SetSelectionSettledFunc(func(row, column int) {
+		inst.EndpointsView.SetApi(inst.ApisTable.GetSelectedApi())
 	})
 }
 

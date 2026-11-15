@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"aws-tui/internal/safetest"
+
+	"github.com/rivo/tview"
 )
 
 // fakeTimers stands in for time.AfterFunc, so that a test decides when each
@@ -70,11 +72,15 @@ func newDebouncerTest(t *testing.T) (*Debouncer, *fakeTimers, func(func())) {
 	var appCtx, _, _ = newLoaderTest(t)
 	var timers = &fakeTimers{}
 	var debouncer = newDebouncer(appCtx.App, time.Second, timers.afterFunc)
+	return debouncer, timers, onUIOf(t, appCtx.App)
+}
 
-	var onUI = func(fn func()) {
+// onUIOf runs a func on the UI goroutine of the app and waits for it
+func onUIOf(t *testing.T, app *tview.Application) func(func()) {
+	return func(fn func()) {
 		t.Helper()
 		var done = make(chan struct{})
-		appCtx.App.QueueUpdate(func() {
+		app.QueueUpdate(func() {
 			fn()
 			close(done)
 		})
@@ -84,7 +90,6 @@ func newDebouncerTest(t *testing.T) (*Debouncer, *fakeTimers, func(func())) {
 			t.Fatal("timed out waiting for the UI goroutine")
 		}
 	}
-	return debouncer, timers, onUI
 }
 
 func TestDebouncer__FirstCallRunsStraightAway(t *testing.T) {

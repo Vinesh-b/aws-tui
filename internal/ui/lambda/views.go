@@ -125,7 +125,7 @@ func NewLambdaDetailsPageView(
 }
 
 func (inst *LambdaDetailsPageView) initInputCapture() {
-	inst.LambdaListTable.SetSelectionChangedFunc(func(row, column int) {
+	inst.LambdaListTable.SetSelectionSettledFunc(func(row, column int) {
 		var selectedLambda = inst.LambdaListTable.GetSelectedLambda()
 		inst.LambdaDetailsTable.RefreshDetails(selectedLambda)
 	})

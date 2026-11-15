@@ -53,7 +53,7 @@ func NewPrincipalPoliciesView(
 		loadDocument:  loadDocument,
 	}
 
-	policiesTable.SetSelectionChangedFunc(func(row, column int) {
+	policiesTable.SetSelectionSettledFunc(func(row, column int) {
 		view.showSelectedDocument()
 	})
 

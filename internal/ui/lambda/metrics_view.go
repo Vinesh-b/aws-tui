@@ -143,7 +143,7 @@ func NewLambdaMetricsPageView(
 		MetricChartView: metricChartView,
 	}
 
-	metricsTable.SetSelectionChangedFunc(func(row, column int) {
+	metricsTable.SetSelectionSettledFunc(func(row, column int) {
 		var metric, stat = metricsTable.GetSelectedMetric()
 		metricChartView.SetStatistic(stat)
 		metricChartView.SetMetric(metric)

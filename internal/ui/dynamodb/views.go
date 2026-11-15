@@ -73,7 +73,7 @@ func NewDynamoDBDetailsPageView(
 }
 
 func (inst *DynamoDBDetailsPageView) initInputCapture() {
-	inst.TablesTable.SetSelectionChangedFunc(func(row, column int) {
+	inst.TablesTable.SetSelectionSettledFunc(func(row, column int) {
 		inst.DetailsTable.SetSelectedTable(inst.TablesTable.GetSelectedTable())
 		inst.DetailsTable.RefreshDetails()
 	})

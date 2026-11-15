@@ -98,9 +98,15 @@ func (inst *SnsDetailsPageView) initInputCapture() {
 		if topicArn == "" {
 			return
 		}
+		inst.PublishView.SetSelectedTopic(topicArn)
+	})
+	inst.TopicListTable.SetSelectionSettledFunc(func(row, column int) {
+		var topicArn = inst.TopicListTable.GetSelectedTopic()
+		if topicArn == "" {
+			return
+		}
 		inst.TopicDetailsTable.RefreshDetails(topicArn)
 		inst.SubscriptionsTable.RefreshSubscriptions(topicArn)
-		inst.PublishView.SetSelectedTopic(topicArn)
 	})
 }
 

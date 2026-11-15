@@ -72,14 +72,9 @@ func NewKmsKeysPageView(
 }
 
 func (inst *KmsKeysPageView) initInputCapture() {
-	// Moving quickly through the keys only describes the key it stops on
-	var detailsLoad = core.NewDebouncer(inst.serviceCtx.AppContext, core.SelectionLoadDelay)
-	inst.KeysTable.SetSelectionChangedFunc(func(row, column int) {
-		var key = inst.KeysTable.GetSelectedKey()
-		detailsLoad.Run(func() {
-			inst.DetailsTable.SetSelectedKey(key)
-			inst.DetailsTable.RefreshDetails()
-		})
+	inst.KeysTable.SetSelectionSettledFunc(func(row, column int) {
+		inst.DetailsTable.SetSelectedKey(inst.KeysTable.GetSelectedKey())
+		inst.DetailsTable.RefreshDetails()
 	})
 }
 
