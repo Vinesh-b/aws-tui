@@ -490,6 +490,10 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			var _, err = NewKmsApi(fake.clients, logger).GetKeyPolicy(context.Background(), "")
 			return err
 		}, "key ID not set"},
+		{"trail status", func() error {
+			var _, err = NewCloudTrailApi(fake.clients, logger).GetTrailStatus(context.Background(), "")
+			return err
+		}, "trail ARN not set"},
 		{"ssm path", func() error {
 			var _, err = NewSystemsManagerApi(fake.clients, logger).GetParametersByPath(context.Background(), "", true)
 			return err

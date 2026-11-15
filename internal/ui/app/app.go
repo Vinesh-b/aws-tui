@@ -6,6 +6,7 @@ import (
 	"aws-tui/internal/settings"
 	"aws-tui/internal/ui/apigateway"
 	"aws-tui/internal/ui/cloudformation"
+	"aws-tui/internal/ui/cloudtrail"
 	"aws-tui/internal/ui/cloudwatch"
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/dynamodb"
@@ -318,6 +319,7 @@ var awsServices = []core.Service{
 	cloudwatch.LogsService,
 	eventbridge.Service,
 	cloudformation.Service,
+	cloudtrail.Service,
 	cloudwatch.AlarmsService,
 	cloudwatch.MetricsService,
 	apigateway.Service,

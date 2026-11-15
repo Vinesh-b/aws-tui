@@ -24,6 +24,8 @@ github.com/aws/aws-sdk-go-v2/service/apigateway v1.52.4 h1:VR1Y/JYdm/PNzhHBzO73D
 github.com/aws/aws-sdk-go-v2/service/apigateway v1.52.4/go.mod h1:GRzSABFprppTlXVDSSDfuRNwm0P3cEkzOfjYJHqsjj0=
 github.com/aws/aws-sdk-go-v2/service/cloudformation v1.82.2 h1:ktk58Tx/JuhBAKomCk5XqJrdlsm+RZNu6jMK+5MVK3g=
 github.com/aws/aws-sdk-go-v2/service/cloudformation v1.82.2/go.mod h1:kpDVWMC4/qGGopVTdcRWs1U0iICn9iQVpqArDSKTXhg=
+github.com/aws/aws-sdk-go-v2/service/cloudtrail v1.65.8 h1:+hLXB95B2otkS+nEpwn5G4aRtgaaYTpwfN377Bv0+gk=
+github.com/aws/aws-sdk-go-v2/service/cloudtrail v1.65.8/go.mod h1:pEtxXczH35t/UnDSc3v0Ylmli2V8Y05m7be7JcWiv5g=
 github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.75.1 h1:vECZERPnUbUpoH3xwAUwbYWzBIf10PobAG7UdYuygUw=
 github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.75.1/go.mod h1:KBlt8j7XCg0ZyfOfZQe9ijU4pZ0qmu00m96y07B89Qo=
 github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.90.2 h1:QffI1EfSpYRbRKRBjDrrZSmcjayVNAPctyY1tJjQj7Y=

@@ -4,6 +4,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/apigateway"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
+	"github.com/aws/aws-sdk-go-v2/service/cloudtrail"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -32,6 +33,7 @@ type AwsApiClients struct {
 
 	apigateway     *apigateway.Client
 	cloudformation *cloudformation.Client
+	cloudtrail     *cloudtrail.Client
 	cloudwatch     *cloudwatch.Client
 	cloudwatchlogs *cloudwatchlogs.Client
 	dynamodb       *dynamodb.Client
@@ -59,6 +61,7 @@ func NewAwsApiClients(cfg aws.Config, profile string) *AwsApiClients {
 
 		apigateway:     apigateway.NewFromConfig(cfg),
 		cloudformation: cloudformation.NewFromConfig(cfg),
+		cloudtrail:     cloudtrail.NewFromConfig(cfg),
 		cloudwatch:     cloudwatch.NewFromConfig(cfg),
 		cloudwatchlogs: cloudwatchlogs.NewFromConfig(cfg),
 		dynamodb:       dynamodb.NewFromConfig(cfg),
