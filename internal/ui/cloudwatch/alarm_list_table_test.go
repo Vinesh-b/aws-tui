@@ -1,6 +1,7 @@
 package cloudwatch
 
 import (
+	"strings"
 	"testing"
 
 	"aws-tui/internal/awsapi"
@@ -10,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 func newAlarm(name string, state types.StateValue) types.MetricAlarm {
@@ -68,9 +68,35 @@ func TestAlarmListTable__SelectedFuncReceivesRowAndColumn(t *testing.T) {
 	}
 }
 
-func cellForeground(cell *tview.TableCell) tcell.Color {
-	var fg, _, _ = cell.Style.Decompose()
-	return fg
+// drawnForeground draws the table and returns the colour the text is drawn in,
+// which is what the user sees whichever field of the cell holds the colour.
+// The selected row is drawn in the selection colours, so the text must be on
+// another row.
+func drawnForeground(t *testing.T, table *AlarmListTable, text string) tcell.Color {
+	t.Helper()
+	var screen = tcell.NewSimulationScreen("UTF-8")
+	if err := screen.Init(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(screen.Fini)
+	screen.SetSize(40, 10)
+	table.SetRect(0, 0, 40, 10)
+	table.Draw(screen)
+	screen.Show()
+
+	var cells, width, height = screen.GetContents()
+	for row := 0; row < height; row++ {
+		var line strings.Builder
+		for col := 0; col < width; col++ {
+			line.WriteString(string(cells[row*width+col].Runes))
+		}
+		if idx := strings.Index(line.String(), text); idx >= 0 {
+			var fg, _, _ = cells[row*width+idx].Style.Decompose()
+			return fg
+		}
+	}
+	t.Fatalf("%q is not on the screen", text)
+	return 0
 }
 
 func TestAlarmListTable__ColoursOnlyAlarmsInTheAlarmState(t *testing.T) {
@@ -80,14 +106,17 @@ func TestAlarmListTable__ColoursOnlyAlarmsInTheAlarmState(t *testing.T) {
 		newAlarm("no-data", types.StateValueInsufficientData),
 	)
 
-	for col := 0; col < 2; col++ {
-		if got := cellForeground(table.GetCell(1, col)); got != tcell.ColorRed {
-			t.Errorf("alarm row column %d colour = %v, want red", col, got)
+	// Select a row that is not in the alarm state, then the alarm row
+	table.Select(3, 0)
+	for _, text := range []string{"cpu-high", "ALARM"} {
+		if got := drawnForeground(t, table, text); got != tcell.ColorRed {
+			t.Errorf("%q is drawn in %v, want red", text, got)
 		}
-		for _, row := range []int{2, 3} {
-			if got := cellForeground(table.GetCell(row, col)); got == tcell.ColorRed {
-				t.Errorf("row %d column %d is red but is not in the alarm state", row, col)
-			}
+	}
+	table.Select(1, 0)
+	for _, text := range []string{"disk-ok", "OK", "no-data", "INSUFFICIENT_DATA"} {
+		if got := drawnForeground(t, table, text); got == tcell.ColorRed {
+			t.Errorf("%q is drawn red but is not in the alarm state", text)
 		}
 	}
 }
