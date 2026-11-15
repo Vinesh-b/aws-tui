@@ -54,6 +54,8 @@ github.com/aws/aws-sdk-go-v2/service/kms v1.62.1 h1:NGtJiVt3s5b/4sJia4EnSQKUsKS9
 github.com/aws/aws-sdk-go-v2/service/kms v1.62.1/go.mod h1:YVEFrNMhrD35Z6qdvzvpGHDbmFmhZ/Nf58Ubv9dROVU=
 github.com/aws/aws-sdk-go-v2/service/lambda v1.113.3 h1:oSHldse7GDHpdq81XeAJnhIbsdDKP9bMIt00G8W6uXI=
 github.com/aws/aws-sdk-go-v2/service/lambda v1.113.3/go.mod h1:Y//K046w4uhiR3o77beo/y52Jv2uEY13iJ+3+jicLO8=
+github.com/aws/aws-sdk-go-v2/service/route53 v1.71.0 h1:z3rXSCR6cqg34XeZlzpYo1txK9EP/lAPh7NxhQSTF7g=
+github.com/aws/aws-sdk-go-v2/service/route53 v1.71.0/go.mod h1:ESN88d5omEDCHVFJ+jz01i3w8oYvGVj3lSCYhM6BoL8=
 github.com/aws/aws-sdk-go-v2/service/s3 v1.114.5 h1:97+lZymtcztX5RPNyW+B9pV6e60GQ7RBULVVRKhUTfk=
 github.com/aws/aws-sdk-go-v2/service/s3 v1.114.5/go.mod h1:bku1YUz5FGs4MRhJaLcrpFZAH52/eRS0MQYi6diatGM=
 github.com/aws/aws-sdk-go-v2/service/s3control v1.80.1 h1:+uZBl1/vO4AUoXROo2ZU99OMzzVJin357bssbeGeC9o=

@@ -22,6 +22,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/iam v1.64.5
 	github.com/aws/aws-sdk-go-v2/service/kms v1.62.1
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.113.3
+	github.com/aws/aws-sdk-go-v2/service/route53 v1.71.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.5
 	github.com/aws/aws-sdk-go-v2/service/s3control v1.80.1
 	github.com/aws/aws-sdk-go-v2/service/scheduler v1.26.1

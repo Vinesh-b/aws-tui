@@ -17,6 +17,7 @@ const (
 	EC2                ViewId = "EC2"
 	EVENTBRIDGE        ViewId = "EventBridge"
 	IAM                ViewId = "IAM"
+	ROUTE53            ViewId = "Route 53"
 	S3BUCKETS          ViewId = "S3 Buckets"
 	SECRETS_MANAGER    ViewId = "Secrets Manager"
 	SNS                ViewId = "SNS"

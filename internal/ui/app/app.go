@@ -15,6 +15,7 @@ import (
 	"aws-tui/internal/ui/iam"
 	"aws-tui/internal/ui/kms"
 	"aws-tui/internal/ui/lambda"
+	"aws-tui/internal/ui/route53"
 	"aws-tui/internal/ui/s3"
 	"aws-tui/internal/ui/secretsmanager"
 	"aws-tui/internal/ui/services"
@@ -329,6 +330,7 @@ var awsServices = []core.Service{
 	ec2.Service,
 	vpc.Service,
 	waf.Service,
+	route53.Service,
 	iam.Service,
 	sqs.Service,
 	sns.Service,

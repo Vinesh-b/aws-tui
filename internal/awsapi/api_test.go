@@ -514,6 +514,18 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			var _, err = NewWafApi(fake.clients, logger).GetIPSet(context.Background(), "")
 			return err
 		}, "IP set ARN not set"},
+		{"hosted zone", func() error {
+			var _, err = NewRoute53Api(fake.clients, logger).GetHostedZone(context.Background(), "")
+			return err
+		}, "hosted zone id not set"},
+		{"records", func() error {
+			var _, err = NewRoute53Api(fake.clients, logger).ListRecords(context.Background(), "")
+			return err
+		}, "hosted zone id not set"},
+		{"health check status", func() error {
+			var _, err = NewRoute53Api(fake.clients, logger).GetHealthCheckStatus(context.Background(), "")
+			return err
+		}, "health check id not set"},
 		{"trace", func() error {
 			var _, err = NewXRayApi(fake.clients, logger).GetTrace(context.Background(), "")
 			return err
