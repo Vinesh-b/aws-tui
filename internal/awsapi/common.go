@@ -22,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/aws/aws-sdk-go-v2/service/wafv2"
 	"github.com/aws/aws-sdk-go-v2/service/xray"
 )
 
@@ -52,6 +53,7 @@ type AwsApiClients struct {
 	ssm            *ssm.Client
 	s3             *s3.Client
 	s3control      *s3control.Client
+	wafv2          *wafv2.Client
 	xray           *xray.Client
 }
 
@@ -82,6 +84,7 @@ func NewAwsApiClients(cfg aws.Config, profile string) *AwsApiClients {
 		ssm:            ssm.NewFromConfig(cfg),
 		s3:             s3.NewFromConfig(cfg),
 		s3control:      s3control.NewFromConfig(cfg),
+		wafv2:          wafv2.NewFromConfig(cfg),
 		xray:           xray.NewFromConfig(cfg),
 	}
 }

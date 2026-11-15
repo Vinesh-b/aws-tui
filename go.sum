@@ -78,6 +78,8 @@ github.com/aws/aws-sdk-go-v2/service/ssooidc v1.43.5 h1:v6V0AnJ0aDmivAIie/6iT7sG
 github.com/aws/aws-sdk-go-v2/service/ssooidc v1.43.5/go.mod h1:P2Lqn27Kph9z400MFOYIebFnKjZEwyUIAva6fFFMiRY=
 github.com/aws/aws-sdk-go-v2/service/sts v1.51.5 h1:OuyNaMncYP4ftrvcnOHJ9j3AxO3zsC5C/ewD0HoHdjQ=
 github.com/aws/aws-sdk-go-v2/service/sts v1.51.5/go.mod h1:Bhu66tgvf94uunUSiAc0Ew0avhnpSm0J8Hl1MYocRbo=
+github.com/aws/aws-sdk-go-v2/service/wafv2 v1.85.2 h1:AS+X/kDOTT/Bj3F340Q+1+yJSINx1XsSpTuT6gENV+s=
+github.com/aws/aws-sdk-go-v2/service/wafv2 v1.85.2/go.mod h1:cSCZZMkTLKn0OispBGm/bJWjMHxlB2DoPXHnwfCr4fA=
 github.com/aws/aws-sdk-go-v2/service/xray v1.46.3 h1:A+CxTGPKayiTnbyQpxU3NNHRGUiO9fu+J7bKmkEDU8I=
 github.com/aws/aws-sdk-go-v2/service/xray v1.46.3/go.mod h1:h3cKOibUvEPrahoX0neG4/sx28kN0FstXQDba00wib4=
 github.com/aws/smithy-go v1.28.9 h1:zkZ058OpNX0iGTK24b+ZUEQSMc11CBA6oO7xtKZfzkY=

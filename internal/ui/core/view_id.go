@@ -24,6 +24,7 @@ const (
 	STATE_MACHINES     ViewId = "State Machines"
 	SYSTEMS_MANAGER    ViewId = "Systems Manager"
 	VPC                ViewId = "VPCs"
+	WAF                ViewId = "WAF"
 	XRAY               ViewId = "X-Ray"
 
 	HELP       ViewId = "Help"

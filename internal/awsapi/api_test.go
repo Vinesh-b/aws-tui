@@ -502,6 +502,18 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			var _, err = NewS3BucketsApi(fake.clients, logger).GetAccessPointPolicy(context.Background(), "")
 			return err
 		}, "access point ARN not set"},
+		{"web ACL", func() error {
+			var _, err = NewWafApi(fake.clients, logger).GetWebACL(context.Background(), "")
+			return err
+		}, "web ACL ARN not set"},
+		{"web ACL resources", func() error {
+			var _, err = NewWafApi(fake.clients, logger).ListWebACLResources(context.Background(), "")
+			return err
+		}, "web ACL ARN not set"},
+		{"IP set", func() error {
+			var _, err = NewWafApi(fake.clients, logger).GetIPSet(context.Background(), "")
+			return err
+		}, "IP set ARN not set"},
 		{"trace", func() error {
 			var _, err = NewXRayApi(fake.clients, logger).GetTrace(context.Background(), "")
 			return err

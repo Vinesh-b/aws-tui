@@ -23,6 +23,7 @@ import (
 	"aws-tui/internal/ui/sqs"
 	"aws-tui/internal/ui/ssm"
 	"aws-tui/internal/ui/vpc"
+	"aws-tui/internal/ui/waf"
 	"aws-tui/internal/ui/xray"
 	"context"
 	"fmt"
@@ -327,6 +328,7 @@ var awsServices = []core.Service{
 	apigateway.Service,
 	ec2.Service,
 	vpc.Service,
+	waf.Service,
 	iam.Service,
 	sqs.Service,
 	sns.Service,
