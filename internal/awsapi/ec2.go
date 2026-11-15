@@ -17,6 +17,9 @@ type Ec2Api interface {
 	DescribeVpcEndpoints(ctx context.Context, force bool, vpcId string) ([]types.VpcEndpoint, error)
 	DescribeVpcSubnets(ctx context.Context, force bool, vpcId string) ([]types.Subnet, error)
 	DescribeVpcSecurityGroups(ctx context.Context, force bool, vpcId string) ([]types.SecurityGroup, error)
+	// ListNetworkAcls returns the network ACLs of every VPC in the region,
+	// with their rules and subnet associations, sorted by ID.
+	ListNetworkAcls(ctx context.Context, force bool) ([]types.NetworkAcl, error)
 }
 
 type ec2Api struct {
@@ -101,6 +104,22 @@ func (inst *ec2Api) DescribeVpcSecurityGroups(ctx context.Context, force bool, v
 	})
 
 	sortByKey(result, func(g types.SecurityGroup) *string { return g.GroupId })
+
+	return result, inst.logErr(err)
+}
+
+func (inst *ec2Api) ListNetworkAcls(ctx context.Context, force bool) ([]types.NetworkAcl, error) {
+	var result, err = collectTokenPages(func(token *string) ([]types.NetworkAcl, *string, error) {
+		var output, err = inst.clients.ec2.DescribeNetworkAcls(ctx,
+			&ec2.DescribeNetworkAclsInput{NextToken: token},
+		)
+		if err != nil {
+			return nil, nil, err
+		}
+		return output.NetworkAcls, output.NextToken, nil
+	})
+
+	sortByKey(result, func(acl types.NetworkAcl) *string { return acl.NetworkAclId })
 
 	return result, inst.logErr(err)
 }
