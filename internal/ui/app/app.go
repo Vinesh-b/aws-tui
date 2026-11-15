@@ -8,6 +8,7 @@ import (
 	"aws-tui/internal/ui/cloudformation"
 	"aws-tui/internal/ui/cloudtrail"
 	"aws-tui/internal/ui/cloudwatch"
+	"aws-tui/internal/ui/cognito"
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/dynamodb"
 	"aws-tui/internal/ui/ec2"
@@ -331,6 +332,7 @@ var awsServices = []core.Service{
 	vpc.Service,
 	waf.Service,
 	route53.Service,
+	cognito.Service,
 	iam.Service,
 	sqs.Service,
 	sns.Service,

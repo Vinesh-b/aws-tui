@@ -12,6 +12,7 @@ const (
 	CLOUDWATCH_METRICS ViewId = "CloudWatch Metrics"
 	CLOUDFORMATION     ViewId = "CloudFormation"
 	CLOUDTRAIL         ViewId = "CloudTrail"
+	COGNITO            ViewId = "Cognito"
 	DYNAMODB           ViewId = "DynamoDB"
 	API_GATEWAY        ViewId = "API Gateway"
 	EC2                ViewId = "EC2"

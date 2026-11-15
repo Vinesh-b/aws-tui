@@ -514,6 +514,26 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			var _, err = NewWafApi(fake.clients, logger).GetIPSet(context.Background(), "")
 			return err
 		}, "IP set ARN not set"},
+		{"user pool", func() error {
+			var _, err = NewCognitoApi(fake.clients, logger).DescribeUserPool(context.Background(), "")
+			return err
+		}, "user pool id not set"},
+		{"users", func() error {
+			var _, err = NewCognitoApi(fake.clients, logger).ListUsers(context.Background(), "", true)
+			return err
+		}, "user pool id not set"},
+		{"user pool clients", func() error {
+			var _, err = NewCognitoApi(fake.clients, logger).ListUserPoolClients(context.Background(), "")
+			return err
+		}, "user pool id not set"},
+		{"identity pool", func() error {
+			var _, err = NewCognitoApi(fake.clients, logger).DescribeIdentityPool(context.Background(), "")
+			return err
+		}, "identity pool id not set"},
+		{"identity pool roles", func() error {
+			var _, err = NewCognitoApi(fake.clients, logger).GetIdentityPoolRoles(context.Background(), "")
+			return err
+		}, "identity pool id not set"},
 		{"hosted zone", func() error {
 			var _, err = NewRoute53Api(fake.clients, logger).GetHostedZone(context.Background(), "")
 			return err

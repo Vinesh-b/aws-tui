@@ -7,6 +7,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudtrail"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/service/cognitoidentity"
+	"github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
@@ -40,6 +42,8 @@ type AwsApiClients struct {
 	cloudtrail     *cloudtrail.Client
 	cloudwatch     *cloudwatch.Client
 	cloudwatchlogs *cloudwatchlogs.Client
+	cognitoid      *cognitoidentity.Client
+	cognitoidp     *cognitoidentityprovider.Client
 	dynamodb       *dynamodb.Client
 	ec2            *ec2.Client
 	eventbridge    *eventbridge.Client
@@ -72,6 +76,8 @@ func NewAwsApiClients(cfg aws.Config, profile string) *AwsApiClients {
 		cloudtrail:     cloudtrail.NewFromConfig(cfg),
 		cloudwatch:     cloudwatch.NewFromConfig(cfg),
 		cloudwatchlogs: cloudwatchlogs.NewFromConfig(cfg),
+		cognitoid:      cognitoidentity.NewFromConfig(cfg),
+		cognitoidp:     cognitoidentityprovider.NewFromConfig(cfg),
 		dynamodb:       dynamodb.NewFromConfig(cfg),
 		ec2:            ec2.NewFromConfig(cfg),
 		eventbridge:    eventbridge.NewFromConfig(cfg),
