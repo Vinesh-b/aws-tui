@@ -80,6 +80,7 @@ var generalKeyBindingInfos = []KeyBindingInfo{
 	{Name: "textCopy", Group: "Tables", Description: "Copy the cell, the value or the selected text"},
 	{Name: "tableQuery", Group: "Tables", Description: "Query the table, or the marked log groups with Insights"},
 	{Name: "sort", Group: "Tables", Description: "Sort by the selected column, then the other way, then as loaded"},
+	{Name: "timeRange", Group: "Tables", Description: "Show the next time range of the events of a log stream, or of the X-Ray traces"},
 	{Name: "removeItem", Group: "Tables", Description: "Unmark a log group, or delete a saved query or DynamoDB item"},
 	{Name: "removeItemSequence", Group: "Tables", Description: "Unmark a log group, or delete a saved query or DynamoDB item"},
 
@@ -99,7 +100,6 @@ var generalKeyBindingInfos = []KeyBindingInfo{
 var serviceKeyBindingInfosCloudWatch = []KeyBindingInfo{
 	{Name: "mark", Group: "Tables", Description: "Mark a log group to query with Insights"},
 	{Name: "follow", Group: "Tables", Description: "Follow a log stream as new events arrive"},
-	{Name: "timeRange", Group: "Tables", Description: "Show the next time range of the events of a log stream"},
 	{Name: "unmask", Group: "Tables", Description: "Show or mask the data a data protection policy masks in the events of a log stream"},
 	{Name: "filter", Group: "Tables", Description: "Filter the events of a log stream with a filter pattern"},
 }

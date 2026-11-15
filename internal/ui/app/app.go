@@ -23,6 +23,7 @@ import (
 	"aws-tui/internal/ui/sqs"
 	"aws-tui/internal/ui/ssm"
 	"aws-tui/internal/ui/vpc"
+	"aws-tui/internal/ui/xray"
 	"context"
 	"fmt"
 	"log"
@@ -320,6 +321,7 @@ var awsServices = []core.Service{
 	eventbridge.Service,
 	cloudformation.Service,
 	cloudtrail.Service,
+	xray.Service,
 	cloudwatch.AlarmsService,
 	cloudwatch.MetricsService,
 	apigateway.Service,

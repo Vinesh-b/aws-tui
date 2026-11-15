@@ -29,6 +29,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.38.8
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.81.0
 	github.com/aws/aws-sdk-go-v2/service/sts v1.51.5
+	github.com/aws/aws-sdk-go-v2/service/xray v1.46.3
 	github.com/aws/smithy-go v1.28.7
 	github.com/gdamore/tcell/v2 v2.13.10
 	github.com/lithammer/fuzzysearch v1.1.8

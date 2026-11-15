@@ -4,7 +4,7 @@ A terminal UI for browsing AWS services, built with [tview](https://github.com/r
 
 ## Supported services
 
-Lambda, CloudWatch (Logs, Logs Insights, Alarms, Metrics), DynamoDB, IAM (Roles, Users, Policies), Step Functions, S3, Systems Manager (Parameter Store), Secrets Manager, KMS, EventBridge (Event Buses, Schedules), CloudFormation, CloudTrail (Event History, Trails), SQS, SNS, API Gateway, EC2 and VPC.
+Lambda, CloudWatch (Logs, Logs Insights, Alarms, Metrics), DynamoDB, IAM (Roles, Users, Policies), Step Functions, S3, Systems Manager (Parameter Store), Secrets Manager, KMS, EventBridge (Event Buses, Schedules), CloudFormation, CloudTrail (Event History, Trails), X-Ray (Traces, Sampling Rules), SQS, SNS, API Gateway, EC2 and VPC.
 
 ## Requirements
 
@@ -194,7 +194,7 @@ internal/ui/core/   reusable widgets, table infrastructure and app-wide state
 internal/ui/services/  service picker, help, profile and region selection
 internal/ui/<service>/ views and tables for one service
                        (cloudformation, cloudtrail, cloudwatch, dynamodb, ec2, eventbridge,
-                        iam, lambda, kms, s3, secretsmanager, sfn, sns, sqs, ssm, vpc)
+                        iam, lambda, kms, s3, secretsmanager, sfn, sns, sqs, ssm, vpc, xray)
 ```
 
 A service is added to the app by its package: `service.go` gives a `core.Service` with the name, icon, description, shortcut, short commands and how to build the page, which is then listed in `awsServices` in `internal/ui/app/app.go`.

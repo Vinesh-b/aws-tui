@@ -494,6 +494,10 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			var _, err = NewCloudTrailApi(fake.clients, logger).GetTrailStatus(context.Background(), "")
 			return err
 		}, "trail ARN not set"},
+		{"trace", func() error {
+			var _, err = NewXRayApi(fake.clients, logger).GetTrace(context.Background(), "")
+			return err
+		}, "trace ID not set"},
 		{"ssm path", func() error {
 			var _, err = NewSystemsManagerApi(fake.clients, logger).GetParametersByPath(context.Background(), "", true)
 			return err

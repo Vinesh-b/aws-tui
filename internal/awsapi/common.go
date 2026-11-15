@@ -21,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/aws/aws-sdk-go-v2/service/xray"
 )
 
 // AwsApiClients are the SDK clients of one config, which is one profile and
@@ -49,6 +50,7 @@ type AwsApiClients struct {
 	sqs            *sqs.Client
 	ssm            *ssm.Client
 	s3             *s3.Client
+	xray           *xray.Client
 }
 
 // NewAwsApiClients builds the clients of the config. The profile is the name it
@@ -77,5 +79,6 @@ func NewAwsApiClients(cfg aws.Config, profile string) *AwsApiClients {
 		sqs:            sqs.NewFromConfig(cfg),
 		ssm:            ssm.NewFromConfig(cfg),
 		s3:             s3.NewFromConfig(cfg),
+		xray:           xray.NewFromConfig(cfg),
 	}
 }
