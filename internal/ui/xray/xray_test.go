@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"aws-tui/internal/awsapi"
+	"aws-tui/internal/safetest"
 	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/uitest"
 	"aws-tui/internal/ui/xray/xrayfake"
@@ -850,4 +851,147 @@ func formatRows(rows []core.TableRow) string {
 		lines = append(lines, strings.Join(row, " | "))
 	}
 	return strings.Join(lines, "\n")
+}
+
+func TestTraceLogGroups(t *testing.T) {
+	var summary = types.TraceSummary{
+		ResourceARNs: []types.ResourceARNDetail{
+			{ARN: aws.String("arn:aws:lambda:us-east-1:123456789012:function:orders:$LATEST")},
+			{ARN: aws.String("arn:aws:dynamodb:us-east-1:123456789012:table/orders")},
+			{ARN: aws.String("not an arn")},
+		},
+		ServiceIds: []types.ServiceId{
+			{Name: aws.String("orders"), Type: aws.String("AWS::Lambda::Function")},
+			{Name: aws.String("payments"), Type: aws.String("AWS::Lambda::Function")},
+			{Name: aws.String("orders-api"), Type: aws.String("AWS::ApiGateway::Stage")},
+		},
+	}
+	var trace = types.Trace{Segments: []types.Segment{
+		segmentOf("s1", `{"name":"carts","origin":"AWS::ECS::Container","aws":{"cloudwatch_logs":[`+
+			`{"log_group":"/ecs/carts","arn":"arn:aws:logs:us-east-1:123456789012:log-group:/ecs/carts"},{"log_group":""}]}}`),
+		segmentOf("s2", `{"name":"refunds","origin":"AWS::Lambda::Function"}`),
+		segmentOf("s3", `{"name":"refunds","origin":"AWS::Lambda"}`),
+		segmentOf("s4", "not json"),
+	}}
+
+	if got, want := traceLogGroups(summary, nil), []string{"/aws/lambda/orders", "/aws/lambda/payments"}; !slices.Equal(got, want) {
+		t.Errorf("groups before the segments are loaded = %q, want %q", got, want)
+	}
+	var want = []string{"/aws/lambda/orders", "/aws/lambda/payments", "/aws/lambda/refunds", "/ecs/carts"}
+	if got := traceLogGroups(summary, &trace); !slices.Equal(got, want) {
+		t.Errorf("groups = %q, want %q", got, want)
+	}
+}
+
+func TestTraceLogsQuery__FindsTheLinesOfTheTraceAroundItsTime(t *testing.T) {
+	var summary = newSummary("1-5f84c7a1-abc", "/orders", 30)
+
+	var query, err = traceLogsQuery(summary, nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want = core.LogsQuery{
+		Query: "fields @timestamp, @log, @message\n" +
+			"| filter @message like \"1-5f84c7a1-abc\"\n" +
+			"| sort @timestamp asc\n" +
+			"| limit 1000",
+		LogGroups: []string{"/aws/lambda/orders"},
+		// The trace starts at 09:30 and lasts 1.5s
+		Start: time.Date(2026, 11, 14, 9, 25, 0, 0, time.UTC),
+		End:   time.Date(2026, 11, 14, 9, 35, 1, 500_000_000, time.UTC),
+	}
+	if query.Query != want.Query || !slices.Equal(query.LogGroups, want.LogGroups) ||
+		!query.Start.Equal(want.Start) || !query.End.Equal(want.End) {
+		t.Errorf("query = %+v, want %+v", query, want)
+	}
+}
+
+func TestTraceLogsQuery__TraceThatCantBeQueriedIsAnError(t *testing.T) {
+	var withoutStart = newSummary("t1", "/orders", 30)
+	withoutStart.StartTime = nil
+	var withoutLogs = newSummary("t2", "/orders", 30)
+	withoutLogs.ResourceARNs, withoutLogs.ServiceIds = nil, nil
+
+	for _, test := range []struct {
+		name    string
+		summary types.TraceSummary
+		want    string
+	}{
+		{"no trace", types.TraceSummary{}, "No trace is selected"},
+		{"no start time", withoutStart, "Trace t1 has no start time to find its logs by"},
+		{"no log groups", withoutLogs, "No log groups were found for trace t2"},
+	} {
+		if _, err := traceLogsQuery(test.summary, nil); err == nil || err.Error() != test.want {
+			t.Errorf("%s: error = %v, want %q", test.name, err, test.want)
+		}
+	}
+}
+
+func TestTracesPage__QueryKeyOpensTheLogsOfTheTraceWithItsSegments(t *testing.T) {
+	var trace = newTrace("t1")
+	trace.Segments = append(trace.Segments, segmentOf("s4",
+		`{"name":"carts","origin":"AWS::ECS::Container","aws":{"cloudwatch_logs":[{"log_group":"/ecs/carts"}]}}`))
+	var api = xrayfake.New(
+		xrayfake.WithTracePages([]types.TraceSummary{newSummary("t1", "/orders", 30)}),
+		xrayfake.WithTrace(trace),
+	)
+	var view = newTracesTest(t, api)
+	var app = view.TracesTable.serviceCtx.App
+	var opened safetest.Recorder[core.LogsQuery]
+	view.TracesTable.serviceCtx.AppContext.SetLogsQueryOpener(func(query core.LogsQuery) error {
+		opened.Record(query)
+		return nil
+	})
+	view.TracesTable.RefreshTraces(true)
+	uitest.Eventually(t, app, func() bool { return view.DetailsTable.LoadedTrace() != nil }, "the segments to be loaded")
+
+	uitest.OnUI(t, app, func() { uitest.PressTableRune(view.TracesTable, core.APP_KEY_BINDINGS.TableQuery) })
+
+	var calls = opened.Calls()
+	if len(calls) != 1 {
+		t.Fatalf("queries opened = %d, want 1", len(calls))
+	}
+	if want := []string{"/aws/lambda/orders", "/ecs/carts"}; !slices.Equal(calls[0].LogGroups, want) {
+		t.Errorf("log groups = %q, want %q", calls[0].LogGroups, want)
+	}
+	if !strings.Contains(calls[0].Query, `"t1"`) {
+		t.Errorf("query = %q, want it to find the trace", calls[0].Query)
+	}
+}
+
+func TestTracesPage__QueryKeyReportsWhyTheLogsCantBeOpened(t *testing.T) {
+	var withoutLogs = newSummary("t1", "/orders", 30)
+	withoutLogs.ResourceARNs, withoutLogs.ServiceIds = nil, nil
+	for _, test := range []struct {
+		name    string
+		summary types.TraceSummary
+		openErr error
+		want    string
+	}{
+		{"no log groups", withoutLogs, nil, "No log groups were found for trace t1"},
+		{"no logs page", newSummary("t1", "/orders", 30), errors.New("can't open Logs Insights queries"),
+			"can't open Logs Insights queries"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var api = xrayfake.New(xrayfake.WithTracePages([]types.TraceSummary{test.summary}))
+			var view = newTracesTest(t, api)
+			var app = view.TracesTable.serviceCtx.App
+			var callback, received = uitest.CaptureErrors()
+			var opened safetest.Recorder[core.LogsQuery]
+			view.TracesTable.serviceCtx.AppContext.SetLogsQueryOpener(func(query core.LogsQuery) error {
+				opened.Record(query)
+				return test.openErr
+			})
+			view.TracesTable.RefreshTraces(true)
+			uitest.Eventually(t, app, func() bool { return view.TracesTable.GetCellText(1, 5) == "/orders" }, "/orders to be shown")
+			uitest.OnUI(t, app, func() { view.TracesTable.ErrorMessageCallback = callback })
+
+			uitest.OnUI(t, app, func() { uitest.PressTableRune(view.TracesTable, core.APP_KEY_BINDINGS.TableQuery) })
+
+			if got := uitest.AwaitError(t, received); got != test.want {
+				t.Errorf("error = %q, want %q", got, test.want)
+			}
+		})
+	}
 }

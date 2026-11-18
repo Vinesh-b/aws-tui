@@ -169,6 +169,14 @@ const (
 type logsRootView struct {
 	*core.ServiceRootView
 	logEventsTable *LogEventsTable
+	insightsView   *LogsInsightsPageView
+}
+
+// OpenLogsQuery runs the Insights query of another service, such as on the
+// logs of an X-Ray trace, and shows its results
+func (inst *logsRootView) OpenLogsQuery(query core.LogsQuery) {
+	inst.ChangePage(logsPageInsights, nil)
+	inst.insightsView.RunLogsQuery(query)
 }
 
 func (inst *logsRootView) SetServicePageChangedFunc(handler func(name string)) {
@@ -284,5 +292,9 @@ func NewLogsHomeView(appCtx *core.AppContext, api awsapi.CloudWatchLogsApi) core
 	logStreamsView.InitInputCapture()
 	logGroupsView.InitInputCapture()
 
-	return &logsRootView{ServiceRootView: serviceRootView, logEventsTable: logEventsView.LogEventsTable}
+	return &logsRootView{
+		ServiceRootView: serviceRootView,
+		logEventsTable:  logEventsView.LogEventsTable,
+		insightsView:    insightsView,
+	}
 }

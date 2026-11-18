@@ -23,6 +23,7 @@ type insightsState struct {
 
 	logGroups  [][]string
 	queries    []string
+	windows    []QueryWindow
 	stopped    []string
 	polls      int
 	recordPtrs []string
@@ -43,6 +44,16 @@ func WithInsightsRecord(record map[string]string) Option {
 // WithInsightsRecordErr makes GetInsightsLogRecord fail
 func WithInsightsRecordErr(err error) Option {
 	return func(f *Api) { f.insights.recordErr = err }
+}
+
+// QueryWindow is the times a query was started between
+type QueryWindow struct{ Start, End time.Time }
+
+// QueryWindows gives the times of each query started, oldest first
+func (f *Api) QueryWindows() []QueryWindow {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return slices.Clone(f.insights.windows)
 }
 
 // QueryLogGroups gives the log groups of each query started, oldest first
@@ -95,6 +106,7 @@ func (f *Api) StartInsightsQuery(
 	defer f.mtx.Unlock()
 	f.insights.logGroups = append(f.insights.logGroups, slices.Clone(logGroups))
 	f.insights.queries = append(f.insights.queries, query)
+	f.insights.windows = append(f.insights.windows, QueryWindow{startTime, endTime})
 	return fmt.Sprintf("query-%d", len(f.insights.queries)), nil
 }
 

@@ -268,6 +268,26 @@ func (inst *navigator) openResource(resource arn.ARN) error {
 	return fmt.Errorf("can't open %s resources", resource.Service)
 }
 
+// openLogsQuery switches to the page of the service that runs Logs Insights
+// queries and runs the query there. Going back returns to where it was opened
+// from.
+func (inst *navigator) openLogsQuery(query core.LogsQuery) error {
+	for _, item := range inst.items {
+		var opener, ok = item.ServicePage.(core.LogsQueryOpener)
+		if !ok {
+			continue
+		}
+		inst.history.WithoutRecording(func() {
+			inst.pages.SwitchToPage(item.MainText)
+			opener.OpenLogsQuery(query)
+		})
+		inst.app.SetFocus(item.ServicePage.GetLastFocusedView())
+		inst.history.Visit(locationOf(item))
+		return nil
+	}
+	return fmt.Errorf("can't open Logs Insights queries")
+}
+
 // canOpenResource is true if a service page can show the resource
 func (inst *navigator) canOpenResource(resource arn.ARN) bool {
 	return slices.ContainsFunc(inst.items, func(item *ServiceItem) bool {
@@ -570,6 +590,15 @@ func newApplication(
 		serviceListHidden = true
 		return nil
 	}, nav.canOpenResource)
+
+	// Other services query their logs with Insights in the page of the logs
+	appContext.SetLogsQueryOpener(func(query core.LogsQuery) error {
+		if err := nav.openLogsQuery(query); err != nil {
+			return err
+		}
+		serviceListHidden = true
+		return nil
+	})
 
 	var floatingServices = core.FloatingView("Quick select", servicesList, 70, 27)
 

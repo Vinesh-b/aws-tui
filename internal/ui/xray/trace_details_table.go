@@ -361,6 +361,12 @@ func (inst *TraceDetailsTable) SetTrace(summary types.TraceSummary) {
 	inst.populateDetailsTable()
 }
 
+// LoadedTrace is the trace shown with its segments, which is nil until they
+// are loaded
+func (inst *TraceDetailsTable) LoadedTrace() *types.Trace {
+	return inst.trace
+}
+
 // RefreshSegments loads the segments of the trace shown
 func (inst *TraceDetailsTable) RefreshSegments() {
 	var traceId = aws.ToString(inst.summary.Id)

@@ -52,6 +52,7 @@ type AppContext struct {
 	keyListeners      []func()
 	openResource      func(resource arn.ARN) error
 	canOpenResource   func(resource arn.ARN) bool
+	openLogsQuery     func(query LogsQuery) error
 	linkableMtx       sync.Mutex
 	linkable          map[string]bool
 	// focusedTable is the table that last had the focus, to save with :w, and

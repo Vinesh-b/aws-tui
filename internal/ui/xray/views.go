@@ -73,6 +73,17 @@ func NewTracesPageView(
 		detailsTable.RefreshSegments()
 	})
 
+	// The logs are found by the segments too, when they are loaded
+	tracesTable.SetQueryLogsFunc(func() {
+		var query, err = traceLogsQuery(tracesTable.GetSelectedTrace(), detailsTable.LoadedTrace())
+		if err == nil {
+			err = serviceCtx.AppContext.OpenLogsQuery(query)
+		}
+		if err != nil {
+			tracesTable.ErrorMessageCallback("%s", err.Error())
+		}
+	})
+
 	return &TracesPageView{
 		ServicePageView: serviceView,
 		TracesTable:     tracesTable,

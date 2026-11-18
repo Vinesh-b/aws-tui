@@ -275,3 +275,61 @@ func TestNavigator__ShowingAPageRecordsOnlyThatPage(t *testing.T) {
 	test.back()
 	test.assertAt("Lambda", "Functions")
 }
+
+// queryPage runs the Logs Insights queries it is opened with, as the page of
+// the logs does
+type queryPage struct {
+	*tview.Box
+	queries []core.LogsQuery
+}
+
+func (p *queryPage) GetLastFocusedView() tview.Primitive { return p.Box }
+func (p *queryPage) OpenLogsQuery(query core.LogsQuery)  { p.queries = append(p.queries, query) }
+
+func TestOpenLogsQuery__RunsItInThePageOfTheLogsAndGoesBack(t *testing.T) {
+	var app = tview.NewApplication()
+	var pages = tview.NewPages()
+	var xrayPage = newPagedPage("xray", "Traces", "Sampling Rules")
+	var logsPage = &queryPage{Box: tview.NewBox()}
+	var items = []*ServiceItem{
+		staticServiceItem("X-Ray", "", 'x', xrayPage),
+		staticServiceItem("Logs", "", 'g', logsPage),
+	}
+	var nav = newNavigator(app, pages, items)
+	for _, item := range items {
+		pages.AddPage(item.MainText, item.ServicePage, true, false)
+		nav.watch(item)
+	}
+	nav.showService(items[0])
+	var query = core.LogsQuery{Query: "fields @message", LogGroups: []string{"/aws/lambda/orders"}}
+
+	if err := nav.openLogsQuery(query); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if name, _ := pages.GetFrontPage(); name != "Logs" {
+		t.Errorf("front page = %q, want Logs", name)
+	}
+	if len(logsPage.queries) != 1 || logsPage.queries[0].Query != query.Query {
+		t.Errorf("queries run = %v, want the query", logsPage.queries)
+	}
+	if app.GetFocus() != logsPage.Box {
+		t.Error("focus should be on the logs page")
+	}
+	if !nav.Back() {
+		t.Fatal("could not go back")
+	}
+	if name, _ := pages.GetFrontPage(); name != "X-Ray" {
+		t.Errorf("front page after going back = %q, want X-Ray", name)
+	}
+}
+
+func TestOpenLogsQuery__WithoutThePageOfTheLogsIsAnError(t *testing.T) {
+	var items = []*ServiceItem{staticServiceItem("Help", "", 'h', &countingPage{Box: tview.NewBox()})}
+
+	var err = newNavigator(tview.NewApplication(), tview.NewPages(), items).openLogsQuery(core.LogsQuery{})
+
+	if err == nil || err.Error() != "can't open Logs Insights queries" {
+		t.Errorf("error = %v", err)
+	}
+}

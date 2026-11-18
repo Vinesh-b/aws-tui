@@ -122,6 +122,24 @@ func (inst *LogsInsightsPageView) RunQuery() {
 	inst.serviceCtx.App.SetFocus(inst.ResultsTable)
 }
 
+// RunLogsQuery runs a query another service opened, on its log groups, which
+// are marked in place of those that were, and moves to the results. The query
+// is put in the form, but not kept as the last one run, which is the user's.
+func (inst *LogsInsightsPageView) RunLogsQuery(logsQuery core.LogsQuery) {
+	var query = InsightsQuery{Query: logsQuery.Query, StartTime: logsQuery.Start, EndTime: logsQuery.End}
+	inst.QueryView.SetQuery(query)
+
+	var marks = inst.SelectedGroupsTable.marks
+	marks.Clear()
+	for _, logGroup := range logsQuery.LogGroups {
+		marks.Add(logGroup)
+	}
+
+	inst.ResultsTable.ExecuteQuery(query, logsQuery.LogGroups)
+	inst.SetFocusedRow(1)
+	inst.serviceCtx.App.SetFocus(inst.ResultsTable)
+}
+
 // OpenRecord loads the log record of the result in the row in the background,
 // and then calls open with the log group and stream it is from. Results that
 // are not records, such as those of a stats query, and failing to load the

@@ -9,6 +9,7 @@ import (
 
 	"aws-tui/internal/awsapi"
 	"aws-tui/internal/ui/cloudwatch/cloudwatchfake"
+	"aws-tui/internal/ui/core"
 	"aws-tui/internal/ui/uitest"
 
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
@@ -301,4 +302,58 @@ func TestInsightsPageView__ResultWithoutARecordIsReportedAndNotLoaded(t *testing
 	if len(api.RecordPointers()) != 0 {
 		t.Errorf("records loaded = %v, want none", api.RecordPointers())
 	}
+}
+
+func TestLogsHomeView__OpenedQueryRunsOnItsGroupsInPlaceOfTheMarkedOnes(t *testing.T) {
+	var appCtx = uitest.NewAppContext()
+	var api = cloudwatchfake.New(cloudwatchfake.WithInsightsResults(
+		completeWith(resultRow("@message", "trace line", "@ptr", "ptr-1")),
+	))
+	var page = NewLogsHomeView(appCtx, api)
+	var screen = uitest.ShowPage(t, appCtx.App, page)
+	var root = page.(*logsRootView)
+	var start = time.Date(2026, 11, 14, 9, 25, 0, 0, time.UTC)
+	var query = core.LogsQuery{
+		Query:     "fields @message | filter @message like \"1-abc\"",
+		LogGroups: []string{"/aws/lambda/orders", "/ecs/carts"},
+		Start:     start,
+		End:       start.Add(11 * time.Minute),
+	}
+	uitest.OnUI(t, appCtx.App, func() { root.insightsView.SelectedGroupsTable.marks.Add("/aws/lambda/other") })
+
+	uitest.OnUI(t, appCtx.App, func() { page.(core.LogsQueryOpener).OpenLogsQuery(query) })
+
+	uitest.AwaitScreenText(t, appCtx.App, screen, "trace line")
+	if got := api.Queries(); !slices.Equal(got, []string{query.Query}) {
+		t.Errorf("queries = %q, want the query opened", got)
+	}
+	if got := api.QueryLogGroups(); len(got) != 1 || !slices.Equal(got[0], query.LogGroups) {
+		t.Errorf("log groups = %v, want those of the query", got)
+	}
+	if got := api.QueryWindows(); len(got) != 1 || !got[0].Start.Equal(query.Start) || !got[0].End.Equal(query.End) {
+		t.Errorf("times = %v, want %v - %v", got, query.Start, query.End)
+	}
+	uitest.OnUI(t, appCtx.App, func() {
+		var view = root.insightsView
+		if got := root.CurrentServicePage(); got != "Insights" {
+			t.Errorf("page = %q, want Insights", got)
+		}
+		if got := view.SelectedGroupsTable.marks.All(); !slices.Equal(got, query.LogGroups) {
+			t.Errorf("marked groups = %v, want only those of the query", got)
+		}
+		if got := view.QueryView.queryTextArea.GetText(); got != query.Query {
+			t.Errorf("query in the form = %q, want the query", got)
+		}
+		if got := currentInsightsRange(view.QueryView); got != "Custom" {
+			t.Errorf("range = %q, want Custom", got)
+		}
+		if got := root.GetLastFocusedView(); got != view.ResultsTable {
+			t.Errorf("view focused when the page is shown = %T, want the results", got)
+		}
+	})
+}
+
+func currentInsightsRange(view *InsightsQueryInputView) string {
+	var _, text = view.rangeDropDown.GetCurrentOption()
+	return text
 }

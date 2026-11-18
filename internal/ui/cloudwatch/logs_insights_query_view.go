@@ -167,6 +167,16 @@ func (inst *InsightsQueryInputView) applyRange(index int, now time.Time) {
 	inst.endDateInput.SetTextTime(now)
 }
 
+// SetQuery puts the query and its times in, which are Custom times
+func (inst *InsightsQueryInputView) SetQuery(query InsightsQuery) {
+	inst.settingRange = true
+	defer func() { inst.settingRange = false }()
+	inst.rangeDropDown.SetCurrentOption(customInsightsRange)
+	inst.startDateInput.SetTextTime(query.StartTime)
+	inst.endDateInput.SetTextTime(query.EndTime)
+	inst.queryTextArea.SetText(query.Query, false)
+}
+
 // initSavedQueries loads the queries that were kept, and puts the one that was
 // run last in the query form
 func (inst *InsightsQueryInputView) initSavedQueries() {

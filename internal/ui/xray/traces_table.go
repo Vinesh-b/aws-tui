@@ -78,6 +78,8 @@ type TracesTable struct {
 	// rangeChanged is told the range and its times when they change, and when
 	// a range ending now is loaded again
 	rangeChanged func(rangeIdx int, start, end time.Time)
+	// queryLogs is called to query the logs of the selected trace
+	queryLogs func()
 	// loads counts the reloads, so the traces of one that was replaced by
 	// another before they came are not shown
 	loads int
@@ -102,6 +104,7 @@ func NewTracesTable(
 		serviceCtx: serviceContext,
 		rangeIdx:   defaultTraceRangeIdx,
 		now:        time.Now,
+		queryLogs:  func() {},
 	}
 
 	table.HighlightSearch = true
@@ -110,7 +113,8 @@ func NewTracesTable(
 	})
 	table.showRange(table.window())
 	table.HelpView.View.
-		AddRune(core.APP_KEY_BINDINGS.TimeRange, "Show the traces of the next time range")
+		AddRune(core.APP_KEY_BINDINGS.TimeRange, "Show the traces of the next time range").
+		AddRune(core.APP_KEY_BINDINGS.TableQuery, "Query the logs of the trace with Logs Insights")
 	table.populateTracesTable(nil, true)
 	table.SetSelectionChangedFunc(func(row, column int) {})
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey { return event })
@@ -275,9 +279,17 @@ func (inst *TracesTable) SetInputCapture(capture func(event *tcell.EventKey) *tc
 		case core.APP_KEY_BINDINGS.TimeRange:
 			inst.NextTimeRange()
 			return nil
+		case core.APP_KEY_BINDINGS.TableQuery:
+			inst.queryLogs()
+			return nil
 		}
 		return capture(event)
 	})
+}
+
+// SetQueryLogsFunc sets what queries the logs of the selected trace
+func (inst *TracesTable) SetQueryLogsFunc(queryLogs func()) {
+	inst.queryLogs = queryLogs
 }
 
 func (inst *TracesTable) GetSelectedTrace() types.TraceSummary {
