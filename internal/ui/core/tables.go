@@ -160,6 +160,7 @@ func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppConte
 		AddRune(APP_KEY_BINDINGS.Reset, "Reset table").
 		AddItem(FormatRune(APP_KEY_BINDINGS.CommandLine)+"w", "Save table to csv", nil).
 		AddRune(APP_KEY_BINDINGS.TextCopy, "Copy cell text to clipboard").
+		AddItem(APP_KEY_BINDINGS.OpenLinkSequence, "Open the resource of the selected ARN", nil).
 		AddKey(APP_KEY_BINDINGS.ClearTable, "Clear table").
 		AddRune(APP_KEY_BINDINGS.MoveUpRune, "Move up one row").
 		AddRune(APP_KEY_BINDINGS.MoveDownRune, "Move down one row").
@@ -173,8 +174,12 @@ func NewSelectableTable[T any](title string, headings TableRow, appCtx *AppConte
 	view.
 		AddRuneToggleOverlay("HELP", view.HelpView, APP_KEY_BINDINGS.Help, true)
 
-	// The table to save with :w is the one that had the focus last
-	table.SetFocusFunc(func() { appCtx.focusedTable = view })
+	// The table to save with :w, and whose ARNs gx opens, is the one that had
+	// the focus last
+	table.SetFocusFunc(func() {
+		appCtx.focusedTable = view
+		appCtx.focusedLinks = view
+	})
 
 	view.SetTitle(title).
 		SetTitleAlign(tview.AlignLeft).
@@ -489,6 +494,23 @@ func (inst *SelectableTable[T]) SearchTableText(searchCols []int, search string)
 
 func (inst *SelectableTable[T]) GetCellText(row int, column int) string {
 	return GetCellText[T](inst.table.GetCell(row, column))
+}
+
+// openSelectedLink opens the resource of the selected cell if its text is an
+// ARN. It is only looked at when asked, so showing, filtering and sorting
+// tables does no work for links.
+func (inst *SelectableTable[T]) openSelectedLink() {
+	var row, col = inst.table.GetSelection()
+	if row < 1 {
+		return
+	}
+	var text = strings.TrimSpace(inst.GetCellText(row, col))
+	if !strings.HasPrefix(text, "arn:") {
+		return
+	}
+	if err := inst.appCtx.OpenResource(text); err != nil {
+		inst.ErrorMessageCallback("%s", err.Error())
+	}
 }
 
 func (inst *SelectableTable[T]) GetPrivateData(row int, column int) T {

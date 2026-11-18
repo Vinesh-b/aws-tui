@@ -252,3 +252,89 @@ func TestDetailsTableLinks__OpenableArnsAreLinked(t *testing.T) {
 		t.Errorf("explicit link = %q, want it kept over the role ARN in the value", link)
 	}
 }
+
+const testQueueArn = "arn:aws:sqs:us-east-1:123456789012:orders"
+
+func newLinkedSelectableTable(t *testing.T) (*SelectableTable[string], *[]string) {
+	t.Helper()
+	var table = NewSelectableTable[string]("queues", TableRow{"Name", "ARN"}, newTestAppContext())
+	var opened = &[]string{}
+	table.appCtx.SetResourceOpener(func(resource arn.ARN) error {
+		*opened = append(*opened, resource.String())
+		return nil
+	}, nil)
+	if err := table.SetData([]TableRow{
+		{"orders", testQueueArn},
+		{"billing", "not-an-arn"},
+	}, nil, 0); err != nil {
+		t.Fatalf("SetData: %v", err)
+	}
+	return table, opened
+}
+
+// openCellLinkOf opens the ARN of the selected cell of the table, with the
+// focus on it as when gx is typed
+func openCellLinkOf(table *SelectableTable[string]) {
+	table.appCtx.App.SetFocus(table.table)
+	table.appCtx.OpenLink(table.table)
+}
+
+func TestSelectableTableLinks__OpenLinkOpensTheArnOfTheSelectedCell(t *testing.T) {
+	var table, opened = newLinkedSelectableTable(t)
+
+	table.Select(1, 0)
+	openCellLinkOf(table)
+	table.Select(2, 1)
+	openCellLinkOf(table)
+	table.Select(1, 1)
+	openCellLinkOf(table)
+
+	if len(*opened) != 1 || (*opened)[0] != testQueueArn {
+		t.Errorf("opened = %v, want only the ARN cell", *opened)
+	}
+}
+
+func TestSelectableTableLinks__OpensLinksOfTheTableFocusedLast(t *testing.T) {
+	var details, detailsOpened = newLinkedDetailsTable(t)
+	var table, opened = newLinkedSelectableTable(t)
+	details.Select(1, 0)
+	details.appCtx.App.SetFocus(details.table)
+	table.Select(1, 1)
+
+	openCellLinkOf(table)
+
+	if len(*detailsOpened) != 0 || len(*opened) != 1 {
+		t.Errorf("opened details, table = %v, %v, want only the table", *detailsOpened, *opened)
+	}
+}
+
+func TestSelectableTableLinks__FailureIsReported(t *testing.T) {
+	var table, _ = newLinkedSelectableTable(t)
+	table.appCtx.SetResourceOpener(func(resource arn.ARN) error { return errors.New("can't open sqs resources") }, nil)
+	var reported = ""
+	table.ErrorMessageCallback = func(text string, a ...any) { reported = a[0].(string) }
+
+	table.Select(1, 1)
+	openCellLinkOf(table)
+
+	if reported != "can't open sqs resources" {
+		t.Errorf("reported = %q", reported)
+	}
+}
+
+func TestSelectableTableLinks__ShowingRowsDoesNotLookForLinks(t *testing.T) {
+	var appCtx = newTestAppContext()
+	var asked = 0
+	appCtx.SetResourceOpener(nil, func(resource arn.ARN) bool {
+		asked++
+		return true
+	})
+	var table = NewSelectableTable[string]("queues", TableRow{"Name", "ARN"}, appCtx)
+
+	table.SetData([]TableRow{{"orders", testQueueArn}}, nil, 0)
+	table.ExtendData([]TableRow{{"billing", "arn:aws:sqs:us-east-1:123456789012:billing"}}, nil)
+
+	if asked != 0 {
+		t.Errorf("pages were asked about %d ARNs while showing rows, want none", asked)
+	}
+}

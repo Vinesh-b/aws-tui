@@ -61,6 +61,7 @@ Going back and forward works like the history of a browser, and also across serv
 | `/` | Search the table | `find` |
 | `n` / `N` | Go to the next / previous match | `nextSearch` / `prevSearch` |
 | `y` | Copy the text of the cell | `textCopy` |
+| `gx` | Open the resource of the selected cell, if it is an ARN of a resource a page can show | `openLinkSequence` |
 | `o` | Sort by the selected column, then the other way, then as loaded. Columns of numbers are sorted as numbers, empty cells are last. | `sort` |
 | `q` | Query the table, such as a DynamoDB table, or the marked log groups with Insights | `tableQuery` |
 | `s` | Scan the DynamoDB table | `tableScan` |
