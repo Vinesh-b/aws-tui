@@ -1,10 +1,12 @@
 package xray
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
-	"sort"
+	"math"
+	"slices"
 	"strings"
 
 	"aws-tui/internal/awsapi"
@@ -16,30 +18,140 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-// segmentDocument is the part of the json document of a segment that is shown
+// segmentDocument is the part of the json document of a segment, or of one of
+// its subsegments, that is shown
 type segmentDocument struct {
-	Name      string   `json:"name"`
-	Origin    string   `json:"origin"`
-	StartTime *float64 `json:"start_time"`
-	EndTime   *float64 `json:"end_time"`
-	Error     bool     `json:"error"`
-	Fault     bool     `json:"fault"`
-	Throttle  bool     `json:"throttle"`
-	Http      struct {
+	Id         string   `json:"id"`
+	ParentId   string   `json:"parent_id"`
+	Name       string   `json:"name"`
+	Origin     string   `json:"origin"`
+	StartTime  *float64 `json:"start_time"`
+	EndTime    *float64 `json:"end_time"`
+	InProgress bool     `json:"in_progress"`
+	Error      bool     `json:"error"`
+	Fault      bool     `json:"fault"`
+	Throttle   bool     `json:"throttle"`
+	Http       struct {
 		Response struct {
 			Status *int32 `json:"status"`
 		} `json:"response"`
 	} `json:"http"`
+	Subsegments []*segmentDocument `json:"subsegments"`
 }
 
-// segmentRow is the row of a segment, which is empty for a document that is
-// not json
-func segmentRow(segment types.Segment) (core.TableRow, *float64) {
-	var document segmentDocument
-	if err := json.Unmarshal([]byte(aws.ToString(segment.Document)), &document); err != nil {
-		return core.TableRow{aws.ToString(segment.Id), ""}, nil
+// timelineWidth is how many cells the bar of the time of a segment is drawn in
+const timelineWidth = 20
+
+// segmentTree is the segments of a trace and their subsegments, each under
+// the one it was called from, in the order they started
+type segmentTree struct {
+	// segments are all the segments of the trace, and roots those not called
+	// from a subsegment of the trace
+	segments []*segmentDocument
+	roots    []*segmentDocument
+	// children are the segments under a subsegment by its ID, which are the
+	// segments that name it as their parent rather than its own subsegments
+	children map[string][]*segmentDocument
+	// start and end are the times of the whole trace, which the bars are
+	// drawn within
+	start, end float64
+}
+
+func newSegmentTree(segments []types.Segment) segmentTree {
+	var tree = segmentTree{children: map[string][]*segmentDocument{}}
+	var documents []*segmentDocument
+	var ids = map[string]bool{}
+	var timed = false
+
+	var visit func(document *segmentDocument)
+	visit = func(document *segmentDocument) {
+		if document.Id != "" {
+			ids[document.Id] = true
+		}
+		if document.StartTime != nil {
+			if !timed || *document.StartTime < tree.start {
+				tree.start = *document.StartTime
+			}
+			tree.end = max(tree.end, *document.StartTime)
+			timed = true
+		}
+		if document.EndTime != nil {
+			tree.end = max(tree.end, *document.EndTime)
+		}
+		for _, subsegment := range document.Subsegments {
+			visit(subsegment)
+		}
 	}
 
+	for _, segment := range segments {
+		var document = &segmentDocument{}
+		if err := json.Unmarshal([]byte(aws.ToString(segment.Document)), document); err != nil {
+			// A document that is not json is shown by the ID of the segment
+			document = &segmentDocument{}
+		}
+		if document.Id == "" {
+			document.Id = aws.ToString(segment.Id)
+		}
+		if document.Name == "" {
+			document.Name = aws.ToString(segment.Id)
+		}
+		documents = append(documents, document)
+		visit(document)
+	}
+
+	tree.segments = documents
+	for _, document := range documents {
+		if document.ParentId != "" && document.ParentId != document.Id && ids[document.ParentId] {
+			tree.children[document.ParentId] = append(tree.children[document.ParentId], document)
+		} else {
+			tree.roots = append(tree.roots, document)
+		}
+	}
+	return tree
+}
+
+// byStart sorts the segments in the order they started, those without a time
+// first, as they were before
+func byStart(documents []*segmentDocument) []*segmentDocument {
+	var sorted = slices.Clone(documents)
+	slices.SortStableFunc(sorted, func(a, b *segmentDocument) int {
+		return cmp.Compare(aws.ToFloat64(a.StartTime), aws.ToFloat64(b.StartTime))
+	})
+	return sorted
+}
+
+// rows are the rows of the segments, each indented under the one it was
+// called from. Segments whose callers lead back to themselves, which no root
+// reaches, are shown at the top after the others, and each segment only once.
+func (inst segmentTree) rows() []core.TableRow {
+	var rows []core.TableRow
+	var shown = map[*segmentDocument]bool{}
+
+	var add func(document *segmentDocument, depth int)
+	add = func(document *segmentDocument, depth int) {
+		if shown[document] {
+			return
+		}
+		shown[document] = true
+		rows = append(rows, core.TableRow{strings.Repeat("  ", depth) + document.Name, inst.value(document)})
+
+		var under = slices.Concat(document.Subsegments, inst.children[document.Id])
+		for _, child := range byStart(under) {
+			add(child, depth+1)
+		}
+	}
+	for _, root := range byStart(inst.roots) {
+		add(root, 0)
+	}
+	for _, segment := range byStart(inst.segments) {
+		add(segment, 0)
+	}
+	return rows
+}
+
+// value is the bar of when the segment ran within the trace, followed by its
+// origin, how long it took, its status and what went wrong
+func (inst segmentTree) value(document *segmentDocument) string {
 	var parts []string
 	if document.Origin != "" {
 		parts = append(parts, document.Origin)
@@ -54,37 +166,47 @@ func segmentRow(segment types.Segment) (core.TableRow, *float64) {
 	for _, flag := range []struct {
 		set  bool
 		name string
-	}{{document.Fault, "fault"}, {document.Error, "error"}, {document.Throttle, "throttle"}} {
+	}{
+		{document.Fault, "fault"},
+		{document.Error, "error"},
+		{document.Throttle, "throttle"},
+		{document.InProgress, "in progress"},
+	} {
 		if flag.set {
 			parts = append(parts, flag.name)
 		}
 	}
 
-	var name = document.Name
-	if name == "" {
-		name = aws.ToString(segment.Id)
+	var text = strings.Join(parts, ", ")
+	if bar := inst.bar(document); bar != "" {
+		return strings.TrimRight(bar+" "+text, " ")
 	}
-	return core.TableRow{name, strings.Join(parts, ", ")}, document.StartTime
+	return text
 }
 
-// segmentRows are the rows of the segments in the order they started
-func segmentRows(segments []types.Segment) []core.TableRow {
-	type row struct {
-		row   core.TableRow
-		start float64
+// bar is when the segment ran within the trace, drawn in timelineWidth cells,
+// which is empty for a segment without both of its times. A segment too short
+// for a cell of its own is drawn in one.
+func (inst segmentTree) bar(document *segmentDocument) string {
+	if document.StartTime == nil || document.EndTime == nil {
+		return ""
 	}
-	var rows []row
-	for _, segment := range segments {
-		var tableRow, start = segmentRow(segment)
-		rows = append(rows, row{tableRow, aws.ToFloat64(start)})
+	var span = inst.end - inst.start
+	var cell = func(time float64) int {
+		if span <= 0 {
+			return 0
+		}
+		return min(max(int(math.Round((time-inst.start)/span*timelineWidth)), 0), timelineWidth)
 	}
-	sort.SliceStable(rows, func(i, j int) bool { return rows[i].start < rows[j].start })
 
-	var tableRows []core.TableRow
-	for _, row := range rows {
-		tableRows = append(tableRows, row.row)
+	var from, to = cell(*document.StartTime), cell(*document.EndTime)
+	if span <= 0 {
+		to = timelineWidth
 	}
-	return tableRows
+	if to <= from {
+		from, to = min(from, timelineWidth-1), min(from, timelineWidth-1)+1
+	}
+	return strings.Repeat("·", from) + strings.Repeat("█", to-from) + strings.Repeat("·", timelineWidth-to)
 }
 
 // rootCause is the first exception of the path of a root cause, or what kind
@@ -206,7 +328,7 @@ func (inst *TraceDetailsTable) populateDetailsTable() {
 
 		rawData = summary
 		if inst.trace != nil {
-			tableData = append(tableData, core.DetailsSection("Segments", segmentRows(inst.trace.Segments)...)...)
+			tableData = append(tableData, core.DetailsSection("Segments", newSegmentTree(inst.trace.Segments).rows()...)...)
 			rawData = rawTrace(summary, *inst.trace)
 		}
 	}

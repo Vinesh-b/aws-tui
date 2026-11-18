@@ -205,8 +205,8 @@ func TestTracesPage__SelectingATraceShowsItThenItsSegments(t *testing.T) {
 		{"ARN", "arn:aws:lambda:us-east-1:123456789012:function:orders"},
 		{"Segments"},
 		{"s3", ""},
-		{"orders-api", "AWS::ApiGateway::Stage, 1.60s, 502"},
-		{"orders", "AWS::Lambda::Function, 1.25s, fault"},
+		{"orders-api", "████████████████████ AWS::ApiGateway::Stage, 1.60s, 502"},
+		{"orders", "···████████████████· AWS::Lambda::Function, 1.25s, fault"},
 	})
 }
 
@@ -789,4 +789,65 @@ func TestTraceFilterView__FilterThatCantBeUsedIsAnError(t *testing.T) {
 	if got := uitest.AwaitError(t, received); !strings.Contains(got, "invalid filter expression") {
 		t.Errorf("error = %q, want the error of the filter", got)
 	}
+}
+
+func segmentOf(id, document string) types.Segment {
+	return types.Segment{Id: aws.String(id), Document: aws.String(document)}
+}
+
+func TestSegmentTree__ShowsSubsegmentsAndCalledSegmentsUnderTheirCaller(t *testing.T) {
+	var segments = []types.Segment{
+		// The segment of DynamoDB names the subsegment that called it
+		segmentOf("dynamo", `{"id":"dynamo","parent_id":"sub-put","name":"DynamoDB","origin":"AWS::DynamoDB::Table",`+
+			`"inferred":true,"start_time":10.5,"end_time":11.5,"throttle":true,"error":true}`),
+		segmentOf("api", `{"id":"api","name":"orders-api","origin":"AWS::ApiGateway::Stage",`+
+			`"start_time":10,"end_time":12,"http":{"response":{"status":502}},"subsegments":[`+
+			`{"id":"sub-lambda","name":"Lambda","start_time":10.1,"end_time":11.9,"fault":true}]}`),
+		segmentOf("fn", `{"id":"fn","parent_id":"sub-lambda","name":"orders","origin":"AWS::Lambda::Function",`+
+			`"start_time":10.2,"end_time":11.8,"subsegments":[`+
+			`{"id":"sub-put","name":"DynamoDB","namespace":"aws","start_time":10.4,"end_time":11.6,"subsegments":[`+
+			`{"id":"sub-marshal","name":"marshal","start_time":10.4,"end_time":10.41}]},`+
+			`{"id":"sub-init","name":"Initialization","start_time":10.2,"end_time":10.4}]}`),
+		// A segment whose caller is not in the trace is shown at the top
+		segmentOf("orphan", `{"id":"orphan","parent_id":"elsewhere","name":"worker","start_time":11,"in_progress":true}`),
+		// A segment that names its own subsegment as its parent is shown once
+		segmentOf("loop", `{"id":"loop","parent_id":"loop-sub","name":"looped","start_time":12,"end_time":12,`+
+			`"subsegments":[{"id":"loop-sub","name":"looped-sub"}]}`),
+	}
+
+	var got = newSegmentTree(segments).rows()
+
+	var want = []core.TableRow{
+		{"orders-api", "████████████████████ AWS::ApiGateway::Stage, 2.00s, 502"},
+		{"  Lambda", "·██████████████████· 1.80s, fault"},
+		{"    orders", "··████████████████·· AWS::Lambda::Function, 1.60s"},
+		{"      Initialization", "··██················ 200ms"},
+		{"      DynamoDB", "····████████████···· 1.20s"},
+		{"        marshal", "····█··············· 10ms"},
+		{"        DynamoDB", "·····██████████····· AWS::DynamoDB::Table, 1.00s, error, throttle"},
+		{"worker", "in progress"},
+		{"looped", "···················█ 0ms"},
+		{"  looped-sub", ""},
+	}
+	if !slices.EqualFunc(got, want, slices.Equal) {
+		t.Errorf("rows =\n%s\nwant\n%s", formatRows(got), formatRows(want))
+	}
+}
+
+func TestSegmentTree__SegmentsAtOneInstantFillTheBar(t *testing.T) {
+	var got = newSegmentTree([]types.Segment{
+		segmentOf("s1", `{"id":"s1","name":"instant","start_time":5,"end_time":5}`),
+	}).rows()
+
+	if want := (core.TableRow{"instant", "████████████████████ 0ms"}); len(got) != 1 || !slices.Equal(got[0], want) {
+		t.Errorf("rows = %q, want %q", got, want)
+	}
+}
+
+func formatRows(rows []core.TableRow) string {
+	var lines []string
+	for _, row := range rows {
+		lines = append(lines, strings.Join(row, " | "))
+	}
+	return strings.Join(lines, "\n")
 }
