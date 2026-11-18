@@ -618,3 +618,91 @@ func TestTracesTable__ResetOfACustomRangeKeepsItsTimes(t *testing.T) {
 		}
 	}
 }
+
+// withOutcome is the summary with only the given of fault, error and throttle
+func withOutcome(summary types.TraceSummary, fault, err, throttle bool) types.TraceSummary {
+	summary.HasFault, summary.HasError, summary.HasThrottle = aws.Bool(fault), aws.Bool(err), aws.Bool(throttle)
+	return summary
+}
+
+func TestTraceColour(t *testing.T) {
+	var summary = newSummary("t1", "/orders", 30)
+	for _, test := range []struct {
+		name         string
+		summary      types.TraceSummary
+		want         tcell.Color
+		wantColoured bool
+	}{
+		{"fault", withOutcome(summary, true, false, false), traceFaultColour, true},
+		{"fault outranks error and throttle", withOutcome(summary, true, true, true), traceFaultColour, true},
+		{"throttle", withOutcome(summary, false, false, true), traceThrottleColour, true},
+		{"throttle outranks the error it comes with", withOutcome(summary, false, true, true), traceThrottleColour, true},
+		{"error", withOutcome(summary, false, true, false), traceErrorColour, true},
+		{"ok", withOutcome(summary, false, false, false), 0, false},
+		{"flags not set", types.TraceSummary{}, 0, false},
+	} {
+		var got, coloured = traceColour(test.summary)
+		if got != test.want || coloured != test.wantColoured {
+			t.Errorf("%s: traceColour = (%v, %t), want (%v, %t)", test.name, got, coloured, test.want, test.wantColoured)
+		}
+	}
+}
+
+// drawnForeground draws the table and returns the colour the text is drawn in,
+// which is what the user sees whichever field of the cell holds the colour.
+// The selected row is drawn in the selection colours, so the text must be on
+// another row.
+func drawnForeground(t *testing.T, table *TracesTable, text string) tcell.Color {
+	t.Helper()
+	var screen = tcell.NewSimulationScreen("UTF-8")
+	if err := screen.Init(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(screen.Fini)
+	screen.SetSize(120, 10)
+	table.SetRect(0, 0, 120, 10)
+	table.Draw(screen)
+	screen.Show()
+
+	var cells, width, height = screen.GetContents()
+	for row := 0; row < height; row++ {
+		var line strings.Builder
+		for col := 0; col < width; col++ {
+			line.WriteString(string(cells[row*width+col].Runes))
+		}
+		if idx := strings.Index(line.String(), text); idx >= 0 {
+			var fg, _, _ = cells[row*width+idx].Style.Decompose()
+			return fg
+		}
+	}
+	t.Fatalf("%q is not on the screen", text)
+	return 0
+}
+
+func TestTracesTable__ColoursTracesByFaultThrottleAndError(t *testing.T) {
+	var table = NewTracesTable(uitest.NewServiceContext[awsapi.XRayApi]())
+	table.populateTracesTable([]types.TraceSummary{
+		withOutcome(newSummary("t1", "/selected-row", 50), false, false, false),
+		withOutcome(newSummary("t2", "/faulted", 40), true, true, false),
+		withOutcome(newSummary("t3", "/throttled", 30), false, true, true),
+		withOutcome(newSummary("t4", "/errored", 20), false, true, false),
+		withOutcome(newSummary("t5", "/succeeded", 10), false, false, false),
+	}, true)
+
+	for _, test := range []struct {
+		text string
+		want tcell.Color
+	}{
+		{"/faulted", traceFaultColour},
+		{"/throttled", traceThrottleColour},
+		{"/errored", traceErrorColour},
+	} {
+		if got := drawnForeground(t, table, test.text); got != test.want {
+			t.Errorf("%q is drawn in %v, want %v", test.text, got, test.want)
+		}
+	}
+	var plain = []tcell.Color{traceFaultColour, traceThrottleColour, traceErrorColour}
+	if got := drawnForeground(t, table, "/succeeded"); slices.Contains(plain, got) {
+		t.Errorf("/succeeded is drawn in %v, but had no fault, throttle or error", got)
+	}
+}

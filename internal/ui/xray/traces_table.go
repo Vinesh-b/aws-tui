@@ -33,6 +33,29 @@ var traceRanges = []traceRange{
 	{"Custom", 0},
 }
 
+// The colours of the traces that had a fault (5xx), were throttled (429) or
+// had another error (4xx). A throttled trace also has an error, so throttling
+// is checked first, and a fault outranks both.
+const (
+	traceFaultColour    = tcell.ColorRed
+	traceThrottleColour = tcell.ColorFuchsia
+	traceErrorColour    = tcell.ColorYellow
+)
+
+// traceColour is the colour of a trace by the worst thing that happened in it,
+// and false for one that had none of them
+func traceColour(summary types.TraceSummary) (tcell.Color, bool) {
+	switch {
+	case aws.ToBool(summary.HasFault):
+		return traceFaultColour, true
+	case aws.ToBool(summary.HasThrottle):
+		return traceThrottleColour, true
+	case aws.ToBool(summary.HasError):
+		return traceErrorColour, true
+	}
+	return 0, false
+}
+
 const (
 	defaultTraceRangeIdx = 2
 	customTraceRangeIdx  = 5
@@ -78,6 +101,9 @@ func NewTracesTable(
 	}
 
 	table.HighlightSearch = true
+	table.SetRowColourFunc(func(_ core.TableRow, summary types.TraceSummary) (tcell.Color, bool) {
+		return traceColour(summary)
+	})
 	table.showRange(table.window())
 	table.HelpView.View.
 		AddRune(core.APP_KEY_BINDINGS.TimeRange, "Show the traces of the next time range")
