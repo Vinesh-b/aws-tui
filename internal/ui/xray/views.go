@@ -35,6 +35,7 @@ type TracesPageView struct {
 	*core.ServicePageView
 	TracesTable  *TracesTable
 	RangeView    *TraceRangeView
+	FilterView   *TraceFilterView
 	DetailsTable *TraceDetailsTable
 }
 
@@ -43,14 +44,17 @@ func NewTracesPageView(
 	detailsTable *TraceDetailsTable,
 	serviceCtx *core.ServiceContext[awsapi.XRayApi],
 ) *TracesPageView {
-	// The range is picked over the list of traces
+	// The range is picked, and the filter entered, over the list of traces
 	var rangeView = NewTraceRangeView(tracesTable, serviceCtx.AppContext)
+	var filterView = NewTraceFilterView(tracesTable, serviceCtx.AppContext)
 	var list = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(rangeView, 1, 0, false).
+		AddItem(filterView, 1, 0, false).
 		AddItem(tracesTable, 0, 1, true)
 	var serviceView = newDetailsPage(detailsTable, list, [][]core.View{
 		{detailsTable},
 		rangeView.NavigationRow(),
+		{filterView},
 		{tracesTable},
 	}, serviceCtx.AppContext)
 	var errorHandler = func(text string, a ...any) {
@@ -73,6 +77,7 @@ func NewTracesPageView(
 		ServicePageView: serviceView,
 		TracesTable:     tracesTable,
 		RangeView:       rangeView,
+		FilterView:      filterView,
 		DetailsTable:    detailsTable,
 	}
 }

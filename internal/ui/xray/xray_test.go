@@ -476,7 +476,7 @@ func newRangeTest(t *testing.T, api *xrayfake.Api) (*TracesPageView, *tview.Appl
 }
 
 // pressEnter presses Enter on the input, as it is when it has the focus
-func pressEnter(input *core.DateTimeInputField) {
+func pressEnter(input tview.Primitive) {
 	input.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(tview.Primitive) {})
 }
 
@@ -704,5 +704,89 @@ func TestTracesTable__ColoursTracesByFaultThrottleAndError(t *testing.T) {
 	var plain = []tcell.Color{traceFaultColour, traceThrottleColour, traceErrorColour}
 	if got := drawnForeground(t, table, "/succeeded"); slices.Contains(plain, got) {
 		t.Errorf("/succeeded is drawn in %v, but had no fault, throttle or error", got)
+	}
+}
+
+const faultsFilter = `service("orders") { fault }`
+
+func TestTraceFilterView__EnteredFilterLoadsTheTracesThatMatchItOnEnter(t *testing.T) {
+	var api = xrayfake.New(
+		xrayfake.WithTracePages([]types.TraceSummary{newSummary("t1", "/every-trace", 30)}),
+		xrayfake.WithTracePagesFiltered(faultsFilter, []types.TraceSummary{newSummary("t2", "/faulted-trace", 20)}),
+	)
+	var view, app = newRangeTest(t, api)
+
+	uitest.OnUI(t, app, func() {
+		view.FilterView.SetText("  " + faultsFilter + " ")
+		if len(api.WindowsAskedFor()) != 0 {
+			t.Errorf("traces loaded before Enter")
+		}
+		pressEnter(view.FilterView)
+	})
+
+	uitest.Eventually(t, app, func() bool {
+		return view.TracesTable.GetCellText(1, 5) == "/faulted-trace"
+	}, "/faulted-trace to be shown")
+	if got := api.FiltersAskedFor(); !slices.Equal(got, []string{faultsFilter}) {
+		t.Errorf("filters = %q, want the filter entered without its spaces", got)
+	}
+}
+
+func TestTracesTable__FilterIsKeptForResetAndTheNextRange(t *testing.T) {
+	var api = xrayfake.New()
+	var view, app = newRangeTest(t, api)
+
+	uitest.OnUI(t, app, func() {
+		view.TracesTable.SetFilterExpression(faultsFilter)
+		uitest.PressTableRune(view.TracesTable, core.APP_KEY_BINDINGS.Reset)
+		uitest.PressTableRune(view.TracesTable, core.APP_KEY_BINDINGS.TimeRange)
+	})
+
+	uitest.Eventually(t, app, func() bool { return len(api.WindowsAskedFor()) == 3 }, "the three loads")
+	if got := api.FiltersAskedFor(); !slices.Equal(got, []string{faultsFilter, faultsFilter, faultsFilter}) {
+		t.Errorf("filters = %q, want the filter for every load", got)
+	}
+}
+
+func TestTraceFilterView__ClearedFilterLoadsEveryTrace(t *testing.T) {
+	var api = xrayfake.New(
+		xrayfake.WithTracePages([]types.TraceSummary{newSummary("t1", "/every-trace", 30)}),
+		xrayfake.WithTracePagesFiltered(faultsFilter, []types.TraceSummary{newSummary("t2", "/faulted-trace", 20)}),
+	)
+	var view, app = newRangeTest(t, api)
+	uitest.OnUI(t, app, func() {
+		view.FilterView.SetText(faultsFilter)
+		pressEnter(view.FilterView)
+	})
+	uitest.Eventually(t, app, func() bool {
+		return view.TracesTable.GetCellText(1, 5) == "/faulted-trace"
+	}, "/faulted-trace to be shown")
+
+	uitest.OnUI(t, app, func() {
+		view.FilterView.SetText("")
+		pressEnter(view.FilterView)
+	})
+
+	uitest.Eventually(t, app, func() bool {
+		return view.TracesTable.GetCellText(1, 5) == "/every-trace"
+	}, "/every-trace to be shown")
+	if got := api.FiltersAskedFor(); !slices.Equal(got, []string{faultsFilter, ""}) {
+		t.Errorf("filters = %q, want the filter then none", got)
+	}
+}
+
+func TestTraceFilterView__FilterThatCantBeUsedIsAnError(t *testing.T) {
+	var api = xrayfake.New(xrayfake.WithErr(errors.New("InvalidRequestException: invalid filter expression")))
+	var view, app = newRangeTest(t, api)
+	var callback, received = uitest.CaptureErrors()
+	view.TracesTable.ErrorMessageCallback = callback
+
+	uitest.OnUI(t, app, func() {
+		view.FilterView.SetText("service(")
+		pressEnter(view.FilterView)
+	})
+
+	if got := uitest.AwaitError(t, received); !strings.Contains(got, "invalid filter expression") {
+		t.Errorf("error = %q, want the error of the filter", got)
 	}
 }

@@ -15,10 +15,11 @@ import (
 
 type XRayApi interface {
 	// GetTraceSummaries returns the next page of the traces that started
-	// between the times, newest first within the page. Reset starts again with
-	// the times; without it they are only used by the first call. An empty
-	// result without an error is the end of the traces.
-	GetTraceSummaries(ctx context.Context, start, end time.Time, reset bool) ([]types.TraceSummary, error)
+	// between the times and match the filter expression, newest first within
+	// the page. An empty filter matches every trace. Reset starts again with
+	// the times and filter; without it they are only used by the first call.
+	// An empty result without an error is the end of the traces.
+	GetTraceSummaries(ctx context.Context, start, end time.Time, filter string, reset bool) ([]types.TraceSummary, error)
 	// GetTrace returns the trace with all its segments
 	GetTrace(ctx context.Context, traceId string) (types.Trace, error)
 	// GetSamplingRules returns the sampling rules, in the order they are
@@ -45,19 +46,20 @@ func NewXRayApi(
 }
 
 func (inst *xRayApi) GetTraceSummaries(
-	ctx context.Context, start, end time.Time, reset bool,
+	ctx context.Context, start, end time.Time, filter string, reset bool,
 ) ([]types.TraceSummary, error) {
 	inst.traceSummariesMtx.Lock()
 	defer inst.traceSummariesMtx.Unlock()
 
 	if inst.traceSummaries == nil || reset {
-		inst.traceSummaries = xray.NewGetTraceSummariesPaginator(
-			inst.clients.xray,
-			&xray.GetTraceSummariesInput{
-				StartTime: aws.Time(start),
-				EndTime:   aws.Time(end),
-			},
-		)
+		var input = &xray.GetTraceSummariesInput{
+			StartTime: aws.Time(start),
+			EndTime:   aws.Time(end),
+		}
+		if filter != "" {
+			input.FilterExpression = aws.String(filter)
+		}
+		inst.traceSummaries = xray.NewGetTraceSummariesPaginator(inst.clients.xray, input)
 	}
 
 	// A page can be empty with more after it, which would look like the end

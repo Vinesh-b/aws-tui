@@ -23,15 +23,18 @@ type Api struct {
 
 	mtx sync.Mutex
 	// pages are the pages of the trace summaries, newest first, of any span
-	// without pages of its own in spanPages
-	pages     [][]types.TraceSummary
-	spanPages map[time.Duration][][]types.TraceSummary
+	// without pages of its own in spanPages and any filter without pages of
+	// its own in filterPages, which come before those of the span
+	pages       [][]types.TraceSummary
+	spanPages   map[time.Duration][][]types.TraceSummary
+	filterPages map[string][][]types.TraceSummary
 	// current are the pages being gone through, which a reset picks
 	current  [][]types.TraceSummary
 	nextPage int
 	// holds keep the loads of a span waiting until they are released
 	holds map[time.Duration]chan struct{}
-	// windowsAskedFor are the times of the loads of trace summaries, in order
+	// windowsAskedFor are the times and filters of the loads of trace
+	// summaries, in order
 	windowsAskedFor []Window
 	traces          map[string]types.Trace
 	rules           []types.SamplingRuleRecord
@@ -40,8 +43,12 @@ type Api struct {
 	tracesAskedFor []string
 }
 
-// Window is the times traces were asked for between
-type Window struct{ Start, End time.Time }
+// Window is the times traces were asked for between, and the filter they
+// were asked for with
+type Window struct {
+	Start, End time.Time
+	Filter     string
+}
 
 type Option func(*Api)
 
@@ -57,6 +64,12 @@ func WithTracePagesSince(span time.Duration, pages ...[]types.TraceSummary) Opti
 	return func(f *Api) { f.spanPages[span] = pages }
 }
 
+// WithTracePagesFiltered gives the pages of the trace summaries of the
+// filter expression, whatever the span
+func WithTracePagesFiltered(filter string, pages ...[]types.TraceSummary) Option {
+	return func(f *Api) { f.filterPages[filter] = pages }
+}
+
 // WithTrace gives a trace with its segments, by its ID
 func WithTrace(trace types.Trace) Option {
 	return func(f *Api) { f.traces[aws.ToString(trace.Id)] = trace }
@@ -70,9 +83,10 @@ func WithErr(err error) Option { return func(f *Api) { f.err = err } }
 
 func New(options ...Option) *Api {
 	var f = &Api{
-		traces:    map[string]types.Trace{},
-		spanPages: map[time.Duration][][]types.TraceSummary{},
-		holds:     map[time.Duration]chan struct{}{},
+		traces:      map[string]types.Trace{},
+		spanPages:   map[time.Duration][][]types.TraceSummary{},
+		filterPages: map[string][][]types.TraceSummary{},
+		holds:       map[time.Duration]chan struct{}{},
 	}
 	for _, option := range options {
 		option(f)
@@ -97,7 +111,7 @@ func (f *Api) HoldSpan(span time.Duration) (release func()) {
 	return sync.OnceFunc(func() { close(hold) })
 }
 
-// WindowsAskedFor are the times of the loads of trace summaries, in order
+// WindowsAskedFor are the times and filters of the loads of trace summaries, in order
 func (f *Api) WindowsAskedFor() []Window {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
@@ -114,12 +128,21 @@ func (f *Api) SpansAskedFor() []time.Duration {
 	return spans
 }
 
+// FiltersAskedFor are the filters of the loads of trace summaries, in order
+func (f *Api) FiltersAskedFor() []string {
+	var filters []string
+	for _, window := range f.WindowsAskedFor() {
+		filters = append(filters, window.Filter)
+	}
+	return filters
+}
+
 func (f *Api) GetTraceSummaries(
-	ctx context.Context, start, end time.Time, reset bool,
+	ctx context.Context, start, end time.Time, filter string, reset bool,
 ) ([]types.TraceSummary, error) {
 	var span = end.Sub(start)
 	f.mtx.Lock()
-	f.windowsAskedFor = append(f.windowsAskedFor, Window{start, end})
+	f.windowsAskedFor = append(f.windowsAskedFor, Window{Start: start, End: end, Filter: filter})
 	var hold = f.holds[span]
 	f.mtx.Unlock()
 	if hold != nil {
@@ -138,6 +161,9 @@ func (f *Api) GetTraceSummaries(
 	if reset || f.current == nil {
 		f.current = f.pages
 		if pages, ok := f.spanPages[span]; ok {
+			f.current = pages
+		}
+		if pages, ok := f.filterPages[filter]; ok {
 			f.current = pages
 		}
 		f.nextPage = 0

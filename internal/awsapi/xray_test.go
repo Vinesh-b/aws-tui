@@ -36,11 +36,11 @@ func TestXRayGetTraceSummariesGivesOnePageAtATime(t *testing.T) {
 	})
 	var api = NewXRayApi(fake.clients, testLogger())
 
-	var first, err = api.GetTraceSummaries(context.Background(), hourStart, hourEnd, true)
+	var first, err = api.GetTraceSummaries(context.Background(), hourStart, hourEnd, "", true)
 	if err != nil || len(first) != 2 || aws.ToString(first[0].Id) != "t2" {
 		t.Fatalf("first page = %v, err %v, want [t2 t1], newest first", first, err)
 	}
-	var second, secondErr = api.GetTraceSummaries(context.Background(), hourStart, hourEnd, false)
+	var second, secondErr = api.GetTraceSummaries(context.Background(), hourStart, hourEnd, "", false)
 	if secondErr != nil || len(second) != 1 || aws.ToString(second[0].Id) != "t3" {
 		t.Fatalf("second page = %v, err %v, want [t3] past the empty page", second, secondErr)
 	}
@@ -48,7 +48,7 @@ func TestXRayGetTraceSummariesGivesOnePageAtATime(t *testing.T) {
 		t.Errorf("third request = %s, want the next token", body)
 	}
 
-	var past, pastErr = api.GetTraceSummaries(context.Background(), hourStart, hourEnd, false)
+	var past, pastErr = api.GetTraceSummaries(context.Background(), hourStart, hourEnd, "", false)
 	if pastErr != nil || len(past) != 0 || fake.calls() != 3 {
 		t.Errorf("past the end = %v, err %v, %d calls, want nothing and no request", past, pastErr, fake.calls())
 	}
@@ -71,7 +71,7 @@ func TestXRayGetTraceSummariesAsksForTheTimesOfAReset(t *testing.T) {
 		{otherStart, otherEnd, false, hourStart, hourEnd},
 		{otherStart, otherEnd, true, otherStart, otherEnd},
 	} {
-		if _, err := api.GetTraceSummaries(context.Background(), step.start, step.end, step.reset); err != nil {
+		if _, err := api.GetTraceSummaries(context.Background(), step.start, step.end, "", step.reset); err != nil {
 			t.Fatal(err)
 		}
 
@@ -94,13 +94,48 @@ func TestXRayGetTraceSummariesResetStartsAgain(t *testing.T) {
 	var api = NewXRayApi(fake.clients, testLogger())
 
 	for range 2 {
-		if _, err := api.GetTraceSummaries(context.Background(), hourStart, hourEnd, true); err != nil {
+		if _, err := api.GetTraceSummaries(context.Background(), hourStart, hourEnd, "", true); err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	if body := fake.requestBody(1); strings.Contains(body, "NextToken") {
 		t.Errorf("request after a reset = %s, want no next token", body)
+	}
+}
+
+func TestXRayGetTraceSummariesAsksForTheFilterOfAReset(t *testing.T) {
+	var fake = useFakeAws(t, func(int, *http.Request, string) *http.Response {
+		return xRayResponse(`{"TraceSummaries":[{"Id":"t1"}],"NextToken":"n1"}`)
+	})
+	var api = NewXRayApi(fake.clients, testLogger())
+	const faults = `service("orders") { fault }`
+
+	for _, step := range []struct {
+		filter string
+		reset  bool
+		want   *string
+	}{
+		// No filter is not sent, as an empty one is not allowed
+		{"", true, nil},
+		{faults, true, aws.String(faults)},
+		// The next page is of the same filter
+		{"", false, aws.String(faults)},
+		{"", true, nil},
+	} {
+		if _, err := api.GetTraceSummaries(context.Background(), hourStart, hourEnd, step.filter, step.reset); err != nil {
+			t.Fatal(err)
+		}
+
+		var request struct{ FilterExpression *string }
+		if err := json.Unmarshal([]byte(fake.requestBody(fake.calls()-1)), &request); err != nil {
+			t.Fatal(err)
+		}
+		if aws.ToString(request.FilterExpression) != aws.ToString(step.want) ||
+			(request.FilterExpression == nil) != (step.want == nil) {
+			t.Errorf("filter %q, reset %t: sent %v, want %v",
+				step.filter, step.reset, aws.ToString(request.FilterExpression), aws.ToString(step.want))
+		}
 	}
 }
 

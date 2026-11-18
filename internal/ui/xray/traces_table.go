@@ -3,6 +3,7 @@ package xray
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"aws-tui/internal/awsapi"
@@ -70,7 +71,10 @@ type TracesTable struct {
 	rangeIdx    int
 	customStart time.Time
 	customEnd   time.Time
-	now         func() time.Time
+	// filter is the X-Ray filter expression the traces are found with, which
+	// is empty for all of them
+	filter string
+	now    func() time.Time
 	// rangeChanged is told the range and its times when they change, and when
 	// a range ending now is loaded again
 	rangeChanged func(rangeIdx int, start, end time.Time)
@@ -172,7 +176,7 @@ func (inst *TracesTable) RefreshTraces(reset bool) {
 
 	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error
-		summaries, err = inst.serviceCtx.Api.GetTraceSummaries(ctx, start, end, reset)
+		summaries, err = inst.serviceCtx.Api.GetTraceSummaries(ctx, start, end, inst.filter, reset)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}
@@ -226,6 +230,14 @@ func (inst *TracesTable) SetCustomRange(start, end time.Time) error {
 	inst.customStart, inst.customEnd = start, end
 	inst.RefreshTraces(true)
 	return nil
+}
+
+// SetFilterExpression loads the traces of the range that match the X-Ray
+// filter expression, or all of them when it is empty. The filter is kept for
+// the ranges picked after it.
+func (inst *TracesTable) SetFilterExpression(filter string) {
+	inst.filter = strings.TrimSpace(filter)
+	inst.RefreshTraces(true)
 }
 
 // SetRangeChangedFunc is told the range and its times when they change, and
