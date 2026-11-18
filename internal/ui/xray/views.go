@@ -36,6 +36,7 @@ type TracesPageView struct {
 	TracesTable  *TracesTable
 	RangeView    *TraceRangeView
 	FilterView   *TraceFilterView
+	TraceIdView  *TraceIdView
 	DetailsTable *TraceDetailsTable
 }
 
@@ -44,17 +45,23 @@ func NewTracesPageView(
 	detailsTable *TraceDetailsTable,
 	serviceCtx *core.ServiceContext[awsapi.XRayApi],
 ) *TracesPageView {
-	// The range is picked, and the filter entered, over the list of traces
+	// The range is picked, and the filter entered, over the list of traces,
+	// beside the ID of a trace to open that may not be listed
 	var rangeView = NewTraceRangeView(tracesTable, serviceCtx.AppContext)
 	var filterView = NewTraceFilterView(tracesTable, serviceCtx.AppContext)
+	var traceIdView = NewTraceIdView(detailsTable, serviceCtx.AppContext)
 	var list = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(rangeView, 1, 0, false).
-		AddItem(filterView, 1, 0, false).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
+			AddItem(filterView, 0, 1, false).
+			AddItem(tview.NewBox(), 1, 0, false).
+			AddItem(traceIdView, traceIdViewWidth, 0, false),
+			1, 0, false).
 		AddItem(tracesTable, 0, 1, true)
 	var serviceView = newDetailsPage(detailsTable, list, [][]core.View{
 		{detailsTable},
 		rangeView.NavigationRow(),
-		{filterView},
+		{filterView, traceIdView},
 		{tracesTable},
 	}, serviceCtx.AppContext)
 	var errorHandler = func(text string, a ...any) {
@@ -62,6 +69,7 @@ func NewTracesPageView(
 	}
 	tracesTable.ErrorMessageCallback = errorHandler
 	rangeView.ErrorMessageCallback = errorHandler
+	traceIdView.ErrorMessageCallback = errorHandler
 	detailsTable.ErrorMessageCallback = errorHandler
 
 	// The summary of the trace is in the list, so it is shown at once, but its
@@ -73,22 +81,30 @@ func NewTracesPageView(
 		detailsTable.RefreshSegments()
 	})
 
-	// The logs are found by the segments too, when they are loaded
-	tracesTable.SetQueryLogsFunc(func() {
-		var query, err = traceLogsQuery(tracesTable.GetSelectedTrace(), detailsTable.LoadedTrace())
-		if err == nil {
-			err = serviceCtx.AppContext.OpenLogsQuery(query)
+	// The logs are of the trace shown, which is the one selected or the one
+	// opened by its ID, and are found by its segments too when they are loaded.
+	// They are queried from the details as well, as an opened trace may not be
+	// listed, and an empty list takes no keys but reset and the range.
+	var queryLogs = func(errorCallback func(text string, a ...any)) func() {
+		return func() {
+			var query, err = traceLogsQuery(detailsTable.Summary(), detailsTable.LoadedTrace())
+			if err == nil {
+				err = serviceCtx.AppContext.OpenLogsQuery(query)
+			}
+			if err != nil {
+				errorCallback("%s", err.Error())
+			}
 		}
-		if err != nil {
-			tracesTable.ErrorMessageCallback("%s", err.Error())
-		}
-	})
+	}
+	tracesTable.SetQueryLogsFunc(queryLogs(func(text string, a ...any) { tracesTable.ErrorMessageCallback(text, a...) }))
+	detailsTable.SetQueryLogsFunc(queryLogs(func(text string, a ...any) { detailsTable.ErrorMessageCallback(text, a...) }))
 
 	return &TracesPageView{
 		ServicePageView: serviceView,
 		TracesTable:     tracesTable,
 		RangeView:       rangeView,
 		FilterView:      filterView,
+		TraceIdView:     traceIdView,
 		DetailsTable:    detailsTable,
 	}
 }

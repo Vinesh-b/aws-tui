@@ -1276,3 +1276,270 @@ func TestHomeView__OpeningASamplingRuleShowsItsPage(t *testing.T) {
 		}
 	})
 }
+
+const openedTraceId = "1-6a15f7d8-0123456789abcdef01234567"
+
+// newOpenedTrace is a trace that is not listed: an API, which calls a function
+// through one of its subsegments, which is throttled by its table
+func newOpenedTrace() types.Trace {
+	return types.Trace{
+		Id:       aws.String(openedTraceId),
+		Duration: aws.Float64(1.6),
+		Segments: []types.Segment{
+			segmentOf("fn", `{"id":"fn","parent_id":"sub-lambda","name":"orders","origin":"AWS::Lambda::Function",`+
+				`"start_time":1794648600.25,"end_time":1794648601.5,"fault":true}`),
+			segmentOf("api", `{"id":"api","name":"orders-api","origin":"AWS::ApiGateway::Stage",`+
+				`"start_time":1794648600,"end_time":1794648601.6,`+
+				`"http":{"request":{"method":"POST","url":"https://api.example.com/orders","client_ip":"203.0.113.7"},`+
+				`"response":{"status":502}},"subsegments":[{"id":"sub-lambda","name":"Lambda"}]}`),
+			segmentOf("table", `{"id":"table","parent_id":"elsewhere","name":"orders","origin":"AWS::Lambda::Function",`+
+				`"start_time":1794648600.5,"end_time":1794648600.6,"error":true,"throttle":true}`),
+			segmentOf("bad", "not json"),
+		},
+	}
+}
+
+func TestParseTraceId(t *testing.T) {
+	for _, test := range []struct {
+		text string
+		want string
+	}{
+		{openedTraceId, openedTraceId},
+		{"  1-6A15F7D8-0123456789ABCDEF01234567 ", openedTraceId},
+		{"Root=" + openedTraceId + ";Parent=53995c3f42cd8ad8;Sampled=1", openedTraceId},
+		{"Self=1-6a15f7d8-aaaaaaaaaaaaaaaaaaaaaaaa; Root=" + openedTraceId + "; Sampled=0", openedTraceId},
+	} {
+		if got, err := parseTraceId(test.text); err != nil || got != test.want {
+			t.Errorf("parseTraceId(%q) = %q, %v, want %q", test.text, got, err, test.want)
+		}
+	}
+	for _, text := range []string{"", "t1", "1-6a15f7d8-0123", "2-6a15f7d8-0123456789abcdef01234567", "1-6a15f7dz-0123456789abcdef01234567", "Parent=53995c3f42cd8ad8"} {
+		if got, err := parseTraceId(text); err == nil {
+			t.Errorf("parseTraceId(%q) = %q, want an error", text, got)
+		}
+	}
+	var _, err = parseTraceId("t1")
+	if err == nil || err.Error() != `"t1" is not an X-Ray trace ID like 1-5f84c7a1-0123456789abcdef01234567` {
+		t.Errorf("error = %v", err)
+	}
+}
+
+func TestTraceSummaryOf__IsMadeFromTheSegments(t *testing.T) {
+	var summary = traceSummaryOf(newOpenedTrace())
+
+	var start = time.Date(2026, 11, 14, 9, 30, 0, 0, time.UTC)
+	if aws.ToString(summary.Id) != openedTraceId || aws.ToFloat64(summary.Duration) != 1.6 {
+		t.Errorf("id, duration = %q, %v", aws.ToString(summary.Id), aws.ToFloat64(summary.Duration))
+	}
+	if summary.StartTime == nil || !summary.StartTime.Equal(start) {
+		t.Errorf("start = %v, want %v", summary.StartTime, start)
+	}
+	// The segment whose caller is not in the trace is not the entry, as one
+	// that started before it is
+	if got := aws.ToString(summary.EntryPoint.Name); got != "orders-api" {
+		t.Errorf("entry point = %q, want orders-api", got)
+	}
+	var http = traceHttp(summary)
+	if aws.ToString(http.HttpMethod) != "POST" || aws.ToString(http.HttpURL) != "https://api.example.com/orders" ||
+		aws.ToInt32(http.HttpStatus) != 502 || aws.ToString(http.ClientIp) != "203.0.113.7" {
+		t.Errorf("http = %+v", http)
+	}
+	if got := formatSeconds(summary.ResponseTime); got != "1.60s" {
+		t.Errorf("response time = %q, want 1.60s", got)
+	}
+	if !aws.ToBool(summary.HasFault) || !aws.ToBool(summary.HasError) || !aws.ToBool(summary.HasThrottle) {
+		t.Errorf("fault, error, throttle = %v, %v, %v, want all", *summary.HasFault, *summary.HasError, *summary.HasThrottle)
+	}
+	var services []string
+	for _, service := range summary.ServiceIds {
+		services = append(services, aws.ToString(service.Name)+" "+aws.ToString(service.Type))
+	}
+	if want := []string{"orders-api AWS::ApiGateway::Stage", "orders AWS::Lambda::Function"}; !slices.Equal(services, want) {
+		t.Errorf("services = %q, want %q", services, want)
+	}
+}
+
+func TestTraceSummaryOf__EntryIsNotASegmentCalledFromTheTraceThatSeemsToStartFirst(t *testing.T) {
+	// The clock of the function is behind that of the API that called it
+	var trace = types.Trace{Id: aws.String(openedTraceId), Segments: []types.Segment{
+		segmentOf("api", `{"id":"api","name":"orders-api","origin":"AWS::ApiGateway::Stage","start_time":100,"end_time":102,`+
+			`"subsegments":[{"id":"sub-lambda","name":"Lambda"}]}`),
+		segmentOf("fn", `{"id":"fn","parent_id":"sub-lambda","name":"orders","origin":"AWS::Lambda::Function",`+
+			`"start_time":99.5,"end_time":101}`),
+	}}
+
+	var summary = traceSummaryOf(trace)
+
+	if got := aws.ToString(summary.EntryPoint.Name); got != "orders-api" {
+		t.Errorf("entry point = %q, want orders-api", got)
+	}
+	if got := formatSeconds(summary.ResponseTime); got != "2.00s" {
+		t.Errorf("response time = %q, want that of the API", got)
+	}
+}
+
+func TestTraceSummaryOf__TraceWithoutSegmentsHasOnlyItsId(t *testing.T) {
+	var summary = traceSummaryOf(types.Trace{Id: aws.String(openedTraceId)})
+
+	if aws.ToString(summary.Id) != openedTraceId || summary.StartTime != nil || summary.EntryPoint != nil {
+		t.Errorf("summary = %+v", summary)
+	}
+	if aws.ToBool(summary.HasFault) || aws.ToBool(summary.HasError) || aws.ToBool(summary.HasThrottle) {
+		t.Errorf("summary has a fault, error or throttle")
+	}
+}
+
+func TestTraceIdView__EnteredTraceIdOpensTheTraceThatIsNotListed(t *testing.T) {
+	var api = xrayfake.New(
+		xrayfake.WithTracePages([]types.TraceSummary{newSummary("t1", "/orders", 30)}),
+		xrayfake.WithTrace(newTrace("t1")),
+		xrayfake.WithTrace(newOpenedTrace()),
+	)
+	var view = newTracesTest(t, api)
+	var app = view.TracesTable.serviceCtx.App
+
+	uitest.OnUI(t, app, func() {
+		view.TraceIdView.SetText("Root=" + openedTraceId + ";Parent=53995c3f42cd8ad8;Sampled=1")
+		pressEnter(view.TraceIdView)
+	})
+	uitest.Eventually(t, app, func() bool { return view.DetailsTable.LoadedTrace() != nil }, "the trace to be loaded")
+
+	uitest.AwaitDetailsRows(t, app, view.DetailsTable.DetailsTable, []core.TableRow{
+		{"Trace ID", openedTraceId},
+		{"Start Time", "2026-11-14 09:30:00"},
+		{"Duration", "1.60s"},
+		{"Response Time", "1.60s"},
+		{"Entry Point", "orders-api (AWS::ApiGateway::Stage)"},
+		{"Method", "POST"},
+		{"URL", "https://api.example.com/orders"},
+		{"Status", "502"},
+		{"Client IP", "203.0.113.7"},
+		{"Fault", "true"},
+		{"Error", "true"},
+		{"Throttle", "true"},
+		{"Partial", ""},
+		{"Users", ""},
+		{"Services"},
+		{"orders-api", "AWS::ApiGateway::Stage"},
+		{"orders", "AWS::Lambda::Function"},
+		{"Segments"},
+		{"bad", ""},
+		{"orders-api", "████████████████████ AWS::ApiGateway::Stage, 1.60s, 502"},
+		{"  Lambda", ""},
+		{"    orders", "···████████████████· AWS::Lambda::Function, 1.25s, fault"},
+		{"orders", "······█············· AWS::Lambda::Function, 100ms, error, throttle"},
+	})
+	if got := api.TracesAskedFor(); !slices.Contains(got, openedTraceId) {
+		t.Errorf("traces loaded = %q, want the one entered", got)
+	}
+	uitest.OnUI(t, app, func() {
+		if title := view.DetailsTable.GetTitle(); !strings.Contains(title, openedTraceId) {
+			t.Errorf("title = %q, want the trace ID", title)
+		}
+	})
+}
+
+func TestTraceIdView__TextThatIsNotATraceIdIsAnErrorAndNothingIsLoaded(t *testing.T) {
+	var api = xrayfake.New()
+	var view = newTracesTest(t, api)
+	var app = view.TracesTable.serviceCtx.App
+	var callback, received = uitest.CaptureErrors()
+	uitest.OnUI(t, app, func() { view.TraceIdView.ErrorMessageCallback = callback })
+
+	uitest.OnUI(t, app, func() {
+		view.TraceIdView.SetText("orders")
+		pressEnter(view.TraceIdView)
+	})
+
+	if got := uitest.AwaitError(t, received); !strings.Contains(got, "is not an X-Ray trace ID") {
+		t.Errorf("error = %q", got)
+	}
+	if got := api.TracesAskedFor(); len(got) != 0 {
+		t.Errorf("traces loaded = %q, want none", got)
+	}
+}
+
+func TestTraceIdView__TraceThatIsNotFoundIsAnError(t *testing.T) {
+	var api = xrayfake.New()
+	var view = newTracesTest(t, api)
+	var app = view.TracesTable.serviceCtx.App
+	var callback, received = uitest.CaptureErrors()
+	uitest.OnUI(t, app, func() { view.DetailsTable.ErrorMessageCallback = callback })
+
+	uitest.OnUI(t, app, func() {
+		view.TraceIdView.SetText(openedTraceId)
+		pressEnter(view.TraceIdView)
+	})
+
+	if got := uitest.AwaitError(t, received); !strings.Contains(got, openedTraceId) {
+		t.Errorf("error = %q, want it to name the trace", got)
+	}
+}
+
+func TestTracesPage__SelectingAListedTraceAfterOpeningOneShowsTheListedOne(t *testing.T) {
+	var api = xrayfake.New(
+		xrayfake.WithTracePages([]types.TraceSummary{newSummary("t1", "/orders", 30), newSummary("t2", "/carts", 20)}),
+		xrayfake.WithTrace(newTrace("t1")), xrayfake.WithTrace(newTrace("t2")),
+		xrayfake.WithTrace(newOpenedTrace()),
+	)
+	var view = newTracesTest(t, api)
+	var app = view.TracesTable.serviceCtx.App
+	view.TracesTable.RefreshTraces(true)
+	uitest.Eventually(t, app, func() bool { return view.TracesTable.GetCellText(2, 5) == "/carts" }, "/carts to be listed")
+	uitest.OnUI(t, app, func() {
+		view.TraceIdView.SetText(openedTraceId)
+		pressEnter(view.TraceIdView)
+	})
+	uitest.Eventually(t, app, func() bool { return view.DetailsTable.GetCellText(4, 1) == "orders-api (AWS::ApiGateway::Stage)" },
+		"the opened trace to be shown")
+
+	uitest.OnUI(t, app, func() { view.TracesTable.Select(2, 0) })
+
+	uitest.Eventually(t, app, func() bool {
+		return view.DetailsTable.GetCellText(0, 1) == "t2" && view.DetailsTable.LoadedTrace() != nil
+	}, "t2 and its segments to be shown")
+	uitest.OnUI(t, app, func() {
+		if title := view.DetailsTable.GetTitle(); strings.Contains(title, openedTraceId) {
+			t.Errorf("title = %q, still names the opened trace", title)
+		}
+		if got := view.DetailsTable.GetCellText(6, 1); got != "/carts" {
+			t.Errorf("URL = %q, want the summary of the listed trace", got)
+		}
+	})
+}
+
+func TestTracesPage__QueryKeyOpensTheLogsOfTheTraceOpenedById(t *testing.T) {
+	var api = xrayfake.New(xrayfake.WithTrace(newOpenedTrace()))
+	var view = newTracesTest(t, api)
+	var app = view.TracesTable.serviceCtx.App
+	var opened safetest.Recorder[core.LogsQuery]
+	view.TracesTable.serviceCtx.AppContext.SetLogsQueryOpener(func(query core.LogsQuery) error {
+		opened.Record(query)
+		return nil
+	})
+	uitest.OnUI(t, app, func() {
+		view.TraceIdView.SetText(openedTraceId)
+		pressEnter(view.TraceIdView)
+	})
+	uitest.Eventually(t, app, func() bool { return view.DetailsTable.LoadedTrace() != nil }, "the trace to be loaded")
+
+	// The list is empty, so the key is pressed on the details of the trace
+	uitest.OnUI(t, app, func() {
+		app.SetFocus(view.DetailsTable)
+		view.DetailsTable.InputHandler()(
+			tcell.NewEventKey(tcell.KeyRune, core.APP_KEY_BINDINGS.TableQuery, tcell.ModNone),
+			func(p tview.Primitive) { app.SetFocus(p) },
+		)
+	})
+
+	var calls = opened.Calls()
+	if len(calls) != 1 {
+		t.Fatalf("queries opened = %d, want 1", len(calls))
+	}
+	if want := []string{"/aws/lambda/orders"}; !slices.Equal(calls[0].LogGroups, want) {
+		t.Errorf("log groups = %q, want %q", calls[0].LogGroups, want)
+	}
+	if !strings.Contains(calls[0].Query, openedTraceId) {
+		t.Errorf("query = %q, want it to find the opened trace", calls[0].Query)
+	}
+}

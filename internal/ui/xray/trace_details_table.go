@@ -32,6 +32,11 @@ type segmentDocument struct {
 	Fault      bool     `json:"fault"`
 	Throttle   bool     `json:"throttle"`
 	Http       struct {
+		Request struct {
+			Method   string `json:"method"`
+			Url      string `json:"url"`
+			ClientIp string `json:"client_ip"`
+		} `json:"request"`
 		Response struct {
 			Status *int32 `json:"status"`
 		} `json:"response"`
@@ -250,11 +255,16 @@ func rootCauseRows(summary types.TraceSummary) []core.TableRow {
 }
 
 // TraceDetailsTable shows the summary of a trace, which the list holds, and
-// its segments, which are loaded for the trace
+// its segments, which are loaded for the trace. A trace opened by its ID has
+// its summary made from its segments.
 type TraceDetailsTable struct {
 	*core.DetailsTable
-	summary    types.TraceSummary
-	trace      *types.Trace
+	summary types.TraceSummary
+	trace   *types.Trace
+	// opened is set for a trace opened by its ID, rather than from the list
+	opened bool
+	// queryLogs is called to query the logs of the trace shown
+	queryLogs  func()
 	serviceCtx *core.ServiceContext[awsapi.XRayApi]
 }
 
@@ -264,6 +274,7 @@ func NewTraceDetailsTable(
 	var table = &TraceDetailsTable{
 		DetailsTable: core.NewDetailsTable("Trace Details", serviceContext.AppContext),
 		serviceCtx:   serviceContext,
+		queryLogs:    func() {},
 	}
 
 	table.populateDetailsTable()
@@ -271,6 +282,9 @@ func NewTraceDetailsTable(
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			table.RefreshSegments()
+			return nil
+		case core.APP_KEY_BINDINGS.TableQuery:
+			table.queryLogs()
 			return nil
 		}
 		return event
@@ -358,7 +372,30 @@ func rawTrace(summary types.TraceSummary, trace types.Trace) any {
 func (inst *TraceDetailsTable) SetTrace(summary types.TraceSummary) {
 	inst.summary = summary
 	inst.trace = nil
+	inst.opened = false
+	inst.SetTitleExtra("")
 	inst.populateDetailsTable()
+}
+
+// OpenTrace loads the trace of the ID, which need not be one of those listed,
+// and shows it with the summary its segments give
+func (inst *TraceDetailsTable) OpenTrace(traceId string) {
+	inst.summary = types.TraceSummary{Id: aws.String(traceId)}
+	inst.trace = nil
+	inst.opened = true
+	inst.SetTitleExtra(traceId)
+	inst.populateDetailsTable()
+	inst.RefreshSegments()
+}
+
+// SetQueryLogsFunc sets what queries the logs of the trace shown
+func (inst *TraceDetailsTable) SetQueryLogsFunc(queryLogs func()) {
+	inst.queryLogs = queryLogs
+}
+
+// Summary is the summary of the trace shown
+func (inst *TraceDetailsTable) Summary() types.TraceSummary {
+	return inst.summary
 }
 
 // LoadedTrace is the trace shown with its segments, which is nil until they
@@ -394,6 +431,9 @@ func (inst *TraceDetailsTable) RefreshSegments() {
 			return
 		}
 		inst.trace = &trace
+		if inst.opened {
+			inst.summary = traceSummaryOf(trace)
+		}
 		inst.populateDetailsTable()
 	})
 }
