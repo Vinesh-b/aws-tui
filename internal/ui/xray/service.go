@@ -9,7 +9,7 @@ import (
 var Service = core.Service{
 	Id:          core.XRAY,
 	Icon:        "\U000F0437",
-	Description: "Traces and sampling rules",
+	Description: "Traces, service map and sampling rules",
 	Shortcut:    core.NoShortcut,
 	Aliases:     []string{"xray"},
 	Build: func(appCtx *core.AppContext) core.ServicePage {

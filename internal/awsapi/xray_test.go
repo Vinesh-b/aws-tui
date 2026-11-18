@@ -195,3 +195,31 @@ func TestXRayGetSamplingRulesInTheOrderTheyAreApplied(t *testing.T) {
 		t.Errorf("rules = %v, want [health orders Default]", names)
 	}
 }
+
+func TestXRayGetServiceGraphGathersEveryPageForTheTimes(t *testing.T) {
+	var fake = useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+		if call == 1 {
+			return xRayResponse(`{"Services":[{"ReferenceId":0,"Name":"orders-api"}],"NextToken":"n1"}`)
+		}
+		return xRayResponse(`{"Services":[{"ReferenceId":1,"Name":"orders"}]}`)
+	})
+
+	var services, err = NewXRayApi(fake.clients, testLogger()).GetServiceGraph(context.Background(), hourStart, hourEnd)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(services) != 2 || aws.ToString(services[0].Name) != "orders-api" || aws.ToString(services[1].Name) != "orders" {
+		t.Errorf("services = %+v, want those of both pages", services)
+	}
+	var request struct{ StartTime, EndTime float64 }
+	if err := json.Unmarshal([]byte(fake.requestBody(0)), &request); err != nil {
+		t.Fatal(err)
+	}
+	if !time.Unix(int64(request.StartTime), 0).Equal(hourStart) || !time.Unix(int64(request.EndTime), 0).Equal(hourEnd) {
+		t.Errorf("times = %v - %v, want the hour", request.StartTime, request.EndTime)
+	}
+	if body := fake.requestBody(1); !strings.Contains(body, `"NextToken":"n1"`) {
+		t.Errorf("second request = %s, want the next token", body)
+	}
+}

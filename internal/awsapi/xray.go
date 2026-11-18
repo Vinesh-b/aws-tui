@@ -25,6 +25,9 @@ type XRayApi interface {
 	// GetSamplingRules returns the sampling rules, in the order they are
 	// applied. The result is kept until force asks for it again.
 	GetSamplingRules(ctx context.Context, force bool) ([]types.SamplingRuleRecord, error)
+	// GetServiceGraph returns the services that handled the traces between
+	// the times, with the statistics of their calls to each other
+	GetServiceGraph(ctx context.Context, start, end time.Time) ([]types.Service, error)
 }
 
 type xRayApi struct {
@@ -149,4 +152,20 @@ func samplingRule(record types.SamplingRuleRecord) types.SamplingRule {
 		return types.SamplingRule{}
 	}
 	return *record.SamplingRule
+}
+
+func (inst *xRayApi) GetServiceGraph(ctx context.Context, start, end time.Time) ([]types.Service, error) {
+	var services []types.Service
+	var paginator = xray.NewGetServiceGraphPaginator(inst.clients.xray, &xray.GetServiceGraphInput{
+		StartTime: aws.Time(start),
+		EndTime:   aws.Time(end),
+	})
+	for paginator.HasMorePages() {
+		var output, err = paginator.NextPage(ctx)
+		if err != nil {
+			return []types.Service{}, inst.logErr(err)
+		}
+		services = append(services, output.Services...)
+	}
+	return services, nil
 }

@@ -93,6 +93,40 @@ func NewTracesPageView(
 	}
 }
 
+type ServiceMapPageView struct {
+	*core.ServicePageView
+	ServicesTable *ServiceMapTable
+	DetailsTable  *ServiceDetailsTable
+}
+
+func NewServiceMapPageView(
+	servicesTable *ServiceMapTable,
+	detailsTable *ServiceDetailsTable,
+	serviceCtx *core.ServiceContext[awsapi.XRayApi],
+) *ServiceMapPageView {
+	var serviceView = newDetailsPage(detailsTable, servicesTable, [][]core.View{
+		{detailsTable},
+		{servicesTable},
+	}, serviceCtx.AppContext)
+	var errorHandler = func(text string, a ...any) {
+		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
+	}
+	servicesTable.ErrorMessageCallback = errorHandler
+	detailsTable.ErrorMessageCallback = errorHandler
+
+	// The map holds all of each service and their calls, so the details are
+	// shown at once
+	servicesTable.SetSelectionChangedFunc(func(row, column int) {
+		detailsTable.SetService(servicesTable.GetSelectedService(), servicesTable.Services())
+	})
+
+	return &ServiceMapPageView{
+		ServicePageView: serviceView,
+		ServicesTable:   servicesTable,
+		DetailsTable:    detailsTable,
+	}
+}
+
 type SamplingRulesPageView struct {
 	*core.ServicePageView
 	RulesTable   *SamplingRulesTable
@@ -129,6 +163,7 @@ func NewSamplingRulesPageView(
 // The pages of the service
 const (
 	xRayPageTraces = iota
+	xRayPageServiceMap
 	xRayPageSamplingRules
 )
 
@@ -151,6 +186,11 @@ func NewXRayHomeView(appCtx *core.AppContext, api awsapi.XRayApi) core.ServicePa
 			NewTraceDetailsTable(serviceCtx),
 			serviceCtx,
 		)
+		serviceMapView = NewServiceMapPageView(
+			NewServiceMapTable(serviceCtx),
+			NewServiceDetailsTable(appCtx),
+			serviceCtx,
+		)
 		rulesView = NewSamplingRulesPageView(
 			NewSamplingRulesTable(serviceCtx),
 			NewSamplingRuleDetailsTable(appCtx),
@@ -162,6 +202,7 @@ func NewXRayHomeView(appCtx *core.AppContext, api awsapi.XRayApi) core.ServicePa
 
 	serviceRootView.
 		AddAndSwitchToPage("Traces", tracesView, true).
+		AddPage("Service Map", serviceMapView, true, true).
 		AddPage("Sampling Rules", rulesView, true, true)
 
 	serviceRootView.InitPageNavigation()

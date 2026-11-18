@@ -653,7 +653,7 @@ func TestTraceColour(t *testing.T) {
 // which is what the user sees whichever field of the cell holds the colour.
 // The selected row is drawn in the selection colours, so the text must be on
 // another row.
-func drawnForeground(t *testing.T, table *TracesTable, text string) tcell.Color {
+func drawnForeground(t *testing.T, table tview.Primitive, text string) tcell.Color {
 	t.Helper()
 	var screen = tcell.NewSimulationScreen("UTF-8")
 	if err := screen.Init(); err != nil {
@@ -994,4 +994,285 @@ func TestTracesPage__QueryKeyReportsWhyTheLogsCantBeOpened(t *testing.T) {
 			}
 		})
 	}
+}
+
+func edgeTo(referenceId int32, stats types.EdgeStatistics, histogram ...types.HistogramEntry) types.Edge {
+	return types.Edge{ReferenceId: aws.Int32(referenceId), SummaryStatistics: &stats, ResponseTimeHistogram: histogram}
+}
+
+// newServiceGraph is clients calling an API, which calls a function, which
+// uses a table, in no order
+func newServiceGraph() []types.Service {
+	return []types.Service{
+		{
+			ReferenceId: aws.Int32(1), Name: aws.String("orders-api"), Type: aws.String("AWS::ApiGateway::Stage"),
+			Names: []string{"orders-api", "orders-api/prod"}, Root: aws.Bool(true),
+			SummaryStatistics: &types.ServiceStatistics{
+				TotalCount: aws.Int64(200), OkCount: aws.Int64(190), TotalResponseTime: aws.Float64(40),
+				ErrorStatistics: &types.ErrorStatistics{TotalCount: aws.Int64(6), ThrottleCount: aws.Int64(2)},
+				FaultStatistics: &types.FaultStatistics{TotalCount: aws.Int64(4)},
+			},
+			ResponseTimeHistogram: []types.HistogramEntry{{Value: 1.5, Count: 20}, {Value: 0.1, Count: 100}, {Value: 0.2, Count: 80}},
+			Edges: []types.Edge{edgeTo(2, types.EdgeStatistics{
+				TotalCount: aws.Int64(200), OkCount: aws.Int64(196), TotalResponseTime: aws.Float64(20),
+				FaultStatistics: &types.FaultStatistics{TotalCount: aws.Int64(4)},
+			}, types.HistogramEntry{Value: 0.05, Count: 150}, types.HistogramEntry{Value: 0.3, Count: 50})},
+		},
+		{ReferenceId: aws.Int32(3), Name: aws.String("orders-table"), Type: aws.String("AWS::DynamoDB::Table")},
+		{
+			ReferenceId: aws.Int32(2), Name: aws.String("orders"), Type: aws.String("AWS::Lambda::Function"),
+			SummaryStatistics: &types.ServiceStatistics{
+				TotalCount: aws.Int64(200), OkCount: aws.Int64(200), TotalResponseTime: aws.Float64(10),
+			},
+			ResponseTimeHistogram: []types.HistogramEntry{{Value: 0.05, Count: 200}},
+			Edges:                 []types.Edge{edgeTo(3, types.EdgeStatistics{TotalCount: aws.Int64(0)})},
+		},
+		{
+			ReferenceId: aws.Int32(0), Type: aws.String("client"),
+			Edges: []types.Edge{edgeTo(1, types.EdgeStatistics{
+				TotalCount: aws.Int64(10), OkCount: aws.Int64(10), TotalResponseTime: aws.Float64(1),
+			})},
+		},
+	}
+}
+
+var serviceMapHeadings = core.TableRow{"Name", "Type", "Requests", "Errors", "Faults", "Average", "p99"}
+
+func newServiceMapTest(t *testing.T, api *xrayfake.Api) *ServiceMapPageView {
+	t.Helper()
+	var serviceCtx = uitest.NewServiceContextWith[awsapi.XRayApi](api)
+	var table = NewServiceMapTable(serviceCtx)
+	table.now = func() time.Time { return fixedNow }
+	var view = NewServiceMapPageView(table, NewServiceDetailsTable(serviceCtx.AppContext), serviceCtx)
+	uitest.RunApp(t, serviceCtx.App)
+	return view
+}
+
+func TestServiceMapTable__ResetLoadsTheServicesOfTheLastHourWithTheClientsFirst(t *testing.T) {
+	var api = xrayfake.New(xrayfake.WithServiceGraph(newServiceGraph()))
+	var view = newServiceMapTest(t, api)
+	var app = view.ServicesTable.serviceCtx.App
+
+	uitest.OnUI(t, app, func() { uitest.PressTableRune(view.ServicesTable, core.APP_KEY_BINDINGS.Reset) })
+
+	uitest.AwaitRows(t, app, view.ServicesTable, []core.TableRow{
+		serviceMapHeadings,
+		{"Clients", "client", "", "", "", "", ""},
+		{"orders", "AWS::Lambda::Function", "200", "0.0%", "0.0%", "50ms", "50ms"},
+		{"orders-api", "AWS::ApiGateway::Stage", "200", "3.0%", "2.0%", "200ms", "1.50s"},
+		{"orders-table", "AWS::DynamoDB::Table", "", "", "", "", ""},
+	})
+	var want = xrayfake.Window{Start: fixedNow.Add(-time.Hour), End: fixedNow}
+	if got := api.GraphWindowsAskedFor(); len(got) != 1 || !got[0].Start.Equal(want.Start) || !got[0].End.Equal(want.End) {
+		t.Errorf("windows = %v, want the last hour", got)
+	}
+}
+
+func TestServiceMapTable__TimeRangeKeyLoadsTheMapOfTheNextRange(t *testing.T) {
+	var api = xrayfake.New()
+	var view = newServiceMapTest(t, api)
+	var app = view.ServicesTable.serviceCtx.App
+
+	uitest.OnUI(t, app, func() { uitest.PressTableRune(view.ServicesTable, core.APP_KEY_BINDINGS.TimeRange) })
+
+	uitest.Eventually(t, app, func() bool { return len(api.GraphWindowsAskedFor()) == 1 }, "the map to be loaded")
+	if got := api.GraphWindowsAskedFor()[0]; !got.Start.Equal(fixedNow.Add(-3 * time.Hour)) {
+		t.Errorf("window = %v, want the last 3 hours", got)
+	}
+	uitest.OnUI(t, app, func() {
+		if title := view.ServicesTable.GetTitle(); !strings.Contains(title, "Last 3 hours") {
+			t.Errorf("title = %q, want the range", title)
+		}
+	})
+}
+
+func TestServiceMapTable__TimeRangeGoesBackToTheShortestAfterTheLongest(t *testing.T) {
+	var api = xrayfake.New()
+	var view = newServiceMapTest(t, api)
+	var app = view.ServicesTable.serviceCtx.App
+
+	uitest.OnUI(t, app, func() {
+		for range customTraceRangeIdx - defaultTraceRangeIdx {
+			uitest.PressTableRune(view.ServicesTable, core.APP_KEY_BINDINGS.TimeRange)
+		}
+	})
+
+	uitest.Eventually(t, app, func() bool {
+		return len(api.GraphWindowsAskedFor()) == customTraceRangeIdx-defaultTraceRangeIdx
+	}, "every range to be loaded")
+	// The loads run at once, so they can come in any order
+	var spans []time.Duration
+	for _, window := range api.GraphWindowsAskedFor() {
+		spans = append(spans, window.End.Sub(window.Start))
+	}
+	slices.Sort(spans)
+	if want := []time.Duration{5 * time.Minute, 3 * time.Hour, 6 * time.Hour}; !slices.Equal(spans, want) {
+		t.Errorf("spans = %v, want %v", spans, want)
+	}
+}
+
+func TestServiceMapPage__SelectingAServiceShowsItsRequestsAndCalls(t *testing.T) {
+	var api = xrayfake.New(xrayfake.WithServiceGraph(newServiceGraph()))
+	var view = newServiceMapTest(t, api)
+	var app = view.ServicesTable.serviceCtx.App
+	uitest.OnUI(t, app, func() { view.ServicesTable.RefreshServices() })
+	uitest.Eventually(t, app, func() bool { return view.ServicesTable.GetCellText(3, 0) == "orders-api" }, "orders-api to be listed")
+
+	uitest.OnUI(t, app, func() { view.ServicesTable.Select(3, 0) })
+
+	uitest.AwaitDetailsRows(t, app, view.DetailsTable.DetailsTable, []core.TableRow{
+		{"Name", "orders-api"},
+		{"Other Names", "orders-api/prod"},
+		{"Type", "AWS::ApiGateway::Stage"},
+		{"Account", ""},
+		{"State", ""},
+		{"Root", "true"},
+		{"First Segment", ""},
+		{"Last Segment", ""},
+		{"Requests"},
+		{"Total", "200"},
+		{"OK", "190"},
+		{"Errors", "6 (3.0%)"},
+		{"Throttles", "2 (1.0%)"},
+		{"Faults", "4 (2.0%)"},
+		{"Average", "200ms"},
+		{"p50", "100ms"},
+		{"p90", "200ms"},
+		{"p99", "1.50s"},
+		{"Calls"},
+		{"orders", "200 requests, 0.0% errors, 2.0% faults, avg 100ms, p99 300ms"},
+		{"Called By"},
+		{"Clients", "10 requests, 0.0% errors, 0.0% faults, avg 100ms"},
+	})
+}
+
+func TestServiceMapPage__ServiceWithoutStatisticsShowsOnlyWhoCallsIt(t *testing.T) {
+	var api = xrayfake.New(xrayfake.WithServiceGraph(newServiceGraph()))
+	var view = newServiceMapTest(t, api)
+	var app = view.ServicesTable.serviceCtx.App
+	uitest.OnUI(t, app, func() { view.ServicesTable.RefreshServices() })
+	uitest.Eventually(t, app, func() bool { return view.ServicesTable.GetCellText(4, 0) == "orders-table" }, "orders-table to be listed")
+
+	uitest.OnUI(t, app, func() { view.ServicesTable.Select(4, 0) })
+
+	uitest.AwaitDetailsRows(t, app, view.DetailsTable.DetailsTable, []core.TableRow{
+		{"Name", "orders-table"},
+		{"Other Names", ""},
+		{"Type", "AWS::DynamoDB::Table"},
+		{"Account", ""},
+		{"State", ""},
+		{"Root", ""},
+		{"First Segment", ""},
+		{"Last Segment", ""},
+		{"Called By"},
+		{"orders", "0 requests"},
+	})
+}
+
+func TestServiceMapTable__ColoursServicesByFaultThrottleAndError(t *testing.T) {
+	var throttled = types.Service{ReferenceId: aws.Int32(5), Name: aws.String("throttled-service"),
+		SummaryStatistics: &types.ServiceStatistics{TotalCount: aws.Int64(10),
+			ErrorStatistics: &types.ErrorStatistics{TotalCount: aws.Int64(1), ThrottleCount: aws.Int64(1)}}}
+	var errored = types.Service{ReferenceId: aws.Int32(6), Name: aws.String("errored-service"),
+		SummaryStatistics: &types.ServiceStatistics{TotalCount: aws.Int64(10),
+			ErrorStatistics: &types.ErrorStatistics{TotalCount: aws.Int64(1)}}}
+	var table = NewServiceMapTable(uitest.NewServiceContext[awsapi.XRayApi]())
+	table.services = sortedServices(append(newServiceGraph(), throttled, errored))
+	table.populateServiceMapTable()
+
+	for _, test := range []struct {
+		text string
+		want tcell.Color
+	}{
+		{"orders-api", traceFaultColour},
+		{"throttled-service", traceThrottleColour},
+		{"errored-service", traceErrorColour},
+	} {
+		if got := drawnForeground(t, table, test.text); got != test.want {
+			t.Errorf("%q is drawn in %v, want %v", test.text, got, test.want)
+		}
+	}
+	var coloured = []tcell.Color{traceFaultColour, traceThrottleColour, traceErrorColour}
+	if got := drawnForeground(t, table, "AWS::Lambda::Function"); slices.Contains(coloured, got) {
+		t.Errorf("orders is drawn in %v, but had no fault, throttle or error", got)
+	}
+}
+
+func TestServiceMapTable__ErrorIsShown(t *testing.T) {
+	var api = xrayfake.New(xrayfake.WithErr(errors.New("throttled")))
+	var view = newServiceMapTest(t, api)
+	var callback, received = uitest.CaptureErrors()
+	var app = view.ServicesTable.serviceCtx.App
+	uitest.OnUI(t, app, func() { view.ServicesTable.ErrorMessageCallback = callback })
+
+	uitest.OnUI(t, app, func() { view.ServicesTable.RefreshServices() })
+
+	if got := uitest.AwaitError(t, received); got != "throttled" {
+		t.Errorf("error = %q, want throttled", got)
+	}
+}
+
+func TestRequestStatsPercentile(t *testing.T) {
+	var stats = requestStats{histogram: []types.HistogramEntry{{Value: 2, Count: 1}, {Value: 0.5, Count: 98}, {Value: 1, Count: 1}}}
+	for _, test := range []struct {
+		fraction float64
+		want     string
+	}{
+		{0.5, "500ms"},
+		{0.98, "500ms"},
+		{0.99, "1.00s"},
+		{1, "2.00s"},
+	} {
+		if got := stats.percentile(test.fraction); got != test.want {
+			t.Errorf("percentile(%v) = %q, want %q", test.fraction, got, test.want)
+		}
+	}
+	if got := (requestStats{}).percentile(0.99); got != "" {
+		t.Errorf("percentile without a histogram = %q, want empty", got)
+	}
+}
+
+func TestServiceMapTable__MapOfARangeThatCameAfterTheNextIsNotShown(t *testing.T) {
+	uitest.RunInBubble(t, func(t *testing.T) {
+		var api = xrayfake.New(
+			xrayfake.WithServiceGraphSince(3*time.Hour, []types.Service{{ReferenceId: aws.Int32(1), Name: aws.String("three-hours")}}),
+			xrayfake.WithServiceGraphSince(6*time.Hour, []types.Service{{ReferenceId: aws.Int32(1), Name: aws.String("six-hours")}}),
+		)
+		var release = api.HoldSpan(3 * time.Hour)
+		t.Cleanup(release)
+		var view = newServiceMapTest(t, api)
+		var app = view.ServicesTable.serviceCtx.App
+
+		uitest.OnUI(t, app, func() {
+			uitest.PressTableRune(view.ServicesTable, core.APP_KEY_BINDINGS.TimeRange)
+			uitest.PressTableRune(view.ServicesTable, core.APP_KEY_BINDINGS.TimeRange)
+		})
+		uitest.Eventually(t, app, func() bool { return view.ServicesTable.GetCellText(1, 0) == "six-hours" }, "six-hours to be shown")
+		release()
+
+		uitest.Consistently(t, app, 2*core.SelectionLoadDelay, func() bool {
+			return view.ServicesTable.GetCellText(1, 0) == "six-hours"
+		}, "the map of the last range to stay")
+	})
+}
+
+func TestHomeView__OpeningASamplingRuleShowsItsPage(t *testing.T) {
+	var api = xrayfake.New(xrayfake.WithSamplingRules([]types.SamplingRuleRecord{newRule("orders", 10)}))
+	var appCtx = uitest.NewAppContext()
+	var page = NewXRayHomeView(appCtx, api)
+	var screen = uitest.ShowPage(t, appCtx.App, page)
+	var resource, _ = arn.Parse(ruleArnOf("orders"))
+
+	uitest.OnUI(t, appCtx.App, func() { page.(core.ResourceOpener).OpenResource(resource) })
+
+	uitest.AwaitScreenText(t, appCtx.App, screen, "Sampling Rule Details")
+	uitest.OnUI(t, appCtx.App, func() {
+		var root = page.(*core.ServiceRootView)
+		if got := root.CurrentServicePage(); got != "Sampling Rules" {
+			t.Errorf("page = %q, want Sampling Rules", got)
+		}
+		if got := root.ServicePages(); !slices.Equal(got, []string{"Traces", "Service Map", "Sampling Rules"}) {
+			t.Errorf("pages = %q", got)
+		}
+	})
 }
