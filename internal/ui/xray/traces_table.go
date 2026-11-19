@@ -207,12 +207,15 @@ func (inst *TracesTable) RefreshTraces(reset bool) {
 	if reset {
 		inst.showRange(start, end)
 	}
+	// The filter is read here, as it is changed on the UI goroutine while
+	// the traces load on another
+	var filter = inst.filter
 	var summaries []types.TraceSummary
 	var dataLoader = core.NewUiDataLoader(inst.serviceCtx.AppContext, 10)
 
 	dataLoader.AsyncLoadData(func(ctx context.Context) {
 		var err error
-		summaries, err = inst.serviceCtx.Api.GetTraceSummaries(ctx, start, end, inst.filter, reset)
+		summaries, err = inst.serviceCtx.Api.GetTraceSummaries(ctx, start, end, filter, reset)
 		if err != nil {
 			inst.ErrorMessageCallback("%s", err.Error())
 		}

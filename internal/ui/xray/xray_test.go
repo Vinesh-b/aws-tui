@@ -752,6 +752,25 @@ func TestTracesTable__FilterIsKeptForResetAndTheNextRange(t *testing.T) {
 	}
 }
 
+// The filter is changed while the traces of the one before load, which the
+// race detector reports if the load reads the filter as it is changed
+func TestTracesTable__FilterChangedWhileTracesLoadIsTheOneOfTheNextLoad(t *testing.T) {
+	var api = xrayfake.New()
+	var view, app = newRangeTest(t, api)
+
+	uitest.OnUI(t, app, func() {
+		view.TracesTable.SetFilterExpression("fault")
+		view.TracesTable.SetFilterExpression("error")
+	})
+
+	uitest.Eventually(t, app, func() bool { return len(api.FiltersAskedFor()) == 2 }, "both loads")
+	var filters = api.FiltersAskedFor()
+	slices.Sort(filters)
+	if want := []string{"error", "fault"}; !slices.Equal(filters, want) {
+		t.Errorf("filters = %q, want each load with the filter it was started with", filters)
+	}
+}
+
 func TestTraceFilterView__ClearedFilterLoadsEveryTrace(t *testing.T) {
 	var api = xrayfake.New(
 		xrayfake.WithTracePages([]types.TraceSummary{newSummary("t1", "/every-trace", 30)}),
