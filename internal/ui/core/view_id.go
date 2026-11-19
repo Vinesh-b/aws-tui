@@ -26,6 +26,7 @@ const (
 	SQS                ViewId = "SQS"
 	STATE_MACHINES     ViewId = "State Machines"
 	SYSTEMS_MANAGER    ViewId = "Systems Manager"
+	TRANSFER_FAMILY    ViewId = "Transfer Family"
 	VPC                ViewId = "VPCs"
 	WAF                ViewId = "WAF"
 	XRAY               ViewId = "X-Ray"

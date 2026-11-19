@@ -25,6 +25,7 @@ import (
 	"aws-tui/internal/ui/sns"
 	"aws-tui/internal/ui/sqs"
 	"aws-tui/internal/ui/ssm"
+	"aws-tui/internal/ui/transfer"
 	"aws-tui/internal/ui/vpc"
 	"aws-tui/internal/ui/waf"
 	"aws-tui/internal/ui/xray"
@@ -355,6 +356,7 @@ var awsServices = []core.Service{
 	route53.Service,
 	cognito.Service,
 	bedrock.Service,
+	transfer.Service,
 	iam.Service,
 	sqs.Service,
 	sns.Service,

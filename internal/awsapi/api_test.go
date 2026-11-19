@@ -514,6 +514,18 @@ func TestMissingArgumentsAreRejected(t *testing.T) {
 			var _, err = NewWafApi(fake.clients, logger).GetIPSet(context.Background(), "")
 			return err
 		}, "IP set ARN not set"},
+		{"Transfer server", func() error {
+			var _, err = NewTransferApi(fake.clients, logger).DescribeServer(context.Background(), "")
+			return err
+		}, "server id not set"},
+		{"Transfer users", func() error {
+			var _, err = NewTransferApi(fake.clients, logger).ListUsers(context.Background(), "")
+			return err
+		}, "server id not set"},
+		{"Transfer connector", func() error {
+			var _, err = NewTransferApi(fake.clients, logger).DescribeConnector(context.Background(), "")
+			return err
+		}, "connector id not set"},
 		{"model availability", func() error {
 			var _, err = NewBedrockApi(fake.clients, logger).GetFoundationModelAvailability(context.Background(), "")
 			return err
