@@ -85,6 +85,9 @@ type TracesTable struct {
 	// loadedChanged is called when they change
 	loaded        []types.TraceSummary
 	loadedChanged func()
+	// reset is called when the reset key loads the traces again, for what is
+	// loaded with them
+	reset func()
 	// loads counts the reloads, so the traces of one that was replaced by
 	// another before they came are not shown
 	loads int
@@ -112,6 +115,7 @@ func NewTracesTable(
 		queryLogs:  func() {},
 
 		loadedChanged: func() {},
+		reset:         func() {},
 	}
 
 	table.HighlightSearch = true
@@ -173,6 +177,11 @@ func (inst *TracesTable) populateTracesTable(summaries []types.TraceSummary, res
 	inst.SetData(tableData, summaries, 0)
 	inst.Select(1, 0)
 	inst.loadedChanged()
+}
+
+// SetResetFunc sets what is called when the reset key loads the traces again
+func (inst *TracesTable) SetResetFunc(reset func()) {
+	inst.reset = reset
 }
 
 // SetLoadedChangedFunc sets what is called when the traces loaded change,
@@ -310,6 +319,7 @@ func (inst *TracesTable) SetInputCapture(capture func(event *tcell.EventKey) *tc
 		switch event.Rune() {
 		case core.APP_KEY_BINDINGS.Reset:
 			inst.RefreshTraces(true)
+			inst.reset()
 			return nil
 		case core.APP_KEY_BINDINGS.TimeRange:
 			inst.NextTimeRange()

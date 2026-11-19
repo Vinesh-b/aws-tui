@@ -36,6 +36,7 @@ type TracesPageView struct {
 	TracesTable  *TracesTable
 	RangeView    *TraceRangeView
 	FilterView   *TraceFilterView
+	GroupView    *TraceGroupView
 	TraceIdView  *TraceIdView
 	DetailsTable *TraceDetailsTable
 }
@@ -49,10 +50,13 @@ func NewTracesPageView(
 	// beside the ID of a trace to open that may not be listed
 	var rangeView = NewTraceRangeView(tracesTable, serviceCtx.AppContext)
 	var filterView = NewTraceFilterView(tracesTable, serviceCtx.AppContext)
+	var groupView = NewTraceGroupView(filterView, serviceCtx)
 	var traceIdView = NewTraceIdView(detailsTable, serviceCtx.AppContext)
 	var list = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(rangeView, 1, 0, false).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
+			AddItem(groupView, traceGroupViewWidth, 0, false).
+			AddItem(tview.NewBox(), 1, 0, false).
 			AddItem(filterView, 0, 1, false).
 			AddItem(tview.NewBox(), 1, 0, false).
 			AddItem(traceIdView, traceIdViewWidth, 0, false),
@@ -61,7 +65,7 @@ func NewTracesPageView(
 	var serviceView = newDetailsPage(detailsTable, list, [][]core.View{
 		{detailsTable},
 		rangeView.NavigationRow(),
-		{filterView, traceIdView},
+		{groupView, filterView, traceIdView},
 		{tracesTable},
 	}, serviceCtx.AppContext)
 	var errorHandler = func(text string, a ...any) {
@@ -70,6 +74,9 @@ func NewTracesPageView(
 	tracesTable.ErrorMessageCallback = errorHandler
 	rangeView.ErrorMessageCallback = errorHandler
 	traceIdView.ErrorMessageCallback = errorHandler
+	groupView.ErrorMessageCallback = errorHandler
+	// The groups are loaded with the traces, when they are loaded again
+	tracesTable.SetResetFunc(groupView.RefreshGroups)
 	detailsTable.ErrorMessageCallback = errorHandler
 
 	// The summary of the trace is in the list, so it is shown at once, but its
@@ -104,6 +111,7 @@ func NewTracesPageView(
 		TracesTable:     tracesTable,
 		RangeView:       rangeView,
 		FilterView:      filterView,
+		GroupView:       groupView,
 		TraceIdView:     traceIdView,
 		DetailsTable:    detailsTable,
 	}

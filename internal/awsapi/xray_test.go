@@ -223,3 +223,25 @@ func TestXRayGetServiceGraphGathersEveryPageForTheTimes(t *testing.T) {
 		t.Errorf("second request = %s, want the next token", body)
 	}
 }
+
+func TestXRayGetGroupsGathersEveryPage(t *testing.T) {
+	var fake = useFakeAws(t, func(call int, req *http.Request, body string) *http.Response {
+		if call == 1 {
+			return xRayResponse(`{"Groups":[{"GroupName":"Default","GroupARN":"arn:aws:xray:us-east-1:123456789012:group/Default"}],"NextToken":"n1"}`)
+		}
+		return xRayResponse(`{"Groups":[{"GroupName":"faults","FilterExpression":"fault = true"}]}`)
+	})
+
+	var groups, err = NewXRayApi(fake.clients, testLogger()).GetGroups(context.Background())
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(groups) != 2 || aws.ToString(groups[0].GroupName) != "Default" ||
+		aws.ToString(groups[1].FilterExpression) != "fault = true" {
+		t.Errorf("groups = %+v, want those of both pages", groups)
+	}
+	if body := fake.requestBody(1); !strings.Contains(body, `"NextToken":"n1"`) {
+		t.Errorf("second request = %s, want the next token", body)
+	}
+}

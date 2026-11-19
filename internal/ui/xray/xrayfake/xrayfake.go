@@ -39,6 +39,8 @@ type Api struct {
 	traces          map[string]types.Trace
 	rules           []types.SamplingRuleRecord
 	services        []types.Service
+	groups          []types.Group
+	groupLoads      int
 	spanServices    map[time.Duration][]types.Service
 	// graphWindowsAskedFor are the times of the loads of the service graph
 	graphWindowsAskedFor []Window
@@ -93,6 +95,11 @@ func WithServiceGraph(services []types.Service) Option {
 // windows that are as long as the span
 func WithServiceGraphSince(span time.Duration, services []types.Service) Option {
 	return func(f *Api) { f.spanServices[span] = services }
+}
+
+// WithGroups gives the groups
+func WithGroups(groups []types.Group) Option {
+	return func(f *Api) { f.groups = groups }
 }
 
 func WithErr(err error) Option { return func(f *Api) { f.err = err } }
@@ -253,4 +260,28 @@ func (f *Api) GetServiceGraph(ctx context.Context, start, end time.Time) ([]type
 		return slices.Clone(services), nil
 	}
 	return slices.Clone(f.services), nil
+}
+
+// SetGroups changes the groups the next loads give
+func (f *Api) SetGroups(groups []types.Group) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	f.groups = slices.Clone(groups)
+}
+
+// GroupLoads is how many times the groups were loaded
+func (f *Api) GroupLoads() int {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return f.groupLoads
+}
+
+func (f *Api) GetGroups(ctx context.Context) ([]types.Group, error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	f.groupLoads++
+	if f.err != nil {
+		return []types.Group{}, f.err
+	}
+	return slices.Clone(f.groups), nil
 }

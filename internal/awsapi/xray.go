@@ -28,6 +28,9 @@ type XRayApi interface {
 	// GetServiceGraph returns the services that handled the traces between
 	// the times, with the statistics of their calls to each other
 	GetServiceGraph(ctx context.Context, start, end time.Time) ([]types.Service, error)
+	// GetGroups returns the groups, which are filter expressions that are
+	// kept with a name
+	GetGroups(ctx context.Context) ([]types.Group, error)
 }
 
 type xRayApi struct {
@@ -168,4 +171,24 @@ func (inst *xRayApi) GetServiceGraph(ctx context.Context, start, end time.Time) 
 		services = append(services, output.Services...)
 	}
 	return services, nil
+}
+
+func (inst *xRayApi) GetGroups(ctx context.Context) ([]types.Group, error) {
+	var groups []types.Group
+	var paginator = xray.NewGetGroupsPaginator(inst.clients.xray, &xray.GetGroupsInput{})
+	for paginator.HasMorePages() {
+		var output, err = paginator.NextPage(ctx)
+		if err != nil {
+			return []types.Group{}, inst.logErr(err)
+		}
+		for _, group := range output.Groups {
+			groups = append(groups, types.Group{
+				GroupName:             group.GroupName,
+				GroupARN:              group.GroupARN,
+				FilterExpression:      group.FilterExpression,
+				InsightsConfiguration: group.InsightsConfiguration,
+			})
+		}
+	}
+	return groups, nil
 }

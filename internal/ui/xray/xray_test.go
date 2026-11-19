@@ -1837,3 +1837,174 @@ func TestSegmentTree__DataOfAnyShapeIsShownWithTheSegment(t *testing.T) {
 		t.Errorf("rows =\n%s\nwant\n%s", formatRows(got), formatRows(want))
 	}
 }
+
+func newGroup(name, filter string) types.Group {
+	var group = types.Group{GroupName: aws.String(name)}
+	if filter != "" {
+		group.FilterExpression = aws.String(filter)
+	}
+	return group
+}
+
+// newGroups are the default group, without a filter, and two of faults, out
+// of order
+func newGroups() []types.Group {
+	return []types.Group{
+		newGroup("slow-orders", `service("orders") AND responsetime > 2`),
+		newGroup("Default", ""),
+		newGroup("api-faults", `service("orders-api") { fault }`),
+	}
+}
+
+func currentGroup(view *TraceGroupView) string {
+	var _, text = view.GetCurrentOption()
+	return text
+}
+
+// newGroupsTest is the traces page with the groups loaded by the reset key
+func newGroupsTest(t *testing.T, api *xrayfake.Api) (*TracesPageView, *tview.Application) {
+	t.Helper()
+	var view, app = newRangeTest(t, api)
+	uitest.OnUI(t, app, func() { uitest.PressTableRune(view.TracesTable, core.APP_KEY_BINDINGS.Reset) })
+	uitest.Eventually(t, app, func() bool { return view.GroupView.GetOptionCount() == 4 }, "the groups to be loaded")
+	return view, app
+}
+
+func TestSortedGroups__PutsTheDefaultGroupFirstThenTheOthersByName(t *testing.T) {
+	var names []string
+	for _, group := range sortedGroups(append(newGroups(), newGroup("Billing", "service(\"billing\")"))) {
+		names = append(names, aws.ToString(group.GroupName))
+	}
+
+	if want := []string{"Default", "api-faults", "Billing", "slow-orders"}; !slices.Equal(names, want) {
+		t.Errorf("groups = %q, want %q", names, want)
+	}
+}
+
+func TestTraceGroupView__ResetKeyLoadsTheGroupsWithoutOneBeingPicked(t *testing.T) {
+	var api = xrayfake.New(xrayfake.WithGroups(newGroups()))
+	var view, app = newGroupsTest(t, api)
+
+	uitest.OnUI(t, app, func() {
+		if got, want := view.GroupView.Options(), []string{"-", "Default", "api-faults", "slow-orders"}; !slices.Equal(got, want) {
+			t.Errorf("options = %q, want %q", got, want)
+		}
+		if got := currentGroup(view.GroupView); got != "-" {
+			t.Errorf("group = %q, want none", got)
+		}
+	})
+	// The traces load apart from the groups, so they are waited for too
+	uitest.Eventually(t, app, func() bool { return len(api.FiltersAskedFor()) == 1 }, "the traces to be loaded")
+	if got := api.FiltersAskedFor(); !slices.Equal(got, []string{""}) {
+		t.Errorf("filters = %q, want only the load of the reset, without a filter", got)
+	}
+}
+
+func TestTraceGroupView__PickingAGroupLoadsTheTracesOfItsFilter(t *testing.T) {
+	var api = xrayfake.New(xrayfake.WithGroups(newGroups()))
+	var view, app = newGroupsTest(t, api)
+
+	uitest.OnUI(t, app, func() { view.GroupView.SetCurrentOption(2) })
+
+	uitest.Eventually(t, app, func() bool { return len(api.FiltersAskedFor()) == 2 }, "the traces of the group to be loaded")
+	if got := api.FiltersAskedFor()[1]; got != `service("orders-api") { fault }` {
+		t.Errorf("filter = %q, want that of api-faults", got)
+	}
+	uitest.OnUI(t, app, func() {
+		if got := view.FilterView.GetText(); got != `service("orders-api") { fault }` {
+			t.Errorf("filter shown = %q, want that of the group", got)
+		}
+		if got := currentGroup(view.GroupView); got != "api-faults" {
+			t.Errorf("group = %q, want the one picked", got)
+		}
+	})
+}
+
+func TestTraceGroupView__PickingTheDefaultGroupLoadsAllTheTraces(t *testing.T) {
+	var api = xrayfake.New(xrayfake.WithGroups(newGroups()))
+	var view, app = newGroupsTest(t, api)
+	uitest.OnUI(t, app, func() {
+		view.FilterView.SetText("fault")
+		view.FilterView.ApplyFilter()
+	})
+	// The loads run at once, so each is waited for to know their order
+	uitest.Eventually(t, app, func() bool { return len(api.FiltersAskedFor()) == 2 }, "the traces of the filter to be loaded")
+
+	uitest.OnUI(t, app, func() { view.GroupView.SetCurrentOption(1) })
+
+	uitest.Eventually(t, app, func() bool { return len(api.FiltersAskedFor()) == 3 }, "the traces of the group to be loaded")
+	if got := api.FiltersAskedFor(); !slices.Equal(got, []string{"", "fault", ""}) {
+		t.Errorf("filters = %q, want none, the one entered, then none for the default group", got)
+	}
+	uitest.OnUI(t, app, func() {
+		if got := view.FilterView.GetText(); got != "" {
+			t.Errorf("filter shown = %q, want none", got)
+		}
+		if got := currentGroup(view.GroupView); got != "Default" {
+			t.Errorf("group = %q, want Default", got)
+		}
+	})
+}
+
+func TestTraceGroupView__EnteringAFilterMovesToNoGroup(t *testing.T) {
+	var api = xrayfake.New(xrayfake.WithGroups(newGroups()))
+	var view, app = newGroupsTest(t, api)
+	uitest.OnUI(t, app, func() { view.GroupView.SetCurrentOption(3) })
+
+	uitest.OnUI(t, app, func() { view.FilterView.SetText(`service("orders") AND responsetime > 5`) })
+
+	uitest.OnUI(t, app, func() {
+		if got := currentGroup(view.GroupView); got != "-" {
+			t.Errorf("group = %q, want none once the filter is changed", got)
+		}
+	})
+}
+
+func TestTraceGroupView__ReloadingKeepsThePickedGroupWhileItIsStillOne(t *testing.T) {
+	var api = xrayfake.New(xrayfake.WithGroups(newGroups()))
+	var view, app = newGroupsTest(t, api)
+	uitest.OnUI(t, app, func() { view.GroupView.SetCurrentOption(3) })
+	api.SetGroups(append(newGroups(), newGroup("billing", `service("billing")`)))
+
+	uitest.OnUI(t, app, func() { uitest.PressTableRune(view.TracesTable, core.APP_KEY_BINDINGS.Reset) })
+
+	uitest.Eventually(t, app, func() bool { return view.GroupView.GetOptionCount() == 5 }, "the new group to be listed")
+	uitest.OnUI(t, app, func() {
+		if got := currentGroup(view.GroupView); got != "slow-orders" {
+			t.Errorf("group = %q, want slow-orders kept", got)
+		}
+	})
+	api.SetGroups([]types.Group{newGroup("Default", "")})
+
+	uitest.OnUI(t, app, func() { uitest.PressTableRune(view.TracesTable, core.APP_KEY_BINDINGS.Reset) })
+
+	uitest.Eventually(t, app, func() bool { return view.GroupView.GetOptionCount() == 2 }, "the groups to be loaded again")
+	uitest.OnUI(t, app, func() {
+		if got := currentGroup(view.GroupView); got != "-" {
+			t.Errorf("group = %q, want none once slow-orders is gone", got)
+		}
+	})
+	// Loading the groups does not load the traces of one, so every load
+	// after the first, of picking slow-orders and the two resets, keeps its
+	// filter, which is still entered
+	uitest.Eventually(t, app, func() bool { return len(api.FiltersAskedFor()) == 4 }, "the traces of every load")
+	for _, got := range api.FiltersAskedFor()[1:] {
+		if got != `service("orders") AND responsetime > 2` {
+			t.Errorf("filter = %q, want that of slow-orders", got)
+		}
+	}
+}
+
+func TestTraceGroupView__ErrorLoadingTheGroupsIsShown(t *testing.T) {
+	var api = xrayfake.New()
+	var view, app = newRangeTest(t, api)
+	var callback, received = uitest.CaptureErrors()
+	uitest.OnUI(t, app, func() { view.GroupView.ErrorMessageCallback = callback })
+	api.SetErr(errors.New("AccessDeniedException: not allowed to get groups"))
+
+	uitest.OnUI(t, app, func() { view.GroupView.RefreshGroups() })
+
+	if got := uitest.AwaitError(t, received); !strings.Contains(got, "not allowed to get groups") {
+		t.Errorf("error = %q", got)
+	}
+}
