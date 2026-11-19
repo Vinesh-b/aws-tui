@@ -209,6 +209,8 @@ func TestTracesPage__SelectingATraceShowsItThenItsSegments(t *testing.T) {
 		{"s3", ""},
 		{"orders-api", "████████████████████ AWS::ApiGateway::Stage, 1.60s, 502"},
 		{"orders", "···████████████████· AWS::Lambda::Function, 1.25s, fault"},
+		{"HTTP"},
+		{"orders-api", "502"},
 	})
 }
 
@@ -1429,6 +1431,8 @@ func TestTraceIdView__EnteredTraceIdOpensTheTraceThatIsNotListed(t *testing.T) {
 		{"  Lambda", ""},
 		{"    orders", "···████████████████· AWS::Lambda::Function, 1.25s, fault"},
 		{"orders", "······█············· AWS::Lambda::Function, 100ms, error, throttle"},
+		{"HTTP"},
+		{"orders-api", "POST https://api.example.com/orders 502"},
 	})
 	if got := api.TracesAskedFor(); !slices.Contains(got, openedTraceId) {
 		t.Errorf("traces loaded = %q, want the one entered", got)
@@ -1736,5 +1740,81 @@ func TestAnalyticsPage__ResetAndTheRangeKeyLoadTheTracesAgain(t *testing.T) {
 	uitest.Eventually(t, app, func() bool { return len(api.WindowsAskedFor()) == 3 }, "the traces to be loaded three times")
 	if got := api.SpansAskedFor(); !slices.Equal(got, []time.Duration{time.Hour, 3 * time.Hour, 3 * time.Hour}) {
 		t.Errorf("spans = %v, want the hour, then 3 hours twice", got)
+	}
+}
+
+func TestSegmentTree__DataSectionsShowWhatEachSegmentHoldsInTheOrderTheyAreShown(t *testing.T) {
+	var segments = []types.Segment{
+		// The function is called from the subsegment of the API, so it is
+		// shown after the API and its subsegment, though it is given first
+		segmentOf("fn", `{"id":"fn","parent_id":"sub-lambda","name":"orders","start_time":10.2,"end_time":11.8,`+
+			`"annotations":{"customer":"c-42","total":99.5,"retried":false},`+
+			`"metadata":{"default":{"items":[{"sku":"a"}]},"debug":{"cold":true}},`+
+			`"aws":{"function_arn":"arn:aws:lambda:us-east-1:123456789012:function:orders",`+
+			`"xray":{"sdk":"X-Ray for Go"}},"subsegments":[`+
+			`{"id":"sub-put","name":"DynamoDB","start_time":10.4,"end_time":11.6,`+
+			`"aws":{"operation":"PutItem","table_name":"orders","request_id":"R1","retries":0}},`+
+			`{"id":"sub-http","name":"payments.example.com","start_time":10.5,"end_time":11,`+
+			`"http":{"request":{"method":"POST","url":"https://payments.example.com/charge"},"response":{"status":201}}}]}`),
+		segmentOf("api", `{"id":"api","name":"orders-api","start_time":10,"end_time":12,`+
+			`"annotations":{"stage":"prod"},`+
+			`"http":{"request":{"method":"POST","url":"https://api.example.com/orders"},"response":{"status":200}},`+
+			`"subsegments":[{"id":"sub-lambda","name":"Lambda","start_time":10.1,"end_time":11.9}]}`),
+	}
+
+	var got = newSegmentTree(segments).dataSections()
+
+	var want = []core.TableRow{
+		{"Annotations"},
+		{"orders-api: stage", "prod"},
+		{"orders: customer", "c-42"},
+		{"orders: retried", "false"},
+		{"orders: total", "99.5"},
+		{"Metadata"},
+		{"orders: debug", `{"cold":true}`},
+		{"orders: default", `{"items":[{"sku":"a"}]}`},
+		{"AWS"},
+		{"orders: function_arn", "arn:aws:lambda:us-east-1:123456789012:function:orders"},
+		{"DynamoDB: operation", "PutItem"},
+		{"DynamoDB: request_id", "R1"},
+		{"DynamoDB: retries", "0"},
+		{"DynamoDB: table_name", "orders"},
+		{"HTTP"},
+		{"orders-api", "POST https://api.example.com/orders 200"},
+		{"payments.example.com", "POST https://payments.example.com/charge 201"},
+	}
+	if !slices.EqualFunc(got, want, slices.Equal) {
+		t.Errorf("rows =\n%s\nwant\n%s", formatRows(got), formatRows(want))
+	}
+}
+
+func TestSegmentTree__SegmentWithoutDataHasNoDataSections(t *testing.T) {
+	var got = newSegmentTree([]types.Segment{
+		segmentOf("s1", `{"id":"s1","name":"orders","start_time":1,"end_time":2,"aws":{"xray":{"sdk":"X-Ray for Go"}}}`),
+	}).dataSections()
+
+	if len(got) != 0 {
+		t.Errorf("rows = %q, want none", got)
+	}
+}
+
+func TestSegmentTree__DataOfAnyShapeIsShownWithTheSegment(t *testing.T) {
+	var tree = newSegmentTree([]types.Segment{
+		segmentOf("s1", `{"id":"s1","name":"orders","start_time":1,"end_time":2,`+
+			`"metadata":{"default":"plain text","counts":[1,2]},"annotations":{"empty":null}}`),
+	})
+
+	if got := tree.rows(); len(got) != 1 || got[0][0] != "orders" {
+		t.Errorf("segment rows = %q, want the segment read whatever its metadata is", got)
+	}
+	var want = []core.TableRow{
+		{"Annotations"},
+		{"orders: empty", "null"},
+		{"Metadata"},
+		{"orders: counts", "[1,2]"},
+		{"orders: default", "plain text"},
+	}
+	if got := tree.dataSections(); !slices.EqualFunc(got, want, slices.Equal) {
+		t.Errorf("rows =\n%s\nwant\n%s", formatRows(got), formatRows(want))
 	}
 }

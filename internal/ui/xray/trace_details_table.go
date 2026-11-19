@@ -31,7 +31,13 @@ type segmentDocument struct {
 	Error      bool     `json:"error"`
 	Fault      bool     `json:"fault"`
 	Throttle   bool     `json:"throttle"`
-	Http       struct {
+	// Annotations are the values the segment is indexed by, and Metadata and
+	// Aws what the application and the X-Ray SDK added to it. Their values
+	// are of any json, so a document is read whatever is in them.
+	Annotations map[string]any `json:"annotations"`
+	Metadata    map[string]any `json:"metadata"`
+	Aws         map[string]any `json:"aws"`
+	Http        struct {
 		Request struct {
 			Method   string `json:"method"`
 			Url      string `json:"url"`
@@ -125,32 +131,41 @@ func byStart(documents []*segmentDocument) []*segmentDocument {
 	return sorted
 }
 
-// rows are the rows of the segments, each indented under the one it was
-// called from. Segments whose callers lead back to themselves, which no root
-// reaches, are shown at the top after the others, and each segment only once.
-func (inst segmentTree) rows() []core.TableRow {
-	var rows []core.TableRow
-	var shown = map[*segmentDocument]bool{}
+// walk visits the segments, each after the one it was called from, with how
+// deep it is under the top. Segments whose callers lead back to themselves,
+// which no root reaches, are visited at the top after the others, and each
+// segment only once.
+func (inst segmentTree) walk(visit func(document *segmentDocument, depth int)) {
+	var visited = map[*segmentDocument]bool{}
 
-	var add func(document *segmentDocument, depth int)
-	add = func(document *segmentDocument, depth int) {
-		if shown[document] {
+	var walk func(document *segmentDocument, depth int)
+	walk = func(document *segmentDocument, depth int) {
+		if visited[document] {
 			return
 		}
-		shown[document] = true
-		rows = append(rows, core.TableRow{strings.Repeat("  ", depth) + document.Name, inst.value(document)})
+		visited[document] = true
+		visit(document, depth)
 
 		var under = slices.Concat(document.Subsegments, inst.children[document.Id])
 		for _, child := range byStart(under) {
-			add(child, depth+1)
+			walk(child, depth+1)
 		}
 	}
 	for _, root := range byStart(inst.roots) {
-		add(root, 0)
+		walk(root, 0)
 	}
 	for _, segment := range byStart(inst.segments) {
-		add(segment, 0)
+		walk(segment, 0)
 	}
+}
+
+// rows are the rows of the segments, each indented under the one it was
+// called from
+func (inst segmentTree) rows() []core.TableRow {
+	var rows []core.TableRow
+	inst.walk(func(document *segmentDocument, depth int) {
+		rows = append(rows, core.TableRow{strings.Repeat("  ", depth) + document.Name, inst.value(document)})
+	})
 	return rows
 }
 
@@ -342,7 +357,9 @@ func (inst *TraceDetailsTable) populateDetailsTable() {
 
 		rawData = summary
 		if inst.trace != nil {
-			tableData = append(tableData, core.DetailsSection("Segments", newSegmentTree(inst.trace.Segments).rows()...)...)
+			var tree = newSegmentTree(inst.trace.Segments)
+			tableData = append(tableData, core.DetailsSection("Segments", tree.rows()...)...)
+			tableData = append(tableData, tree.dataSections()...)
 			rawData = rawTrace(summary, *inst.trace)
 		}
 	}
