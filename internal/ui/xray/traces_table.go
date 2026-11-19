@@ -3,6 +3,7 @@ package xray
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"time"
 
@@ -80,6 +81,10 @@ type TracesTable struct {
 	rangeChanged func(rangeIdx int, start, end time.Time)
 	// queryLogs is called to query the logs of the selected trace
 	queryLogs func()
+	// loaded are the traces loaded so far, all pages of them, and
+	// loadedChanged is called when they change
+	loaded        []types.TraceSummary
+	loadedChanged func()
 	// loads counts the reloads, so the traces of one that was replaced by
 	// another before they came are not shown
 	loads int
@@ -105,6 +110,8 @@ func NewTracesTable(
 		rangeIdx:   defaultTraceRangeIdx,
 		now:        time.Now,
 		queryLogs:  func() {},
+
+		loadedChanged: func() {},
 	}
 
 	table.HighlightSearch = true
@@ -152,7 +159,9 @@ func (inst *TracesTable) populateTracesTable(summaries []types.TraceSummary, res
 	}
 
 	if !reset {
+		inst.loaded = append(inst.loaded, summaries...)
 		inst.ExtendData(tableData, summaries)
+		inst.loadedChanged()
 		return
 	}
 
@@ -160,8 +169,31 @@ func (inst *TracesTable) populateTracesTable(summaries []types.TraceSummary, res
 	if len(summaries) == 0 {
 		inst.selectedTrace = types.TraceSummary{}
 	}
+	inst.loaded = slices.Clone(summaries)
 	inst.SetData(tableData, summaries, 0)
 	inst.Select(1, 0)
+	inst.loadedChanged()
+}
+
+// SetLoadedChangedFunc sets what is called when the traces loaded change,
+// which is when they are loaded again and when another page of them comes
+func (inst *TracesTable) SetLoadedChangedFunc(changed func()) {
+	inst.loadedChanged = changed
+}
+
+// LoadedTraces are the traces loaded so far, of all the pages loaded
+func (inst *TracesTable) LoadedTraces() []types.TraceSummary {
+	return slices.Clone(inst.loaded)
+}
+
+// RangeLabel is the name of the time range the traces are of
+func (inst *TracesTable) RangeLabel() string {
+	return traceRanges[inst.rangeIdx].label
+}
+
+// FilterExpression is the X-Ray filter expression the traces are found with
+func (inst *TracesTable) FilterExpression() string {
+	return inst.filter
 }
 
 // RefreshTraces loads the newest traces of the time range again, or the page

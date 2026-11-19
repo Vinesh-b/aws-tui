@@ -109,6 +109,42 @@ func NewTracesPageView(
 	}
 }
 
+type TraceAnalyticsPageView struct {
+	*core.ServicePageView
+	AnalyticsTable *TraceAnalyticsTable
+	DetailsTable   *TraceGroupDetailsTable
+}
+
+// NewTraceAnalyticsPageView groups the traces of the traces table, again each
+// time they are loaded
+func NewTraceAnalyticsPageView(
+	analyticsTable *TraceAnalyticsTable,
+	detailsTable *TraceGroupDetailsTable,
+	tracesTable *TracesTable,
+	serviceCtx *core.ServiceContext[awsapi.XRayApi],
+) *TraceAnalyticsPageView {
+	var serviceView = newDetailsPage(detailsTable, analyticsTable, [][]core.View{
+		{detailsTable},
+		{analyticsTable},
+	}, serviceCtx.AppContext)
+	var errorHandler = func(text string, a ...any) {
+		serviceView.DisplayMessage(core.ErrorPrompt, text, a...)
+	}
+	analyticsTable.ErrorMessageCallback = errorHandler
+	detailsTable.ErrorMessageCallback = errorHandler
+
+	analyticsTable.SetSelectionChangedFunc(func(row, column int) {
+		detailsTable.SetGroup(analyticsTable.GetSelectedGroup())
+	})
+	tracesTable.SetLoadedChangedFunc(analyticsTable.Refresh)
+
+	return &TraceAnalyticsPageView{
+		ServicePageView: serviceView,
+		AnalyticsTable:  analyticsTable,
+		DetailsTable:    detailsTable,
+	}
+}
+
 type ServiceMapPageView struct {
 	*core.ServicePageView
 	ServicesTable *ServiceMapTable
@@ -179,6 +215,7 @@ func NewSamplingRulesPageView(
 // The pages of the service
 const (
 	xRayPageTraces = iota
+	xRayPageAnalytics
 	xRayPageServiceMap
 	xRayPageSamplingRules
 )
@@ -202,6 +239,12 @@ func NewXRayHomeView(appCtx *core.AppContext, api awsapi.XRayApi) core.ServicePa
 			NewTraceDetailsTable(serviceCtx),
 			serviceCtx,
 		)
+		analyticsView = NewTraceAnalyticsPageView(
+			NewTraceAnalyticsTable(tracesView.TracesTable, appCtx),
+			NewTraceGroupDetailsTable(appCtx),
+			tracesView.TracesTable,
+			serviceCtx,
+		)
 		serviceMapView = NewServiceMapPageView(
 			NewServiceMapTable(serviceCtx),
 			NewServiceDetailsTable(appCtx),
@@ -218,10 +261,23 @@ func NewXRayHomeView(appCtx *core.AppContext, api awsapi.XRayApi) core.ServicePa
 
 	serviceRootView.
 		AddAndSwitchToPage("Traces", tracesView, true).
+		AddPage("Analytics", analyticsView, true, true).
 		AddPage("Service Map", serviceMapView, true, true).
 		AddPage("Sampling Rules", rulesView, true, true)
 
 	serviceRootView.InitPageNavigation()
+
+	// A group shows its traces, found with the filter for it
+	analyticsView.AnalyticsTable.SetSelectedFunc(func(row, column int) {
+		var filter, err = analyticsView.AnalyticsTable.GetSelectedGroup().filterExpression()
+		if err != nil {
+			analyticsView.AnalyticsTable.ErrorMessageCallback("%s", err.Error())
+			return
+		}
+		tracesView.FilterView.SetText(filter)
+		tracesView.FilterView.ApplyFilter()
+		serviceRootView.ChangePage(xRayPageTraces, nil)
+	})
 
 	serviceRootView.SetResourceOpener("xray", isOpenableSamplingRule, func(resource arn.ARN) {
 		serviceRootView.ChangePage(xRayPageSamplingRules, nil)

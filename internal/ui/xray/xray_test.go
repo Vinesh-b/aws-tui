@@ -2,6 +2,7 @@ package xray
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -1271,7 +1272,7 @@ func TestHomeView__OpeningASamplingRuleShowsItsPage(t *testing.T) {
 		if got := root.CurrentServicePage(); got != "Sampling Rules" {
 			t.Errorf("page = %q, want Sampling Rules", got)
 		}
-		if got := root.ServicePages(); !slices.Equal(got, []string{"Traces", "Service Map", "Sampling Rules"}) {
+		if got := root.ServicePages(); !slices.Equal(got, []string{"Traces", "Analytics", "Service Map", "Sampling Rules"}) {
 			t.Errorf("pages = %q", got)
 		}
 	})
@@ -1541,5 +1542,199 @@ func TestTracesPage__QueryKeyOpensTheLogsOfTheTraceOpenedById(t *testing.T) {
 	}
 	if !strings.Contains(calls[0].Query, openedTraceId) {
 		t.Errorf("query = %q, want it to find the opened trace", calls[0].Query)
+	}
+}
+
+// analyticsSummary is a trace of the URL that took the time and ended with
+// the status, with only what went wrong of fault, error and throttle
+func analyticsSummary(id, method, url string, seconds float64, status int32, fault, err, throttle bool) types.TraceSummary {
+	var summary = withOutcome(newSummary(id, url, 30), fault, err, throttle)
+	summary.ResponseTime = aws.Float64(seconds)
+	summary.Http.HttpMethod = aws.String(method)
+	summary.Http.HttpStatus = aws.Int32(status)
+	return summary
+}
+
+// newAnalyticsTraces are four traces of POST /orders, one of which faulted
+// and one of which was throttled, two of GET /orders and one of POST /carts
+func newAnalyticsTraces() []types.TraceSummary {
+	return []types.TraceSummary{
+		analyticsSummary("t1", "POST", "/orders", 0.1, 200, false, false, false),
+		analyticsSummary("t2", "GET", "/orders", 0.05, 200, false, false, false),
+		analyticsSummary("t3", "POST", "/orders", 0.3, 502, true, false, false),
+		analyticsSummary("t4", "POST", "/carts", 0.2, 200, false, false, false),
+		analyticsSummary("t5", "POST", "/orders", 2, 429, false, true, true),
+		analyticsSummary("t6", "GET", "/orders", 0.07, 200, false, false, false),
+		analyticsSummary("t7", "POST", "/orders", 0.2, 200, false, false, false),
+	}
+}
+
+func TestGroupTraces__GroupsByEntryPointMethodAndUrlTheBiggestFirst(t *testing.T) {
+	var groups = groupTraces(newAnalyticsTraces())
+
+	var got []string
+	for _, group := range groups {
+		var stats = group.stats
+		got = append(got, fmt.Sprintf("%s %s %s: %d traces, %d ok, %d errors, %d throttles, %d faults, avg %s, p50 %s, max %s",
+			group.entryPoint, group.method, group.url, len(group.traces), stats.ok, stats.errors, stats.throttles,
+			stats.faults, stats.average(), stats.percentile(0.5), stats.percentile(1)))
+	}
+	var want = []string{
+		"orders-api POST /orders: 4 traces, 2 ok, 1 errors, 1 throttles, 1 faults, avg 650ms, p50 200ms, max 2.00s",
+		"orders-api GET /orders: 2 traces, 2 ok, 0 errors, 0 throttles, 0 faults, avg 60ms, p50 50ms, max 70ms",
+		"orders-api POST /carts: 1 traces, 1 ok, 0 errors, 0 throttles, 0 faults, avg 200ms, p50 200ms, max 200ms",
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("groups =\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+func TestTraceGroupFilterExpression(t *testing.T) {
+	for _, test := range []struct {
+		group traceGroup
+		want  string
+	}{
+		{traceGroup{entryPoint: "orders-api", method: "POST", url: "https://api.example.com/orders"},
+			`http.url = "https://api.example.com/orders" AND http.method = "POST"`},
+		{traceGroup{entryPoint: "orders-api", url: `https://api.example.com/a"b\c`},
+			`http.url = "https://api.example.com/a\"b\\c"`},
+		{traceGroup{entryPoint: "orders-worker"}, `service("orders-worker")`},
+	} {
+		if got, err := test.group.filterExpression(); err != nil || got != test.want {
+			t.Errorf("filter of %+v = %q, %v, want %q", test.group, got, err, test.want)
+		}
+	}
+	if _, err := (traceGroup{}).filterExpression(); err == nil {
+		t.Error("a group without a URL or entry point has a filter")
+	}
+}
+
+// withAnalyticsTraces gives the segments of the traces of the analytics, so
+// that the trace the list selects loads without an error
+func withAnalyticsTraces() []xrayfake.Option {
+	var options []xrayfake.Option
+	for _, summary := range newAnalyticsTraces() {
+		options = append(options, xrayfake.WithTrace(newTrace(aws.ToString(summary.Id))))
+	}
+	return options
+}
+
+// newAnalyticsTest is the home view on the page of the analytics, with the
+// traces loaded, which are as many as loaded tells
+func newAnalyticsTest(
+	t *testing.T, api *xrayfake.Api, loaded int,
+) (*core.ServiceRootView, *tview.Application, tcell.SimulationScreen) {
+	t.Helper()
+	var appCtx = uitest.NewAppContext()
+	var root = NewXRayHomeView(appCtx, api).(*core.ServiceRootView)
+	var screen = uitest.ShowPage(t, appCtx.App, root)
+	uitest.PressRune(t, appCtx.App, core.APP_KEY_BINDINGS.Reset)
+	uitest.OnUI(t, appCtx.App, func() {
+		root.ShowServicePage("Analytics")
+		appCtx.App.SetFocus(root.GetLastFocusedView())
+	})
+	uitest.AwaitScreenText(t, appCtx.App, screen, fmt.Sprintf("Last hour, %d traces", loaded))
+	return root, appCtx.App, screen
+}
+
+func TestAnalyticsPage__GroupsTheLoadedTracesAndTheNextPageOfThem(t *testing.T) {
+	var traces = newAnalyticsTraces()
+	var api = xrayfake.New(append(withAnalyticsTraces(), xrayfake.WithTracePages(traces[:4], traces[4:]))...)
+	var root, app, screen = newAnalyticsTest(t, api, 4)
+
+	// Moving past the last trace listed loads the next page of them
+	uitest.OnUI(t, app, func() {
+		root.ShowServicePage("Traces")
+		app.SetFocus(root.GetLastFocusedView())
+	})
+	for range 4 {
+		uitest.PressKey(t, app, tcell.KeyDown)
+	}
+	uitest.AwaitScreenText(t, app, screen, "/orders")
+	uitest.Eventually(t, app, func() bool { return len(api.WindowsAskedFor()) == 2 }, "the next page to be loaded")
+	uitest.OnUI(t, app, func() { root.ShowServicePage("Analytics") })
+
+	uitest.AwaitScreenText(t, app, screen, "Last hour, 7 traces")
+}
+
+func TestAnalyticsTable__ShowsTheGroupsOfTheLoadedTraces(t *testing.T) {
+	var serviceCtx = uitest.NewServiceContextWith[awsapi.XRayApi](xrayfake.New(
+		xrayfake.WithTracePages(newAnalyticsTraces()),
+	))
+	var traces = NewTracesTable(serviceCtx)
+	var view = NewTraceAnalyticsPageView(
+		NewTraceAnalyticsTable(traces, serviceCtx.AppContext), NewTraceGroupDetailsTable(serviceCtx.AppContext),
+		traces, serviceCtx,
+	)
+	uitest.RunApp(t, serviceCtx.App)
+
+	uitest.OnUI(t, serviceCtx.App, func() { traces.SetFilterExpression("fault") })
+
+	uitest.AwaitRows(t, serviceCtx.App, view.AnalyticsTable, []core.TableRow{
+		{"Entry Point", "Method", "URL", "Traces", "Errors", "Faults", "Average", "p50", "p99"},
+		{"orders-api", "POST", "/orders", "4", "25.0%", "25.0%", "650ms", "200ms", "2.00s"},
+		{"orders-api", "GET", "/orders", "2", "0.0%", "0.0%", "60ms", "50ms", "70ms"},
+		{"orders-api", "POST", "/carts", "1", "0.0%", "0.0%", "200ms", "200ms", "200ms"},
+	})
+	uitest.OnUI(t, serviceCtx.App, func() {
+		if title := view.AnalyticsTable.GetTitle(); !strings.Contains(title, "Last hour, 7 traces, filtered") {
+			t.Errorf("title = %q, want the range, the count and that they are filtered", title)
+		}
+	})
+	uitest.AwaitDetailsRows(t, serviceCtx.App, view.DetailsTable.DetailsTable, []core.TableRow{
+		{"Entry Point", "orders-api"},
+		{"Method", "POST"},
+		{"URL", "/orders"},
+		{"Traces", "4"},
+		{"OK", "2"},
+		{"Errors", "1 (25.0%)"},
+		{"Throttles", "1 (25.0%)"},
+		{"Faults", "1 (25.0%)"},
+		{"Average", "650ms"},
+		{"p50", "200ms"},
+		{"p90", "2.00s"},
+		{"p99", "2.00s"},
+		{"Max", "2.00s"},
+		{"Statuses"},
+		{"200", "2"},
+		{"429", "1"},
+		{"502", "1"},
+		{"Slowest Traces"},
+		{"t5", "2.00s, 2026-11-14 09:30:00"},
+		{"t3", "300ms, 2026-11-14 09:30:00"},
+		{"t7", "200ms, 2026-11-14 09:30:00"},
+		{"t1", "100ms, 2026-11-14 09:30:00"},
+	})
+}
+
+func TestAnalyticsPage__EnterShowsTheTracesOfTheGroup(t *testing.T) {
+	var api = xrayfake.New(append(withAnalyticsTraces(), xrayfake.WithTracePages(newAnalyticsTraces()))...)
+	var root, app, _ = newAnalyticsTest(t, api, 7)
+
+	uitest.PressKey(t, app, tcell.KeyDown)
+	uitest.PressKey(t, app, tcell.KeyEnter)
+
+	uitest.Eventually(t, app, func() bool { return len(api.FiltersAskedFor()) == 2 }, "the traces of the group to be loaded")
+	if got := api.FiltersAskedFor()[1]; got != `http.url = "/orders" AND http.method = "GET"` {
+		t.Errorf("filter = %q, want that of GET /orders", got)
+	}
+	uitest.OnUI(t, app, func() {
+		if got := root.CurrentServicePage(); got != "Traces" {
+			t.Errorf("page = %q, want Traces", got)
+		}
+	})
+}
+
+func TestAnalyticsPage__ResetAndTheRangeKeyLoadTheTracesAgain(t *testing.T) {
+	var api = xrayfake.New(append(withAnalyticsTraces(), xrayfake.WithTracePages(newAnalyticsTraces()))...)
+	var _, app, screen = newAnalyticsTest(t, api, 7)
+
+	uitest.PressRune(t, app, core.APP_KEY_BINDINGS.TimeRange)
+	uitest.AwaitScreenText(t, app, screen, "Last 3 hours, 7 traces")
+	uitest.PressRune(t, app, core.APP_KEY_BINDINGS.Reset)
+
+	uitest.Eventually(t, app, func() bool { return len(api.WindowsAskedFor()) == 3 }, "the traces to be loaded three times")
+	if got := api.SpansAskedFor(); !slices.Equal(got, []time.Duration{time.Hour, 3 * time.Hour, 3 * time.Hour}) {
+		t.Errorf("spans = %v, want the hour, then 3 hours twice", got)
 	}
 }
